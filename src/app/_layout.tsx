@@ -1,18 +1,41 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+// Prevent splash screen from auto-hiding before navigation is ready
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-SplashScreen.preventAutoHideAsync();
+export default function RootLayout() {
+  useEffect(() => {
+    // Hide native splash screen on Android/iOS once layout mounts
+    const dismissSplash = async () => {
+      try {
+        await SplashScreen.hideAsync();
+      } catch (e) {
+        // ignore if already hidden
+      }
+    };
+    dismissSplash();
+  }, []);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <>
+      <StatusBar style="light" />
+      <Stack
+        initialRouteName="index"
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#0E0F13' },
+          animation: 'slide_from_right',
+        }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="auth/index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />
+        <Stack.Screen name="safe-date/index" options={{ headerShown: false }} />
+      </Stack>
+    </>
   );
 }

@@ -8,6 +8,7 @@ import {
   Image,
   Modal,
   PanResponder,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,7 @@ import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { ActionType, CandidateCard, ContextType } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
+import { FEATURE_FLAGS } from '@/config/features';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
@@ -101,14 +103,11 @@ export default function DiscoveryScreen() {
   const loadFeed = async () => {
     try {
       const feed = await api.getFeed();
-      const list =
-        feed?.candidates && Array.isArray(feed.candidates) && feed.candidates.length > 0
-          ? feed.candidates
-          : api.getAllCandidates();
+      const list = feed?.candidates && Array.isArray(feed.candidates) ? feed.candidates : [];
       setCandidates(list);
       setRemainingSwipes(feed?.remainingDailySwipes || 25);
     } catch (e) {
-      setCandidates(api.getAllCandidates());
+      setCandidates([]);
       setRemainingSwipes(25);
     } finally {
       setLoading(false);
@@ -321,22 +320,20 @@ function SwipeableCandidateCard({
         ]}>
         {/* Animated Visual LIKE Stamp on Right Swipe */}
         <Animated.View
-          pointerEvents="none"
           style={[
             styles.stampBadge,
             styles.likeBadge,
-            { opacity: likeStampOpacity },
+            { opacity: likeStampOpacity, pointerEvents: 'none' },
           ]}>
           <Text style={styles.likeBadgeText}>LIKE ❤️</Text>
         </Animated.View>
 
         {/* Animated Visual PASS Stamp on Left Swipe */}
         <Animated.View
-          pointerEvents="none"
           style={[
             styles.stampBadge,
             styles.passBadge,
-            { opacity: passStampOpacity },
+            { opacity: passStampOpacity, pointerEvents: 'none' },
           ]}>
           <Text style={styles.passBadgeText}>PASS ✕</Text>
         </Animated.View>
@@ -356,13 +353,17 @@ function SwipeableCandidateCard({
 
           {/* Top Badges Overlaid on Photo */}
           <View style={styles.photoTopRow}>
-            {item.isDigilockerVerified ? (
+            {FEATURE_FLAGS.ENABLE_DIGILOCKER && item.isDigilockerVerified ? (
               <View style={styles.goldVerifiedPill}>
                 <Text style={styles.goldVerifiedPillText}>✓ DigiLocker Verified</Text>
               </View>
+            ) : item.livenessScore >= 0.85 ? (
+              <View style={[styles.goldVerifiedPill, { borderColor: '#00E5FF', backgroundColor: 'rgba(0, 229, 255, 0.15)' }]}>
+                <Text style={[styles.goldVerifiedPillText, { color: '#00E5FF' }]}>✓ 3D Liveness Verified</Text>
+              </View>
             ) : (
               <View style={styles.photoCountPill}>
-                <Text style={styles.photoCountPillText}>SwipeAI Safe</Text>
+                <Text style={styles.photoCountPillText}>Blunderr Safe</Text>
               </View>
             )}
 
@@ -489,7 +490,7 @@ function SwipeableCandidateCard({
       {/* Top App Bar */}
       <View style={styles.brandBar}>
         <View style={styles.brandTitleWrap}>
-          <Text style={styles.brandLogo}>SwipeAI</Text>
+          <Text style={styles.brandLogo}>Blunderr Dating</Text>
           <View style={styles.liveIndicator}>
             <View style={styles.liveGreenDot} />
             <Text style={styles.liveText}>
@@ -584,11 +585,11 @@ function SwipeableCandidateCard({
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>🎉</Text>
               <Text style={styles.emptyTitle}>
-                {candidates.length === 0 ? 'You’ve Reviewed All Profiles!' : 'No Profiles in this Category'}
+                {candidates.length === 0 ? "You're All Caught Up!" : 'No Profiles in this Category'}
               </Text>
               <Text style={styles.emptySub}>
                 {candidates.length === 0
-                  ? 'Great job! You have explored all profiles in today’s deck. Tap below to reload the 10 profiles anytime.'
+                  ? 'Check back soon for new verified singles in your area, or adjust your match distance and filters.'
                   : 'Try selecting "All Profiles" to explore the remaining verified singles.'}
               </Text>
               <TouchableOpacity
@@ -600,7 +601,7 @@ function SwipeableCandidateCard({
                   }
                 }}>
                 <Text style={styles.resetFilterBtnText}>
-                  {candidates.length === 0 ? '🔄 Reload 10 Profiles' : 'Show All Profiles'}
+                  {candidates.length === 0 ? '🔄 Check for New Profiles' : 'Show All Profiles'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -843,11 +844,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#262836',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.45,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.45)',
+      },
+      default: {
+        elevation: 6,
+        shadowColor: '#000',
+        shadowOpacity: 0.45,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 10,
+      },
+    }),
     justifyContent: 'space-between',
   },
   heroTouchWrap: {
@@ -1166,11 +1174,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 24,
     zIndex: 9999,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.5)',
+      },
+      default: {
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+      },
+    }),
   },
   toastText: {
     color: '#ffffff',
@@ -1185,11 +1200,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 14,
     borderWidth: 3,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.5)',
+      },
+      default: {
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.5,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 8,
+      },
+    }),
   },
   likeBadge: {
     left: 20,

@@ -31,6 +31,7 @@ export interface UserProfile {
   fullName?: string;
   bio?: string;
   age: number;
+  birthDate?: string;
   gender: Gender;
   intent: DatingIntent;
   digilockerVerified: boolean;

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CandidateCard, DietaryPreference, LivingStatus } from '@/types';
+import { FEATURE_FLAGS } from '@/config/features';
 
 const { width } = Dimensions.get('window');
 
@@ -91,7 +92,11 @@ export default function ProfileDetailModal({
           <View style={styles.headerTitleBox}>
             <Text style={styles.headerTitle}>{candidate.displayName}'s Profile</Text>
             <Text style={styles.headerSub}>
-              {candidate.isDigilockerVerified ? '🛡️ DigiLocker Verified' : 'VibeCheck Pass'}
+              {FEATURE_FLAGS.ENABLE_DIGILOCKER && candidate.isDigilockerVerified
+                ? '🛡️ DigiLocker Verified'
+                : candidate.livenessScore >= 0.85
+                ? '👤 3D Liveness Verified'
+                : 'VibeCheck Pass'}
             </Text>
           </View>
           <View style={styles.headerRightSpacer} />
@@ -112,7 +117,7 @@ export default function ProfileDetailModal({
                 <View key={idx} style={styles.photoSlide}>
                   <Image source={{ uri: photoUrl }} style={styles.carouselImg} resizeMode="cover" />
                   <Text style={styles.watermarkOverlay}>
-                    SwipeAI • ID {candidate.userId.substring(0, 6)} • Photo {idx + 1}/{photos.length}
+                    Blunderr Dating • ID {candidate.userId.substring(0, 6)} • Photo {idx + 1}/{photos.length}
                   </Text>
                 </View>
               ))}
@@ -137,9 +142,11 @@ export default function ProfileDetailModal({
               <Text style={styles.displayName}>
                 {candidate.fullName || candidate.displayName}, {candidate.age}
               </Text>
-              {candidate.isDigilockerVerified && (
+              {((FEATURE_FLAGS.ENABLE_DIGILOCKER && candidate.isDigilockerVerified) || candidate.livenessScore >= 0.85) && (
                 <View style={styles.goldBadge}>
-                  <Text style={styles.goldBadgeText}>🛡️ VERIFIED</Text>
+                  <Text style={styles.goldBadgeText}>
+                    {FEATURE_FLAGS.ENABLE_DIGILOCKER && candidate.isDigilockerVerified ? '🛡️ VERIFIED' : '👤 VERIFIED'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -393,7 +400,9 @@ export default function ProfileDetailModal({
             <View style={{ flex: 1 }}>
               <Text style={styles.trustTitle}>100% Zero-Knowledge Authenticated</Text>
               <Text style={styles.trustSub}>
-                DigiLocker Age 18+ verified • 3D Biometric Liveness score: {Math.round(candidate.livenessScore * 100)}%
+                {FEATURE_FLAGS.ENABLE_DIGILOCKER
+                  ? `DigiLocker Age 18+ verified • 3D Biometric Liveness score: ${Math.round(candidate.livenessScore * 100)}%`
+                  : `3D Biometric Liveness score: ${Math.round(candidate.livenessScore * 100)}% • Real Human Verified`}
               </Text>
             </View>
           </View>

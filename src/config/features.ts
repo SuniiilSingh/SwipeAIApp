@@ -1,0 +1,26 @@
+/**
+ * Blunderr Dating Application Feature Flags
+ * Controls feature rollouts across production and development builds.
+ */
+export const FEATURE_FLAGS = {
+  /**
+   * DigiLocker Government ID verification.
+   * Disabled for current deployment build.
+   */
+  ENABLE_DIGILOCKER: false,
+
+  /**
+   * 3D Biometric Liveness Verification (Active with Camera Movement Recording).
+   */
+  ENABLE_LIVENESS: true,
+
+  /**
+   * Shadow Shield Relative & Boss Privacy Hashing.
+   */
+  ENABLE_SHADOW_SHIELD: true,
+
+  /**
+   * UPI Micro-Sachet Store & Instant Orders.
+   */
+  ENABLE_UPI_PAYMENTS: true,
+};

@@ -33,13 +33,15 @@ export default function IcebreakerScreen() {
     setLoading(true);
     const m = await api.getMatchDetails(matchId);
     setMatch(m);
-    setQuiz(m.icebreakerQuiz || null);
+    if (m) {
+      setQuiz(m.icebreakerQuiz || null);
 
-    if (m.icebreakerQuiz?.isCompleted) {
-      setIsAnswered(true);
-      setSelectedOption(m.icebreakerQuiz.userAAnswer ?? 0);
-      const sparksRes = await api.getWingmanSparks(matchId);
-      setWingmanSparks(sparksRes.sparks || []);
+      if (m.icebreakerQuiz?.isCompleted) {
+        setIsAnswered(true);
+        setSelectedOption(m.icebreakerQuiz.userAAnswer ?? 0);
+        const sparksRes = await api.getWingmanSparks(matchId);
+        setWingmanSparks(sparksRes.sparks || []);
+      }
     }
     setLoading(false);
   };

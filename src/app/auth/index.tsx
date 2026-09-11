@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
+  AppStateStatus,
   Linking,
   Modal,
   Platform,
@@ -15,26 +17,33 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { api } from '@/services/api';
 import { DatingIntent } from '@/types';
+import LivenessCameraModal from '@/components/liveness-camera-modal';
+import { FEATURE_FLAGS } from '@/config/features';
 
 export default function AuthScreen() {
   const router = useRouter();
 
   // Step state
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [phone, setPhone] = useState('+91 98765 43210');
+  const [phone, setPhone] = useState('+91 89106 53499');
   const [otp, setOtp] = useState('');
+  const [expectedOtpLength, setExpectedOtpLength] = useState<number>(6);
   const [loading, setLoading] = useState(false);
+  const [authChannel, setAuthChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [whatsappVerified, setWhatsappVerified] = useState(false);
 
   // WhatsApp Detection State
   const [isWhatsAppDetected, setIsWhatsAppDetected] = useState<boolean | null>(null);
   const [isCheckingWhatsApp, setIsCheckingWhatsApp] = useState(true);
 
-  // SMS Auto-Detect State
+  // OTP Auto-Detect State
   const [otpSent, setOtpSent] = useState(false);
   const [isAutoDetectingOtp, setIsAutoDetectingOtp] = useState(false);
   const [autoDetectedSuccess, setAutoDetectedSuccess] = useState(false);
+  const [otpFeedbackMsg, setOtpFeedbackMsg] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
   const otpInputRef = useRef<TextInput>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -55,12 +64,61 @@ export default function AuthScreen() {
   // Modals
   const [showDigiLockerModal, setShowDigiLockerModal] = useState(false);
   const [showLivenessModal, setShowLivenessModal] = useState(false);
-  const [livenessScanning, setLivenessScanning] = useState(false);
 
-  // Check WhatsApp App Availability on Device
+  // Check WhatsApp App Availability and Existing Onboarding Status
   useEffect(() => {
     checkWhatsAppInstalled();
+    checkExistingStatus();
   }, []);
+
+  const checkExistingStatus = async () => {
+    try {
+      await api.initAuth();
+      const token = api.getAuthToken();
+      if (!token) return;
+
+      const isCompleted = await api.isOnboardingCompleted();
+      if (isCompleted) {
+        router.replace('/(tabs)');
+        return;
+      }
+
+      const profile = await api.getMyProfile();
+      const isPhoneOrWa = Boolean(profile.whatsappVerified || profile.phoneE164);
+      const isLiveness = Boolean((profile.livenessScore && profile.livenessScore >= 0.85) || profile.digilockerVerified);
+      const hasIntent = Boolean(profile.intent);
+
+      if (isPhoneOrWa && isLiveness && hasIntent) {
+        await api.setOnboardingCompleted(true);
+        router.replace('/(tabs)');
+        return;
+      }
+
+      if (profile.phoneE164) {
+        setPhone(profile.phoneE164);
+      }
+      if (profile.whatsappVerified) {
+        setWhatsappVerified(true);
+      }
+      if (profile.digilockerVerified) {
+        setDigilockerVerified(true);
+      }
+      if (profile.livenessScore && profile.livenessScore >= 0.85) {
+        setLivenessDone(true);
+        setLivenessScore(profile.livenessScore);
+      }
+      if (profile.intent) {
+        setIntent(profile.intent);
+      }
+
+      // Automatically advance to the incomplete step
+      if (isPhoneOrWa && isLiveness) {
+        setStep(3);
+      } else if (isPhoneOrWa) {
+        setStep(2);
+      }
+    } catch (e) {}
+  };
 
   const checkWhatsAppInstalled = async () => {
     setIsCheckingWhatsApp(true);
@@ -101,12 +159,12 @@ export default function AuthScreen() {
           Animated.timing(pulseAnim, {
             toValue: 1.08,
             duration: 600,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
             duration: 600,
-            useNativeDriver: true,
+            useNativeDriver: Platform.OS !== 'web',
           }),
         ])
       ).start();
@@ -115,55 +173,111 @@ export default function AuthScreen() {
     }
   }, [isAutoDetectingOtp]);
 
-  // Send SMS OTP with Auto-Detection
-  const handleSendOtp = async () => {
+  // Real-time Clipboard Auto-Detection Effect:
+  // When an SMS arrives on Android or iOS, tapping "Copy code" in the notification shade
+  // or copying the SMS automatically triggers instant detection and auto-fill!
+  useEffect(() => {
+    let timer: any;
+    if (isAutoDetectingOtp) {
+      const checkClipboardForOtp = async () => {
+        try {
+          const content = await Clipboard.getStringAsync();
+          if (content) {
+            const regex = expectedOtpLength === 6 ? /\b\d{6}\b/ : /\b\d{4}\b/;
+            const match = content.match(regex);
+            if (match && match[0] && match[0] !== otp && match[0].length === expectedOtpLength) {
+              const detected = match[0];
+              setOtp(detected);
+              setIsAutoDetectingOtp(false);
+              setAutoDetectedSuccess(true);
+              setTimeout(() => {
+                handleVerifyOtp(detected);
+              }, 400);
+            }
+          }
+        } catch (e) {}
+      };
+
+      checkClipboardForOtp();
+      timer = setInterval(checkClipboardForOtp, 800);
+
+      const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+        if (nextState === 'active') {
+          checkClipboardForOtp();
+        }
+      });
+
+      return () => {
+        if (timer) clearInterval(timer);
+        subscription.remove();
+      };
+    }
+  }, [isAutoDetectingOtp, expectedOtpLength, otp]);
+
+  const handleOpenWhatsApp = async () => {
+    try {
+      const url = 'whatsapp://';
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        await Linking.openURL('https://web.whatsapp.com');
+      }
+    } catch (e) {
+      Alert.alert('Open WhatsApp', 'Please switch to WhatsApp to view your verification code.');
+    }
+  };
+
+  // Send OTP via live API (WhatsApp or SMS channel)
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = authChannel) => {
     setLoading(true);
+    setAuthChannel(channel);
     setAutoDetectedSuccess(false);
+    setOtpFeedbackMsg(null);
     setOtp('');
-    const res = await api.sendOtp(phone);
-    setLoading(false);
-    setOtpSent(true);
-    setResendTimer(30);
-    setIsAutoDetectingOtp(true);
-
-    const receivedCode = res.demoOtp || '1234';
-
-    // Auto-detect OTP listener simulation / native hook
-    setTimeout(() => {
+    try {
+      const res = await api.sendOtp(phone, channel);
+      setLoading(false);
+      setOtpSent(true);
+      setResendTimer(30);
+      setIsAutoDetectingOtp(true);
+      const codeLen = (res && (res.otpLength === 4 || res.otpLength === 6)) ? res.otpLength : 6;
+      setExpectedOtpLength(codeLen);
+      const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+      setOtpFeedbackMsg(res.message || `OTP sent via ${channelLabel}`);
+      setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 200);
+    } catch (e: any) {
+      setLoading(false);
       setIsAutoDetectingOtp(false);
-      setAutoDetectedSuccess(true);
-      setOtp(receivedCode);
-
-      // Auto-verify and proceed seamlessly after auto-detection
-      setTimeout(async () => {
-        await handleVerifyOtp(receivedCode);
-      }, 600);
-    }, 1400);
+      const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+      Alert.alert(`${channelLabel} Error`, e.message || `Could not send OTP.`);
+    }
   };
 
   const handleVerifyOtp = async (codeToVerify?: string) => {
-    const finalOtp = codeToVerify || otp || '1234';
-    setLoading(true);
-    await api.verifyOtp(phone, finalOtp);
-    setLoading(false);
-    setStep(2); // Move to Trust Pass KYC
-  };
-
-  const handleWhatsAppAuth = async () => {
+    const finalOtp = (codeToVerify || otp).trim();
+    if (!finalOtp || finalOtp.length < expectedOtpLength) {
+      Alert.alert('Enter Code', `Enter the ${expectedOtpLength}-digit code.`);
+      return;
+    }
     setLoading(true);
     try {
-      // If WhatsApp is detected on device, trigger WhatsApp deep link verification
-      if (isWhatsAppDetected) {
-        Linking.openURL(`whatsapp://send?phone=+919876543210&text=Verify%20my%20SwipeAI%20Account`).catch(() => {});
+      const res = await api.verifyOtp(phone, finalOtp, authChannel);
+      setLoading(false);
+      if (res?.whatsappVerified || authChannel === 'whatsapp') {
+        setWhatsappVerified(true);
       }
-      await api.loginWhatsApp(phone);
+      setStep(2); // Move to Trust Pass KYC
+    } catch (e: any) {
       setLoading(false);
-      setStep(2);
-    } catch (e) {
-      await api.loginWhatsApp(phone);
-      setLoading(false);
-      setStep(2);
+      Alert.alert('Verification Failed', e.message || 'Invalid or expired OTP.');
     }
+  };
+
+  const handleWhatsAppAuth = () => {
+    handleSendOtp('whatsapp');
   };
 
   const handleDigiLockerConfirm = async () => {
@@ -175,26 +289,37 @@ export default function AuthScreen() {
     Alert.alert('Gold Shield Awarded! 🛡️', res.message);
   };
 
-  const handleStartLivenessScan = () => {
-    setLivenessScanning(true);
-    setTimeout(async () => {
-      setLivenessScanning(false);
-      await api.verifyLiveness();
-      setLivenessDone(true);
-      setShowLivenessModal(false);
-      Alert.alert('3D Liveness Verified ✓', 'Zero Deepfake detected. Verified live human!');
-    }, 2500);
+  const handleLivenessSuccess = async (score: number) => {
+    setLivenessScore(score);
+    setLivenessDone(true);
+    try {
+      await api.verifyLiveness(3000);
+    } catch (err) {
+      console.warn('Liveness verification error:', err);
+    }
+    Alert.alert(
+      '3D Liveness Verified ✓',
+      `Zero Deepfake detected. Verified live human! Score: ${Math.round(score * 100)}%`
+    );
   };
 
   const handleSaveShieldAndIntent = async () => {
     setLoading(true);
-    if (corpDomain) {
-      await api.setCorporateDomain(corpDomain);
+    try {
+      if (corpDomain) {
+        await api.setCorporateDomain(corpDomain);
+      }
+      if (blockContacts) {
+        await api.syncContacts(['+919876500001', '+919876500002']);
+      }
+      await api.updateMyProfile({ intent, digilockerVerified });
+      await api.setOnboardingCompleted(true);
+      setLoading(false);
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      setLoading(false);
+      Alert.alert('Error', e.message || 'Failed to save settings');
     }
-    await api.syncContacts(['+919876500001', '+919876500002']);
-    await api.updateMyProfile({ intent, digilockerVerified });
-    setLoading(false);
-    router.replace('/(tabs)');
   };
 
   return (
@@ -203,7 +328,7 @@ export default function AuthScreen() {
         {/* Header Branding */}
         <View style={styles.header}>
           <View style={styles.badgeRow}>
-            <Text style={styles.brandTitle}>SwipeAI</Text>
+            <Text style={styles.brandTitle}>Blunderr Dating</Text>
             <View style={styles.sparkBadge}>
               <Text style={styles.sparkBadgeText}>✦ Trust Pass</Text>
             </View>
@@ -215,41 +340,21 @@ export default function AuthScreen() {
         {/* STEP 1: Phone / WhatsApp OTP with Auto-Detection */}
         {step === 1 && (
           <View style={styles.card}>
-            <Text style={styles.cardHeader}>1. Instant Authentication</Text>
+            <Text style={styles.cardHeader}>1. Instant Verification</Text>
+            <Text style={styles.cardDesc}>
+              Authenticate securely with a 6-digit verification code. Receive your code via WhatsApp (recommended) or SMS.
+            </Text>
 
-            {/* WhatsApp Detection Indicator & 1-Tap Login */}
-            <View style={styles.waContainer}>
-              <View style={styles.detectionBadgeRow}>
-                <View style={[styles.statusDot, isWhatsAppDetected ? styles.dotGreen : styles.dotGray]} />
-                <Text style={styles.detectionText}>
-                  {isCheckingWhatsApp
-                    ? 'Detecting WhatsApp on this device...'
-                    : isWhatsAppDetected
-                    ? '⚡ WhatsApp Installed & Detected (1-Tap Login)'
-                    : 'WhatsApp not detected • Use SMS OTP below'}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.waButton, isWhatsAppDetected && styles.waButtonDetected]}
-                onPress={handleWhatsAppAuth}
-                activeOpacity={0.85}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Text style={styles.waButtonEmoji}>💬</Text>
-                  <Text style={styles.waButtonText}>WhatsApp 1-Tap Login</Text>
-                </View>
-                <Text style={styles.waSubText}>
-                  {isWhatsAppDetected
-                    ? 'Recommended • Instant verification via installed WhatsApp'
-                    : 'Avoids SMS carrier drops • Instant verification'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.divider} />
-              <Text style={styles.orText}>OR MOBILE SMS OTP (AUTO-DETECT)</Text>
-              <View style={styles.divider} />
+            {/* WhatsApp Detection Indicator */}
+            <View style={styles.detectionBadgeRow}>
+              <View style={[styles.statusDot, isWhatsAppDetected ? styles.dotGreen : styles.dotGray]} />
+              <Text style={styles.detectionText}>
+                {isCheckingWhatsApp
+                  ? 'Detecting WhatsApp on this device...'
+                  : isWhatsAppDetected
+                  ? '⚡ WhatsApp Detected on this device'
+                  : 'WhatsApp not detected • SMS OTP available'}
+              </Text>
             </View>
 
             {/* Mobile Number Field */}
@@ -263,77 +368,159 @@ export default function AuthScreen() {
                 placeholderTextColor="#6B7082"
                 keyboardType="phone-pad"
               />
+            </View>
+
+            {/* Channel Selection Buttons */}
+            <View style={styles.channelButtonsContainer}>
+              {/* WhatsApp Verification Button */}
               <TouchableOpacity
-                style={[styles.sendOtpBtn, resendTimer > 0 && styles.sendOtpBtnDisabled]}
-                onPress={handleSendOtp}
-                disabled={loading || resendTimer > 0}>
-                <Text style={styles.sendOtpBtnText}>
-                  {resendTimer > 0 ? `Resend (${resendTimer}s)` : otpSent ? 'Resend OTP' : 'Send OTP'}
-                </Text>
+                style={[
+                  styles.waButton,
+                  authChannel === 'whatsapp' && otpSent && styles.waButtonActive,
+                  isWhatsAppDetected && styles.waButtonDetected,
+                ]}
+                onPress={() => handleSendOtp('whatsapp')}
+                disabled={loading || (resendTimer > 0 && authChannel === 'whatsapp')}
+                activeOpacity={0.85}>
+                {loading && authChannel === 'whatsapp' ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <>
+                    <View style={styles.waButtonInner}>
+                      <Text style={styles.waButtonEmoji}>💬</Text>
+                      <Text style={styles.waButtonText}>
+                        {otpSent && authChannel === 'whatsapp'
+                          ? (resendTimer > 0 ? `Resend on WhatsApp (${resendTimer}s)` : 'Resend Code via WhatsApp')
+                          : 'Verify via WhatsApp OTP'}
+                      </Text>
+                      <View style={styles.instantPill}>
+                        <Text style={styles.instantPillText}>RECOMMENDED ⚡</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.waSubText}>
+                      Instant 6-digit OTP code sent directly to WhatsApp • 0% SMS carrier drops
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* SMS Verification Button */}
+              <TouchableOpacity
+                style={[styles.smsButton, authChannel === 'sms' && otpSent && styles.smsButtonActive]}
+                onPress={() => handleSendOtp('sms')}
+                disabled={loading || (resendTimer > 0 && authChannel === 'sms')}
+                activeOpacity={0.85}>
+                {loading && authChannel === 'sms' ? (
+                  <ActivityIndicator color="#CACDD8" />
+                ) : (
+                  <View style={styles.smsButtonInner}>
+                    <Text style={styles.smsButtonEmoji}>📱</Text>
+                    <Text style={styles.smsButtonText}>
+                      {otpSent && authChannel === 'sms'
+                        ? (resendTimer > 0 ? `Resend SMS (${resendTimer}s)` : 'Resend Code via SMS')
+                        : 'Send Code via SMS OTP'}
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
 
-            {/* SMS Auto-Detection Status Indicator */}
+            {/* Feedback Message */}
+            {otpFeedbackMsg && (
+              <View style={styles.otpInfoBanner}>
+                <Text style={styles.otpInfoText}>{otpFeedbackMsg}</Text>
+              </View>
+            )}
+
+            {/* Auto-Detection Status Indicator */}
             {isAutoDetectingOtp && (
-              <Animated.View style={[styles.autoDetectBanner, { transform: [{ scale: pulseAnim }] }]}>
-                <ActivityIndicator size="small" color="#4CAF50" />
-                <Text style={styles.autoDetectText}>📡 Listening for incoming SMS OTP... Auto-detecting...</Text>
-              </Animated.View>
+              <View style={styles.autoDetectWrapper}>
+                <Animated.View style={[styles.autoDetectBanner, { transform: [{ scale: pulseAnim }] }]}>
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <Text style={styles.autoDetectText}>
+                    {authChannel === 'whatsapp'
+                      ? '📡 Auto-detecting WhatsApp OTP'
+                      : '📡 Auto-detecting SMS OTP'}
+                  </Text>
+                </Animated.View>
+                {authChannel === 'whatsapp' && (
+                  <View style={styles.autoDetectButtonsRow}>
+                    <TouchableOpacity
+                      style={styles.openWhatsAppBtn}
+                      onPress={handleOpenWhatsApp}>
+                      <Text style={styles.openWhatsAppText}>💬 Open WhatsApp</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             )}
 
             {autoDetectedSuccess && (
               <View style={styles.autoDetectSuccessBanner}>
-                <Text style={styles.autoDetectSuccessText}>✓ SMS OTP Auto-detected from Carrier!</Text>
+                <Text style={styles.autoDetectSuccessText}>
+                  {authChannel === 'whatsapp'
+                    ? '✓ WhatsApp OTP Auto-detected!'
+                    : '✓ SMS OTP Auto-detected!'}
+                </Text>
               </View>
             )}
 
-            {/* 4-Digit OTP Boxes UI */}
-            <Text style={styles.inputLabel}>Enter 4-Digit OTP</Text>
+            {/* Dynamic OTP Boxes UI (adapts to 4 or 6 digits) */}
+            <Text style={styles.inputLabel}>Enter {expectedOtpLength}-Digit Verification Code</Text>
             <TouchableOpacity
               activeOpacity={1}
-              style={styles.otpBoxesRow}
-              onPress={() => otpInputRef.current?.focus()}>
-              {[0, 1, 2, 3].map((idx) => {
-                const digit = otp[idx] || '';
-                const isFocused = otp.length === idx;
-                const isSuccess = autoDetectedSuccess && otp.length === 4;
-                return (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.otpBox,
-                      isFocused && styles.otpBoxFocused,
-                      isSuccess && styles.otpBoxSuccess,
-                    ]}>
-                    <Text style={[styles.otpDigit, isSuccess && styles.otpDigitSuccess]}>{digit}</Text>
-                  </View>
-                );
-              })}
+              onPress={() => otpInputRef.current?.focus()}
+              style={styles.otpBoxesContainer}>
+              <View style={styles.otpBoxesRow} pointerEvents="none">
+                {Array.from({ length: expectedOtpLength }).map((_, idx) => {
+                  const digit = otp[idx] || '';
+                  const isFocused = otp.length === idx;
+                  const isSuccess = autoDetectedSuccess && otp.length === expectedOtpLength;
+                  return (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.otpBox,
+                        isFocused && styles.otpBoxFocused,
+                        isSuccess && styles.otpBoxSuccess,
+                      ]}>
+                      <Text style={[styles.otpDigit, isSuccess && styles.otpDigitSuccess]}>{digit}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Underlying Input with full accessibility and Android Autofill support */}
+              <TextInput
+                ref={otpInputRef}
+                style={styles.hiddenOtpInput}
+                value={otp}
+                onChangeText={(text) => {
+                  const clean = text.replace(/\D/g, '').slice(0, expectedOtpLength);
+                  setOtp(clean);
+                  if (clean.length === expectedOtpLength) {
+                    setIsAutoDetectingOtp(false);
+                    setAutoDetectedSuccess(true);
+                    setTimeout(() => {
+                      handleVerifyOtp(clean);
+                    }, 400);
+                  }
+                }}
+                placeholder=""
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="sms-otp"
+                importantForAutofill="yes"
+                caretHidden={true}
+                selectionColor="transparent"
+                maxLength={expectedOtpLength}
+              />
             </TouchableOpacity>
 
-            {/* Hidden / Underlying Input for native SMS Autofill & Keyboard */}
-            <TextInput
-              ref={otpInputRef}
-              style={styles.hiddenOtpInput}
-              value={otp}
-              onChangeText={(text) => {
-                const clean = text.replace(/\D/g, '').slice(0, 4);
-                setOtp(clean);
-                if (clean.length === 4) {
-                  handleVerifyOtp(clean);
-                }
-              }}
-              placeholder="1234"
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              autoComplete="sms-otp"
-              maxLength={4}
-            />
-
             <TouchableOpacity
-              style={[styles.primaryButton, (!otp || otp.length < 4) && styles.primaryButtonDisabled]}
+              style={[styles.primaryButton, (!otp || otp.length < expectedOtpLength) && styles.primaryButtonDisabled]}
               onPress={() => handleVerifyOtp()}
-              disabled={loading || otp.length < 4}>
+              disabled={loading || otp.length < expectedOtpLength}>
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
@@ -348,25 +535,42 @@ export default function AuthScreen() {
           <View style={styles.card}>
             <Text style={styles.cardHeader}>2. Zero-Knowledge Trust Pass</Text>
             <Text style={styles.cardDesc}>
-              Indian singles swipe 2.4x more on verified profiles. We verify Age 18+ and Gender without saving your Aadhaar number.
+              {FEATURE_FLAGS.ENABLE_DIGILOCKER
+                ? 'Indian singles swipe 2.4x more on verified profiles. We verify Age 18+ and Gender without saving your Aadhaar number.'
+                : 'Indian singles swipe 2.4x more on verified profiles. Complete 3D Biometric Liveness check to eliminate catfish and deepfakes.'}
             </Text>
 
-            {/* DigiLocker Section */}
-            <View style={styles.verificationRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.vTitle}>DigiLocker ZK-KYC</Text>
-                <Text style={styles.vSubtitle}>
-                  {digilockerVerified ? '✓ Gold Shield Badge Earned' : 'Zero-Knowledge Cryptographic Proof'}
-                </Text>
+            {/* WhatsApp Verification Status */}
+            {whatsappVerified && (
+              <View style={styles.verificationRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.vTitle}>WhatsApp Real Identity</Text>
+                  <Text style={styles.vSubtitle}>✓ WhatsApp Verified 💬 Badge Active</Text>
+                </View>
+                <View style={[styles.kycActionBtn, styles.kycActionBtnSuccess]}>
+                  <Text style={styles.kycActionBtnText}>Verified 💬</Text>
+                </View>
               </View>
-              <TouchableOpacity
-                style={[styles.kycActionBtn, digilockerVerified && styles.kycActionBtnSuccess]}
-                onPress={() => (digilockerVerified ? null : setShowDigiLockerModal(true))}>
-                <Text style={styles.kycActionBtnText}>
-                  {digilockerVerified ? 'Verified 🛡️' : 'Verify Age 18+'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            )}
+
+            {/* DigiLocker Section (Feature Flag Controlled) */}
+            {FEATURE_FLAGS.ENABLE_DIGILOCKER && (
+              <View style={styles.verificationRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.vTitle}>DigiLocker ZK-KYC</Text>
+                  <Text style={styles.vSubtitle}>
+                    {digilockerVerified ? '✓ Gold Shield Badge Earned' : 'Zero-Knowledge Cryptographic Proof'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.kycActionBtn, digilockerVerified && styles.kycActionBtnSuccess]}
+                  onPress={() => (digilockerVerified ? null : setShowDigiLockerModal(true))}>
+                  <Text style={styles.kycActionBtnText}>
+                    {digilockerVerified ? 'Verified 🛡️' : 'Verify Age 18+'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* 3D Liveness Section */}
             <View style={styles.verificationRow}>
@@ -482,67 +686,38 @@ export default function AuthScreen() {
         )}
       </ScrollView>
 
-      {/* DigiLocker ZK Modal */}
-      <Modal visible={showDigiLockerModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Zero-Knowledge DigiLocker</Text>
-            <Text style={styles.modalDesc}>
-              We request an encrypted government assertion: Is user age $\ge$ 18 and Gender verified?
-            </Text>
-            <View style={styles.zkBadgeBox}>
-              <Text style={styles.zkBadgeText}>🛡️ ZERO DATA RETAINED</Text>
-              <Text style={styles.zkBadgeSub}>
-                Aadhaar number is never stored, logged, or visible to matches.
+      {/* DigiLocker ZK Modal (Feature Flag Controlled) */}
+      {FEATURE_FLAGS.ENABLE_DIGILOCKER && (
+        <Modal visible={showDigiLockerModal} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Zero-Knowledge DigiLocker</Text>
+              <Text style={styles.modalDesc}>
+                We request an encrypted government assertion: Is user age $\ge$ 18 and Gender verified?
               </Text>
+              <View style={styles.zkBadgeBox}>
+                <Text style={styles.zkBadgeText}>🛡️ ZERO DATA RETAINED</Text>
+                <Text style={styles.zkBadgeSub}>
+                  Aadhaar number is never stored, logged, or visible to matches.
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.primaryButton} onPress={handleDigiLockerConfirm} disabled={loading}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Confirm & Issue Gold Shield</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowDigiLockerModal(false)}>
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleDigiLockerConfirm} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Confirm & Issue Gold Shield</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowDigiLockerModal(false)}>
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
-      {/* 3D Liveness Scan Modal */}
-      <Modal visible={showLivenessModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>3D Biometric Liveness Check</Text>
-            <Text style={styles.modalDesc}>
-              Turn head slowly to the right then left. Prevents AI Deepfakes and stolen gallery photos.
-            </Text>
-            <View style={styles.cameraScanBox}>
-              {livenessScanning ? (
-                <View style={styles.scanningAnim}>
-                  <ActivityIndicator size="large" color="#E94057" />
-                  <Text style={styles.scanText}>Scanning 3D Facial Landmarks...</Text>
-                  <Text style={styles.scanSub}>Turn head slowly to right</Text>
-                </View>
-              ) : (
-                <View style={styles.scanPlaceholder}>
-                  <Text style={styles.cameraIcon}>👤</Text>
-                  <Text style={styles.scanReadyText}>Position face inside the oval</Text>
-                </View>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleStartLivenessScan}
-              disabled={livenessScanning}>
-              <Text style={styles.primaryButtonText}>{livenessScanning ? 'Scanning...' : 'Start 3D Head Turn Scan'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => setShowLivenessModal(false)}
-              disabled={livenessScanning}>
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* 3D Liveness Camera & Movement Recording Modal */}
+      <LivenessCameraModal
+        visible={showLivenessModal}
+        onClose={() => setShowLivenessModal(false)}
+        onSuccess={handleLivenessSuccess}
+      />
     </SafeAreaView>
   );
 }
@@ -642,23 +817,45 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  channelButtonsContainer: {
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 16,
+  },
   waButton: {
     backgroundColor: '#128C7E',
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 16,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#25D366',
+  },
+  waButtonActive: {
+    borderColor: '#25D366',
+    backgroundColor: '#075E54',
   },
   waButtonDetected: {
     backgroundColor: '#075E54',
     borderColor: '#25D366',
-    shadowColor: '#25D366',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 8px rgba(37, 211, 102, 0.3)',
+      },
+      default: {
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+      },
+    }),
+  },
+  waButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   waButtonEmoji: {
     fontSize: 20,
@@ -668,11 +865,62 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
+  instantPill: {
+    backgroundColor: '#25D366',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  instantPillText: {
+    color: '#075E54',
+    fontSize: 9,
+    fontWeight: '900',
+  },
   waSubText: {
     color: '#E0F2F1',
     fontSize: 11,
     marginTop: 4,
     textAlign: 'center',
+  },
+  smsButton: {
+    backgroundColor: '#1E1F28',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2E303E',
+  },
+  smsButtonActive: {
+    borderColor: '#E94057',
+    backgroundColor: '#2A1820',
+  },
+  smsButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  smsButtonEmoji: {
+    fontSize: 16,
+  },
+  smsButtonText: {
+    color: '#CACDD8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  openWhatsAppBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#075E54',
+    borderWidth: 1,
+    borderColor: '#25D366',
+  },
+  openWhatsAppText: {
+    color: '#25D366',
+    fontSize: 11,
+    fontWeight: '700',
   },
   dividerRow: {
     flexDirection: 'row',
@@ -744,6 +992,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  otpInfoBanner: {
+    backgroundColor: '#1E2333',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#2D354E',
+  },
+  otpInfoText: {
+    color: '#70A6FF',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  autoDetectWrapper: {
+    marginBottom: 12,
+  },
   autoDetectBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -753,7 +1018,12 @@ const styles = StyleSheet.create({
     borderColor: '#4CAF50',
     padding: 10,
     borderRadius: 12,
-    marginBottom: 12,
+  },
+  autoDetectButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
   },
   autoDetectText: {
     color: '#4CAF50',
@@ -781,12 +1051,13 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   otpBox: {
-    width: '22%',
+    flex: 1,
+    marginHorizontal: 3,
     aspectRatio: 1,
     backgroundColor: '#1E1F28',
     borderWidth: 1.5,
     borderColor: '#2E303E',
-    borderRadius: 14,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -806,11 +1077,19 @@ const styles = StyleSheet.create({
   otpDigitSuccess: {
     color: '#4CAF50',
   },
+  otpBoxesContainer: {
+    position: 'relative',
+    marginVertical: 8,
+  },
   hiddenOtpInput: {
     position: 'absolute',
-    opacity: 0,
-    width: 1,
-    height: 1,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    color: 'transparent',
+    backgroundColor: 'transparent',
+    zIndex: 10,
   },
   primaryButton: {
     backgroundColor: '#E94057',

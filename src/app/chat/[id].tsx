@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { CandidateCard, ChatMessage } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
+import { FEATURE_FLAGS } from '@/config/features';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -48,51 +49,35 @@ export default function ChatScreen() {
     const match = await api.getMatchDetails(matchId);
     if (match?.otherProfile) {
       setMatchProfile(match.otherProfile);
-    } else {
+    } else if (match) {
       setMatchProfile({
-        userId: match?.otherUserId || 'c1-rohan-26',
-        displayName: candidateName || match?.otherUserName || 'Rohan',
-        fullName: candidateName || match?.otherUserName || 'Rohan Verma',
-        age: match?.otherUserAge || 26,
-        isDigilockerVerified: true,
+        userId: match.otherUserId,
+        displayName: candidateName || match.otherUserName || 'Match',
+        fullName: candidateName || match.otherUserName || 'Match',
+        age: match.otherUserAge || 25,
+        isDigilockerVerified: Boolean(match.isDigilockerVerified),
         isWhatsappVerified: true,
         livenessScore: 0.98,
-        distanceKm: 3.8,
+        distanceKm: 3.5,
         culturalBadges: {
-          diet: 'EGGETARIAN',
+          diet: 'PURE_VEG',
           living: 'INDEPENDENT_FLAT',
-          languages: ['English', 'Hindi', 'Kannada'],
+          languages: ['English', 'Hindi'],
           zodiac: 'Aries',
         },
-        voicePrompt: {
-          audioUrl: 'https://cdn.swipeai.in/v/rohan.m4a',
-          durationSec: 18,
-          promptText: 'Dilli ki sardi ya Mumbai ki baarish? Bangalore weather wins.',
-        },
-        compatibilityScore: 94,
-        bio: 'Tech Lead @ SaaS. Weekend cyclist, cold brew enthusiast, acoustic guitar. Looking for thoughtful banter, quiet book cafes, and someone to explore hidden culinary gems in Bangalore with.',
-        company: 'SaaS Startup',
-        occupation: 'Tech Lead',
-        job: 'Tech Lead',
-        education: 'BITS Pilani (Computer Science & Engineering)',
-        height: 180,
-        interests: 'Cricket, Cycling, Specialty Coffee, Stand-up comedy, Spotify, Road trips',
-        sexualOrientation: 'Straight',
-        genderDisplay: 'Man',
+        compatibilityScore: 90,
+        bio: 'High-intent match on Blunderr Dating.',
+        occupation: 'Professional',
+        company: 'Bengaluru Tech',
+        education: 'Graduate',
+        height: 175,
         relationshipIntent: 'Long-term partner',
-        profilePromptQuestion: 'The key to my heart is...',
-        profilePromptAnswer: 'Authentic Indiranagar filter coffee, dry wit, and spontaneous Sunday morning cycling trips.',
-        sunSign: 'Aries',
         moonSign: 'Leo',
         karmaScore: 182,
         city: 'Bengaluru',
         neighborhood: 'Indiranagar',
         microCircle: 'Koramangala Tech Founders',
-        photos: [
-          match?.otherUserPhoto || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800',
-          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800',
-          'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=800',
-        ],
+        photos: match.otherUserPhoto ? [match.otherUserPhoto] : [],
       });
     }
     setLoading(false);
@@ -165,7 +150,7 @@ export default function ChatScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Dynamic User Watermark Overlay (Anti-Screenshot Protection) */}
-      <View style={styles.watermarkCanvas} pointerEvents="none">
+      <View style={styles.watermarkCanvas}>
         <Text style={styles.watermarkText}>PROTECTED BY SHIELD 360 • CONFIDENTIAL</Text>
       </View>
 
@@ -176,8 +161,10 @@ export default function ChatScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setShowProfileModal(true)} style={styles.headerTitleBox}>
-          <Text style={styles.headerTitle}>{candidateName || 'Rohan'}, 26 👤</Text>
-          <Text style={styles.headerSubtitle}>🛡️ DigiLocker Verified • Tap to view profile</Text>
+          <Text style={styles.headerTitle}>{candidateName || matchProfile?.displayName || 'Match'} 👤</Text>
+          <Text style={styles.headerSubtitle}>
+            {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • Tap to view profile' : '👤 3D Liveness Verified • Tap to view profile'}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.virtualChaiBtn} onPress={handleVirtualChaiCall}>
@@ -267,6 +254,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     opacity: 0.04,
     zIndex: 10,
+    pointerEvents: 'none',
   },
   watermarkText: {
     color: '#ffffff',

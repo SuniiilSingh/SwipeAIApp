@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "SwipeAIApp",
-    "slug": "SwipeAIApp",
+    "name": "Blunderr Dating",
+    "slug": "blunderr-dating",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "swipeaiapp",
+    "scheme": "blunderrdating",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -31,6 +31,13 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Blunderr Dating requires camera access for 3D Biometric Liveness verification to eliminate catfish profiles and deepfakes.",
+          "recordAudioAndroid": false
         }
       ]
     ],

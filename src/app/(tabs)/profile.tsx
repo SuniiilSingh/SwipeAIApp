@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Image,
   Modal,
   Platform,
   ScrollView,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -163,6 +163,8 @@ export default function ProfileScreen() {
   const [setupPhoto5, setSetupPhoto5] = useState('');
   const [setupPhoto6, setSetupPhoto6] = useState('');
   const [setupSelfie, setSetupSelfie] = useState('');
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [uploadingSelfie, setUploadingSelfie] = useState(false);
 
   // Picker Modals state
   const [showDobPickerModal, setShowDobPickerModal] = useState(false);
@@ -205,16 +207,32 @@ export default function ProfileScreen() {
 
   const populateFormStates = (p: UserProfile) => {
     setSetupFullname(p.fullName || p.displayName || '');
-    setSetupDateOfBirth(p.age ? `2000-08-15` : '');
+    if (p.birthDate) {
+      setSetupDateOfBirth(p.birthDate);
+      const parts = p.birthDate.split('-');
+      if (parts.length === 3) {
+        setPickerYear(parseInt(parts[0], 10) || 2000);
+        setPickerMonth(parseInt(parts[1], 10) || 8);
+        setPickerDay(parseInt(parts[2], 10) || 15);
+      }
+    } else if (p.age && p.age > 0) {
+      const yr = new Date().getFullYear() - p.age;
+      setSetupDateOfBirth(`${yr}-01-01`);
+      setPickerYear(yr);
+      setPickerMonth(1);
+      setPickerDay(1);
+    } else {
+      setSetupDateOfBirth('');
+    }
     setSetupHeight(p.height ? String(p.height) : '165');
-    setSetupLocation(p.location || p.city || 'Bengaluru');
+    setSetupLocation(p.location || p.city || '');
     setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '50');
     setSetupGenderDisplay(p.genderDisplay || (p.gender === 'FEMALE' ? 'Woman' : 'Man'));
     setSetupShowGender(p.showGenderOnProfile !== undefined ? p.showGenderOnProfile : true);
     setSetupPreferenceDisplay(p.genderPreferenceDisplay || 'Men');
     setSetupJob(p.job || p.occupation || '');
     setSetupEducation(p.education || '');
-    setSetupInterests(p.interests || 'Design, Coffee, Biryani, Stand-up comedy, Spotify');
+    setSetupInterests(p.interests || '');
     setSetupOrientation(p.sexualOrientation || 'Straight');
     setSetupShowOrientation(p.showOrientationOnProfile !== undefined ? p.showOrientationOnProfile : true);
     setSetupIntent(p.relationshipIntent || (p.intent === 'SERIOUS_DATING' ? 'Long-term partner' : 'Still figuring it out'));
@@ -226,7 +244,7 @@ export default function ProfileScreen() {
     setSetupSmoking(p.smokingHabit || 'Non-Smoker 🚭');
     setSetupDrinking(p.drinkingHabit || 'Social / Weekend Drinker 🍷');
     setSetupVacation(p.vacationPreference || 'Majestic Mountains 🏔️');
-    setSetupHobbies(p.hobbies || 'Specialty Coffee, Cycling, Photography, Pottery');
+    setSetupHobbies(p.hobbies || '');
     setSetupPhoto1(p.photo1 || p.photos?.[0] || '');
     setSetupPhoto2(p.photo2 || p.photos?.[1] || '');
     setSetupPhoto3(p.photo3 || p.photos?.[2] || '');
@@ -276,7 +294,7 @@ export default function ProfileScreen() {
     return Math.min(100, pct);
   };
 
-  const handlePickPhoto = async (setter: (url: string) => void) => {
+  const handlePickPhoto = async (slotIdx: number, setter: (url: string) => void) => {
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -288,14 +306,91 @@ export default function ProfileScreen() {
         allowsEditing: true,
         aspect: [4, 5],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
-        const uploadedUrl = await api.uploadImage(result.assets[0].uri);
-        setter(uploadedUrl);
+        const asset = result.assets[0];
+        const localUri = asset.uri;
+        const directBase64 = asset.base64;
+        
+        // Instantly display local image in slot
+        setter(localUri);
+        setUploadingSlot(slotIdx);
+
+        // Instantly update the main profile view so it shows immediately inside profile!
+        setProfile(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev };
+          if (slotIdx === 1) updated.photo1 = localUri;
+          else if (slotIdx === 2) updated.photo2 = localUri;
+          else if (slotIdx === 3) updated.photo3 = localUri;
+          else if (slotIdx === 4) updated.photo4 = localUri;
+          else if (slotIdx === 5) updated.photo5 = localUri;
+          else if (slotIdx === 6) updated.photo6 = localUri;
+          const photos = [
+            slotIdx === 1 ? localUri : setupPhoto1,
+            slotIdx === 2 ? localUri : setupPhoto2,
+            slotIdx === 3 ? localUri : setupPhoto3,
+            slotIdx === 4 ? localUri : setupPhoto4,
+            slotIdx === 5 ? localUri : setupPhoto5,
+            slotIdx === 6 ? localUri : setupPhoto6,
+          ].filter((p): p is string => !!p && p.trim() !== '');
+          updated.photos = photos;
+          return updated;
+        });
+
+        try {
+          const uploadedUrl = await api.uploadImage(localUri, directBase64);
+          if (uploadedUrl && uploadedUrl.trim() !== '') {
+            setter(uploadedUrl);
+            setProfile(prev => {
+              if (!prev) return prev;
+              const updated = { ...prev };
+              if (slotIdx === 1) updated.photo1 = uploadedUrl;
+              else if (slotIdx === 2) updated.photo2 = uploadedUrl;
+              else if (slotIdx === 3) updated.photo3 = uploadedUrl;
+              else if (slotIdx === 4) updated.photo4 = uploadedUrl;
+              else if (slotIdx === 5) updated.photo5 = uploadedUrl;
+              else if (slotIdx === 6) updated.photo6 = uploadedUrl;
+              const photos = [
+                slotIdx === 1 ? uploadedUrl : setupPhoto1,
+                slotIdx === 2 ? uploadedUrl : setupPhoto2,
+                slotIdx === 3 ? uploadedUrl : setupPhoto3,
+                slotIdx === 4 ? uploadedUrl : setupPhoto4,
+                slotIdx === 5 ? uploadedUrl : setupPhoto5,
+                slotIdx === 6 ? uploadedUrl : setupPhoto6,
+              ].filter((p): p is string => !!p && p.trim() !== '');
+              updated.photos = photos;
+              return updated;
+            });
+
+            // Auto-sync with backend
+            const syncPhotos = [
+              slotIdx === 1 ? uploadedUrl : setupPhoto1,
+              slotIdx === 2 ? uploadedUrl : setupPhoto2,
+              slotIdx === 3 ? uploadedUrl : setupPhoto3,
+              slotIdx === 4 ? uploadedUrl : setupPhoto4,
+              slotIdx === 5 ? uploadedUrl : setupPhoto5,
+              slotIdx === 6 ? uploadedUrl : setupPhoto6,
+            ].filter((p): p is string => !!p && p.trim() !== '');
+
+            api.updateMyProfile({
+              [`photo${slotIdx}`]: uploadedUrl,
+              photos: syncPhotos,
+            } as any).catch(err => {
+              console.warn('Profile sync warning:', err);
+            });
+          }
+        } catch (err) {
+          console.warn('Photo upload failed:', err);
+        } finally {
+          setUploadingSlot(null);
+        }
       }
     } catch (e) {
-      setter('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800');
+      console.warn('Image picker error:', e);
+      setUploadingSlot(null);
     }
   };
 
@@ -310,21 +405,39 @@ export default function ProfileScreen() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets[0]?.uri) {
-        const uploadedUrl = await api.uploadImage(result.assets[0].uri);
-        setSetupSelfie(uploadedUrl);
+        const asset = result.assets[0];
+        const localUri = asset.uri;
+        const directBase64 = asset.base64;
+        setSetupSelfie(localUri);
+        setUploadingSelfie(true);
+        setProfile(prev => prev ? ({ ...prev, selfieUrl: localUri }) : prev);
+        try {
+          const uploadedUrl = await api.uploadImage(localUri, directBase64);
+          if (uploadedUrl && uploadedUrl.trim() !== '') {
+            setSetupSelfie(uploadedUrl);
+            setProfile(prev => prev ? ({ ...prev, selfieUrl: uploadedUrl }) : prev);
+            api.updateMyProfile({ selfieUrl: uploadedUrl }).catch(() => {});
+          }
+        } catch (err) {
+          console.warn('Selfie upload failed:', err);
+        } finally {
+          setUploadingSelfie(false);
+        }
       }
     } catch (e) {
-      setSetupSelfie('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500');
+      console.warn('Camera selfie error:', e);
+      setUploadingSelfie(false);
     }
   };
 
   const handleSaveAllChanges = async () => {
     setLoading(true);
     const photosList = [setupPhoto1, setupPhoto2, setupPhoto3, setupPhoto4, setupPhoto5, setupPhoto6]
-      .filter(p => p && p.trim() !== '');
+      .filter((p): p is string => !!p && p.trim() !== '');
 
     const updated = await api.updateMyProfile({
       displayName: setupFullname.split(' ')[0] || 'User',
@@ -358,14 +471,16 @@ export default function ProfileScreen() {
       photo5: setupPhoto5,
       photo6: setupPhoto6,
       selfieUrl: setupSelfie,
-      photos: photosList.length > 0 ? photosList : ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800'],
+      birthDate: setupDateOfBirth || undefined,
+      photos: photosList,
       completionPercentage: calculateLocalPct(),
     });
 
     setProfile(updated);
+    populateFormStates(updated);
     setIsEditingProfile(false);
     setLoading(false);
-    Alert.alert('Profile Saved ✓', 'All changes and cultural preferences updated successfully!');
+    Alert.alert('Profile Saved ✓', 'All changes and photos updated successfully!');
   };
 
   if (loading || !profile) {
@@ -439,13 +554,54 @@ export default function ProfileScreen() {
         {!isEditingProfile && (
           <View style={{ width: '100%' }}>
             {/* Photos Carousel */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carouselContainer}>
-              {[profile.photo1, profile.photo2, profile.photo3, profile.photo4, profile.photo5, profile.photo6, ...(profile.photos || [])]
-                .filter((img, i, arr) => img && img.trim() !== '' && arr.indexOf(img) === i)
-                .map((img, idx) => (
-                  <Image key={idx} source={{ uri: img }} style={styles.carouselImage} />
-                ))}
-            </ScrollView>
+            {(() => {
+              const carouselPhotos = [
+                profile.photo1,
+                profile.photo2,
+                profile.photo3,
+                profile.photo4,
+                profile.photo5,
+                profile.photo6,
+                ...(profile.photos || []),
+              ].filter((img, i, arr): img is string => !!img && typeof img === 'string' && img.trim() !== '' && arr.indexOf(img) === i);
+
+              if (carouselPhotos.length > 0) {
+                return (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carouselContainer}>
+                    {carouselPhotos.map((img, idx) => (
+                      <TouchableOpacity key={idx} activeOpacity={0.9} onPress={() => setIsEditingProfile(true)}>
+                        <Image source={{ uri: img }} style={styles.carouselImage} contentFit="cover" transition={200} />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                );
+              }
+
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setIsEditingProfile(true)}
+                  style={{
+                    width: '100%',
+                    height: 220,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: '#E94057',
+                    borderStyle: 'dashed',
+                    backgroundColor: '#1E1F28',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                    padding: 20,
+                  }}>
+                  <Text style={{ fontSize: 36, marginBottom: 8 }}>📸</Text>
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>Add Your Photos</Text>
+                  <Text style={{ color: '#8E94A5', fontSize: 13, marginTop: 4, textAlign: 'center' }}>
+                    Tap to upload photos and make your profile stand out!
+                  </Text>
+                </TouchableOpacity>
+              );
+            })()}
 
             {/* Main Info Card */}
             <View style={styles.sectionCard}>
@@ -674,33 +830,78 @@ export default function ProfileScreen() {
 
               <View style={styles.photoGrid}>
                 {[
-                  { uri: setupPhoto1, setter: setSetupPhoto1, label: 'Primary' },
-                  { uri: setupPhoto2, setter: setSetupPhoto2, label: 'Photo 2' },
-                  { uri: setupPhoto3, setter: setSetupPhoto3, label: 'Photo 3' },
-                  { uri: setupPhoto4, setter: setSetupPhoto4, label: 'Photo 4' },
-                  { uri: setupPhoto5, setter: setSetupPhoto5, label: 'Photo 5' },
-                  { uri: setupPhoto6, setter: setSetupPhoto6, label: 'Photo 6' },
+                  { uri: setupPhoto1, setter: setSetupPhoto1, slotIdx: 1, label: 'Primary' },
+                  { uri: setupPhoto2, setter: setSetupPhoto2, slotIdx: 2, label: 'Photo 2' },
+                  { uri: setupPhoto3, setter: setSetupPhoto3, slotIdx: 3, label: 'Photo 3' },
+                  { uri: setupPhoto4, setter: setSetupPhoto4, slotIdx: 4, label: 'Photo 4' },
+                  { uri: setupPhoto5, setter: setSetupPhoto5, slotIdx: 5, label: 'Photo 5' },
+                  { uri: setupPhoto6, setter: setSetupPhoto6, slotIdx: 6, label: 'Photo 6' },
                 ].map((item, idx) => {
                   const hasPhoto = !!item.uri;
                   return (
                     <TouchableOpacity
                       key={idx}
                       style={[styles.photoSlot, !hasPhoto && styles.photoSlotEmpty]}
+                      activeOpacity={0.8}
                       onPress={() => {
                         if (hasPhoto) {
                           Alert.alert('Profile Photo', 'Do you want to change or delete this photo?', [
-                            { text: 'Change Photo 📸', onPress: () => handlePickPhoto(item.setter) },
-                            { text: 'Delete Photo 🗑️', onPress: () => item.setter(''), style: 'destructive' },
+                            { text: 'Change Photo 📸', onPress: () => handlePickPhoto(item.slotIdx, item.setter) },
+                            { text: 'Delete Photo 🗑️', onPress: () => {
+                              item.setter('');
+                              setProfile(prev => {
+                                if (!prev) return prev;
+                                const updated = { ...prev, [`photo${item.slotIdx}`]: '' };
+                                const photos = [
+                                  item.slotIdx === 1 ? '' : setupPhoto1,
+                                  item.slotIdx === 2 ? '' : setupPhoto2,
+                                  item.slotIdx === 3 ? '' : setupPhoto3,
+                                  item.slotIdx === 4 ? '' : setupPhoto4,
+                                  item.slotIdx === 5 ? '' : setupPhoto5,
+                                  item.slotIdx === 6 ? '' : setupPhoto6,
+                                ].filter((p): p is string => !!p && p.trim() !== '');
+                                updated.photos = photos;
+                                return updated;
+                              });
+                              const syncPhotos = [
+                                item.slotIdx === 1 ? '' : setupPhoto1,
+                                item.slotIdx === 2 ? '' : setupPhoto2,
+                                item.slotIdx === 3 ? '' : setupPhoto3,
+                                item.slotIdx === 4 ? '' : setupPhoto4,
+                                item.slotIdx === 5 ? '' : setupPhoto5,
+                                item.slotIdx === 6 ? '' : setupPhoto6,
+                              ].filter((p): p is string => !!p && p.trim() !== '');
+                              api.updateMyProfile({ [`photo${item.slotIdx}`]: '', photos: syncPhotos } as any).catch(() => {});
+                            }, style: 'destructive' },
                             { text: 'Cancel', style: 'cancel' },
                           ]);
                         } else {
-                          handlePickPhoto(item.setter);
+                          handlePickPhoto(item.slotIdx, item.setter);
                         }
                       }}>
                       {hasPhoto ? (
-                        <Image source={{ uri: item.uri }} style={styles.photoImg} />
+                        <Image
+                          source={{ uri: item.uri }}
+                          style={styles.photoImg}
+                          contentFit="cover"
+                          transition={200}
+                          cachePolicy="memory-disk"
+                          onError={(e) => {
+                            console.warn(`Slot ${item.slotIdx} image render error:`, e);
+                            if (e && JSON.stringify(e).includes('404')) {
+                              item.setter('');
+                              setProfile(prev => prev ? ({ ...prev, [`photo${item.slotIdx}`]: '' }) : prev);
+                            }
+                          }}
+                        />
                       ) : (
                         <Text style={{ fontSize: 24 }}>📷</Text>
+                      )}
+                      {uploadingSlot === item.slotIdx && (
+                        <View style={styles.uploadingOverlay}>
+                          <ActivityIndicator size="small" color="#E94057" />
+                          <Text style={styles.uploadingText}>Saving...</Text>
+                        </View>
                       )}
                       <View style={[styles.photoActionBadge, hasPhoto && styles.photoActionBadgeDelete]}>
                         <Text style={styles.photoActionBadgeText}>{hasPhoto ? '×' : '+'}</Text>
@@ -716,15 +917,28 @@ export default function ProfileScreen() {
               </View>
 
               {/* Biometric Selfie Upload Slot */}
-              <TouchableOpacity style={styles.selfieCard} onPress={handleTakeSelfie}>
+              <TouchableOpacity style={styles.selfieCard} activeOpacity={0.8} onPress={handleTakeSelfie}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  {setupSelfie ? (
-                    <Image source={{ uri: setupSelfie }} style={styles.selfiePreview} />
-                  ) : (
-                    <View style={styles.selfiePlaceholder}>
-                      <Text style={{ fontSize: 22 }}>🤳</Text>
-                    </View>
-                  )}
+                  <View style={{ position: 'relative', width: 48, height: 48 }}>
+                    {setupSelfie ? (
+                      <Image
+                        source={{ uri: setupSelfie }}
+                        style={styles.selfiePreview}
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory-disk"
+                      />
+                    ) : (
+                      <View style={styles.selfiePlaceholder}>
+                        <Text style={{ fontSize: 22 }}>🤳</Text>
+                      </View>
+                    )}
+                    {uploadingSelfie && (
+                      <View style={styles.uploadingOverlay}>
+                        <ActivityIndicator size="small" color="#E94057" />
+                      </View>
+                    )}
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.selfieTitle}>Biometric Selfie Verification</Text>
                     <Text style={styles.selfieSub}>
@@ -1868,6 +2082,24 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 14,
+  },
+  uploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  uploadingText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 4,
   },
   photoActionBadge: {
     position: 'absolute',

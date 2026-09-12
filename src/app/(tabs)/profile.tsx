@@ -227,7 +227,7 @@ export default function ProfileScreen() {
     setSetupHeight(p.height ? String(p.height) : '');
     setSetupLocation(p.location || p.city || '');
     setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '50');
-    setSetupGenderDisplay(p.genderDisplay || (p.gender === 'FEMALE' ? 'Woman' : (p.gender === 'MALE' ? 'Man' : '')));
+    setSetupGenderDisplay(p.genderDisplay || '');
     setSetupShowGender(p.showGenderOnProfile !== undefined ? p.showGenderOnProfile : true);
     setSetupPreferenceDisplay(p.genderPreferenceDisplay || '');
     setSetupJob(p.job || p.occupation || '');
@@ -458,9 +458,10 @@ export default function ProfileScreen() {
       maxDistanceKm: setupMaxDistanceKm ? parseInt(setupMaxDistanceKm) : 50,
       sexualOrientation: setupOrientation,
       showOrientationOnProfile: setupShowOrientation,
-      genderDisplay: setupGenderDisplay,
+      gender: setupGenderDisplay === 'Woman' ? 'FEMALE' : (setupGenderDisplay === 'Man' ? 'MALE' : (setupGenderDisplay === 'Non-binary' ? 'NON_BINARY' : undefined)),
+      genderDisplay: setupGenderDisplay || undefined,
       showGenderOnProfile: setupShowGender,
-      genderPreferenceDisplay: setupPreferenceDisplay,
+      genderPreferenceDisplay: setupPreferenceDisplay || undefined,
       relationshipIntent: setupIntent,
       profilePromptQuestion: setupPromptQuestion,
       profilePromptAnswer: setupPromptAnswer,
@@ -752,7 +753,7 @@ export default function ProfileScreen() {
                 {profile.showGenderOnProfile && (
                   <View style={styles.traitChip}>
                     <Text style={styles.traitLabel}>Gender</Text>
-                    <Text style={styles.traitValue}>👤 {profile.genderDisplay || profile.gender || 'Not set'}</Text>
+                    <Text style={styles.traitValue}>👤 {profile.genderDisplay || (profile.gender === 'FEMALE' ? 'Woman' : (profile.gender === 'MALE' ? 'Man' : profile.gender)) || 'Not set'}</Text>
                   </View>
                 )}
               </View>

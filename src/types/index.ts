@@ -32,8 +32,8 @@ export interface UserProfile {
   bio?: string;
   age: number;
   birthDate?: string;
-  gender: Gender;
-  intent: DatingIntent;
+  gender?: Gender;
+  intent?: DatingIntent;
   digilockerVerified: boolean;
   whatsappVerified: boolean;
   livenessScore: number;

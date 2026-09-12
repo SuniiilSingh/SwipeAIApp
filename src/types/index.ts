@@ -38,8 +38,8 @@ export interface UserProfile {
   whatsappVerified: boolean;
   livenessScore: number;
   karmaScore: number;
-  dietaryPref: DietaryPreference;
-  livingStatus: LivingStatus;
+  dietaryPref?: DietaryPreference;
+  livingStatus?: LivingStatus;
   languagesSpoken: string[];
   zodiacSign: string;
   sunSign: string;

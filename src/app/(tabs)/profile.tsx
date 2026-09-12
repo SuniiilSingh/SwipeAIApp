@@ -138,24 +138,24 @@ export default function ProfileScreen() {
   const [setupHeight, setSetupHeight] = useState('');
   const [setupLocation, setSetupLocation] = useState('');
   const [setupMaxDistanceKm, setSetupMaxDistanceKm] = useState('50');
-  const [setupGenderDisplay, setSetupGenderDisplay] = useState('Woman');
+  const [setupGenderDisplay, setSetupGenderDisplay] = useState('');
   const [setupShowGender, setSetupShowGender] = useState(true);
-  const [setupPreferenceDisplay, setSetupPreferenceDisplay] = useState('Men');
+  const [setupPreferenceDisplay, setSetupPreferenceDisplay] = useState('');
   const [setupJob, setSetupJob] = useState('');
   const [setupEducation, setSetupEducation] = useState('');
   const [setupInterests, setSetupInterests] = useState('');
-  const [setupOrientation, setSetupOrientation] = useState('Straight');
+  const [setupOrientation, setSetupOrientation] = useState('');
   const [setupShowOrientation, setSetupShowOrientation] = useState(true);
-  const [setupIntent, setSetupIntent] = useState('Long-term partner');
+  const [setupIntent, setSetupIntent] = useState('');
   const [setupPromptQuestion, setSetupPromptQuestion] = useState(PROMPT_PRESETS[0]);
   const [setupPromptAnswer, setSetupPromptAnswer] = useState('');
   const [setupBio, setSetupBio] = useState('');
-  const [setupDiet, setSetupDiet] = useState<DietaryPreference>('PURE_VEG');
-  const [setupLiving, setSetupLiving] = useState<LivingStatus>('INDEPENDENT_FLAT');
-  const [setupSmoking, setSetupSmoking] = useState('Non-Smoker 🚭');
-  const [setupDrinking, setSetupDrinking] = useState('Social / Weekend Drinker 🍷');
-  const [setupVacation, setSetupVacation] = useState('Majestic Mountains 🏔️');
-  const [setupHobbies, setSetupHobbies] = useState('Specialty Coffee, Cycling, Photography, Pottery');
+  const [setupDiet, setSetupDiet] = useState<DietaryPreference | undefined>(undefined);
+  const [setupLiving, setSetupLiving] = useState<LivingStatus | undefined>(undefined);
+  const [setupSmoking, setSetupSmoking] = useState('');
+  const [setupDrinking, setSetupDrinking] = useState('');
+  const [setupVacation, setSetupVacation] = useState('');
+  const [setupHobbies, setSetupHobbies] = useState('');
   const [setupPhoto1, setSetupPhoto1] = useState('');
   const [setupPhoto2, setSetupPhoto2] = useState('');
   const [setupPhoto3, setSetupPhoto3] = useState('');
@@ -224,26 +224,26 @@ export default function ProfileScreen() {
     } else {
       setSetupDateOfBirth('');
     }
-    setSetupHeight(p.height ? String(p.height) : '165');
+    setSetupHeight(p.height ? String(p.height) : '');
     setSetupLocation(p.location || p.city || '');
     setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '50');
-    setSetupGenderDisplay(p.genderDisplay || (p.gender === 'FEMALE' ? 'Woman' : 'Man'));
+    setSetupGenderDisplay(p.genderDisplay || (p.gender === 'FEMALE' ? 'Woman' : (p.gender === 'MALE' ? 'Man' : '')));
     setSetupShowGender(p.showGenderOnProfile !== undefined ? p.showGenderOnProfile : true);
-    setSetupPreferenceDisplay(p.genderPreferenceDisplay || 'Men');
+    setSetupPreferenceDisplay(p.genderPreferenceDisplay || '');
     setSetupJob(p.job || p.occupation || '');
     setSetupEducation(p.education || '');
     setSetupInterests(p.interests || '');
-    setSetupOrientation(p.sexualOrientation || 'Straight');
+    setSetupOrientation(p.sexualOrientation || '');
     setSetupShowOrientation(p.showOrientationOnProfile !== undefined ? p.showOrientationOnProfile : true);
-    setSetupIntent(p.relationshipIntent || (p.intent === 'SERIOUS_DATING' ? 'Long-term partner' : 'Still figuring it out'));
+    setSetupIntent(p.relationshipIntent || (p.intent ? p.intent.replace(/_/g, ' ') : ''));
     setSetupPromptQuestion(p.profilePromptQuestion || PROMPT_PRESETS[0]);
     setSetupPromptAnswer(p.profilePromptAnswer || '');
     setSetupBio(p.bio || '');
-    setSetupDiet(p.dietaryPref || 'PURE_VEG');
-    setSetupLiving(p.livingStatus || 'INDEPENDENT_FLAT');
-    setSetupSmoking(p.smokingHabit || 'Non-Smoker 🚭');
-    setSetupDrinking(p.drinkingHabit || 'Social / Weekend Drinker 🍷');
-    setSetupVacation(p.vacationPreference || 'Majestic Mountains 🏔️');
+    setSetupDiet(p.dietaryPref);
+    setSetupLiving(p.livingStatus);
+    setSetupSmoking(p.smokingHabit || '');
+    setSetupDrinking(p.drinkingHabit || '');
+    setSetupVacation(p.vacationPreference || '');
     setSetupHobbies(p.hobbies || '');
     setSetupPhoto1(p.photo1 || p.photos?.[0] || '');
     setSetupPhoto2(p.photo2 || p.photos?.[1] || '');
@@ -256,12 +256,12 @@ export default function ProfileScreen() {
 
   const getDietaryLabel = (key?: DietaryPreference) => {
     const item = DIETARY_OPTIONS.find(d => d.key === key);
-    return item ? `${item.emoji} ${item.label}` : '🥦 Pure Veg';
+    return item ? `${item.emoji} ${item.label}` : 'Select dietary preference';
   };
 
   const getLivingLabel = (key?: LivingStatus) => {
     const item = LIVING_OPTIONS.find(l => l.key === key);
-    return item ? `${item.emoji} ${item.label}` : '🏙️ Independent Flat';
+    return item ? `${item.emoji} ${item.label}` : 'Select living arrangement';
   };
 
   // MatchAI Profile Completion Calculation
@@ -606,7 +606,9 @@ export default function ProfileScreen() {
             {/* Main Info Card */}
             <View style={styles.sectionCard}>
               <View style={styles.nameRow}>
-                <Text style={styles.displayName}>{profile.fullName || profile.displayName}, {profile.age}</Text>
+                <Text style={styles.displayName}>
+                  {profile.fullName || profile.displayName || 'Set Up Your Name'}{profile.age > 0 ? `, ${profile.age}` : ''}
+                </Text>
                 {profile.digilockerVerified && (
                   <View style={styles.goldBadge}>
                     <Text style={styles.goldBadgeText}>🛡️ VERIFIED</Text>
@@ -626,7 +628,7 @@ export default function ProfileScreen() {
                 <Text style={styles.subDetailText}>📏 Height: {profile.height} cm</Text>
               ) : null}
 
-              <Text style={styles.locText}>📍 {profile.location || profile.city} ({profile.maxDistanceKm || 50} km match radius)</Text>
+              <Text style={styles.locText}>📍 {profile.location || profile.city || 'Location not set'} ({profile.maxDistanceKm || 50} km match radius)</Text>
 
               <View style={styles.karmaChip}>
                 <Text style={styles.karmaText}>⚡ Match Karma: {profile.karmaScore}/200</Text>
@@ -670,7 +672,7 @@ export default function ProfileScreen() {
                     setShowSmokingPickerModal(true);
                   }}>
                   <Text style={styles.traitLabel}>Smoking Habit</Text>
-                  <Text style={styles.traitValue}>{profile.smokingHabit || setupSmoking}</Text>
+                  <Text style={styles.traitValue}>{profile.smokingHabit || setupSmoking || 'Not specified'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -680,7 +682,7 @@ export default function ProfileScreen() {
                     setShowDrinkingPickerModal(true);
                   }}>
                   <Text style={styles.traitLabel}>Alcohol / Drinking</Text>
-                  <Text style={styles.traitValue}>{profile.drinkingHabit || setupDrinking}</Text>
+                  <Text style={styles.traitValue}>{profile.drinkingHabit || setupDrinking || 'Not specified'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -690,7 +692,7 @@ export default function ProfileScreen() {
                     setShowVacationPickerModal(true);
                   }}>
                   <Text style={styles.traitLabel}>Vacation Vibe: Mountains vs Beaches</Text>
-                  <Text style={styles.traitValue}>{profile.vacationPreference || setupVacation}</Text>
+                  <Text style={styles.traitValue}>{profile.vacationPreference || setupVacation || 'Not specified'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -739,7 +741,7 @@ export default function ProfileScreen() {
               <View style={styles.traitsRow}>
                 <View style={styles.traitChip}>
                   <Text style={styles.traitLabel}>Looking For</Text>
-                  <Text style={styles.traitValue}>{profile.relationshipIntent || 'Long-term partner'}</Text>
+                  <Text style={styles.traitValue}>{profile.relationshipIntent || setupIntent || 'Not set'}</Text>
                 </View>
                 {profile.showOrientationOnProfile && profile.sexualOrientation && (
                   <View style={styles.traitChip}>
@@ -750,7 +752,7 @@ export default function ProfileScreen() {
                 {profile.showGenderOnProfile && (
                   <View style={styles.traitChip}>
                     <Text style={styles.traitLabel}>Gender</Text>
-                    <Text style={styles.traitValue}>👤 {profile.genderDisplay || profile.gender}</Text>
+                    <Text style={styles.traitValue}>👤 {profile.genderDisplay || profile.gender || 'Not set'}</Text>
                   </View>
                 )}
               </View>
@@ -776,15 +778,15 @@ export default function ProfileScreen() {
               <View style={styles.astroRow}>
                 <View style={styles.astroPill}>
                   <Text style={styles.astroLabel}>Sun Sign</Text>
-                  <Text style={styles.astroValue}>{profile.sunSign || 'Leo'}</Text>
+                  <Text style={styles.astroValue}>{profile.sunSign || 'Not set'}</Text>
                 </View>
                 <View style={styles.astroPill}>
                   <Text style={styles.astroLabel}>Moon Sign</Text>
-                  <Text style={styles.astroValue}>{profile.moonSign || 'Scorpio'}</Text>
+                  <Text style={styles.astroValue}>{profile.moonSign || 'Not set'}</Text>
                 </View>
                 <View style={styles.astroPill}>
                   <Text style={styles.astroLabel}>Vibe</Text>
-                  <Text style={styles.astroValue}>Warm Anchor</Text>
+                  <Text style={styles.astroValue}>{profile.sunSign ? 'Warm Anchor' : 'Not calculated'}</Text>
                 </View>
               </View>
             </View>

@@ -28,7 +28,7 @@ export default function AuthScreen() {
 
   // Step state
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [phone, setPhone] = useState('+91 89106 53499');
+  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [expectedOtpLength, setExpectedOtpLength] = useState<number>(6);
   const [loading, setLoading] = useState(false);
@@ -55,7 +55,7 @@ export default function AuthScreen() {
 
   // Ghost Shield state
   const [blockContacts, setBlockContacts] = useState(true);
-  const [corpDomain, setCorpDomain] = useState('swiggy.in');
+  const [corpDomain, setCorpDomain] = useState('');
   const [hideMutuals, setHideMutuals] = useState(true);
 
   // Intent
@@ -75,7 +75,10 @@ export default function AuthScreen() {
     try {
       await api.initAuth();
       const token = api.getAuthToken();
-      if (!token) return;
+      if (!token) {
+        setPhone('');
+        return;
+      }
 
       const isCompleted = await api.isOnboardingCompleted();
       if (isCompleted) {
@@ -86,17 +89,15 @@ export default function AuthScreen() {
       const profile = await api.getMyProfile();
       const isPhoneOrWa = Boolean(profile.whatsappVerified || profile.phoneE164);
       const isLiveness = Boolean((profile.livenessScore && profile.livenessScore >= 0.85) || profile.digilockerVerified);
-      const hasIntent = Boolean(profile.intent);
+      const hasIntent = Boolean(profile.intent || profile.relationshipIntent);
 
-      if (isPhoneOrWa && isLiveness && hasIntent) {
+      // If user already verified or completed onboarding, redirect directly to Discover:
+      if (isPhoneOrWa && (isLiveness || hasIntent || (profile.photos && profile.photos.length > 0) || (profile.displayName && profile.displayName.trim()))) {
         await api.setOnboardingCompleted(true);
         router.replace('/(tabs)');
         return;
       }
 
-      if (profile.phoneE164) {
-        setPhone(profile.phoneE164);
-      }
       if (profile.whatsappVerified) {
         setWhatsappVerified(true);
       }
@@ -111,11 +112,14 @@ export default function AuthScreen() {
         setIntent(profile.intent);
       }
 
-      // Automatically advance to the incomplete step
-      if (isPhoneOrWa && isLiveness) {
-        setStep(3);
-      } else if (isPhoneOrWa) {
+      // Automatically advance to only the incomplete step
+      if (!isLiveness) {
         setStep(2);
+      } else if (!hasIntent) {
+        setStep(4);
+      } else {
+        await api.setOnboardingCompleted(true);
+        router.replace('/(tabs)');
       }
     } catch (e) {}
   };
@@ -269,7 +273,37 @@ export default function AuthScreen() {
       if (res?.whatsappVerified || authChannel === 'whatsapp') {
         setWhatsappVerified(true);
       }
-      setStep(2); // Move to Trust Pass KYC
+
+      // Check existing user profile and verifications so returning users bypass redundant steps:
+      try {
+        const profile = await api.getMyProfile();
+        const isLivenessDone = Boolean((profile.livenessScore && profile.livenessScore >= 0.85) || profile.digilockerVerified);
+        const hasIntent = Boolean(profile.intent || profile.relationshipIntent);
+
+        // If returning user or user already completed liveness/intent, or has an active profile/photos:
+        if (!res?.isNewUser && (isLivenessDone || hasIntent || (profile.photos && profile.photos.length > 0) || (profile.displayName && profile.displayName.trim()))) {
+          await api.setOnboardingCompleted(true);
+          router.replace('/(tabs)');
+          return;
+        }
+
+        // For new or partially onboarded users, only navigate to the missing step:
+        if (!isLivenessDone) {
+          setStep(2);
+        } else if (!hasIntent) {
+          setStep(4);
+        } else {
+          await api.setOnboardingCompleted(true);
+          router.replace('/(tabs)');
+        }
+      } catch (err) {
+        if (!res?.isNewUser) {
+          await api.setOnboardingCompleted(true);
+          router.replace('/(tabs)');
+        } else {
+          setStep(2);
+        }
+      }
     } catch (e: any) {
       setLoading(false);
       Alert.alert('Verification Failed', e.message || 'Invalid or expired OTP.');

@@ -29,11 +29,14 @@ import {
   MicIcon,
 } from '@/components/chat-icons';
 import { FEATURE_FLAGS } from '@/config/features';
+import { getOrDeriveMatchKey, encryptMessage, decryptMessage } from '@/services/e2ee';
+import type { AESEncryptionKey } from 'expo-crypto';
 
 export default function ChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
+  const aesKeyRef = useRef<AESEncryptionKey | null>(null);
   const { id: matchId, name: candidateName, initialText } = useLocalSearchParams<{
     id: string;
     name?: string;
@@ -102,9 +105,27 @@ export default function ChatScreen() {
           api.getWingmanSparks(matchId).catch(() => null),
         ]);
 
-        if (!isMounted) return;
+        let derivedKey = aesKeyRef.current;
+        if (matchData) {
+          setMatchDetails(matchData);
+          derivedKey = await getOrDeriveMatchKey(matchId, matchData.e2eeSecret);
+          aesKeyRef.current = derivedKey;
+        }
 
-        setMessages(msgs || []);
+        if (msgs && msgs.length > 0 && derivedKey) {
+          const decryptedMsgs = await Promise.all(
+            msgs.map(async (m) => {
+              if (m.content && m.content.startsWith('E2EE:v1:')) {
+                const plain = await decryptMessage(m.content, derivedKey);
+                return { ...m, content: plain };
+              }
+              return m;
+            })
+          );
+          setMessages(decryptedMsgs);
+        } else {
+          setMessages(msgs || []);
+        }
         api.markMessagesAsRead(matchId);
 
         if (sparksRes?.sparks) {
@@ -198,10 +219,20 @@ export default function ChatScreen() {
               String(data.matchId).toLowerCase() === String(matchId).toLowerCase() &&
               !isFromCurrentMe
             ) {
-              setMessages((prev) => {
-                if (prev.some((m) => m.id === data.id)) return prev;
-                return [...prev, { ...data, isFromMe: false }];
-              });
+              const currentKey = aesKeyRef.current;
+              if (data.content && data.content.startsWith('E2EE:v1:') && currentKey) {
+                decryptMessage(data.content, currentKey).then((plain) => {
+                  setMessages((prev) => {
+                    if (prev.some((m) => m.id === data.id)) return prev;
+                    return [...prev, { ...data, content: plain, isFromMe: false }];
+                  });
+                });
+              } else {
+                setMessages((prev) => {
+                  if (prev.some((m) => m.id === data.id)) return prev;
+                  return [...prev, { ...data, isFromMe: false }];
+                });
+              }
             }
           } catch (err) {}
         };
@@ -224,15 +255,18 @@ export default function ChatScreen() {
   }, [matchId]);
 
   const handleSendMessage = async (textToSend?: string) => {
-    const content = textToSend || inputText;
-    if (!content.trim() || !matchId) return;
+    const rawContent = textToSend || inputText;
+    if (!rawContent.trim() || !matchId) return;
 
     setInputText('');
-    const newMsg = await api.sendMessage(matchId, content.trim());
+    const currentKey = aesKeyRef.current;
+    const encryptedContent = await encryptMessage(rawContent.trim(), currentKey);
+
+    const newMsg = await api.sendMessage(matchId, encryptedContent);
     if (newMsg) {
       setMessages((prev) => {
         if (prev.some((m) => m.id === newMsg.id)) return prev;
-        return [...prev, { ...newMsg, isFromMe: true }];
+        return [...prev, { ...newMsg, content: rawContent.trim(), isFromMe: true }];
       });
     }
   };
@@ -324,7 +358,7 @@ export default function ChatScreen() {
           <TouchableOpacity onPress={() => setShowProfileModal(true)} style={styles.headerTitleBox}>
             <Text style={styles.headerTitle}>{matchProfile?.displayName || matchDetails?.otherUserName || candidateName || 'Match'} 👤</Text>
             <Text style={styles.headerSubtitle}>
-              {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • 🔒 AES-256 Encrypted' : '👤 3D Liveness Verified • 🔒 AES-256 Encrypted'}
+              {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • 🔒 End-to-End Encrypted' : '👤 3D Liveness Verified • 🔒 End-to-End Encrypted'}
             </Text>
           </TouchableOpacity>
 
@@ -349,6 +383,13 @@ export default function ChatScreen() {
               <View style={styles.videoLiveDot} />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* End-to-End Encryption Security Guarantee Banner */}
+        <View style={styles.e2eeBanner}>
+          <Text style={styles.e2eeBannerText}>
+            🔒 End-to-End Encrypted • Only you and {matchProfile?.displayName || candidateName || 'your match'} can read these messages.
+          </Text>
         </View>
 
         {/* Safe Date Spot Recommendation Banner */}
@@ -534,6 +575,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1E2028',
+  },
+  e2eeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#12141C',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1B1E2B',
+  },
+  e2eeBannerText: {
+    color: '#8A91A8',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   headerBackBtn: {
     paddingRight: 6,

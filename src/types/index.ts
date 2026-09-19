@@ -199,6 +199,7 @@ export interface MatchItem {
   lastMessage?: string;
   lastMessageTime?: string;
   otherProfile?: CandidateCard;
+  e2eeSecret?: string;
 }
 
 export interface ChatMessage {

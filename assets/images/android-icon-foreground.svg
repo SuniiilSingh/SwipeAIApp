@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background Ambient Gradients for Depth -->
+    <radialGradient id="fg-glow-crimson" cx="18%" cy="18%" r="65%">
+      <stop offset="0%" stop-color="#E94057" stop-opacity="0.52" />
+      <stop offset="55%" stop-color="#E94057" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#08080E" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="fg-glow-violet" cx="82%" cy="82%" r="65%">
+      <stop offset="0%" stop-color="#7928CA" stop-opacity="0.48" />
+      <stop offset="60%" stop-color="#7928CA" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#08080E" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Champagne Rose Gold Gradient (Letter B & Bezel) -->
+    <linearGradient id="gold-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5E5" />
+      <stop offset="25%" stop-color="#F3C892" />
+      <stop offset="55%" stop-color="#D99B5B" />
+      <stop offset="85%" stop-color="#B87333" />
+      <stop offset="100%" stop-color="#EAA678" />
+    </linearGradient>
+
+    <!-- Glowing Velvet Rose Gradient (Letter D) -->
+    <linearGradient id="velvet-rose" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5A7E" />
+      <stop offset="40%" stop-color="#FF385C" />
+      <stop offset="75%" stop-color="#C71540" />
+      <stop offset="100%" stop-color="#7928CA" />
+    </linearGradient>
+
+    <!-- Velvet Rose Dark Inner Shadow -->
+    <linearGradient id="velvet-shadow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#550818" />
+      <stop offset="100%" stop-color="#1A0207" />
+    </linearGradient>
+  </defs>
+
+  <!-- Scaled & Centered in the Android Adaptive 66% Safe Zone -->
+  <g transform="translate(512, 512) scale(1.3) translate(-256, -256)">
+    <!-- 3D SHADOW UNDERLAY -->
+    <g transform="translate(0, 14)" opacity="0.75">
+      <path d="M 232 142 L 315 142 C 385 142 432 188 432 256 C 432 324 385 370 315 370 L 232 370 Z" fill="#020104" />
+      <path d="M 112 142 L 235 142 C 275 142 300 162 300 196 C 300 224 282 244 256 251 C 290 259 312 282 312 316 C 312 352 280 370 235 370 L 112 370 Z" fill="#020104" />
+    </g>
+
+    <!-- LETTER D (Glowing Velvet Rose) -->
+    <path d="M 232 142 L 315 142 C 385 142 432 188 432 256 C 432 324 385 370 315 370 L 232 370 Z" 
+          fill="url(#velvet-rose)" />
+
+    <!-- Inner D counter -->
+    <path d="M 278 186 L 312 186 C 354 186 384 214 384 256 C 384 298 354 326 312 326 L 278 326 Z" 
+          fill="#0B0711" />
+    <path d="M 278 186 L 312 186 C 354 186 384 214 384 256 C 384 298 354 326 312 326 L 278 326 Z" 
+          fill="url(#fg-glow-violet)" opacity="0.65" />
+
+    <!-- Letter D Top Rim Specular Sheen -->
+    <path d="M 232 142 L 315 142 C 360 142 400 165 420 200" 
+          fill="none" stroke="#FFA3B8" stroke-width="3" stroke-linecap="round" opacity="0.75" />
+
+    <!-- LETTER B (Champagne Rose Gold) -->
+    <path d="M 112 142 L 235 142 C 275 142 300 162 300 196 C 300 224 282 244 256 251 C 290 259 312 282 312 316 C 312 352 280 370 235 370 L 112 370 Z" 
+          fill="url(#gold-primary)" />
+
+    <!-- B Upper Inner Counter -->
+    <path d="M 160 184 L 225 184 C 246 184 258 194 258 206 C 258 218 246 228 225 228 L 160 228 Z" 
+          fill="#09060E" />
+    <path d="M 160 184 L 225 184 C 246 184 258 194 258 206 C 258 218 246 228 225 228 L 160 228 Z" 
+          fill="url(#fg-glow-crimson)" opacity="0.5" />
+
+    <!-- B Lower Inner Counter -->
+    <path d="M 160 268 L 232 268 C 255 268 268 280 268 296 C 268 312 255 328 232 328 L 160 328 Z" 
+          fill="#09060E" />
+    <path d="M 160 268 L 232 268 C 255 268 268 280 268 296 C 268 312 255 328 232 328 L 160 328 Z" 
+          fill="url(#velvet-shadow)" opacity="0.7" />
+
+    <!-- B Top Edge Specular White Highlight -->
+    <path d="M 112 142 L 235 142 C 265 142 285 154 294 172" 
+        fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.85" />
+    <path d="M 112 142 L 112 370" 
+        fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.5" />
+
+    <!-- Subtle Interlacing Crease between B and D -->
+    <line x1="256" y1="248" x2="256" y2="264" stroke="#4A0E1C" stroke-width="2.5" opacity="0.6" />
+
+    <!-- CYAN VERIFICATION STAR SPARK (#00F2FE) -->
+    <g transform="translate(268, 253)">
+      <circle cx="0" cy="0" r="28" fill="#00F2FE" opacity="0.14" />
+      <circle cx="0" cy="0" r="16" fill="#00F2FE" opacity="0.32" />
+      <path d="M 0 -22 Q 0 0 22 0 Q 0 0 0 22 Q 0 0 -22 0 Q 0 0 0 -22 Z" fill="#00F2FE" />
+      <path d="M 0 -11 Q 0 0 11 0 Q 0 0 0 11 Q 0 0 -11 0 Q 0 0 0 -11 Z" 
+            transform="rotate(45)" fill="#A5F3FC" opacity="0.9" />
+      <circle cx="0" cy="0" r="4.5" fill="#FFFFFF" />
+    </g>
+  </g>
+</svg>

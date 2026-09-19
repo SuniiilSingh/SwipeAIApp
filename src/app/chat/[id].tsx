@@ -1,87 +1,227 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '@/services/api';
-import { CandidateCard, ChatMessage } from '@/types';
+import { CandidateCard, ChatMessage, MatchItem, VirtualChaiSession } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
+import VirtualChaiModal from '@/components/virtual-chai-modal';
+import {
+  AudioCallIcon,
+  VideoCallIcon,
+  CameraIcon,
+  SendIcon,
+  MicIcon,
+} from '@/components/chat-icons';
 import { FEATURE_FLAGS } from '@/config/features';
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { id: matchId, name: candidateName } = useLocalSearchParams<{
+  const insets = useSafeAreaInsets();
+  const flatListRef = useRef<FlatList>(null);
+  const { id: matchId, name: candidateName, initialText } = useLocalSearchParams<{
     id: string;
     name?: string;
+    initialText?: string;
   }>();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState(initialText || '');
   const [loading, setLoading] = useState(true);
   const [matchProfile, setMatchProfile] = useState<CandidateCard | null>(null);
+  const [matchDetails, setMatchDetails] = useState<MatchItem | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [mutualSparks, setMutualSparks] = useState<string[]>([]);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   // Calling & Safe Date Modals
-  const [callActive, setCallActive] = useState(false);
+  const [callingSession, setCallingSession] = useState<VirtualChaiSession | null>(null);
+  const [callingModalVisible, setCallingModalVisible] = useState(false);
+  const [isVideoCall, setIsVideoCall] = useState(false);
   const [unblurredImages, setUnblurredImages] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    loadChat();
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialText) {
+      setInputText(initialText);
+    }
+  }, [initialText]);
+
+  useEffect(() => {
+    if (!matchId) return;
+
+    let isMounted = true;
+    setLoading(true);
+    // Instant reset to avoid any profile or message state leakage from prior match
+    setMessages([]);
+    setMatchProfile(null);
+    setMatchDetails(null);
+    setMutualSparks([]);
+    setInputText(initialText || '');
+
+    const loadChatData = async () => {
+      try {
+        const [msgs, matchData, sparksRes] = await Promise.all([
+          api.getMessages(matchId),
+          api.getMatchDetails(matchId),
+          api.getWingmanSparks(matchId).catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+
+        setMessages(msgs || []);
+        api.markMessagesAsRead(matchId);
+
+        if (sparksRes?.sparks) {
+          setMutualSparks(sparksRes.sparks);
+        }
+
+        if (matchData) {
+          setMatchDetails(matchData);
+          if (matchData.otherProfile) {
+            setMatchProfile({
+              ...matchData.otherProfile,
+              displayName: matchData.otherProfile.displayName || matchData.otherUserName || candidateName || 'Match',
+              fullName: matchData.otherProfile.displayName || matchData.otherUserName || candidateName || 'Match',
+              age: matchData.otherProfile.age || matchData.otherUserAge || 25,
+              photos: matchData.otherProfile.photos?.length
+                ? matchData.otherProfile.photos
+                : matchData.otherUserPhoto
+                ? [matchData.otherUserPhoto]
+                : [],
+            });
+          } else {
+            setMatchProfile({
+              userId: matchData.otherUserId,
+              displayName: matchData.otherUserName || candidateName || 'Match',
+              fullName: matchData.otherUserName || candidateName || 'Match',
+              age: matchData.otherUserAge || 25,
+              isDigilockerVerified: Boolean(matchData.isDigilockerVerified),
+              isWhatsappVerified: true,
+              livenessScore: 0.98,
+              distanceKm: 3.5,
+              culturalBadges: {
+                diet: 'PURE_VEG',
+                living: 'INDEPENDENT_FLAT',
+                languages: ['English', 'Hindi'],
+                zodiac: 'Aries',
+              },
+              compatibilityScore: 90,
+              bio: 'High-intent match on Blunderr Dating.',
+              occupation: 'Professional',
+              company: 'Bengaluru Tech',
+              education: 'Graduate',
+              height: 175,
+              relationshipIntent: 'Long-term partner',
+              moonSign: 'Leo',
+              karmaScore: 182,
+              city: 'Bengaluru',
+              neighborhood: 'Indiranagar',
+              microCircle: 'Koramangala Tech Founders',
+              photos: matchData.otherUserPhoto ? [matchData.otherUserPhoto] : [],
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load chat lounge:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadChatData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [matchId]);
 
-  const loadChat = async () => {
+  // Real-time WebSocket connection for incoming chat messages
+  useEffect(() => {
     if (!matchId) return;
-    setLoading(true);
-    const msgs = await api.getMessages(matchId);
-    setMessages(msgs);
+    let ws: WebSocket | null = null;
+    let reconnectTimer: any = null;
+    let isMounted = true;
 
-    // Load full profile details for this match
-    const match = await api.getMatchDetails(matchId);
-    if (match?.otherProfile) {
-      setMatchProfile(match.otherProfile);
-    } else if (match) {
-      setMatchProfile({
-        userId: match.otherUserId,
-        displayName: candidateName || match.otherUserName || 'Match',
-        fullName: candidateName || match.otherUserName || 'Match',
-        age: match.otherUserAge || 25,
-        isDigilockerVerified: Boolean(match.isDigilockerVerified),
-        isWhatsappVerified: true,
-        livenessScore: 0.98,
-        distanceKm: 3.5,
-        culturalBadges: {
-          diet: 'PURE_VEG',
-          living: 'INDEPENDENT_FLAT',
-          languages: ['English', 'Hindi'],
-          zodiac: 'Aries',
-        },
-        compatibilityScore: 90,
-        bio: 'High-intent match on Blunderr Dating.',
-        occupation: 'Professional',
-        company: 'Bengaluru Tech',
-        education: 'Graduate',
-        height: 175,
-        relationshipIntent: 'Long-term partner',
-        moonSign: 'Leo',
-        karmaScore: 182,
-        city: 'Bengaluru',
-        neighborhood: 'Indiranagar',
-        microCircle: 'Koramangala Tech Founders',
-        photos: match.otherUserPhoto ? [match.otherUserPhoto] : [],
-      });
-    }
-    setLoading(false);
-  };
+    const connectWebSocket = () => {
+      try {
+        const uid = api.getCurrentUserId();
+        const base = api.getBaseUrl().replace('http://', 'ws://').replace('https://', 'wss://');
+        ws = new WebSocket(`${base}/ws/chat?userId=${uid}`);
+
+        ws.onmessage = (e) => {
+          try {
+            if (!isMounted) return;
+            const data = JSON.parse(e.data);
+            const currentUid = api.getCurrentUserId();
+            const isFromCurrentMe = data.senderId ? data.senderId === currentUid : Boolean(data.isFromMe);
+
+            // Strict matchId check (case-insensitive) & ignore echo of my own messages
+            if (
+              String(data.matchId).toLowerCase() === String(matchId).toLowerCase() &&
+              !isFromCurrentMe
+            ) {
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === data.id)) return prev;
+                return [...prev, { ...data, isFromMe: false }];
+              });
+            }
+          } catch (err) {}
+        };
+
+        ws.onclose = () => {
+          if (isMounted) {
+            reconnectTimer = setTimeout(connectWebSocket, 4000);
+          }
+        };
+      } catch (e) {}
+    };
+
+    connectWebSocket();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(reconnectTimer);
+      ws?.close();
+    };
+  }, [matchId]);
 
   const handleSendMessage = async (textToSend?: string) => {
     const content = textToSend || inputText;
@@ -89,18 +229,24 @@ export default function ChatScreen() {
 
     setInputText('');
     const newMsg = await api.sendMessage(matchId, content.trim());
-    setMessages((prev) => [...prev, newMsg]);
+    if (newMsg) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, { ...newMsg, isFromMe: true }];
+      });
+    }
   };
 
-  const handleVirtualChaiCall = async () => {
+  const handleStartCall = async (videoMode: boolean = false) => {
     if (!matchId) return;
-    const session = await api.createVirtualChaiSession(matchId);
-    setCallActive(true);
-    Alert.alert(
-      '☕ Virtual Chai Connected (Phone Masked)',
-      `Encrypted WebRTC Audio Call active with ${candidateName || 'Match'}.\nYour phone number is completely hidden.`,
-      [{ text: 'End Call', onPress: () => setCallActive(false) }]
-    );
+    setIsVideoCall(videoMode);
+    try {
+      const session = await api.createVirtualChaiSession(matchId, videoMode);
+      setCallingSession(session);
+      setCallingModalVisible(true);
+    } catch (e) {
+      Alert.alert('Call Failed', 'Could not connect to the calling server. Please check your network.');
+    }
   };
 
   const handleSendTestSensitiveImage = async () => {
@@ -142,92 +288,194 @@ export default function ChatScreen() {
           <Text style={[styles.messageText, item.isFromMe ? styles.myMessageText : styles.theirMessageText]}>
             {item.content}
           </Text>
+
+          <View style={styles.bubbleFooter}>
+            <Text style={[styles.bubbleTimeText, item.isFromMe ? styles.myBubbleTime : styles.theirBubbleTime]}>
+              {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {item.isFromMe && (
+              <Text style={styles.readReceiptText}>
+                {item.status === 'READ' ? '✓✓' : '✓'}
+              </Text>
+            )}
+          </View>
         </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Dynamic User Watermark Overlay (Anti-Screenshot Protection) */}
-      <View style={styles.watermarkCanvas}>
-        <Text style={styles.watermarkText}>PROTECTED BY SHIELD 360 • CONFIDENTIAL</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+        {/* Dynamic User Watermark Overlay (Anti-Screenshot Protection) */}
+        <View style={styles.watermarkCanvas}>
+          <Text style={styles.watermarkText}>PROTECTED BY SHIELD 360 • CONFIDENTIAL</Text>
+        </View>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBackBtn}>
-          <Text style={styles.backBtn}>←</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBackBtn}>
+            <Text style={styles.backBtn}>←</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setShowProfileModal(true)} style={styles.headerTitleBox}>
+            <Text style={styles.headerTitle}>{matchProfile?.displayName || matchDetails?.otherUserName || candidateName || 'Match'} 👤</Text>
+            <Text style={styles.headerSubtitle}>
+              {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • 🔒 AES-256 Encrypted' : '👤 3D Liveness Verified • 🔒 AES-256 Encrypted'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.headerCallActionRow}>
+            {/* Audio Call / Virtual Chai Call Button */}
+            <TouchableOpacity
+              style={styles.audioCallBtn}
+              onPress={() => handleStartCall(false)}
+              activeOpacity={0.75}
+              accessibilityLabel="Start Audio Call">
+              <AudioCallIcon size={19} color="#FF385C" />
+              <View style={styles.audioLiveDot} />
+            </TouchableOpacity>
+
+            {/* Video Call Button */}
+            <TouchableOpacity
+              style={styles.videoCallBtn}
+              onPress={() => handleStartCall(true)}
+              activeOpacity={0.75}
+              accessibilityLabel="Start Video Call">
+              <VideoCallIcon size={20} color="#C084FC" />
+              <View style={styles.videoLiveDot} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Safe Date Spot Recommendation Banner */}
+        <TouchableOpacity
+          style={styles.safeSpotBanner}
+          onPress={() => router.push('/safe-date')}>
+          <Text style={styles.safeSpotIcon}>📍</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.safeSpotTitle}>Plan a Safe Spot Date</Text>
+            <Text style={styles.safeSpotDesc}>Blue Tokai Indiranagar (15% Off + SOS Friend Sharing)</Text>
+          </View>
+          <Text style={styles.safeSpotArrow}>→</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => setShowProfileModal(true)} style={styles.headerTitleBox}>
-          <Text style={styles.headerTitle}>{candidateName || matchProfile?.displayName || 'Match'} 👤</Text>
-          <Text style={styles.headerSubtitle}>
-            {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • Tap to view profile' : '👤 3D Liveness Verified • Tap to view profile'}
+        {/* Pre-Chat Icebreaker Recap Card */}
+        {matchDetails?.icebreakerQuiz?.isCompleted ? (
+          <View style={styles.icebreakerRecapCard}>
+            <Text style={styles.recapHeading}>✦ YOU BOTH ANSWERED THE ICEBREAKER QUIZ:</Text>
+            <Text style={styles.recapQuestion}>
+              "{matchDetails.icebreakerQuiz.question || 'Mutual Compatibility Prompt'}"
+            </Text>
+            <Text style={styles.recapAnswer}>
+              ✓ {matchDetails.icebreakerQuiz.isMutualAgreement
+                ? 'Mutual Agreement Spark! You both picked the same answer.'
+                : '10s Quiz Completed • Chat Lounge Unlocked!'}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* AES-256-GCM Encrypted Lounge Notice Banner */}
+        <View style={styles.encryptedNoticeBanner}>
+          <Text style={styles.encryptedNoticeLock}>🔒</Text>
+          <Text style={styles.encryptedNoticeText}>
+            AES-256-GCM Encrypted at Rest • Decrypted only for this active profile session
           </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.virtualChaiBtn} onPress={handleVirtualChaiCall}>
-          <Text style={styles.virtualChaiIcon}>☕</Text>
-          <Text style={styles.virtualChaiText}>Virtual Chai</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Safe Date Spot Recommendation Banner */}
-      <TouchableOpacity
-        style={styles.safeSpotBanner}
-        onPress={() => router.push('/safe-date')}>
-        <Text style={styles.safeSpotIcon}>📍</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.safeSpotTitle}>Plan a Safe Spot Date</Text>
-          <Text style={styles.safeSpotDesc}>Blue Tokai Indiranagar (15% Off + SOS Friend Sharing)</Text>
         </View>
-        <Text style={styles.safeSpotArrow}>→</Text>
-      </TouchableOpacity>
 
-      {/* Pre-Chat Icebreaker Recap Card */}
-      <View style={styles.icebreakerRecapCard}>
-        <Text style={styles.recapHeading}>✦ YOU BOTH ANSWERED THE ICEBREAKER QUIZ:</Text>
-        <Text style={styles.recapQuestion}>"Perfect Sunday: Filter Coffee in Indiranagar or Sleeping till 2 PM?"</Text>
-        <Text style={styles.recapAnswer}>✓ Both picked: Filter Coffee & Dosa Crawl!</Text>
-      </View>
+        {/* Chat Messages */}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color="#E94057" />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessageItem}
+            contentContainerStyle={styles.messageList}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          />
+        )}
 
-      {/* Chat Messages */}
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#E94057" />
+        {/* Mutual Chemistry Quick Chips (Alternative 1 + 4 for 0-friction first message) */}
+        {messages.length === 0 && mutualSparks.length > 0 && (
+          <View style={styles.quickChipsContainer}>
+            <Text style={styles.quickChipsLabel}>✨ Mutual Chemistry Sparks (Tap to use):</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickChipsScroll}>
+              {mutualSparks.map((spark, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.quickChip}
+                  onPress={() => setInputText(spark)}>
+                  <Text style={styles.quickChipText} numberOfLines={1}>"{spark}"</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Bottom Message Input Bar (Rides cleanly above keypad) */}
+        <View
+          style={[
+            styles.inputBar,
+            {
+              paddingBottom: isKeyboardVisible
+                ? 10
+                : Math.max(insets.bottom, 12),
+            },
+          ]}>
+          <TouchableOpacity
+            style={styles.sensitiveMediaBtn}
+            onPress={handleSendTestSensitiveImage}
+            activeOpacity={0.7}
+            accessibilityLabel="Send Photo">
+            <CameraIcon size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <TextInput
+            style={styles.inputField}
+            placeholder="Type message or tap a Mutual Spark..."
+            placeholderTextColor="#6B7280"
+            value={inputText}
+            onChangeText={setInputText}
+            multiline={false}
+            returnKeyType="send"
+            onSubmitEditing={() => handleSendMessage()}
+            blurOnSubmit={false}
+          />
+
+          {inputText.trim().length > 0 ? (
+            <TouchableOpacity
+              style={styles.sendBtn}
+              onPress={() => handleSendMessage()}
+              activeOpacity={0.8}
+              accessibilityLabel="Send Message">
+              <SendIcon size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.micBtn}
+              onPress={() => {
+                Alert.alert('Voice Note', 'Hold to record end-to-end encrypted voice note.');
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel="Voice Note">
+              <MicIcon size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
         </View>
-      ) : (
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          renderItem={renderMessageItem}
-          contentContainerStyle={styles.messageList}
-        />
-      )}
-
-      {/* Bottom Message Input Bar */}
-      <View style={styles.inputBar}>
-        <TouchableOpacity
-          style={styles.sensitiveMediaBtn}
-          onPress={handleSendTestSensitiveImage}>
-          <Text style={styles.sensitiveMediaIcon}>📷</Text>
-        </TouchableOpacity>
-
-        <TextInput
-          style={styles.inputField}
-          placeholder="Type message or use AI Spark..."
-          placeholderTextColor="#7F8496"
-          value={inputText}
-          onChangeText={setInputText}
-        />
-
-        <TouchableOpacity
-          style={styles.sendBtn}
-          onPress={() => handleSendMessage()}>
-          <Text style={styles.sendBtnText}>Send</Text>
-        </TouchableOpacity>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Full Profile Viewer Modal */}
       <ProfileDetailModal
@@ -236,7 +484,20 @@ export default function ChatScreen() {
         onClose={() => setShowProfileModal(false)}
         onVirtualChai={() => {
           setShowProfileModal(false);
-          handleVirtualChaiCall();
+          handleStartCall(false);
+        }}
+      />
+
+      {/* ☕ Virtual Chai Masked Audio & Video Calling Modal */}
+      <VirtualChaiModal
+        visible={callingModalVisible}
+        session={callingSession}
+        recipientName={matchProfile?.displayName || matchDetails?.otherUserName || candidateName || 'Match Partner'}
+        recipientPhoto={matchProfile?.photos?.[0] || matchDetails?.otherUserPhoto}
+        initialVideo={isVideoCall}
+        onEndCall={() => {
+          setCallingModalVisible(false);
+          setCallingSession(null);
         }}
       />
     </SafeAreaView>
@@ -247,6 +508,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',
+  },
+  keyboardContainer: {
+    flex: 1,
   },
   watermarkCanvas: {
     ...StyleSheet.absoluteFill,
@@ -295,24 +559,64 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
-  virtualChaiBtn: {
-    backgroundColor: 'rgba(242, 113, 33, 0.15)',
-    borderWidth: 1,
-    borderColor: '#F27121',
+  headerCallActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 4,
+    gap: 10,
   },
-  virtualChaiIcon: {
-    fontSize: 14,
+  audioCallBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 56, 92, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  virtualChaiText: {
-    color: '#F27121',
-    fontSize: 11,
-    fontWeight: '800',
+  audioLiveDot: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#0E0F13',
+  },
+  videoCallBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(121, 40, 202, 0.14)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(168, 85, 247, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: '#7928CA',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  videoLiveDot: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#A855F7',
+    borderWidth: 1.5,
+    borderColor: '#0E0F13',
   },
   safeSpotBanner: {
     flexDirection: 'row',
@@ -368,6 +672,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
   },
+  encryptedNoticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.22)',
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  encryptedNoticeLock: {
+    fontSize: 11,
+  },
+  encryptedNoticeText: {
+    color: '#34D399',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
   messageList: {
     padding: 16,
   },
@@ -406,6 +733,27 @@ const styles = StyleSheet.create({
   },
   theirMessageText: {
     color: '#CACDD8',
+  },
+  bubbleFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 3,
+    gap: 4,
+  },
+  bubbleTimeText: {
+    fontSize: 10,
+  },
+  myBubbleTime: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  theirBubbleTime: {
+    color: '#8E94A5',
+  },
+  readReceiptText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   imageContainer: {
     borderRadius: 12,
@@ -456,48 +804,91 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#14151B',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    backgroundColor: '#121319',
     borderTopWidth: 1,
-    borderTopColor: '#20222C',
+    borderTopColor: '#1F222E',
     gap: 8,
   },
   sensitiveMediaBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#20222C',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1B1E29',
+    borderWidth: 1,
+    borderColor: '#292E3F',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sensitiveMediaIcon: {
-    fontSize: 18,
-  },
   inputField: {
     flex: 1,
-    backgroundColor: '#20222C',
-    borderRadius: 20,
+    backgroundColor: '#1B1E29',
+    borderRadius: 21,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: Platform.OS === 'ios' ? 11 : 9,
     color: '#ffffff',
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#2D303E',
+    borderColor: '#292E3F',
   },
   sendBtn: {
-    backgroundColor: '#E94057',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FF385C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  sendBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '800',
+  micBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1B1E29',
+    borderWidth: 1,
+    borderColor: '#292E3F',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quickChipsContainer: {
+    backgroundColor: '#12141C',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#202434',
+  },
+  quickChipsLabel: {
+    color: '#FFB703',
+    fontSize: 11,
+    fontWeight: '800',
+    paddingHorizontal: 16,
+    marginBottom: 6,
+  },
+  quickChipsScroll: {
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  quickChip: {
+    backgroundColor: '#1E2230',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#2D344B',
+    maxWidth: 280,
+  },
+  quickChipText: {
+    color: '#E0E4F0',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

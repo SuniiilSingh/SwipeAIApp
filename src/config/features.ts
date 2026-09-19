@@ -23,4 +23,12 @@ export const FEATURE_FLAGS = {
    * UPI Micro-Sachet Store & Instant Orders.
    */
   ENABLE_UPI_PAYMENTS: true,
+
+  /**
+   * Twilio Test Mode / Mock OTP:
+   * When true, bypasses real Twilio SMS/WhatsApp dispatch, accepts OTP 123456,
+   * and auto-populates it for instant onboarding advancement.
+   * Toggle to false when deploying to the next environment with live Twilio.
+   */
+  USE_MOCK_OTP: true,
 };

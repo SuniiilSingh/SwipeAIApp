@@ -20,19 +20,32 @@ export default function RootIndex() {
           return;
         }
 
-        // 1. Check local cached onboarding status
-        const completedLocally = await api.isOnboardingCompleted();
-        if (completedLocally) {
-          router.replace('/(tabs)');
-          return;
-        }
-
-        // 2. Query backend profile to check if details and verifications were already completed
+        // 1. Fetch user profile to verify basic info (Name, Gender, Orientation) and >=30% completion
         try {
           const profile = await api.getMyProfile();
+          const hasName = Boolean(profile?.displayName?.trim() || profile?.fullName?.trim());
+          const hasGender = Boolean(profile?.gender || profile?.genderDisplay);
+          const hasOrientation = Boolean(profile?.sexualOrientation);
+          const completionPct = profile?.completionPercentage || 0;
+          const isProfileComplete = hasName && hasGender && hasOrientation && completionPct >= 30;
+
+          // If profile is incomplete, directly redirect to fill profile details
+          if (!isProfileComplete) {
+            router.replace({ pathname: '/(tabs)/profile', params: { edit: 'true', reason: 'incomplete' } });
+            return;
+          }
+
+          // 2. Check local cached onboarding status
+          const completedLocally = await api.isOnboardingCompleted();
+          if (completedLocally) {
+            router.replace('/(tabs)');
+            return;
+          }
+
+          // 3. Check if phone/wa, liveness, and intent were already completed
           const isPhoneOrWaVerified = Boolean(profile.whatsappVerified || profile.phoneE164);
           const isLivenessVerified = Boolean((profile.livenessScore && profile.livenessScore >= 0.85) || profile.digilockerVerified);
-          const hasDatingIntent = Boolean(profile.intent);
+          const hasDatingIntent = Boolean(profile.intent || profile.relationshipIntent);
 
           if (isPhoneOrWaVerified && isLivenessVerified && hasDatingIntent) {
             await api.setOnboardingCompleted(true);
@@ -40,8 +53,8 @@ export default function RootIndex() {
             return;
           }
         } catch (profileErr) {
-          // If profile check fails but token exists, redirect to discovery
-          router.replace('/(tabs)');
+          // If profile check fails, route to auth
+          router.replace('/auth');
           return;
         }
 

@@ -18,7 +18,7 @@ export default function MatchesScreen() {
   const router = useRouter();
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCandidateForProfile, setSelectedCandidateForProfile] = useState<CandidateCard | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<MatchItem | null>(null);
 
   useEffect(() => {
     loadMatches();
@@ -32,7 +32,18 @@ export default function MatchesScreen() {
   };
 
   const getCandidateProfile = (item: MatchItem): CandidateCard => {
-    if (item.otherProfile) return item.otherProfile;
+    if (item.otherProfile) {
+      return {
+        ...item.otherProfile,
+        displayName: item.otherProfile.displayName || item.otherUserName,
+        age: item.otherProfile.age || item.otherUserAge,
+        photos: item.otherProfile.photos?.length
+          ? item.otherProfile.photos
+          : item.otherUserPhoto
+          ? [item.otherUserPhoto]
+          : [],
+      };
+    }
     return {
       userId: item.otherUserId,
       displayName: item.otherUserName,
@@ -56,7 +67,7 @@ export default function MatchesScreen() {
       height: 175,
       relationshipIntent: 'Long-term partner',
       interests: 'Coffee, Music, Reading, Travel, Foodie',
-      photos: [item.otherUserPhoto],
+      photos: item.otherUserPhoto ? [item.otherUserPhoto] : [],
     };
   };
 
@@ -81,7 +92,7 @@ export default function MatchesScreen() {
         }}>
         <TouchableOpacity
           style={styles.avatarContainer}
-          onPress={() => setSelectedCandidateForProfile(getCandidateProfile(item))}>
+          onPress={() => setSelectedMatch(item)}>
           <Image source={{ uri: item.otherUserPhoto }} style={styles.avatar} />
           {item.isDigilockerVerified && (
             <View style={styles.goldBadgeDot}>
@@ -113,7 +124,7 @@ export default function MatchesScreen() {
 
           <TouchableOpacity
             style={styles.viewProfileChip}
-            onPress={() => setSelectedCandidateForProfile(getCandidateProfile(item))}>
+            onPress={() => setSelectedMatch(item)}>
             <Text style={styles.viewProfileChipText}>👤 View Full Profile & Details →</Text>
           </TouchableOpacity>
         </View>
@@ -166,37 +177,33 @@ export default function MatchesScreen() {
 
       {/* Full Profile Viewer Modal */}
       <ProfileDetailModal
-        visible={!!selectedCandidateForProfile}
-        candidate={selectedCandidateForProfile}
-        onClose={() => setSelectedCandidateForProfile(null)}
+        visible={!!selectedMatch}
+        candidate={selectedMatch ? getCandidateProfile(selectedMatch) : null}
+        onClose={() => setSelectedMatch(null)}
         onStartChat={() => {
-          const current = selectedCandidateForProfile;
-          setSelectedCandidateForProfile(null);
-          const m = matches.find(x => x.otherUserId === current?.userId);
-          if (m) {
-            if (m.status === 'PENDING_ICEBREAKER') {
-              router.push({
-                pathname: '/matches/icebreaker',
-                params: { matchId: m.id },
-              });
-            } else {
-              router.push({
-                pathname: '/chat/[id]',
-                params: { id: m.id, name: m.otherUserName },
-              });
-            }
+          if (!selectedMatch) return;
+          const target = selectedMatch;
+          setSelectedMatch(null);
+          if (target.status === 'PENDING_ICEBREAKER') {
+            router.push({
+              pathname: '/matches/icebreaker',
+              params: { matchId: target.id },
+            });
+          } else {
+            router.push({
+              pathname: '/chat/[id]',
+              params: { id: target.id, name: target.otherUserName },
+            });
           }
         }}
         onVirtualChai={() => {
-          const current = selectedCandidateForProfile;
-          setSelectedCandidateForProfile(null);
-          const m = matches.find(x => x.otherUserId === current?.userId);
-          if (m) {
-            router.push({
-              pathname: '/chat/[id]',
-              params: { id: m.id, name: m.otherUserName },
-            });
-          }
+          if (!selectedMatch) return;
+          const target = selectedMatch;
+          setSelectedMatch(null);
+          router.push({
+            pathname: '/chat/[id]',
+            params: { id: target.id, name: target.otherUserName },
+          });
         }}
       />
     </SafeAreaView>

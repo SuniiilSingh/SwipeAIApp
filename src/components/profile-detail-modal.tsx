@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CandidateCard, DietaryPreference, LivingStatus } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
+import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
 
 const { width } = Dimensions.get('window');
 
@@ -81,12 +82,18 @@ export default function ProfileDetailModal({
     ? candidate.interests.split(',').map(s => s.trim()).filter(s => s)
     : ['Coffee', 'Travel', 'Indie music', 'Spotify', 'Foodie'];
 
+  const handleClose = () => {
+    stopAudibleVoiceNote();
+    setIsPlayingAudio(false);
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={handleClose}>
       <SafeAreaView style={styles.container}>
         {/* Top Header Bar */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
             <Text style={styles.closeBtnText}>✕</Text>
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
@@ -164,14 +171,16 @@ export default function ProfileDetailModal({
             </View>
 
             {/* Occupation & Education */}
-            {(candidate.job || candidate.occupation) && (
+            {(candidate.job || candidate.occupation || candidate.company) && (
               <Text style={styles.jobText}>
-                💼 {candidate.job || candidate.occupation} {candidate.company ? `@ ${candidate.company}` : ''}
+                💼 {candidate.job || candidate.occupation || 'Professional'}{candidate.company ? ` @ ${candidate.company}` : ''}
               </Text>
             )}
 
-            {candidate.education && (
-              <Text style={styles.eduText}>🎓 {candidate.education}</Text>
+            {(candidate.education || candidate.institute) && (
+              <Text style={styles.eduText}>
+                🎓 {candidate.education || 'Degree'}{candidate.institute ? ` @ ${candidate.institute}` : ''}
+              </Text>
             )}
 
             {candidate.height && (
@@ -179,7 +188,7 @@ export default function ProfileDetailModal({
             )}
 
             <Text style={styles.locText}>
-              📍 {candidate.neighborhood ? `${candidate.neighborhood}, ` : ''}{candidate.city || 'Bengaluru'} • {candidate.distanceKm} km away
+              📍 {candidate.neighborhood ? `${candidate.neighborhood}, ` : ''}{candidate.city || 'Bengaluru'} • {typeof candidate.distanceKm === 'number' && candidate.distanceKm >= 0 ? (candidate.distanceKm < 1 ? '< 1 km away' : `${candidate.distanceKm.toFixed(1)} km away`) : 'Nearby'}
             </Text>
           </View>
 
@@ -258,11 +267,11 @@ export default function ProfileDetailModal({
                 </Text>
               </View>
 
-              {candidate.culturalBadges?.languages && (
+              {((candidate.culturalBadges?.languages && candidate.culturalBadges.languages.length > 0) || (candidate.languagesSpoken && candidate.languagesSpoken.length > 0)) && (
                 <View style={[styles.traitChip, { width: '100%' }]}>
                   <Text style={styles.traitLabel}>Spoken Languages</Text>
                   <Text style={styles.traitValue}>
-                    🗣️ {candidate.culturalBadges.languages.join(', ')}
+                    🗣️ {(candidate.culturalBadges?.languages && candidate.culturalBadges.languages.length > 0 ? candidate.culturalBadges.languages : candidate.languagesSpoken)?.join(', ')}
                   </Text>
                 </View>
               )}
@@ -350,7 +359,20 @@ export default function ProfileDetailModal({
 
               <TouchableOpacity
                 style={styles.audioWaveBtn}
-                onPress={() => setIsPlayingAudio(!isPlayingAudio)}>
+                onPress={() => {
+                  if (isPlayingAudio) {
+                    stopAudibleVoiceNote();
+                    setIsPlayingAudio(false);
+                  } else {
+                    playAudibleVoiceNote({
+                      audioUrl: candidate.voicePrompt?.audioUrl,
+                      promptText: candidate.voicePrompt?.promptText,
+                      durationSec: candidate.voicePrompt?.durationSec || 15,
+                      onStart: () => setIsPlayingAudio(true),
+                      onEnd: () => setIsPlayingAudio(false),
+                    });
+                  }
+                }}>
                 <Text style={styles.playIcon}>
                   {isPlayingAudio ? '⏸️ Playing Voice Note...' : '▶ Listen (Authentic Voice Note)'}
                 </Text>

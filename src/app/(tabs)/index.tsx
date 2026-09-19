@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,10 +18,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { api } from '@/services/api';
 import { ActionType, CandidateCard, ContextType } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
+import DesireProfileModal from '@/components/desire-profile-modal';
 import { FEATURE_FLAGS } from '@/config/features';
 
 const { width, height } = Dimensions.get('window');
@@ -48,11 +50,13 @@ const FILTER_TAGS = [
   { id: 'ALL', label: '🌟 All Profiles' },
   { id: 'PURE_VEG', label: '🥦 Pure Veg' },
   { id: 'STRICT_JAIN', label: '🪷 Strict Jain' },
+  { id: 'VEGAN', label: '🌱 Vegan' },
   { id: 'EGGETARIAN', label: '🍳 Eggetarian' },
   { id: 'NON_VEG', label: '🍗 Non-Veg' },
   { id: 'MOUNTAINS', label: '🏔️ Mountains' },
   { id: 'BEACHES', label: '🏖️ Beaches' },
   { id: 'NON_SMOKER', label: '🚭 Non-Smoker' },
+  { id: 'NON_DRINKER', label: '🚫 Teetotaler' },
 ];
 
 export default function DiscoveryScreen() {
@@ -72,6 +76,7 @@ export default function DiscoveryScreen() {
   // Selected Candidate for Full Profile Inspection Sheet
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateCard | null>(null);
   const [showFullProfileModal, setShowFullProfileModal] = useState(false);
+  const [showDesireModal, setShowDesireModal] = useState(false);
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -96,13 +101,49 @@ export default function DiscoveryScreen() {
   const [chaiModalVisible, setChaiModalVisible] = useState(false);
   const [chaiTargetCandidate, setChaiTargetCandidate] = useState<CandidateCard | null>(null);
 
-  useEffect(() => {
-    loadFeed();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed();
+    }, [])
+  );
 
   const loadFeed = async () => {
     try {
-      const feed = await api.getFeed();
+      // 1. Discovery Gating Check: Name, Gender, Sexual Orientation and >= 30% completion required
+      const myProfile = await api.getMyProfile();
+      const hasName = Boolean(myProfile.displayName?.trim() || myProfile.fullName?.trim());
+      const hasGender = Boolean(myProfile.gender || myProfile.genderDisplay);
+      const hasOrientation = Boolean(myProfile.sexualOrientation);
+      const completionPct = myProfile.completionPercentage || 0;
+
+      if (!hasName || !hasGender || !hasOrientation || completionPct < 30) {
+        setLoading(false);
+        setRefreshing(false);
+        router.replace({
+          pathname: '/(tabs)/profile',
+          params: { edit: 'true', reason: 'incomplete' },
+        });
+        return;
+      }
+
+      let lat = myProfile.latitude;
+      let lon = myProfile.longitude;
+      try {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (loc?.coords) {
+            lat = loc.coords.latitude;
+            lon = loc.coords.longitude;
+          }
+        }
+      } catch (e) {}
+
+      const feed = await api.getFeed({
+        maxDistanceKm: myProfile.maxDistanceKm,
+        latitude: lat,
+        longitude: lon,
+      });
       const list = feed?.candidates && Array.isArray(feed.candidates) ? feed.candidates : [];
       setCandidates(list);
       setRemainingSwipes(feed?.remainingDailySwipes || 25);
@@ -202,13 +243,44 @@ export default function DiscoveryScreen() {
   // Filter candidates based on selected tag
   const filteredCandidates = candidates.filter((c) => {
     if (selectedFilter === 'ALL') return true;
-    if (selectedFilter === 'PURE_VEG') return c.culturalBadges?.diet === 'PURE_VEG';
-    if (selectedFilter === 'STRICT_JAIN') return c.culturalBadges?.diet === 'STRICT_JAIN';
-    if (selectedFilter === 'EGGETARIAN') return c.culturalBadges?.diet === 'EGGETARIAN';
-    if (selectedFilter === 'NON_VEG') return c.culturalBadges?.diet === 'NON_VEG';
-    if (selectedFilter === 'MOUNTAINS') return c.vacationPreference?.includes('Mountain');
-    if (selectedFilter === 'BEACHES') return c.vacationPreference?.includes('Beach');
-    if (selectedFilter === 'NON_SMOKER') return c.smokingHabit?.includes('Non-Smoker');
+
+    const rawDiet = (c.culturalBadges?.diet || (c as any).dietaryPref || '').toString().toUpperCase();
+
+    if (selectedFilter === 'PURE_VEG') {
+      // Pure Veg includes: standard pure veg, Strict Jain (100% vegetarian without root vegetables), and Vegan (plant-based vegetarian)
+      return rawDiet === 'PURE_VEG' || rawDiet === 'STRICT_JAIN' || rawDiet === 'VEGAN' || !rawDiet;
+    }
+    if (selectedFilter === 'STRICT_JAIN') {
+      return rawDiet === 'STRICT_JAIN';
+    }
+    if (selectedFilter === 'VEGAN') {
+      return rawDiet === 'VEGAN';
+    }
+    if (selectedFilter === 'EGGETARIAN') {
+      return rawDiet === 'EGGETARIAN';
+    }
+    if (selectedFilter === 'NON_VEG') {
+      return rawDiet === 'NON_VEG';
+    }
+
+    const vac = (c.vacationPreference || '').toLowerCase();
+    if (selectedFilter === 'MOUNTAINS') {
+      return vac.includes('mountain') || vac.includes('both') || !vac;
+    }
+    if (selectedFilter === 'BEACHES') {
+      return vac.includes('beach') || vac.includes('both');
+    }
+
+    const smoke = (c.smokingHabit || '').toLowerCase();
+    if (selectedFilter === 'NON_SMOKER') {
+      return smoke.includes('non') || smoke.includes('quit') || smoke.includes('never') || !smoke;
+    }
+
+    const drink = (c.drinkingHabit || '').toLowerCase();
+    if (selectedFilter === 'NON_DRINKER') {
+      return drink.includes('non') || drink.includes('sober') || drink.includes('teetotaler');
+    }
+
     return true;
   });
 
@@ -376,7 +448,7 @@ function SwipeableCandidateCard({
 
           {/* Bottom Overlaid Details Scrim */}
           <View style={styles.photoBottomScrim}>
-            {/* Row 1: Compatibility Pill & Location */}
+            {/* Row 1: Compatibility Pill, Desire Match & Location */}
             <View style={styles.scrimPillsRow}>
               <View style={styles.compatPill}>
                 <Text style={styles.compatPillText}>
@@ -384,9 +456,17 @@ function SwipeableCandidateCard({
                 </Text>
               </View>
 
+              {item.desireMatchPercent ? (
+                <View style={styles.desireMatchPill}>
+                  <Text style={styles.desireMatchPillText}>
+                    ✨ {item.desireMatchPercent}% Desire
+                  </Text>
+                </View>
+              ) : null}
+
               <View style={styles.locationPill}>
                 <Text style={styles.locationPillText}>
-                  📍 {item.neighborhood || item.city || 'Bengaluru'} • {item.distanceKm || 3.8} km
+                  📍 {item.neighborhood ? `${item.neighborhood}, ` : ''}{item.city || 'Bengaluru'} • {typeof item.distanceKm === 'number' && item.distanceKm >= 0 ? (item.distanceKm < 1 ? '< 1 km' : `${item.distanceKm.toFixed(1)} km`) : 'Nearby'}
                 </Text>
               </View>
             </View>
@@ -402,7 +482,7 @@ function SwipeableCandidateCard({
             {/* Row 3: Job & College */}
             <Text style={styles.jobText} numberOfLines={1}>
               💼 {item.occupation || item.job || 'Professional'}{item.company ? ` @ ${item.company}` : ''}
-              {item.education ? ` • 🎓 ${item.education}` : ''}
+              {(item.education || item.institute) ? ` • 🎓 ${item.education || 'Degree'}${item.institute ? ` @ ${item.institute}` : ''}` : ''}
             </Text>
 
             {/* Row 4: Lifestyle Indicators Row */}
@@ -421,6 +501,13 @@ function SwipeableCandidateCard({
               <View style={styles.lifestyleChip}>
                 <Text style={styles.lifestyleChipText}>{getDietBadge(item.culturalBadges?.diet)}</Text>
               </View>
+              {((item.culturalBadges?.languages && item.culturalBadges.languages.length > 0) || (item.languagesSpoken && item.languagesSpoken.length > 0)) && (
+                <View style={styles.lifestyleChip}>
+                  <Text style={styles.lifestyleChipText}>
+                    🗣️ {(item.culturalBadges?.languages && item.culturalBadges.languages.length > 0 ? item.culturalBadges.languages : item.languagesSpoken)!.slice(0, 2).join(', ')}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Row 5: Prompt Quote Teaser */}
@@ -506,29 +593,40 @@ function SwipeableCandidateCard({
         </TouchableOpacity>
       </View>
 
-      {/* Horizontal Filter Tags */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}>
-        {FILTER_TAGS.map((filter) => {
-          const isSelected = selectedFilter === filter.id;
-          return (
-            <TouchableOpacity
-              key={filter.id}
-              style={[styles.filterChip, isSelected && styles.filterChipActive]}
-              onPress={() => setSelectedFilter(filter.id)}>
-              <Text
-                style={[
-                  styles.filterChipText,
-                  isSelected && styles.filterChipTextActive,
-                ]}>
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* Horizontal Filter Bar with My Desire Button */}
+      <View style={styles.filterBarContainer}>
+        <TouchableOpacity
+          style={styles.desireFilterButton}
+          onPress={() => setShowDesireModal(true)}
+          activeOpacity={0.8}>
+          <Text style={styles.desireFilterIcon}>🎯</Text>
+          <Text style={styles.desireFilterText}>My Desire</Text>
+        </TouchableOpacity>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScrollView}
+          contentContainerStyle={styles.filterScroll}>
+          {FILTER_TAGS.map((filter) => {
+            const isSelected = selectedFilter === filter.id;
+            return (
+              <TouchableOpacity
+                key={filter.id}
+                style={[styles.filterChip, isSelected && styles.filterChipActive]}
+                onPress={() => setSelectedFilter(selectedFilter === filter.id ? 'ALL' : filter.id)}>
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    isSelected && styles.filterChipTextActive,
+                  ]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
     </View>
   );
 
@@ -718,6 +816,13 @@ function SwipeableCandidateCard({
           }
         }}
       />
+
+      {/* DESIRE PROFILE MODAL (QUICK EDIT FROM FEED) */}
+      <DesireProfileModal
+        visible={showDesireModal}
+        onClose={() => setShowDesireModal(false)}
+        onSaved={() => loadFeed()}
+      />
     </SafeAreaView>
   );
 }
@@ -809,10 +914,38 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginTop: 2,
   },
+  filterBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  desireFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1.5,
+    borderColor: '#FF385C',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    gap: 6,
+  },
+  desireFilterIcon: {
+    fontSize: 13,
+  },
+  desireFilterText: {
+    color: '#FF385C',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  filterScrollView: {
+    flex: 1,
+  },
   filterScroll: {
     flexDirection: 'row',
     gap: 8,
     paddingVertical: 2,
+    paddingRight: 16,
   },
   filterChip: {
     backgroundColor: '#181A22',
@@ -928,6 +1061,19 @@ const styles = StyleSheet.create({
   },
   compatPillText: {
     color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  desireMatchPill: {
+    backgroundColor: 'rgba(0, 229, 255, 0.18)',
+    borderWidth: 1,
+    borderColor: '#00E5FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  desireMatchPillText: {
+    color: '#00E5FF',
     fontSize: 10,
     fontWeight: '800',
   },

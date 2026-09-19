@@ -14,10 +14,14 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { api } from '@/services/api';
-import { DatingIntent, DietaryPreference, LivingStatus, UserProfile } from '@/types';
+import { DatingIntent, DesireProfile, DietaryPreference, LivingStatus, UserProfile } from '@/types';
+import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
+import DesireProfileModal from '@/components/desire-profile-modal';
+import SelfieCameraModal from '@/components/selfie-camera-modal';
 
 const { width } = Dimensions.get('window');
 
@@ -91,6 +95,12 @@ const DIETARY_OPTIONS: { key: DietaryPreference; label: string; emoji: string }[
   { key: 'NON_VEG', label: 'Non-Veg', emoji: '🍗' },
 ];
 
+export const LANGUAGE_OPTIONS = [
+  'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
+  'Kannada 🌿', 'Malayalam 🌴', 'Marathi 🚩', 'Gujarati 💎', 'Marwari 🏜️', 'Odia ⛵',
+  'Assamese 🫖', 'Urdu 📜', 'Sanskrit 🕉️', 'French 🥐', 'Spanish 💃', 'German 🥨'
+];
+
 const LIVING_OPTIONS: { key: LivingStatus; label: string; emoji: string }[] = [
   { key: 'WITH_PARENTS', label: 'Living with Parents', emoji: '👨‍👩‍👧' },
   { key: 'INDEPENDENT_FLAT', label: 'Independent Flat', emoji: '🏙️' },
@@ -126,23 +136,394 @@ const HOBBIES_PRESETS = [
   'Badminton 🏸', 'Film Making 🎬', 'Dog Fostering 🐕', 'Pottery 🏺'
 ];
 
+export const VEDIC_ZODIAC_OPTIONS = [
+  { rashi: 'Mesha', western: 'Aries', symbol: '♈', element: 'Fire (Agni)', lord: 'Mars (Mangal)', traits: 'Bold, energetic, fearless pioneer' },
+  { rashi: 'Vrishabha', western: 'Taurus', symbol: '♉', element: 'Earth (Prithvi)', lord: 'Venus (Shukra)', traits: 'Patient, grounded, aesthetic lover' },
+  { rashi: 'Mithuna', western: 'Gemini', symbol: '♊', element: 'Air (Vayu)', lord: 'Mercury (Budha)', traits: 'Witty, versatile, engaging conversationalist' },
+  { rashi: 'Karka', western: 'Cancer', symbol: '♋', element: 'Water (Jala)', lord: 'Moon (Chandra)', traits: 'Deeply intuitive, nurturing, emotional anchor' },
+  { rashi: 'Simha', western: 'Leo', symbol: '♌', element: 'Fire (Agni)', lord: 'Sun (Surya)', traits: 'Charismatic, regal, generous heart' },
+  { rashi: 'Kanya', western: 'Virgo', symbol: '♍', element: 'Earth (Prithvi)', lord: 'Mercury (Budha)', traits: 'Mindful, articulate, detail-oriented' },
+  { rashi: 'Tula', western: 'Libra', symbol: '♎', element: 'Air (Vayu)', lord: 'Venus (Shukra)', traits: 'Harmonious, graceful, charming diplomat' },
+  { rashi: 'Vrischika', western: 'Scorpio', symbol: '♏', element: 'Water (Jala)', lord: 'Mars / Ketu', traits: 'Intense, magnetic, fiercely loyal' },
+  { rashi: 'Dhanu', western: 'Sagittarius', symbol: '♐', element: 'Fire (Agni)', lord: 'Jupiter (Brihaspati)', traits: 'Free-spirited, philosophical, candid' },
+  { rashi: 'Makara', western: 'Capricorn', symbol: '♑', element: 'Earth (Prithvi)', lord: 'Saturn (Shani)', traits: 'Disciplined, ambitious, steady foundation' },
+  { rashi: 'Kumbha', western: 'Aquarius', symbol: '♒', element: 'Air (Vayu)', lord: 'Saturn (Shani)', traits: 'Visionary, eccentric, progressive thinker' },
+  { rashi: 'Meena', western: 'Pisces', symbol: '♓', element: 'Water (Jala)', lord: 'Jupiter (Brihaspati)', traits: 'Compassionate, dreamy, soulful artist' },
+];
+
+export const VOICE_PROMPT_TOPICS = [
+  'Say hello & introduce yourself in your mother tongue 🗣️',
+  'The way to my heart: Filter coffee vs Cutting chai ☕',
+  'My favorite street food guilty pleasure in my city 🥟',
+  'My most controversial Indian dating opinion 🌶️',
+  'Sing or hum 10 seconds of your favorite song 🎶',
+  'Describe your ideal Sunday morning vibe ☀️',
+  'A travel story that made you laugh until you cried ✈️',
+];
+
+export const MEME_PRESETS = [
+  // --- 🌍 GLOBAL INTERNET LEGENDS ---
+  {
+    title: 'Distracted Boyfriend 👫👀',
+    caption: 'When someone with emotional maturity and great communication walks by.',
+    imageUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Woman Yelling at a Cat 🐱🥗',
+    caption: 'Her explaining her complex emotional trauma vs Me peacefully eating fries.',
+    imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Roll Safe (Big Brain) 🧠💡',
+    caption: 'You cannot get heartbroken if you convince yourself you are a lone wolf.',
+    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'This Is Fine (Room on Fire) 🔥☕',
+    caption: 'Me smiling on a first date while my personal life is in complete shambles.',
+    imageUrl: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Drake Hotline Bling 🕺❌',
+    caption: 'Awkward small talk about weather ❌ | Debating if aliens exist at 2 AM ✔️',
+    imageUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Disaster Girl Smirking 👧🔥',
+    caption: 'Me leaving the WhatsApp group after dropping one unhinged voice note.',
+    imageUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Spider-Man Pointing 🕷️👉',
+    caption: 'Two emotionally guarded introverts wondering why neither is texting first.',
+    imageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Two Buttons Sweating Hero 🔴😰',
+    caption: 'Reply in 3 seconds to show interest vs Wait 4 hours to appear mysterious.',
+    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Leo Laughing Drink 🍸😏',
+    caption: 'Watching them ignore the exact red flag I explicitly warned them about.',
+    imageUrl: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Leo Pointing at TV 📺👉',
+    caption: 'Me when my date casually mentions my favorite niche obscure indie band.',
+    imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Hide The Pain Harold 😬☕',
+    caption: 'Smiling pleasantly when the restaurant bill arrives and they forgot their wallet.',
+    imageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Success Kid Fist Pump 👶✊',
+    caption: 'Went to a social gathering, talked to zero strangers, left early with snacks.',
+    imageUrl: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Grumpy Cat Universal No 😾🚫',
+    caption: 'I went outside once. The graphics were good but the people were terrible.',
+    imageUrl: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Doge: Much Romance, Very Wow 🐕✨',
+    caption: 'Such mutual attraction. Much butterflies. Very situationship. Wow.',
+    imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Buff Doge vs Cheems 🐕💪🐕🥺',
+    caption: 'Dating in my head: Charming & smooth | Dating in reality: Knocking over water glasses.',
+    imageUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Trade Offer 🤝📜',
+    caption: 'I receive: Memes & Sunday cuddles. You receive: Unlimited loyalty & bad jokes.',
+    imageUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Evil Kermit Whisper 🐸🦹',
+    caption: 'Healthy me: Do not double text. Inner Kermit: Send a paragraph and a meme.',
+    imageUrl: 'https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Confused Travolta Looking Around 🧥🤷',
+    caption: 'Me walking into the cafe trying to figure out who matches their profile picture.',
+    imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Surprised Pikachu Face ⚡😲',
+    caption: 'Ignores obvious red flags for 6 months. Gets heartbroken. Surprised Pikachu.',
+    imageUrl: 'https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Bernie Sanders In Mittens 🧤🥶',
+    caption: 'I am once again asking for your love, affection, and hand in marriage.',
+    imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Change My Mind Table 🪑☕',
+    caption: 'Leaving a house party at 9:45 PM to sleep is peak self-care. Change my mind.',
+    imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Is This a Pigeon? 🦋🙋‍♂️',
+    caption: 'Receives standard polite customer service. Brain: Is this my true soulmate?',
+    imageUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Gru Presentation Board 📈🤦',
+    caption: 'Match on SwipeAI -> Great witty banter -> Meet in person -> Panic & freeze.',
+    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Expanding Brain (Galaxy Brain) 🌌🧠',
+    caption: 'Small talk -> Deep trauma dump -> Sending 50 reels -> Lifelong soul bond.',
+    imageUrl: 'https://images.unsplash.com/photo-1507499739999-097706ad8914?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Waiting Skeleton on Park Bench 💀🪑',
+    caption: 'Still sitting on the bench waiting after they texted "Give me 2 minutes".',
+    imageUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Disappointed Cricket Fan 🧍‍♂️👀',
+    caption: 'Me standing with hands on my hips after getting ghosted for the third time.',
+    imageUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Side-Eye Chloe 👧😒',
+    caption: 'When they claim they do not listen to music while taking a road trip.',
+    imageUrl: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Math Lady / Confused Calculation 📐👩',
+    caption: 'Calculating the optimal mathematical delay before replying so I do not look desperate.',
+    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Panik Kalm Panik 😱😌😱',
+    caption: 'They text you: Panik. They like you: Kalm. They ask for your Spotify wrapped: Panik.',
+    imageUrl: 'https://images.unsplash.com/photo-1527525443983-6e60c75fff46?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+  {
+    title: 'Shaq Sleeping vs Real Alert 😴👀',
+    caption: 'Healthy 8 hours of sleep: I sleep. 2 AM gossip about people I barely know: REAL TALK.',
+    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+    category: 'Global Legends',
+  },
+
+  // --- ❤️ DATING & ROMANCE ---
+  {
+    title: 'Red Flag Carnival 🚩🎪',
+    caption: 'My fatal flaw is convincing myself their red flags are just festive carnival decor.',
+    imageUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'Delulu is the Solulu ✨🔮',
+    caption: 'Mentally planning our European summer vacation after exchanging exactly four messages.',
+    imageUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'Situationship Doctorate 🎓💔',
+    caption: 'We are not technically dating, but if I see you smiling at your phone I am shattered.',
+    imageUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'Forensic Analyst of "K" 🕵️‍♂️🔍',
+    caption: 'Did they type "K" or lowercase "k"? The uppercase letter indicates hostility.',
+    imageUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'The Ghosting Olympics 👻🥇',
+    caption: 'Won gold medal in vanishing into thin air 10 minutes after saying "You are amazing".',
+    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'Screenshot Sent to the Same Person 📲😱',
+    caption: 'Accidentally sent the screenshot of the conversation right back into the chat.',
+    imageUrl: 'https://images.unsplash.com/photo-1516251193007-45ef944ab0c6?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'Astrological Birth Chart Audit 🪐✨',
+    caption: 'Need their exact birth time, latitude, and hospital room number before date two.',
+    imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'First Date Deep Interrogation 🕵️‍♀️☕',
+    caption: 'Skip your job title. Tell me your deepest childhood trauma by 8:15 PM.',
+    imageUrl: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'Last 2 Brain Cells on a Date 🧠💨',
+    caption: 'Waiter: Enjoy your meal! Me: You too, sir! (Soul immediately exits body).',
+    imageUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+  {
+    title: 'Love Language: 45 Reels Daily 📲❤️',
+    caption: 'I will never say "I love you", but you will receive 40 Instagram reels before noon.',
+    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+    category: 'Dating & Romance',
+  },
+
+  // --- 🇮🇳 DESI & INDIAN INTERNET CULTURE ---
+  {
+    title: 'Silk Board Traffic Survivor 🚗🚦',
+    caption: 'If I can endure Silk Board junction at 6:30 PM, I can survive any relationship.',
+    imageUrl: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Filter Coffee > Everything Else ☕✨',
+    caption: 'My circulatory system is 80% Kumbakonam degree filter coffee and 20% hope.',
+    imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Cutting Chai at 2 AM ☕🌙',
+    caption: 'Looking for someone who believes tapri cutting chai dates are the pinnacle of romance.',
+    imageUrl: 'https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Relatives: "Shaadi Kab Karoge?" 👵👀',
+    caption: 'Neighborhood aunties calculating my biological timeline faster than an ISRO mainframe.',
+    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Biryani is my Love Language 🍗❤️',
+    caption: 'Order extra mirchi ka salan and raita without being asked and I will propose.',
+    imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Auto Driver: "Nahi Jaunga" 🛺💸',
+    caption: 'My emotional rejection resilience was forged by Bengaluru and Mumbai auto drivers.',
+    imageUrl: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Babu Bhaiya: "21 Din Mein Double" 💰🎩',
+    caption: 'Promising myself I will start sensible mutual fund SIPs immediately after this date.',
+    imageUrl: 'https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Taarak Mehta: "Chai Piyo Biscuit Khao" ☕🍪',
+    caption: 'My universal remedy for existential dread, work stress, and modern dating heartaches.',
+    imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Pankaj Tripathi: "Aram Se Dekhiye" 🧘‍♂️📺',
+    caption: 'Radiating calm, serene wisdom when the world around is pure unadulterated chaos.',
+    imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Pawri Hori Hai 🚗🎉',
+    caption: 'Ye hum hai, ye hamara match hai, aur yaha bill barabari se split ho raha hai.',
+    imageUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'The Goa Trip Plan That Never Was 🏖️✈️',
+    caption: 'Seven years, nine WhatsApp groups, four roadmaps, and exactly zero flights boarded.',
+    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Swiggy vs Zomato War at 11:45 PM 🍕🛵',
+    caption: 'Toggling delivery coupons across both apps like a high-frequency commodities trader.',
+    imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Golmaal: "Abhi Hum Zinda Hai" 🎬🔥',
+    caption: 'Crawling out alive after back-to-back Monday sprint planning meetings.',
+    imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'Techie Burnout: Code by Day, Chai by Night 💻☕',
+    caption: 'Merging Pull Requests at 8:00 PM, searching for emotional salvation by 8:05 PM.',
+    imageUrl: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+  {
+    title: 'First Date: Expectation vs Reality 🤡🍕',
+    caption: 'Hoping for deep existential dialogue, ended up comparing Swiggy Instamart discounts.',
+    imageUrl: 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=600&auto=format&fit=crop&q=80',
+    category: 'Desi Classics',
+  },
+];
+
 export default function ProfileScreen() {
   const router = useRouter();
+  const searchParams = useLocalSearchParams<{ edit?: string; reason?: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [desireProfile, setDesireProfile] = useState<DesireProfile | null>(null);
+  const [showDesireModal, setShowDesireModal] = useState(false);
 
   // Edit form states
   const [setupFullname, setSetupFullname] = useState('');
   const [setupDateOfBirth, setSetupDateOfBirth] = useState('');
   const [setupHeight, setSetupHeight] = useState('');
   const [setupLocation, setSetupLocation] = useState('');
-  const [setupMaxDistanceKm, setSetupMaxDistanceKm] = useState('50');
+  const [setupMaxDistanceKm, setSetupMaxDistanceKm] = useState('');
+  const [setupLatitude, setSetupLatitude] = useState<number | undefined>(undefined);
+  const [setupLongitude, setSetupLongitude] = useState<number | undefined>(undefined);
+  const [isUpdatingGps, setIsUpdatingGps] = useState(false);
   const [setupGenderDisplay, setSetupGenderDisplay] = useState('');
   const [setupShowGender, setSetupShowGender] = useState(true);
   const [setupPreferenceDisplay, setSetupPreferenceDisplay] = useState('');
   const [setupJob, setSetupJob] = useState('');
+  const [setupCompany, setSetupCompany] = useState('');
   const [setupEducation, setSetupEducation] = useState('');
+  const [setupInstitute, setSetupInstitute] = useState('');
   const [setupInterests, setSetupInterests] = useState('');
   const [setupOrientation, setSetupOrientation] = useState('');
   const [setupShowOrientation, setSetupShowOrientation] = useState(true);
@@ -156,6 +537,31 @@ export default function ProfileScreen() {
   const [setupDrinking, setSetupDrinking] = useState('');
   const [setupVacation, setSetupVacation] = useState('');
   const [setupHobbies, setSetupHobbies] = useState('');
+  const [setupLanguages, setSetupLanguages] = useState<string[]>([]);
+  const [customLanguageInput, setCustomLanguageInput] = useState('');
+
+  const toggleLanguage = (lang: string) => {
+    const cleanLang = lang.split(' ')[0];
+    if (setupLanguages.includes(cleanLang)) {
+      setSetupLanguages(setupLanguages.filter((l) => l !== cleanLang));
+    } else {
+      setSetupLanguages([...setupLanguages, cleanLang]);
+    }
+  };
+
+  const handleAddCustomLanguage = () => {
+    const trimmed = customLanguageInput.trim();
+    if (!trimmed) return;
+    const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    if (!setupLanguages.includes(capitalized)) {
+      setSetupLanguages([...setupLanguages, capitalized]);
+    }
+    setCustomLanguageInput('');
+  };
+
+  const removeLanguage = (lang: string) => {
+    setSetupLanguages(setupLanguages.filter((l) => l !== lang));
+  };
   const [setupPhoto1, setSetupPhoto1] = useState('');
   const [setupPhoto2, setSetupPhoto2] = useState('');
   const [setupPhoto3, setSetupPhoto3] = useState('');
@@ -165,6 +571,7 @@ export default function ProfileScreen() {
   const [setupSelfie, setSetupSelfie] = useState('');
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
+  const [showSelfieModal, setShowSelfieModal] = useState(false);
 
   // Picker Modals state
   const [showDobPickerModal, setShowDobPickerModal] = useState(false);
@@ -192,46 +599,111 @@ export default function ProfileScreen() {
   const [showVacationPickerModal, setShowVacationPickerModal] = useState(false);
   const [showHobbiesPickerModal, setShowHobbiesPickerModal] = useState(false);
   const [tempHobbies, setTempHobbies] = useState('');
+  const [showCompletionGuideModal, setShowCompletionGuideModal] = useState(false);
+
+  // Vedic Zodiac state
+  const [setupZodiacSign, setSetupZodiacSign] = useState('');
+  const [showZodiacPickerModal, setShowZodiacPickerModal] = useState(false);
+
+  // 15-Second Voice Note state & refs
+  const [setupVoicePromptUrl, setSetupVoicePromptUrl] = useState('');
+  const [setupVoicePromptDuration, setSetupVoicePromptDuration] = useState(15);
+  const [setupVoicePromptText, setSetupVoicePromptText] = useState(VOICE_PROMPT_TOPICS[0]);
+  const [showVoiceRecorderModal, setShowVoiceRecorderModal] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [voiceRecordSeconds, setVoiceRecordSeconds] = useState(0);
+  const [isPlayingVoice, setIsPlayingVoice] = useState(false);
+  const [recordedAudioUri, setRecordedAudioUri] = useState('');
+
+  // Profile Meme state
+  const [setupMemeUrl, setSetupMemeUrl] = useState('');
+  const [setupMemeTitle, setSetupMemeTitle] = useState('');
+  const [showMemePickerModal, setShowMemePickerModal] = useState(false);
+  const [selectedMemeCategory, setSelectedMemeCategory] = useState<string>('All');
+
+  const mediaRecorderRef = React.useRef<any>(null);
+  const audioChunksRef = React.useRef<any[]>([]);
+  const voiceTimerRef = React.useRef<any>(null);
+  const playbackAudioRef = React.useRef<any>(null);
 
   useEffect(() => {
     loadProfile();
+    return () => {
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      stopAudibleVoiceNote();
+    };
   }, []);
+
+  useEffect(() => {
+    if (searchParams.edit === 'true') {
+      setIsEditingProfile(true);
+    }
+  }, [searchParams.edit]);
 
   const loadProfile = async () => {
     setLoading(true);
-    const p = await api.getMyProfile();
-    setProfile(p);
-    populateFormStates(p);
-    setLoading(false);
+    try {
+      const [p, desire] = await Promise.all([
+        api.getMyProfile(),
+        api.getDesireProfile().catch(() => null),
+      ]);
+      setProfile(p);
+      if (desire) {
+        setDesireProfile(desire);
+      }
+      populateFormStates(p);
+
+      const hasName = Boolean(p.displayName?.trim() || p.fullName?.trim());
+      const hasGender = Boolean(p.gender || p.genderDisplay);
+      const hasOrientation = Boolean(p.sexualOrientation);
+      const pct = p.completionPercentage || 0;
+
+      const isFullyComplete = hasName && hasGender && hasOrientation && pct >= 30;
+
+      // Auto-open edit mode if incomplete or requested by discovery redirect
+      if (searchParams.edit === 'true' || !isFullyComplete) {
+        setIsEditingProfile(true);
+      }
+
+      // If user arrived with redirect reason 'incomplete' but already reached >= 30%, prompt to reach 100%:
+      if (isFullyComplete && searchParams.reason === 'incomplete' && pct < 100) {
+        setShowCompletionGuideModal(true);
+      }
+    } catch (err) {
+      console.warn('Error loading profile:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const populateFormStates = (p: UserProfile) => {
     setSetupFullname(p.fullName || p.displayName || '');
-    if (p.birthDate) {
-      setSetupDateOfBirth(p.birthDate);
-      const parts = p.birthDate.split('-');
+    if (p.birthDate && p.birthDate.trim()) {
+      setSetupDateOfBirth(p.birthDate.trim());
+      const parts = p.birthDate.trim().split('-');
       if (parts.length === 3) {
         setPickerYear(parseInt(parts[0], 10) || 2000);
-        setPickerMonth(parseInt(parts[1], 10) || 8);
-        setPickerDay(parseInt(parts[2], 10) || 15);
+        setPickerMonth(parseInt(parts[1], 10) || 1);
+        setPickerDay(parseInt(parts[2], 10) || 1);
       }
-    } else if (p.age && p.age > 0) {
-      const yr = new Date().getFullYear() - p.age;
-      setSetupDateOfBirth(`${yr}-01-01`);
-      setPickerYear(yr);
-      setPickerMonth(1);
-      setPickerDay(1);
     } else {
       setSetupDateOfBirth('');
+      setPickerYear(2000);
+      setPickerMonth(1);
+      setPickerDay(1);
     }
     setSetupHeight(p.height ? String(p.height) : '');
     setSetupLocation(p.location || p.city || '');
-    setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '50');
+    setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '');
+    setSetupLatitude(p.latitude);
+    setSetupLongitude(p.longitude);
     setSetupGenderDisplay(p.genderDisplay || '');
     setSetupShowGender(p.showGenderOnProfile !== undefined ? p.showGenderOnProfile : true);
     setSetupPreferenceDisplay(p.genderPreferenceDisplay || '');
     setSetupJob(p.job || p.occupation || '');
+    setSetupCompany(p.company || '');
     setSetupEducation(p.education || '');
+    setSetupInstitute(p.institute || '');
     setSetupInterests(p.interests || '');
     setSetupOrientation(p.sexualOrientation || '');
     setSetupShowOrientation(p.showOrientationOnProfile !== undefined ? p.showOrientationOnProfile : true);
@@ -245,12 +717,39 @@ export default function ProfileScreen() {
     setSetupDrinking(p.drinkingHabit || '');
     setSetupVacation(p.vacationPreference || '');
     setSetupHobbies(p.hobbies || '');
-    setSetupPhoto1(p.photo1 || p.photos?.[0] || '');
-    setSetupPhoto2(p.photo2 || p.photos?.[1] || '');
-    setSetupPhoto3(p.photo3 || p.photos?.[2] || '');
-    setSetupPhoto4(p.photo4 || '');
-    setSetupPhoto5(p.photo5 || '');
-    setSetupPhoto6(p.photo6 || '');
+    setSetupLanguages(p.languagesSpoken || []);
+
+    // Vedic Zodiac, Voice Note & Meme population
+    setSetupZodiacSign(p.zodiacSign || p.moonSign || '');
+    setSetupVoicePromptUrl(p.voicePromptUrl || '');
+    setSetupVoicePromptDuration(p.voicePromptDuration || 15);
+    setSetupVoicePromptText(p.voicePromptText || VOICE_PROMPT_TOPICS[0]);
+    setSetupMemeUrl(p.selectedMemeUrl || '');
+    setSetupMemeTitle(p.selectedMemeTitle || '');
+
+    const hasExplicitSlots = Boolean(p.photo1 || p.photo2 || p.photo3 || p.photo4 || p.photo5 || p.photo6);
+    if (hasExplicitSlots) {
+      setSetupPhoto1(p.photo1 || '');
+      setSetupPhoto2(p.photo2 || '');
+      setSetupPhoto3(p.photo3 || '');
+      setSetupPhoto4(p.photo4 || '');
+      setSetupPhoto5(p.photo5 || '');
+      setSetupPhoto6(p.photo6 || '');
+    } else if (p.photos && p.photos.length > 0) {
+      setSetupPhoto1(p.photos[0] || '');
+      setSetupPhoto2(p.photos[1] || '');
+      setSetupPhoto3(p.photos[2] || '');
+      setSetupPhoto4(p.photos[3] || '');
+      setSetupPhoto5(p.photos[4] || '');
+      setSetupPhoto6(p.photos[5] || '');
+    } else {
+      setSetupPhoto1('');
+      setSetupPhoto2('');
+      setSetupPhoto3('');
+      setSetupPhoto4('');
+      setSetupPhoto5('');
+      setSetupPhoto6('');
+    }
     setSetupSelfie(p.selfieUrl || '');
   };
 
@@ -264,32 +763,284 @@ export default function ProfileScreen() {
     return item ? `${item.emoji} ${item.label}` : 'Select living arrangement';
   };
 
-  // MatchAI Profile Completion Calculation
-  const calculateLocalPct = () => {
-    let pct = 0;
-    if (setupFullname && setupFullname.trim()) pct += 10;
-    if (setupDateOfBirth && setupDateOfBirth.trim()) pct += 10;
-    if (setupGenderDisplay) pct += 10;
-    if (setupPreferenceDisplay) pct += 10;
-    if (setupBio && setupBio.trim()) pct += 10;
-    if (setupJob && setupJob.trim()) pct += 10;
-    if (setupEducation && setupEducation.trim()) pct += 10;
+  // 15s Voice Note Recording & Playback Handlers
+  const startVoiceRecording = async () => {
+    try {
+      setVoiceRecordSeconds(0);
+      setRecordedAudioUri('');
+      setIsVoiceRecording(true);
+      audioChunksRef.current = [];
 
-    const interestSplit = (setupInterests || '').split(',');
-    const intCount = interestSplit.map(i => i.trim()).filter(i => i).length;
-    if (intCount >= 3) {
-      pct += 10;
-    } else if (intCount > 0) {
-      pct += intCount * 3;
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && navigator?.mediaDevices?.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mediaRecorder = new (window as any).MediaRecorder(stream);
+          mediaRecorderRef.current = mediaRecorder;
+
+          mediaRecorder.ondataavailable = (event: any) => {
+            if (event.data && event.data.size > 0) {
+              audioChunksRef.current.push(event.data);
+            }
+          };
+
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(blob);
+            setRecordedAudioUri(audioUrl);
+            stream.getTracks().forEach((track: any) => track.stop());
+          };
+
+          mediaRecorder.start();
+        } catch (webErr) {
+          console.warn('Web microphone access, falling back to simulator:', webErr);
+        }
+      }
+
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      let elapsed = 0;
+      voiceTimerRef.current = setInterval(() => {
+        elapsed += 1;
+        setVoiceRecordSeconds(elapsed);
+        if (elapsed >= 15) {
+          stopVoiceRecording();
+        }
+      }, 1000);
+    } catch (err) {
+      console.warn('Start voice recording error:', err);
+      setIsVoiceRecording(false);
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+    setIsVoiceRecording(false);
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {}
     }
 
-    if (setupPhoto1 && setupPhoto1.trim()) pct += 5;
-    if (setupPhoto2 && setupPhoto2.trim()) pct += 5;
-    if (setupPhoto3 && setupPhoto3.trim()) pct += 5;
-    if (setupPhoto4 && setupPhoto4.trim()) pct += 5;
-    if (setupPhoto5 && setupPhoto5.trim()) pct += 5;
-    if (setupPhoto6 && setupPhoto6.trim()) pct += 5;
-    if (setupSelfie && setupSelfie.trim()) pct += 5;
+    setRecordedAudioUri(prev => prev || `simulated_voice_note_${Date.now()}`);
+  };
+
+  const handleTogglePlayVoice = (audioUrl?: string) => {
+    const targetUrl = audioUrl || setupVoicePromptUrl || recordedAudioUri;
+
+    if (isPlayingVoice) {
+      stopAudibleVoiceNote();
+      setIsPlayingVoice(false);
+    } else {
+      const dur = voiceRecordSeconds > 0 ? voiceRecordSeconds : (setupVoicePromptDuration || 15);
+      playAudibleVoiceNote({
+        audioUrl: targetUrl,
+        promptText: setupVoicePromptText || VOICE_PROMPT_TOPICS[0],
+        durationSec: dur,
+        onStart: () => setIsPlayingVoice(true),
+        onEnd: () => setIsPlayingVoice(false),
+      });
+    }
+  };
+
+  const handleSaveVoiceNote = async () => {
+    const url = recordedAudioUri || setupVoicePromptUrl || `voice_note_${Date.now()}`;
+    const dur = voiceRecordSeconds > 0 ? voiceRecordSeconds : (setupVoicePromptDuration || 15);
+    const txt = setupVoicePromptText || VOICE_PROMPT_TOPICS[0];
+
+    stopAudibleVoiceNote();
+    setIsPlayingVoice(false);
+    setSetupVoicePromptUrl(url);
+    setSetupVoicePromptDuration(dur);
+    setShowVoiceRecorderModal(false);
+
+    setProfile(prev => prev ? ({
+      ...prev,
+      voicePromptUrl: url,
+      voicePromptDuration: dur,
+      voicePromptText: txt,
+    }) : prev);
+
+    try {
+      await api.uploadVoicePrompt(url, dur, txt);
+      Alert.alert('Voice Note Saved 🎙️', 'Your 15-second vernacular voice note has been added to your profile!');
+    } catch (e) {
+      console.warn('Voice note save error:', e);
+    }
+  };
+
+  const handleDeleteVoicePrompt = () => {
+    Alert.alert('Delete Voice Note', 'Are you sure you want to remove your voice note from your profile?', [
+      {
+        text: 'Delete 🗑️',
+        style: 'destructive',
+        onPress: async () => {
+          stopAudibleVoiceNote();
+          setIsPlayingVoice(false);
+          setSetupVoicePromptUrl('');
+          setRecordedAudioUri('');
+          setProfile(prev => prev ? ({ ...prev, voicePromptUrl: '', voicePromptDuration: 0, voicePromptText: '' }) : prev);
+          try {
+            await api.updateMyProfile({ voicePromptUrl: '', voicePromptDuration: 0, voicePromptText: '' });
+          } catch (e) {}
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // Vedic Zodiac & Meme Selection Handlers
+  const handleSelectZodiac = (item: { rashi: string; western: string; symbol: string }) => {
+    const formatted = `${item.rashi} (${item.western} ${item.symbol})`;
+    setSetupZodiacSign(formatted);
+    setShowZodiacPickerModal(false);
+
+    setProfile(prev => prev ? ({
+      ...prev,
+      zodiacSign: formatted,
+      moonSign: formatted,
+    }) : prev);
+
+    api.updateMyProfile({
+      zodiacSign: formatted,
+      moonSign: formatted,
+    }).catch(() => {});
+  };
+
+  const handleSelectPresetMeme = (preset: { title: string; imageUrl: string }) => {
+    setSetupMemeUrl(preset.imageUrl);
+    setSetupMemeTitle(preset.title);
+    setShowMemePickerModal(false);
+
+    setProfile(prev => prev ? ({
+      ...prev,
+      selectedMemeUrl: preset.imageUrl,
+      selectedMemeTitle: preset.title,
+    }) : prev);
+
+    api.updateMyProfile({
+      selectedMemeUrl: preset.imageUrl,
+      selectedMemeTitle: preset.title,
+    }).catch(() => {});
+  };
+
+  const handleUploadCustomMeme = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Denied', 'Camera roll access is needed to pick a meme.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]?.uri) {
+        const asset = result.assets[0];
+        const localUri = asset.uri;
+        const directBase64 = asset.base64;
+        const defaultTitle = 'Custom Vibe Check 🤣';
+
+        setSetupMemeUrl(localUri);
+        setSetupMemeTitle(defaultTitle);
+        setShowMemePickerModal(false);
+
+        setProfile(prev => prev ? ({
+          ...prev,
+          selectedMemeUrl: localUri,
+          selectedMemeTitle: defaultTitle,
+        }) : prev);
+
+        try {
+          const uploadedUrl = await api.uploadImage(localUri, directBase64);
+          if (uploadedUrl) {
+            setSetupMemeUrl(uploadedUrl);
+            setProfile(prev => prev ? ({
+              ...prev,
+              selectedMemeUrl: uploadedUrl,
+              selectedMemeTitle: defaultTitle,
+            }) : prev);
+
+            api.updateMyProfile({
+              selectedMemeUrl: uploadedUrl,
+              selectedMemeTitle: defaultTitle,
+            }).catch(() => {});
+          }
+        } catch (err) {
+          console.warn('Meme upload error:', err);
+        }
+      }
+    } catch (e) {
+      console.warn('Custom meme picker error:', e);
+    }
+  };
+
+  const handleDeleteMeme = () => {
+    Alert.alert('Remove Meme', 'Remove your profile meme?', [
+      {
+        text: 'Remove 🗑️',
+        style: 'destructive',
+        onPress: async () => {
+          setSetupMemeUrl('');
+          setSetupMemeTitle('');
+          setProfile(prev => prev ? ({ ...prev, selectedMemeUrl: '', selectedMemeTitle: '' }) : prev);
+          try {
+            await api.updateMyProfile({ selectedMemeUrl: '', selectedMemeTitle: '' });
+          } catch (e) {}
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // MatchAI Complete Profile Completion Calculation Across All Fields (100% total)
+  const calculateLocalPct = () => {
+    let pct = 0;
+
+    // 1. Essential Basic Info (30% - Required to unlock Discovery)
+    if (setupFullname && setupFullname.trim()) pct += 10;
+    if (setupGenderDisplay) pct += 10;
+    if (setupOrientation) pct += 10;
+
+    // 2. Dating Intent & Age / DOB (15%)
+    if (setupDateOfBirth && setupDateOfBirth.trim()) pct += 8;
+    if (setupIntent) pct += 7;
+
+    // 3. Bio & Prompt (15%)
+    if (setupBio && setupBio.trim()) pct += 8;
+    if (setupPromptAnswer && setupPromptAnswer.trim()) pct += 7;
+
+    // 4. Photos & Verified Selfie (20%)
+    if (setupPhoto1 && setupPhoto1.trim()) pct += 8;
+    if (setupPhoto2 && setupPhoto2.trim()) pct += 2;
+    if (setupPhoto3 && setupPhoto3.trim()) pct += 2;
+    if (setupPhoto4 && setupPhoto4.trim()) pct += 2;
+    if (setupPhoto5 && setupPhoto5.trim()) pct += 2;
+    if (setupSelfie && setupSelfie.trim()) pct += 4;
+
+    // 5. Career, Education & Height (10%)
+    if (setupJob && setupJob.trim()) pct += 4;
+    if (setupEducation && setupEducation.trim()) pct += 3;
+    if (setupHeight && parseInt(setupHeight, 10) > 0) pct += 3;
+
+    // 6. Lifestyle & Indian Context (10%)
+    if (setupDiet) pct += 2;
+    if (setupLiving) pct += 2;
+    if (setupLocation && setupLocation.trim()) pct += 2;
+    if (setupSmoking || setupDrinking) pct += 2;
+    if (setupVacation && setupVacation.trim()) pct += 2;
+
+    // 7. Passions, Vedic Zodiac & Meme (Bonus overlap up to 5%)
+    if (setupInterests && setupInterests.trim()) pct += 3;
+    if (setupHobbies && setupHobbies.trim()) pct += 2;
+    if (setupZodiacSign) pct += 2;
+    if (setupMemeUrl) pct += 2;
 
     return Math.min(100, pct);
   };
@@ -394,43 +1145,160 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleTakeSelfie = async () => {
+  const handleDeletePhoto = (slotIdx: number) => {
+    Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
+      {
+        text: 'Delete 🗑️',
+        style: 'destructive',
+        onPress: async () => {
+          setUploadingSlot(slotIdx);
+
+          const newPhoto1 = slotIdx === 1 ? '' : setupPhoto1;
+          const newPhoto2 = slotIdx === 2 ? '' : setupPhoto2;
+          const newPhoto3 = slotIdx === 3 ? '' : setupPhoto3;
+          const newPhoto4 = slotIdx === 4 ? '' : setupPhoto4;
+          const newPhoto5 = slotIdx === 5 ? '' : setupPhoto5;
+          const newPhoto6 = slotIdx === 6 ? '' : setupPhoto6;
+
+          if (slotIdx === 1) setSetupPhoto1('');
+          else if (slotIdx === 2) setSetupPhoto2('');
+          else if (slotIdx === 3) setSetupPhoto3('');
+          else if (slotIdx === 4) setSetupPhoto4('');
+          else if (slotIdx === 5) setSetupPhoto5('');
+          else if (slotIdx === 6) setSetupPhoto6('');
+
+          const activePhotos = [newPhoto1, newPhoto2, newPhoto3, newPhoto4, newPhoto5, newPhoto6]
+            .filter(p => !!p && p.trim() !== '');
+
+          setProfile(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              [`photo${slotIdx}`]: '',
+              photos: activePhotos,
+            };
+          });
+
+          try {
+            const updated = await api.updateMyProfile({
+              [`photo${slotIdx}`]: '',
+              photo1: newPhoto1,
+              photo2: newPhoto2,
+              photo3: newPhoto3,
+              photo4: newPhoto4,
+              photo5: newPhoto5,
+              photo6: newPhoto6,
+              photos: activePhotos,
+            } as any);
+
+            if (updated) {
+              setProfile(updated);
+              populateFormStates(updated);
+            }
+          } catch (err) {
+            console.warn('Photo deletion error:', err);
+          } finally {
+            setUploadingSlot(null);
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleTakeSelfie = () => {
+    setShowSelfieModal(true);
+  };
+
+  const handleSelfieCaptured = async (localUri: string, directBase64?: string) => {
+    setShowSelfieModal(false);
+    setSetupSelfie(localUri);
+    setUploadingSelfie(true);
+    setProfile(prev => prev ? ({ ...prev, selfieUrl: localUri }) : prev);
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission Denied', 'Camera access is needed to take a selfie.');
+      const uploadedUrl = await api.uploadImage(localUri, directBase64);
+      if (uploadedUrl && uploadedUrl.trim() !== '') {
+        setSetupSelfie(uploadedUrl);
+        setProfile(prev => prev ? ({ ...prev, selfieUrl: uploadedUrl }) : prev);
+        api.updateMyProfile({ selfieUrl: uploadedUrl }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Selfie upload failed:', err);
+    } finally {
+      setUploadingSelfie(false);
+    }
+  };
+
+  const handleDeleteSelfie = () => {
+    Alert.alert('Remove Selfie', 'Remove your biometric verification selfie?', [
+      {
+        text: 'Remove 🗑️',
+        style: 'destructive',
+        onPress: async () => {
+          setSetupSelfie('');
+          setProfile(prev => prev ? ({ ...prev, selfieUrl: '' }) : prev);
+          try {
+            const updated = await api.updateMyProfile({ selfieUrl: '' });
+            if (updated) {
+              setProfile(updated);
+              populateFormStates(updated);
+            }
+          } catch (e) {
+            console.warn('Selfie deletion error:', e);
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleRefreshGpsLocation = async () => {
+    setIsUpdatingGps(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Location Permission Needed',
+          'Please allow location access to automatically detect your coordinates for distance matching.'
+        );
         return;
       }
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
       });
 
-      if (!result.canceled && result.assets[0]?.uri) {
-        const asset = result.assets[0];
-        const localUri = asset.uri;
-        const directBase64 = asset.base64;
-        setSetupSelfie(localUri);
-        setUploadingSelfie(true);
-        setProfile(prev => prev ? ({ ...prev, selfieUrl: localUri }) : prev);
+      if (loc?.coords) {
+        const lat = loc.coords.latitude;
+        const lon = loc.coords.longitude;
+        setSetupLatitude(lat);
+        setSetupLongitude(lon);
+        let detectedCity: string | undefined;
         try {
-          const uploadedUrl = await api.uploadImage(localUri, directBase64);
-          if (uploadedUrl && uploadedUrl.trim() !== '') {
-            setSetupSelfie(uploadedUrl);
-            setProfile(prev => prev ? ({ ...prev, selfieUrl: uploadedUrl }) : prev);
-            api.updateMyProfile({ selfieUrl: uploadedUrl }).catch(() => {});
+          const geocoded = await Location.reverseGeocodeAsync({
+            latitude: lat,
+            longitude: lon,
+          });
+          if (geocoded && geocoded.length > 0) {
+            const place = geocoded[0];
+            detectedCity = (place.city || place.subregion || place.district) ?? undefined;
+            if (detectedCity && !setupLocation.trim()) {
+              setSetupLocation(detectedCity);
+            }
           }
-        } catch (err) {
-          console.warn('Selfie upload failed:', err);
-        } finally {
-          setUploadingSelfie(false);
-        }
+        } catch (e) {}
+
+        await api.updateLocation(lat, lon, detectedCity || setupLocation || undefined);
+
+        Alert.alert(
+          'Location Synchronized 📍',
+          `GPS Coordinates saved: ${lat.toFixed(4)}°, ${lon.toFixed(4)}°. Real-time distance matching is now updated!`
+        );
       }
-    } catch (e) {
-      console.warn('Camera selfie error:', e);
-      setUploadingSelfie(false);
+    } catch (err: any) {
+      Alert.alert('Location Error', err.message || 'Unable to retrieve device GPS coordinates.');
+    } finally {
+      setIsUpdatingGps(false);
     }
   };
 
@@ -445,17 +1313,29 @@ export default function ProfileScreen() {
       bio: setupBio,
       dietaryPref: setupDiet,
       livingStatus: setupLiving,
+      languagesSpoken: setupLanguages,
       smokingHabit: setupSmoking,
       drinkingHabit: setupDrinking,
       vacationPreference: setupVacation,
       hobbies: setupHobbies,
       job: setupJob,
       occupation: setupJob,
+      company: setupCompany.trim() || undefined,
       education: setupEducation,
+      institute: setupInstitute.trim() || undefined,
       interests: setupInterests,
+      zodiacSign: setupZodiacSign,
+      moonSign: setupZodiacSign,
+      voicePromptUrl: setupVoicePromptUrl,
+      voicePromptDuration: setupVoicePromptDuration,
+      voicePromptText: setupVoicePromptText,
+      selectedMemeUrl: setupMemeUrl,
+      selectedMemeTitle: setupMemeTitle,
       height: setupHeight ? parseInt(setupHeight) : 165,
       location: setupLocation,
-      maxDistanceKm: setupMaxDistanceKm ? parseInt(setupMaxDistanceKm) : 50,
+      maxDistanceKm: setupMaxDistanceKm && setupMaxDistanceKm.trim() ? parseInt(setupMaxDistanceKm.trim(), 10) : undefined,
+      latitude: setupLatitude,
+      longitude: setupLongitude,
       sexualOrientation: setupOrientation,
       showOrientationOnProfile: setupShowOrientation,
       gender: setupGenderDisplay === 'Woman' ? 'FEMALE' : (setupGenderDisplay === 'Man' ? 'MALE' : (setupGenderDisplay === 'Non-binary' ? 'NON_BINARY' : undefined)),
@@ -465,23 +1345,60 @@ export default function ProfileScreen() {
       relationshipIntent: setupIntent,
       profilePromptQuestion: setupPromptQuestion,
       profilePromptAnswer: setupPromptAnswer,
-      photo1: setupPhoto1,
-      photo2: setupPhoto2,
-      photo3: setupPhoto3,
-      photo4: setupPhoto4,
-      photo5: setupPhoto5,
-      photo6: setupPhoto6,
-      selfieUrl: setupSelfie,
+      photo1: setupPhoto1 || '',
+      photo2: setupPhoto2 || '',
+      photo3: setupPhoto3 || '',
+      photo4: setupPhoto4 || '',
+      photo5: setupPhoto5 || '',
+      photo6: setupPhoto6 || '',
+      selfieUrl: setupSelfie || '',
       birthDate: setupDateOfBirth || undefined,
       photos: photosList,
       completionPercentage: calculateLocalPct(),
     });
 
+    const localPct = calculateLocalPct();
+    const isNowComplete = Boolean(setupFullname.trim() && setupGenderDisplay && setupOrientation && localPct >= 30);
+
     setProfile(updated);
     populateFormStates(updated);
     setIsEditingProfile(false);
     setLoading(false);
-    Alert.alert('Profile Saved ✓', 'All changes and photos updated successfully!');
+
+    if (isNowComplete) {
+      if (localPct < 100) {
+        setShowCompletionGuideModal(true);
+      } else {
+        Alert.alert(
+          '100% All-Star Profile! 🌟',
+          'Congratulations! Your profile is 100% complete and fully optimized for discovery.',
+          [
+            { text: 'Start Discovering ❤️', onPress: () => router.replace('/(tabs)') },
+            { text: 'Stay on Profile', style: 'cancel' },
+          ]
+        );
+      }
+    } else {
+      Alert.alert(
+        'Profile Saved ✓',
+        'Your profile changes have been saved. Please complete Name, Gender, and Sexual Orientation to unlock Discovery.'
+      );
+    }
+  };
+
+  const handleCancelEdit = () => {
+    if (!setupFullname.trim() || !setupGenderDisplay || !setupOrientation || calculateLocalPct() < 30) {
+      Alert.alert(
+        'Profile Incomplete',
+        'Please provide your Name, Gender, Sexual Orientation, and reach at least 30% to view matches.',
+        [
+          { text: 'Continue Editing', style: 'default' },
+          { text: 'Exit Anyway', style: 'destructive', onPress: () => setIsEditingProfile(false) },
+        ]
+      );
+      return;
+    }
+    setIsEditingProfile(false);
   };
 
   if (loading || !profile) {
@@ -503,7 +1420,7 @@ export default function ProfileScreen() {
         </Text>
         {isEditingProfile ? (
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity onPress={() => setIsEditingProfile(false)} style={styles.cancelBtn}>
+            <TouchableOpacity onPress={handleCancelEdit} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSaveAllChanges} style={styles.saveHeaderBtn}>
@@ -518,11 +1435,116 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Profile Completion / Gating Banner */}
+        {(!setupFullname.trim() || !setupGenderDisplay || !setupOrientation || completionScore < 30) ? (
+          <View style={styles.incompleteBanner}>
+            <View style={styles.incompleteBannerHeader}>
+              <Text style={styles.incompleteBannerTitle}>⚠️ Unlock Discovery & Matches</Text>
+              <View style={styles.incompleteReqBadge}>
+                <Text style={styles.incompleteReqBadgeText}>Min 30% Required</Text>
+              </View>
+            </View>
+            <Text style={styles.incompleteBannerDesc}>
+              To browse real verified singles in your area, please provide your basic identity details:
+            </Text>
+            <View style={styles.incompleteCheckList}>
+              <View style={styles.checkItemRow}>
+                <Text style={setupFullname.trim() ? styles.checkDone : styles.checkMissing}>
+                  {setupFullname.trim() ? '✓' : '✗'} Name
+                </Text>
+              </View>
+              <View style={styles.checkItemRow}>
+                <Text style={setupGenderDisplay ? styles.checkDone : styles.checkMissing}>
+                  {setupGenderDisplay ? '✓' : '✗'} Gender
+                </Text>
+              </View>
+              <View style={styles.checkItemRow}>
+                <Text style={setupOrientation ? styles.checkDone : styles.checkMissing}>
+                  {setupOrientation ? '✓' : '✗'} Orientation
+                </Text>
+              </View>
+              <View style={styles.checkItemRow}>
+                <Text style={completionScore >= 30 ? styles.checkDone : styles.checkMissing}>
+                  {completionScore >= 30 ? '✓' : '✗'} Score: {completionScore}%
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : completionScore < 100 ? (
+          <View style={styles.boostNudgeBanner}>
+            <View style={styles.boostNudgeHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Text style={{ fontSize: 20 }}>🎉</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.boostNudgeTitle}>Discovery Unlocked! ({completionScore}%)</Text>
+                  <Text style={styles.boostNudgeSub}>
+                    Basic details verified. Add more details to reach 100% and 3.5x your matches!
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.boostNudgeActionBtn}
+                onPress={() => setShowCompletionGuideModal(true)}>
+                <Text style={styles.boostNudgeActionBtnText}>Reach 100% 🚀</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.nudgeChipsRow}>
+              {(!setupPhoto2 || !setupPhoto3) && (
+                <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.nudgeChip}>
+                  <Text style={styles.nudgeChipText}>📷 +Photos (2% ea)</Text>
+                </TouchableOpacity>
+              )}
+              {!setupBio && (
+                <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.nudgeChip}>
+                  <Text style={styles.nudgeChipText}>✍️ +Bio (8%)</Text>
+                </TouchableOpacity>
+              )}
+              {!setupPromptAnswer && (
+                <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.nudgeChip}>
+                  <Text style={styles.nudgeChipText}>☕ +Prompt (7%)</Text>
+                </TouchableOpacity>
+              )}
+              {!setupSelfie && (
+                <TouchableOpacity onPress={handleTakeSelfie} style={styles.nudgeChip}>
+                  <Text style={styles.nudgeChipText}>🤳 +Selfie (4%)</Text>
+                </TouchableOpacity>
+              )}
+              {(!setupJob || !setupEducation) && (
+                <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.nudgeChip}>
+                  <Text style={styles.nudgeChipText}>💼 +Career (7%)</Text>
+                </TouchableOpacity>
+              )}
+              {(!setupDiet || !setupLiving) && (
+                <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.nudgeChip}>
+                  <Text style={styles.nudgeChipText}>🥗 +Lifestyle (4%)</Text>
+                </TouchableOpacity>
+              )}
+              {(!setupHobbies || !setupInterests) && (
+                <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.nudgeChip}>
+                  <Text style={styles.nudgeChipText}>🎨 +Interests (5%)</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.allStarBanner}>
+            <Text style={{ fontSize: 20 }}>🌟</Text>
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={styles.allStarTitle}>100% All-Star Profile</Text>
+              <Text style={styles.allStarSub}>Your profile is fully completed for maximum visibility & matches.</Text>
+            </View>
+            <View style={styles.allStarBadge}>
+              <Text style={styles.allStarBadgeText}>MAX SCORE</Text>
+            </View>
+          </View>
+        )}
+
         {/* Real-Time Profile Completion Progress Bar */}
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.completionCard}
-          onPress={() => setIsEditingProfile(true)}>
+          onPress={() => setShowCompletionGuideModal(true)}>
           <View style={styles.completionHeaderRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text style={styles.completionEmoji}>⚡</Text>
@@ -532,7 +1554,7 @@ export default function ProfileScreen() {
               <Text style={[styles.completionScoreText, completionScore >= 80 ? styles.scoreGreen : styles.scoreRed]}>
                 {completionScore}%
               </Text>
-              {!isEditingProfile && <Text style={styles.completionEditLink}>Tap to Complete →</Text>}
+              <Text style={styles.completionEditLink}>View 100% Checklist →</Text>
             </View>
           </View>
           <View style={styles.progressBarTrack}>
@@ -617,19 +1639,26 @@ export default function ProfileScreen() {
                 )}
               </View>
 
-              {profile.job || profile.occupation ? (
-                <Text style={styles.occupationText}>💼 {profile.job || profile.occupation} {profile.company ? `@ ${profile.company}` : ''}</Text>
+              {profile.job || profile.occupation || profile.company ? (
+                <Text style={styles.occupationText}>
+                  💼 {profile.job || profile.occupation || 'Professional'}{profile.company ? ` @ ${profile.company}` : ''}
+                </Text>
               ) : null}
 
-              {profile.education ? (
-                <Text style={styles.subDetailText}>🎓 {profile.education}</Text>
+              {profile.education || profile.institute ? (
+                <Text style={styles.subDetailText}>
+                  🎓 {profile.education || 'Degree'}{profile.institute ? ` @ ${profile.institute}` : ''}
+                </Text>
               ) : null}
 
               {profile.height ? (
                 <Text style={styles.subDetailText}>📏 Height: {profile.height} cm</Text>
               ) : null}
 
-              <Text style={styles.locText}>📍 {profile.location || profile.city || 'Location not set'} ({profile.maxDistanceKm || 50} km match radius)</Text>
+              <Text style={styles.locText}>
+                📍 {profile.location || profile.city || 'Location not set'} ({profile.maxDistanceKm ? `${profile.maxDistanceKm} km` : '50 km (default)'} radius)
+                {profile.latitude && profile.longitude ? ' • GPS Active 📡' : ''}
+              </Text>
 
               <View style={styles.karmaChip}>
                 <Text style={styles.karmaText}>⚡ Match Karma: {profile.karmaScore}/200</Text>
@@ -660,6 +1689,30 @@ export default function ProfileScreen() {
                   <Text style={styles.traitValue}>{getLivingLabel(profile.livingStatus)}</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+
+            {/* Languages Known Display Card */}
+            <View style={styles.sectionCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={styles.sectionTitle}>🗣️ Languages Known</Text>
+                <TouchableOpacity onPress={() => setIsEditingProfile(true)}>
+                  <Text style={{ color: '#00E5FF', fontSize: 12, fontWeight: '700' }}>Edit ✎</Text>
+                </TouchableOpacity>
+              </View>
+              {(profile.languagesSpoken && profile.languagesSpoken.length > 0) || (setupLanguages && setupLanguages.length > 0) ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {(profile.languagesSpoken && profile.languagesSpoken.length > 0 ? profile.languagesSpoken : setupLanguages).map((lang, idx) => (
+                    <View key={idx} style={styles.languageDisplayBadge}>
+                      <Text style={styles.languageDisplayBadgeText}>🗣️ {lang}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <TouchableOpacity style={[styles.traitChip, { width: '100%' }]} onPress={() => setIsEditingProfile(true)}>
+                  <Text style={styles.traitLabel}>Languages Known</Text>
+                  <Text style={styles.traitValue}>+ Add languages you speak</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Lifestyle & Habits (Smoking, Drinking & Vacation Vibe) */}
@@ -773,24 +1826,120 @@ export default function ProfileScreen() {
               </View>
             ) : null}
 
-            {/* Modern Cosmic Chemistry */}
+            {/* Modern Cosmic Chemistry & Vedic Rashis */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>✨ Modern Cosmic Chemistry</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={styles.sectionTitle}>✨ Vedic Cosmic Chemistry (Jyotish)</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsEditingProfile(true);
+                    setShowZodiacPickerModal(true);
+                  }}>
+                  <Text style={styles.editCardActionText}>Change 🪐</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.astroRow}>
-                <View style={styles.astroPill}>
-                  <Text style={styles.astroLabel}>Sun Sign</Text>
-                  <Text style={styles.astroValue}>{profile.sunSign || 'Not set'}</Text>
+                <View style={[styles.astroPill, { flex: 1.4 }]}>
+                  <Text style={styles.astroLabel}>Vedic Rashi (Moon)</Text>
+                  <Text style={styles.astroValue} numberOfLines={1}>{profile.zodiacSign || profile.moonSign || setupZodiacSign || 'Select Rashi'}</Text>
                 </View>
                 <View style={styles.astroPill}>
-                  <Text style={styles.astroLabel}>Moon Sign</Text>
-                  <Text style={styles.astroValue}>{profile.moonSign || 'Not set'}</Text>
+                  <Text style={styles.astroLabel}>Sun Sign</Text>
+                  <Text style={styles.astroValue}>{profile.sunSign || 'Leo ♌'}</Text>
                 </View>
                 <View style={styles.astroPill}>
                   <Text style={styles.astroLabel}>Vibe</Text>
-                  <Text style={styles.astroValue}>{profile.sunSign ? 'Warm Anchor' : 'Not calculated'}</Text>
+                  <Text style={styles.astroValue}>{profile.zodiacSign || setupZodiacSign ? 'Harmonic ⚡' : 'Calculating'}</Text>
                 </View>
               </View>
             </View>
+
+            {/* Vernacular 15s Voice Note */}
+            {(profile.voicePromptUrl || setupVoicePromptUrl) ? (
+              <View style={styles.sectionCard}>
+                <View style={styles.voiceHeaderRow}>
+                  <Text style={styles.sectionTitle}>🎙️ 15s Vernacular Voice Note</Text>
+                  <Text style={styles.voiceDurationBadge}>{profile.voicePromptDuration || setupVoicePromptDuration || 15}s</Text>
+                </View>
+                <Text style={styles.voicePromptSubText}>"{profile.voicePromptText || setupVoicePromptText || VOICE_PROMPT_TOPICS[0]}"</Text>
+                <TouchableOpacity
+                  style={styles.voicePlayCardBtn}
+                  activeOpacity={0.8}
+                  onPress={() => handleTogglePlayVoice(profile.voicePromptUrl || setupVoicePromptUrl)}>
+                  <Text style={styles.voicePlayBtnIcon}>
+                    {isPlayingVoice ? '⏸️ Playing...' : '▶ Listen (Authentic Voice)'}
+                  </Text>
+                  <View style={styles.waveformContainer}>
+                    {[10, 24, 38, 16, 30, 12, 34, 20, 40, 14, 26, 18, 32].map((h, idx) => (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.waveformBar,
+                          { height: isPlayingVoice ? ((h * 1.3) % 28) + 6 : h * 0.7 },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.addVoicePromptCard}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setIsEditingProfile(true);
+                  setShowVoiceRecorderModal(true);
+                }}>
+                <Text style={styles.addVoicePromptIcon}>🎙️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.addVoicePromptTitle}>Add a 15s Vernacular Voice Note</Text>
+                  <Text style={styles.addVoicePromptSub}>Express yourself in your mother tongue or favorite dialect.</Text>
+                </View>
+                <Text style={styles.addVoicePromptAction}>Record →</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Profile Meme DNA */}
+            {(profile.selectedMemeUrl || setupMemeUrl) ? (
+              <View style={styles.sectionCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={styles.sectionTitle}>🤣 Profile Meme DNA</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsEditingProfile(true);
+                      setShowMemePickerModal(true);
+                    }}>
+                    <Text style={styles.editCardActionText}>Change Meme 🔄</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.memePreviewCard}>
+                  <Image
+                    source={{ uri: profile.selectedMemeUrl || setupMemeUrl }}
+                    style={styles.memeImageDisplay}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                  <View style={styles.memeInfoOverlay}>
+                    <Text style={styles.memeTitleText}>{profile.selectedMemeTitle || setupMemeTitle || 'Selected Meme'}</Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.addMemeCard}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setIsEditingProfile(true);
+                  setShowMemePickerModal(true);
+                }}>
+                <Text style={styles.addMemeIcon}>🤣</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.addMemeTitle}>Choose a Profile Meme</Text>
+                  <Text style={styles.addMemeSub}>Show your humor with Silk Board, Filter Coffee, or 2 AM chai memes (+2% score).</Text>
+                </View>
+                <Text style={styles.addMemeAction}>Pick →</Text>
+              </TouchableOpacity>
+            )}
 
             {/* Privacy & Safe Date Shortcuts */}
             <TouchableOpacity style={styles.privacyHubCard} onPress={() => router.push('/auth')}>
@@ -850,32 +1999,7 @@ export default function ProfileScreen() {
                         if (hasPhoto) {
                           Alert.alert('Profile Photo', 'Do you want to change or delete this photo?', [
                             { text: 'Change Photo 📸', onPress: () => handlePickPhoto(item.slotIdx, item.setter) },
-                            { text: 'Delete Photo 🗑️', onPress: () => {
-                              item.setter('');
-                              setProfile(prev => {
-                                if (!prev) return prev;
-                                const updated = { ...prev, [`photo${item.slotIdx}`]: '' };
-                                const photos = [
-                                  item.slotIdx === 1 ? '' : setupPhoto1,
-                                  item.slotIdx === 2 ? '' : setupPhoto2,
-                                  item.slotIdx === 3 ? '' : setupPhoto3,
-                                  item.slotIdx === 4 ? '' : setupPhoto4,
-                                  item.slotIdx === 5 ? '' : setupPhoto5,
-                                  item.slotIdx === 6 ? '' : setupPhoto6,
-                                ].filter((p): p is string => !!p && p.trim() !== '');
-                                updated.photos = photos;
-                                return updated;
-                              });
-                              const syncPhotos = [
-                                item.slotIdx === 1 ? '' : setupPhoto1,
-                                item.slotIdx === 2 ? '' : setupPhoto2,
-                                item.slotIdx === 3 ? '' : setupPhoto3,
-                                item.slotIdx === 4 ? '' : setupPhoto4,
-                                item.slotIdx === 5 ? '' : setupPhoto5,
-                                item.slotIdx === 6 ? '' : setupPhoto6,
-                              ].filter((p): p is string => !!p && p.trim() !== '');
-                              api.updateMyProfile({ [`photo${item.slotIdx}`]: '', photos: syncPhotos } as any).catch(() => {});
-                            }, style: 'destructive' },
+                            { text: 'Delete Photo 🗑️', style: 'destructive', onPress: () => handleDeletePhoto(item.slotIdx) },
                             { text: 'Cancel', style: 'cancel' },
                           ]);
                         } else {
@@ -891,10 +2015,6 @@ export default function ProfileScreen() {
                           cachePolicy="memory-disk"
                           onError={(e) => {
                             console.warn(`Slot ${item.slotIdx} image render error:`, e);
-                            if (e && JSON.stringify(e).includes('404')) {
-                              item.setter('');
-                              setProfile(prev => prev ? ({ ...prev, [`photo${item.slotIdx}`]: '' }) : prev);
-                            }
                           }}
                         />
                       ) : (
@@ -906,9 +2026,20 @@ export default function ProfileScreen() {
                           <Text style={styles.uploadingText}>Saving...</Text>
                         </View>
                       )}
-                      <View style={[styles.photoActionBadge, hasPhoto && styles.photoActionBadgeDelete]}>
+                      <TouchableOpacity
+                        style={[styles.photoActionBadge, hasPhoto && styles.photoActionBadgeDelete]}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (hasPhoto) {
+                            handleDeletePhoto(item.slotIdx);
+                          } else {
+                            handlePickPhoto(item.slotIdx, item.setter);
+                          }
+                        }}>
                         <Text style={styles.photoActionBadgeText}>{hasPhoto ? '×' : '+'}</Text>
-                      </View>
+                      </TouchableOpacity>
                       {idx === 0 && hasPhoto && (
                         <View style={styles.primaryTag}>
                           <Text style={styles.primaryTagText}>⭐ Primary</Text>
@@ -920,7 +2051,20 @@ export default function ProfileScreen() {
               </View>
 
               {/* Biometric Selfie Upload Slot */}
-              <TouchableOpacity style={styles.selfieCard} activeOpacity={0.8} onPress={handleTakeSelfie}>
+              <TouchableOpacity
+                style={styles.selfieCard}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (setupSelfie) {
+                    Alert.alert('Biometric Selfie', 'Do you want to retake or remove your selfie?', [
+                      { text: 'Retake Selfie 📸', onPress: handleTakeSelfie },
+                      { text: 'Remove Selfie 🗑️', style: 'destructive', onPress: handleDeleteSelfie },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]);
+                  } else {
+                    handleTakeSelfie();
+                  }
+                }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <View style={{ position: 'relative', width: 48, height: 48 }}>
                     {setupSelfie ? (
@@ -994,18 +2138,40 @@ export default function ProfileScreen() {
                 style={styles.textInput}
                 value={setupMaxDistanceKm}
                 onChangeText={setSetupMaxDistanceKm}
-                placeholder="50"
+                placeholder="50 (default)"
                 placeholderTextColor="#6B7082"
                 keyboardType="numeric"
               />
+
+              {/* GPS Coordinates & Sync */}
+              <View style={styles.gpsSyncContainer}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.gpsSyncTitle}>Live Device GPS Location</Text>
+                  <Text style={styles.gpsSyncCoords}>
+                    {setupLatitude && setupLongitude
+                      ? `📍 ${setupLatitude.toFixed(4)}°, ${setupLongitude.toFixed(4)}° (DB Synced)`
+                      : '📍 Coordinates not set • Tap update to sync'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.gpsSyncBtn}
+                  onPress={handleRefreshGpsLocation}
+                  disabled={isUpdatingGps}>
+                  {isUpdatingGps ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.gpsSyncBtnText}>Update GPS 📍</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
 
               {/* Date of Birth Picker Button */}
               <Text style={styles.inputLabel}>Date of Birth 📅</Text>
               <TouchableOpacity
                 style={styles.pickerFieldBtn}
                 onPress={() => setShowDobPickerModal(true)}>
-                <Text style={styles.pickerFieldText}>
-                  {setupDateOfBirth || 'Select Birth Date (Day / Month / Year)'}
+                <Text style={[styles.pickerFieldText, !setupDateOfBirth && { color: '#8E94A5' }]}>
+                  {setupDateOfBirth || 'Select DOB'}
                 </Text>
               </TouchableOpacity>
 
@@ -1034,6 +2200,24 @@ export default function ProfileScreen() {
                 onPress={() => setShowPreferencePickerModal(true)}>
                 <Text style={styles.pickerFieldText}>{setupPreferenceDisplay || 'Select Preference'}</Text>
               </TouchableOpacity>
+
+              {/* Sexual Orientation Picker Button */}
+              <Text style={styles.inputLabel}>Sexual Orientation * 🏳️‍🌈</Text>
+              <TouchableOpacity
+                style={styles.pickerFieldBtn}
+                onPress={() => setShowOrientationPickerModal(true)}>
+                <Text style={styles.pickerFieldText}>{setupOrientation || 'Select Orientation 🏳️‍🌈'}</Text>
+              </TouchableOpacity>
+
+              {/* Show Orientation Toggle */}
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setSetupShowOrientation(prev => !prev)}>
+                <View style={[styles.checkboxBox, setupShowOrientation && styles.checkboxActive]}>
+                  {setupShowOrientation && <Text style={styles.checkboxTick}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>Show orientation on my profile</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Cultural & Lifestyle Markers (Modal Pickers) */}
@@ -1056,6 +2240,79 @@ export default function ProfileScreen() {
                 onPress={() => setShowLivingPickerModal(true)}>
                 <Text style={styles.pickerFieldText}>{getLivingLabel(setupLiving)}</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Languages Known Section */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>🗣️ Languages Known</Text>
+              <Text style={styles.sectionSub}>Select the languages you speak comfortably or add your own.</Text>
+
+              {/* Selected Languages Chips */}
+              {setupLanguages.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                  {setupLanguages.map((lang) => (
+                    <TouchableOpacity
+                      key={lang}
+                      style={styles.selectedLanguageTag}
+                      onPress={() => removeLanguage(lang)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.selectedLanguageTagText}>{lang}</Text>
+                      <Text style={styles.removeLanguageTagIcon}>✕</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Preset Language Options */}
+              <Text style={styles.inputLabel}>Choose from presets:</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                {LANGUAGE_OPTIONS.map((item) => {
+                  const clean = item.split(' ')[0];
+                  const isSelected = setupLanguages.includes(clean);
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[
+                        styles.presetLanguagePill,
+                        isSelected && styles.presetLanguagePillActive,
+                      ]}
+                      onPress={() => toggleLanguage(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.presetLanguagePillText,
+                          isSelected && styles.presetLanguagePillTextActive,
+                        ]}
+                      >
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Custom Language Input */}
+              <Text style={styles.inputLabel}>Or add other language:</Text>
+              <View style={styles.addCustomLanguageRow}>
+                <TextInput
+                  style={styles.addCustomLanguageInput}
+                  placeholder="e.g. Bhojpuri, Telugu, Spanish..."
+                  placeholderTextColor="#666"
+                  value={customLanguageInput}
+                  onChangeText={setCustomLanguageInput}
+                  onSubmitEditing={handleAddCustomLanguage}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity
+                  style={styles.addCustomLanguageBtn}
+                  onPress={handleAddCustomLanguage}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.addCustomLanguageBtnText}>+ Add</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Lifestyle Habits: Smoking, Drinking, Vacation Vibe */}
@@ -1105,6 +2362,96 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Vedic Astrology (Rashi / Moon Sign) */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>✨ Vedic Zodiac Sign (Rashi / Moon Sign)</Text>
+              <Text style={styles.sectionSub}>Match based on authentic Vedic Jyotish compatibility (+2% score).</Text>
+
+              <TouchableOpacity
+                style={[styles.pickerFieldBtn, { minHeight: 48 }]}
+                onPress={() => setShowZodiacPickerModal(true)}>
+                <Text style={[styles.pickerFieldText, !setupZodiacSign && { color: '#8E94A5' }]}>
+                  {setupZodiacSign || 'Select Vedic Rashi (Mesha, Vrishabha, Mithuna, etc.) 🪐'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 15-Second Vernacular Voice Note */}
+            <View style={styles.sectionCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.sectionTitle}>🎙️ 15s Vernacular Voice Note</Text>
+                {setupVoicePromptUrl ? (
+                  <TouchableOpacity onPress={handleDeleteVoicePrompt}>
+                    <Text style={{ color: '#E94057', fontSize: 12, fontWeight: '700' }}>Delete 🗑️</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <Text style={styles.sectionSub}>Add an authentic 15-second voice bio in your native language.</Text>
+
+              {setupVoicePromptUrl ? (
+                <View style={styles.editVoicePreviewCard}>
+                  <Text style={styles.voicePromptSubText}>"{setupVoicePromptText || VOICE_PROMPT_TOPICS[0]}"</Text>
+                  <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={styles.voicePlayMiniBtn}
+                      onPress={() => handleTogglePlayVoice(setupVoicePromptUrl)}>
+                      <Text style={styles.voicePlayBtnIcon}>
+                        {isPlayingVoice ? '⏸️ Playing...' : '▶ Listen Preview'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.voiceRetakeBtn}
+                      onPress={() => setShowVoiceRecorderModal(true)}>
+                      <Text style={styles.voiceRetakeBtnText}>Retake 🎙️</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.recordVoiceBtn}
+                  onPress={() => setShowVoiceRecorderModal(true)}>
+                  <Text style={styles.recordVoiceBtnText}>🎙️ Record 15-Second Voice Note</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Profile Meme DNA */}
+            <View style={styles.sectionCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.sectionTitle}>🤣 Profile Meme DNA</Text>
+                {setupMemeUrl ? (
+                  <TouchableOpacity onPress={handleDeleteMeme}>
+                    <Text style={{ color: '#E94057', fontSize: 12, fontWeight: '700' }}>Remove 🗑️</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <Text style={styles.sectionSub}>Express your personality with relatable Indian dating memes (+2% score).</Text>
+
+              {setupMemeUrl ? (
+                <View style={styles.editMemePreviewWrap}>
+                  <Image
+                    source={{ uri: setupMemeUrl }}
+                    style={styles.editMemeThumbnail}
+                    contentFit="cover"
+                  />
+                  <View style={{ flex: 1, justifyContent: 'center' }}>
+                    <Text style={styles.memeTitleText}>{setupMemeTitle || 'Selected Meme'}</Text>
+                    <TouchableOpacity
+                      style={styles.changeMemeBtn}
+                      onPress={() => setShowMemePickerModal(true)}>
+                      <Text style={styles.changeMemeBtnText}>Change Meme 🔄</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.selectMemeBtn}
+                  onPress={() => setShowMemePickerModal(true)}>
+                  <Text style={styles.selectMemeBtnText}>🤣 Choose Profile Meme</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             {/* Profession, Education & Orientation */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>💼 Profession & Education</Text>
@@ -1116,28 +2463,31 @@ export default function ProfileScreen() {
                 <Text style={styles.pickerFieldText}>{setupJob || 'Select Occupation 💼'}</Text>
               </TouchableOpacity>
 
-              <Text style={styles.inputLabel}>Education</Text>
+              <Text style={styles.inputLabel}>Company Name (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={setupCompany}
+                onChangeText={setSetupCompany}
+                placeholder="e.g. Google, Swiggy, Startup"
+                placeholderTextColor="#6B7082"
+              />
+
+              <Text style={styles.inputLabel}>Education / Degree</Text>
               <TouchableOpacity
                 style={styles.pickerFieldBtn}
                 onPress={() => setShowEduPickerModal(true)}>
                 <Text style={styles.pickerFieldText}>{setupEducation || 'Select Education 🎓'}</Text>
               </TouchableOpacity>
 
-              <Text style={styles.inputLabel}>Sexual Orientation</Text>
-              <TouchableOpacity
-                style={styles.pickerFieldBtn}
-                onPress={() => setShowOrientationPickerModal(true)}>
-                <Text style={styles.pickerFieldText}>{setupOrientation || 'Select Orientation 🏳️‍🌈'}</Text>
-              </TouchableOpacity>
+              <Text style={styles.inputLabel}>Institute Name (Optional)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={setupInstitute}
+                onChangeText={setSetupInstitute}
+                placeholder="e.g. IIT Bombay, Delhi University"
+                placeholderTextColor="#6B7082"
+              />
 
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setSetupShowOrientation(prev => !prev)}>
-                <View style={[styles.checkboxBox, setupShowOrientation && styles.checkboxActive]}>
-                  {setupShowOrientation && <Text style={styles.checkboxTick}>✓</Text>}
-                </View>
-                <Text style={styles.checkboxLabel}>Show orientation on my profile</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Interests & Dating Goal */}
@@ -1197,6 +2547,54 @@ export default function ProfileScreen() {
                 placeholderTextColor="#6B7082"
                 multiline
               />
+            </View>
+
+            {/* 🎯 Final Edit Section: My Desire Blueprint */}
+            <View style={styles.sectionCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={styles.sectionTitle}>💫 My Desire Blueprint</Text>
+                <TouchableOpacity onPress={() => setShowDesireModal(true)}>
+                  <Text style={{ color: '#00E5FF', fontSize: 13, fontWeight: '700' }}>Configure ✎</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.sectionSub}>
+                Define the vibe, lifestyle harmony, and green flags you desire in a partner. This directly tunes your Discovery feed recommendations.
+              </Text>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                <View style={styles.desirePreviewBadge}>
+                  <Text style={styles.desirePreviewBadgeText}>🎂 {desireProfile?.minAge || 21} - {desireProfile?.maxAge || 34} yrs</Text>
+                </View>
+                <View style={styles.desirePreviewBadge}>
+                  <Text style={styles.desirePreviewBadgeText}>📍 Within {desireProfile?.maxDistanceKm || 50} km</Text>
+                </View>
+                <View style={styles.desirePreviewBadge}>
+                  <Text style={styles.desirePreviewBadgeText}>🥗 {desireProfile?.dietaryHarmony ? desireProfile.dietaryHarmony.replace(/_/g, ' ') : 'Any Diet'}</Text>
+                </View>
+                <View style={styles.desirePreviewBadge}>
+                  <Text style={styles.desirePreviewBadgeText}>✨ {desireProfile?.weekendVibe ? desireProfile.weekendVibe.replace(/_/g, ' ') : 'Coffee & Books'}</Text>
+                </View>
+                {desireProfile?.communicationPace ? (
+                  <View style={styles.desirePreviewBadge}>
+                    <Text style={styles.desirePreviewBadgeText}>💬 {desireProfile.communicationPace.replace(/_/g, ' ')}</Text>
+                  </View>
+                ) : null}
+                {desireProfile?.preferredProfessions && desireProfile.preferredProfessions.length > 0 ? (
+                  <View style={styles.desirePreviewBadge}>
+                    <Text style={styles.desirePreviewBadgeText}>
+                      💼 {desireProfile.preferredProfessions.slice(0, 2).join(', ')}
+                      {desireProfile.preferredProfessions.length > 2 ? ` +${desireProfile.preferredProfessions.length - 2}` : ''}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <TouchableOpacity
+                style={styles.configureDesireBtn}
+                onPress={() => setShowDesireModal(true)}
+                activeOpacity={0.8}>
+                <Text style={styles.configureDesireBtnText}>🎯 Customize 4D Desire Blueprint</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Save / Cancel Action Bar */}
@@ -1268,6 +2666,12 @@ export default function ProfileScreen() {
                 setShowDobPickerModal(false);
               }}>
               <Text style={styles.modalConfirmBtnText}>Confirm Birth Date ✓</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalConfirmBtn, { marginTop: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#3A3F50' }]}
+              onPress={() => setShowDobPickerModal(false)}>
+              <Text style={[styles.modalConfirmBtnText, { color: '#8E94A5' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1696,6 +3100,405 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* 12. Vedic Zodiac (Rashi) Picker Modal */}
+      <Modal visible={showZodiacPickerModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '85%' }]}>
+            <Text style={styles.modalHeaderEmoji}>🪐</Text>
+            <Text style={styles.modalHeaderTitle}>Select Vedic Zodiac (Rashi)</Text>
+            <Text style={styles.modalHeaderSub}>Jyotish Rashis determine Moon Sign compatibility & cosmic harmony.</Text>
+            <ScrollView style={{ width: '100%', marginVertical: 12 }} showsVerticalScrollIndicator={false}>
+              {VEDIC_ZODIAC_OPTIONS.map((item, idx) => {
+                const isSelected = setupZodiacSign.includes(item.rashi);
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.zodiacOptionCard, isSelected && styles.zodiacOptionCardActive]}
+                    onPress={() => handleSelectZodiac(item)}>
+                    <View style={styles.zodiacTopRow}>
+                      <Text style={styles.zodiacSymbol}>{item.symbol}</Text>
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.zodiacRashiText, isSelected && styles.zodiacTextActive]}>
+                            {item.rashi}
+                          </Text>
+                          <Text style={styles.zodiacWesternText}>({item.western})</Text>
+                        </View>
+                        <Text style={styles.zodiacSubText}>
+                          {item.element} • Lord: {item.lord}
+                        </Text>
+                      </View>
+                      {isSelected && <Text style={styles.zodiacTick}>✓</Text>}
+                    </View>
+                    <Text style={styles.zodiacTraitsText}>{item.traits}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowZodiacPickerModal(false)}>
+              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 13. 15-Second Voice Note Recorder Modal */}
+      <Modal visible={showVoiceRecorderModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '88%' }]}>
+            <Text style={styles.modalHeaderEmoji}>🎙️</Text>
+            <Text style={styles.modalHeaderTitle}>15s Vernacular Voice Note</Text>
+            <Text style={styles.modalHeaderSub}>
+              Share your voice, accent, or native language to connect on a deeper human level.
+            </Text>
+
+            {/* Topic Selector Chips */}
+            <Text style={styles.modalSectionSubTitle}>Choose a Prompt Topic:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.topicScrollView}>
+              {VOICE_PROMPT_TOPICS.map((topic, idx) => {
+                const isSelected = setupVoicePromptText === topic;
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.topicChip, isSelected && styles.topicChipActive]}
+                    onPress={() => setSetupVoicePromptText(topic)}>
+                    <Text style={[styles.topicChipText, isSelected && styles.topicChipTextActive]}>
+                      {topic}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Selected Topic Display */}
+            <View style={styles.activeTopicBox}>
+              <Text style={styles.activeTopicQuote}>"{setupVoicePromptText || VOICE_PROMPT_TOPICS[0]}"</Text>
+            </View>
+
+            {/* Timer & Waveform Display */}
+            <View style={styles.recorderStatusBox}>
+              <Text style={styles.recorderTimerText}>
+                00:{String(voiceRecordSeconds).padStart(2, '0')} / 00:15
+              </Text>
+              <View style={styles.waveformContainer}>
+                {[12, 26, 38, 18, 32, 10, 36, 22, 42, 16, 28, 20, 34, 14, 30].map((h, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.waveformBar,
+                      {
+                        height: isVoiceRecording
+                          ? ((h * 1.4 + idx * 3) % 36) + 8
+                          : isPlayingVoice
+                          ? ((h * 1.2) % 30) + 6
+                          : 6,
+                        backgroundColor: isVoiceRecording ? '#E94057' : (recordedAudioUri ? '#2ED573' : '#3A3E4E'),
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.recordingStatusLabel}>
+                {isVoiceRecording
+                  ? '🔴 Recording in progress... (15s limit)'
+                  : recordedAudioUri
+                  ? '✅ Voice note recorded! Listen preview or save.'
+                  : 'Tap below to begin speaking'}
+              </Text>
+            </View>
+
+            {/* Record Controls */}
+            <View style={styles.recorderControlsRow}>
+              {!isVoiceRecording ? (
+                <TouchableOpacity
+                  style={styles.recordStartBtn}
+                  onPress={startVoiceRecording}>
+                  <Text style={styles.recordStartBtnText}>
+                    {recordedAudioUri ? '🔄 Record Again' : '🎙️ Start Recording'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.recordStopBtn}
+                  onPress={stopVoiceRecording}>
+                  <Text style={styles.recordStopBtnText}>⏹️ Stop Recording ({15 - voiceRecordSeconds}s)</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Play Preview & Save Options (if recorded) */}
+            {recordedAudioUri && !isVoiceRecording ? (
+              <View style={styles.previewActionsRow}>
+                <TouchableOpacity
+                  style={styles.previewPlayBtn}
+                  onPress={() => handleTogglePlayVoice(recordedAudioUri)}>
+                  <Text style={styles.previewPlayBtnText}>
+                    {isPlayingVoice ? '⏸️ Pause' : '▶ Listen Preview'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveVoiceBtn}
+                  onPress={handleSaveVoiceNote}>
+                  <Text style={styles.saveVoiceBtnText}>Save Voice Note ✓</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.modalCancelBtn, { marginTop: 14 }]}
+              onPress={() => {
+                if (isVoiceRecording) stopVoiceRecording();
+                stopAudibleVoiceNote();
+                setIsPlayingVoice(false);
+                setShowVoiceRecorderModal(false);
+              }}>
+              <Text style={styles.modalCancelBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 14. Profile Meme Selector Modal */}
+      <Modal visible={showMemePickerModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '88%' }]}>
+            <Text style={styles.modalHeaderEmoji}>🤣</Text>
+            <Text style={styles.modalHeaderTitle}>Select Profile Meme</Text>
+            <Text style={styles.modalHeaderSub}>
+              Pick from curated Indian dating memes or upload your own to showcase your vibe.
+            </Text>
+
+            {/* Custom Meme Upload Button */}
+            <TouchableOpacity
+              style={styles.uploadMemeOptionBtn}
+              onPress={handleUploadCustomMeme}>
+              <Text style={styles.uploadMemeOptionIcon}>🖼️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.uploadMemeOptionTitle}>Upload Custom Meme</Text>
+                <Text style={styles.uploadMemeOptionSub}>Pick an image from your device photos</Text>
+              </View>
+              <Text style={styles.uploadMemeOptionAction}>Browse →</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.modalSectionSubTitle}>Or Pick a Curated Preset ({MEME_PRESETS.length} Memes):</Text>
+
+            {/* Category Filter Chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ maxHeight: 38, marginVertical: 6 }}>
+              <View style={styles.memeCategoryFilterRow}>
+                {(['All', 'Global Legends', 'Dating & Romance', 'Desi Classics'] as const).map((cat) => {
+                  const count = cat === 'All' ? MEME_PRESETS.length : MEME_PRESETS.filter(m => m.category === cat).length;
+                  const isActive = selectedMemeCategory === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.memeCategoryChip, isActive && styles.memeCategoryChipActive]}
+                      onPress={() => setSelectedMemeCategory(cat)}>
+                      <Text style={[styles.memeCategoryChipText, isActive && styles.memeCategoryChipTextActive]}>
+                        {cat} ({count})
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <ScrollView style={{ width: '100%', maxHeight: 320, marginVertical: 4 }} showsVerticalScrollIndicator={false}>
+              <View style={styles.memePresetsGrid}>
+                {MEME_PRESETS
+                  .filter((preset) => selectedMemeCategory === 'All' || preset.category === selectedMemeCategory)
+                  .map((preset, idx) => {
+                    const isSelected = setupMemeUrl === preset.imageUrl;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[styles.memeGridCard, isSelected && styles.memeGridCardActive]}
+                        onPress={() => handleSelectPresetMeme(preset)}>
+                        <Image
+                          source={{ uri: preset.imageUrl }}
+                          style={styles.memeGridImg}
+                          contentFit="cover"
+                          transition={200}
+                        />
+                        <View style={styles.memeGridInfo}>
+                          <Text style={styles.memeGridTitle} numberOfLines={2}>{preset.title}</Text>
+                          <Text style={styles.memeGridCategory}>{preset.category}</Text>
+                          {isSelected && (
+                            <View style={styles.memeSelectedBadge}>
+                              <Text style={styles.memeSelectedBadgeText}>✓ Selected</Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                })}
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowMemePickerModal(false)}>
+              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 15. 100% Profile Completion Guide Modal */}
+      <Modal
+        visible={showCompletionGuideModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCompletionGuideModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.guideModalCard}>
+            <View style={styles.guideHeaderIconWrap}>
+              <Text style={{ fontSize: 30 }}>🚀</Text>
+            </View>
+
+            <Text style={styles.guideModalTitle}>Discovery Unlocked! ({completionScore}%)</Text>
+            <Text style={styles.guideModalSub}>
+              You’ve crossed the minimum 30% milestone! Profiles with 100% completion receive up to 3.5x more mutual matches.
+            </Text>
+
+            {/* Score Progress Bar */}
+            <View style={styles.guideProgressBox}>
+              <View style={styles.guideProgressTrack}>
+                <View style={[styles.guideProgressFill, { width: `${completionScore}%` }]} />
+              </View>
+              <View style={styles.guideProgressLabels}>
+                <Text style={styles.guideCurrentScoreText}>{completionScore}% Current</Text>
+                <Text style={styles.guideTargetScoreText}>Target: 100% 🎯</Text>
+              </View>
+            </View>
+
+            {/* Missing Items Checklist */}
+            <Text style={styles.guideSectionTitle}>Add these to reach 100%:</Text>
+            <ScrollView style={{ maxHeight: 220, width: '100%', marginVertical: 6 }} showsVerticalScrollIndicator={false}>
+              {/* Photo Checklist */}
+              <View style={styles.guideItemRow}>
+                <Text style={styles.guideItemIcon}>{setupPhoto2 && setupPhoto3 ? '✅' : '📷'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guideItemTitle}>Upload 4+ Profile Photos</Text>
+                  <Text style={styles.guideItemSub}>Profiles with multiple angles get 3x more swipes (+8%)</Text>
+                </View>
+                <Text style={setupPhoto2 && setupPhoto3 ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                  {setupPhoto2 && setupPhoto3 ? 'Done' : '+8%'}
+                </Text>
+              </View>
+
+              {/* Bio Checklist */}
+              <View style={styles.guideItemRow}>
+                <Text style={styles.guideItemIcon}>{setupBio ? '✅' : '✍️'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guideItemTitle}>Write a Bio</Text>
+                  <Text style={styles.guideItemSub}>Share your story, humor & vibe (+8%)</Text>
+                </View>
+                <Text style={setupBio ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                  {setupBio ? 'Done' : '+8%'}
+                </Text>
+              </View>
+
+              {/* Prompt Checklist */}
+              <View style={styles.guideItemRow}>
+                <Text style={styles.guideItemIcon}>{setupPromptAnswer ? '✅' : '☕'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guideItemTitle}>Answer a Lifestyle Prompt</Text>
+                  <Text style={styles.guideItemSub}>Spark conversations about coffee & weekend plans (+7%)</Text>
+                </View>
+                <Text style={setupPromptAnswer ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                  {setupPromptAnswer ? 'Done' : '+7%'}
+                </Text>
+              </View>
+
+              {/* Verified Selfie Checklist */}
+              <TouchableOpacity
+                style={styles.guideItemRow}
+                activeOpacity={0.7}
+                onPress={handleTakeSelfie}>
+                <Text style={styles.guideItemIcon}>{setupSelfie ? '✅' : '🤳'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guideItemTitle}>Biometric Selfie Verification</Text>
+                  <Text style={styles.guideItemSub}>Earn the Gold Trust Shield badge (+4%)</Text>
+                </View>
+                <Text style={setupSelfie ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                  {setupSelfie ? 'Done' : '+4%'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Career & Education */}
+              <View style={styles.guideItemRow}>
+                <Text style={styles.guideItemIcon}>{setupJob && setupEducation ? '✅' : '💼'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guideItemTitle}>Career & Education</Text>
+                  <Text style={styles.guideItemSub}>Occupation, university & height (+10%)</Text>
+                </View>
+                <Text style={setupJob && setupEducation ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                  {setupJob && setupEducation ? 'Done' : '+10%'}
+                </Text>
+              </View>
+
+              {/* Dietary & Habits */}
+              <View style={styles.guideItemRow}>
+                <Text style={styles.guideItemIcon}>{setupDiet && setupLiving ? '✅' : '🥗'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guideItemTitle}>Dietary & Living Arrangement</Text>
+                  <Text style={styles.guideItemSub}>Pure Veg, Non-Veg, Flat or with parents (+10%)</Text>
+                </View>
+                <Text style={setupDiet && setupLiving ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                  {setupDiet && setupLiving ? 'Done' : '+10%'}
+                </Text>
+              </View>
+
+              {/* Hobbies & Passions */}
+              <View style={styles.guideItemRow}>
+                <Text style={styles.guideItemIcon}>{setupHobbies && setupInterests ? '✅' : '🎨'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.guideItemTitle}>Interests & Passions</Text>
+                  <Text style={styles.guideItemSub}>Specialty Coffee, Trekking, Cycling, Reading (+5%)</Text>
+                </View>
+                <Text style={setupHobbies && setupInterests ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                  {setupHobbies && setupInterests ? 'Done' : '+5%'}
+                </Text>
+              </View>
+            </ScrollView>
+
+            {/* Action Buttons */}
+            <TouchableOpacity
+              style={styles.guideCompleteBtn}
+              onPress={() => {
+                setShowCompletionGuideModal(false);
+                setIsEditingProfile(true);
+              }}>
+              <Text style={styles.guideCompleteBtnText}>Add More Details Now ✍️</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.guideExploreBtn}
+              onPress={() => {
+                setShowCompletionGuideModal(false);
+                router.replace('/(tabs)');
+              }}>
+              <Text style={styles.guideExploreBtnText}>Start Discovering Singles ❤️</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* DESIRE PROFILE MODAL */}
+      <DesireProfileModal
+        visible={showDesireModal}
+        onClose={() => setShowDesireModal(false)}
+        onSaved={(updated) => setDesireProfile(updated)}
+      />
+
+      {/* BIOMETRIC SELFIE CAMERA MODAL (FRONT CAMERA) */}
+      <SelfieCameraModal
+        visible={showSelfieModal}
+        onClose={() => setShowSelfieModal(false)}
+        onCapture={handleSelfieCaptured}
+      />
     </SafeAreaView>
   );
 }
@@ -2266,6 +4069,34 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  desirePreviewBadge: {
+    backgroundColor: 'rgba(0, 229, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  desirePreviewBadgeText: {
+    color: '#00E5FF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  configureDesireBtn: {
+    backgroundColor: '#1E202B',
+    borderWidth: 1.5,
+    borderColor: '#00E5FF',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  configureDesireBtnText: {
+    color: '#00E5FF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
 
   // Modal Picker Styles
   modalOverlay: {
@@ -2407,5 +4238,949 @@ const styles = StyleSheet.create({
   interestModalPillTextActive: {
     color: '#ffffff',
     fontWeight: '800',
+  },
+  incompleteBanner: {
+    backgroundColor: 'rgba(233, 64, 87, 0.12)',
+    borderWidth: 1.5,
+    borderColor: '#E94057',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+  },
+  incompleteBannerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  incompleteBannerTitle: {
+    color: '#FF6B81',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  incompleteReqBadge: {
+    backgroundColor: '#E94057',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  incompleteReqBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  incompleteBannerDesc: {
+    color: '#E0AAB2',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  incompleteCheckList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  checkItemRow: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  checkDone: {
+    color: '#4CAF50',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  checkMissing: {
+    color: '#FF5252',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // Boost Nudge Banner (When >= 30% but < 100%)
+  boostNudgeBanner: {
+    backgroundColor: '#0F1E17',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2ED573',
+    padding: 14,
+    marginBottom: 16,
+  },
+  boostNudgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  boostNudgeTitle: {
+    color: '#2ED573',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  boostNudgeSub: {
+    color: '#A4B0BE',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  boostNudgeActionBtn: {
+    backgroundColor: '#2ED573',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    alignSelf: 'center',
+  },
+  boostNudgeActionBtnText: {
+    color: '#0D1B13',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  nudgeChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(46, 213, 115, 0.15)',
+  },
+  nudgeChip: {
+    backgroundColor: 'rgba(46, 213, 115, 0.12)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(46, 213, 115, 0.25)',
+  },
+  nudgeChipText: {
+    color: '#2ED573',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  allStarBanner: {
+    backgroundColor: '#1A1810',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  allStarTitle: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  allStarSub: {
+    color: '#E0D8B0',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  allStarBadge: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  allStarBadgeText: {
+    color: '#000000',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+
+  // 100% Completion Guide Modal Styles
+  guideModalCard: {
+    backgroundColor: '#16171E',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#E94057',
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    maxHeight: '85%',
+  },
+  guideHeaderIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(233, 64, 87, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  guideModalTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  guideModalSub: {
+    color: '#8E94A5',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 16,
+    marginBottom: 14,
+  },
+  guideProgressBox: {
+    width: '100%',
+    backgroundColor: '#0F1016',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#20222B',
+    marginBottom: 12,
+  },
+  guideProgressTrack: {
+    height: 8,
+    backgroundColor: '#232733',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  guideProgressFill: {
+    height: '100%',
+    backgroundColor: '#E94057',
+    borderRadius: 4,
+  },
+  guideProgressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+  },
+  guideCurrentScoreText: {
+    color: '#E94057',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  guideTargetScoreText: {
+    color: '#2ED573',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  guideSectionTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  guideItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E202B',
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 8,
+    gap: 10,
+  },
+  guideItemIcon: {
+    fontSize: 18,
+  },
+  guideItemTitle: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  guideItemSub: {
+    color: '#8E94A5',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  guideItemPoints: {
+    color: '#E94057',
+    fontSize: 11,
+    fontWeight: '800',
+    backgroundColor: 'rgba(233, 64, 87, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  guideItemPointsDone: {
+    color: '#2ED573',
+    fontSize: 11,
+    fontWeight: '800',
+    backgroundColor: 'rgba(46, 213, 115, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  guideCompleteBtn: {
+    backgroundColor: '#E94057',
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  guideCompleteBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  guideExploreBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#303444',
+    width: '100%',
+    paddingVertical: 11,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  guideExploreBtnText: {
+    color: '#8E94A5',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  gpsSyncContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E202B',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#2E3242',
+    gap: 10,
+  },
+  gpsSyncTitle: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  gpsSyncCoords: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  gpsSyncBtn: {
+    backgroundColor: 'rgba(233, 64, 87, 0.2)',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  gpsSyncBtnText: {
+    color: '#E94057',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  // Edit Card Action Link
+  editCardActionText: {
+    color: '#E94057',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Voice Note View Mode Card
+  voiceHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  voiceDurationBadge: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    color: '#E94057',
+    fontSize: 11,
+    fontWeight: '800',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  voicePromptSubText: {
+    color: '#CACDD8',
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
+  voicePlayCardBtn: {
+    backgroundColor: '#1C1D26',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#2D3142',
+  },
+  voicePlayBtnIcon: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  waveformContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    height: 36,
+  },
+  waveformBar: {
+    width: 3.5,
+    backgroundColor: '#E94057',
+    borderRadius: 2,
+  },
+
+  // Add Voice Note Prompt Card
+  addVoicePromptCard: {
+    backgroundColor: '#16171E',
+    borderWidth: 1,
+    borderColor: '#2A2D3C',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addVoicePromptIcon: {
+    fontSize: 26,
+  },
+  addVoicePromptTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  addVoicePromptSub: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  addVoicePromptAction: {
+    color: '#E94057',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // Profile Meme View Mode
+  memePreviewCard: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#2D3142',
+    backgroundColor: '#16171E',
+  },
+  memeImageDisplay: {
+    width: '100%',
+    height: 220,
+    backgroundColor: '#1A1C24',
+  },
+  memeInfoOverlay: {
+    padding: 12,
+    backgroundColor: '#1E202B',
+  },
+  memeTitleText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  // Add Meme Prompt Card
+  addMemeCard: {
+    backgroundColor: '#16171E',
+    borderWidth: 1,
+    borderColor: '#2A2D3C',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addMemeIcon: {
+    fontSize: 26,
+  },
+  addMemeTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  addMemeSub: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  addMemeAction: {
+    color: '#E94057',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // Edit Mode Voice Card
+  editVoicePreviewCard: {
+    backgroundColor: '#1A1C25',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2C3040',
+    marginTop: 8,
+  },
+  voicePlayMiniBtn: {
+    backgroundColor: '#E94057',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  voiceRetakeBtn: {
+    backgroundColor: '#262936',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  voiceRetakeBtnText: {
+    color: '#CACDD8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  recordVoiceBtn: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  recordVoiceBtnText: {
+    color: '#E94057',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  // Edit Mode Meme Card
+  editMemePreviewWrap: {
+    flexDirection: 'row',
+    gap: 12,
+    backgroundColor: '#1A1C25',
+    padding: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2C3040',
+    marginTop: 8,
+  },
+  editMemeThumbnail: {
+    width: 70,
+    height: 70,
+    borderRadius: 10,
+    backgroundColor: '#14151C',
+  },
+  changeMemeBtn: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  changeMemeBtnText: {
+    color: '#E94057',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  selectMemeBtn: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  selectMemeBtnText: {
+    color: '#E94057',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  // Vedic Zodiac Modal Options
+  zodiacOptionCard: {
+    backgroundColor: '#1E202B',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#2B2F40',
+  },
+  zodiacOptionCardActive: {
+    borderColor: '#E94057',
+    backgroundColor: 'rgba(233, 64, 87, 0.12)',
+  },
+  zodiacTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  zodiacSymbol: {
+    fontSize: 24,
+  },
+  zodiacRashiText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  zodiacTextActive: {
+    color: '#E94057',
+  },
+  zodiacWesternText: {
+    color: '#8E94A5',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  zodiacSubText: {
+    color: '#FF9800',
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '700',
+  },
+  zodiacTick: {
+    color: '#2ED573',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  zodiacTraitsText: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 6,
+    lineHeight: 15,
+  },
+
+  // Voice Note Modal
+  modalSectionSubTitle: {
+    color: '#CACDD8',
+    fontSize: 12,
+    fontWeight: '700',
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  topicScrollView: {
+    maxHeight: 38,
+    marginBottom: 10,
+    width: '100%',
+  },
+  topicChip: {
+    backgroundColor: '#1C1D26',
+    borderWidth: 1,
+    borderColor: '#2B2F40',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    marginRight: 8,
+  },
+  topicChipActive: {
+    backgroundColor: 'rgba(233, 64, 87, 0.2)',
+    borderColor: '#E94057',
+  },
+  topicChipText: {
+    color: '#8E94A5',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  topicChipTextActive: {
+    color: '#E94057',
+    fontWeight: '700',
+  },
+  activeTopicBox: {
+    width: '100%',
+    backgroundColor: '#1E202B',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2B2F40',
+    marginBottom: 12,
+  },
+  activeTopicQuote: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  recorderStatusBox: {
+    width: '100%',
+    backgroundColor: '#0F1016',
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#232733',
+    marginBottom: 12,
+  },
+  recorderTimerText: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  recordingStatusLabel: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  recorderControlsRow: {
+    width: '100%',
+    marginVertical: 4,
+  },
+  recordStartBtn: {
+    backgroundColor: '#E94057',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    width: '100%',
+  },
+  recordStartBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  recordStopBtn: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    width: '100%',
+  },
+  recordStopBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  previewActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+    marginTop: 8,
+  },
+  previewPlayBtn: {
+    flex: 1,
+    backgroundColor: '#1E202B',
+    borderWidth: 1,
+    borderColor: '#2B2F40',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  previewPlayBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  saveVoiceBtn: {
+    flex: 1.2,
+    backgroundColor: '#2ED573',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  saveVoiceBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // Meme Modal
+  uploadMemeOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E202B',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    borderRadius: 14,
+    padding: 12,
+    width: '100%',
+    gap: 10,
+    marginBottom: 10,
+  },
+  uploadMemeOptionIcon: {
+    fontSize: 22,
+  },
+  uploadMemeOptionTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  uploadMemeOptionSub: {
+    color: '#8E94A5',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  uploadMemeOptionAction: {
+    color: '#E94057',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  memePresetsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  memeGridCard: {
+    width: '48%',
+    backgroundColor: '#1A1C25',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#292C3B',
+  },
+  memeGridCardActive: {
+    borderColor: '#E94057',
+    borderWidth: 2,
+  },
+  memeGridImg: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#12131A',
+  },
+  memeGridInfo: {
+    padding: 8,
+  },
+  memeGridTitle: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  memeGridCategory: {
+    color: '#8E94A5',
+    fontSize: 9,
+    marginTop: 2,
+  },
+  memeSelectedBadge: {
+    backgroundColor: '#E94057',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  memeSelectedBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  memeCategoryFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    gap: 8,
+  },
+  memeCategoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#1A1C25',
+    borderWidth: 1,
+    borderColor: '#292C3B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memeCategoryChipActive: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderColor: '#E94057',
+  },
+  memeCategoryChipText: {
+    fontSize: 11,
+    color: '#8E94A5',
+    fontWeight: '600',
+  },
+  memeCategoryChipTextActive: {
+    color: '#E94057',
+    fontWeight: '800',
+  },
+  languageDisplayBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.3)',
+  },
+  languageDisplayBadgeText: {
+    color: '#00E5FF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  selectedLanguageTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  selectedLanguageTagText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  removeLanguageTagIcon: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    opacity: 0.8,
+  },
+  presetLanguagePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#1A1C25',
+    borderWidth: 1,
+    borderColor: '#292C3B',
+  },
+  presetLanguagePillActive: {
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderColor: '#FF385C',
+  },
+  presetLanguagePillText: {
+    fontSize: 12,
+    color: '#8E94A5',
+    fontWeight: '600',
+  },
+  presetLanguagePillTextActive: {
+    color: '#FF385C',
+    fontWeight: '700',
+  },
+  addCustomLanguageRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  addCustomLanguageInput: {
+    flex: 1,
+    backgroundColor: '#161822',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: '#FFFFFF',
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#292C3B',
+  },
+  addCustomLanguageBtn: {
+    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: '#00E5FF',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addCustomLanguageBtnText: {
+    color: '#00E5FF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

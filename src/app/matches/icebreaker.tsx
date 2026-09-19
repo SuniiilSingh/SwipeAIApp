@@ -56,11 +56,15 @@ export default function IcebreakerScreen() {
     setLoading(false);
   };
 
-  const handleStartChat = () => {
+  const handleStartChat = (initialSpark?: string) => {
     if (!match) return;
     router.replace({
       pathname: '/chat/[id]',
-      params: { id: match.id, name: match.otherUserName },
+      params: {
+        id: match.id,
+        name: match.otherUserName,
+        ...(initialSpark ? { initialText: initialSpark } : {}),
+      },
     });
   };
 
@@ -145,7 +149,10 @@ export default function IcebreakerScreen() {
           )}
         </View>
 
-        {/* AI Wingman Conversational Sparks */}
+        {/* =========================================================================
+            AI WINGMAN CONVERSATIONAL SPARKS (COMMENTED OUT AS OF NOW)
+            Replaced by Alternative 1: Mutual Chemistry Sparks Engine
+           =========================================================================
         {isAnswered && wingmanSparks.length > 0 && (
           <View style={styles.wingmanCard}>
             <View style={styles.wingmanHeader}>
@@ -173,10 +180,49 @@ export default function IcebreakerScreen() {
             </View>
           </View>
         )}
+        */}
+
+        {/* Alternative 1: Mutual Chemistry Sparks */}
+        {isAnswered && wingmanSparks.length > 0 && (
+          <View style={styles.mutualSparksCard}>
+            <View style={styles.mutualSparksHeader}>
+              <View style={styles.mutualSparksTitleRow}>
+                <Text style={styles.mutualSparksTitle}>✨ Mutual Chemistry Sparks</Text>
+                <View style={styles.matchGroundBadge}>
+                  <Text style={styles.matchGroundBadgeText}>100% Real Match Ground</Text>
+                </View>
+              </View>
+              <Text style={styles.mutualSparksSubtitle}>
+                Personalized conversation starters based on your real overlapping lifestyle, diet & interests:
+              </Text>
+            </View>
+
+            <View style={styles.sparksList}>
+              {wingmanSparks.map((spark, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.mutualSparkItem}
+                  onPress={() => {
+                    handleStartChat(spark);
+                  }}>
+                  <Text style={styles.sparkText}>"{spark}"</Text>
+                  <View style={styles.sparkBottomRow}>
+                    <Text style={styles.sparkCategoryHint}>
+                      {spark.startsWith('⚡') ? 'Quiz Consensus' : (spark.startsWith('☕') || spark.startsWith('🚴') || spark.startsWith('🎨') || spark.startsWith('📚') || spark.startsWith('🎯') ? 'Shared Interest' : (spark.startsWith('🥗') || spark.startsWith('🍗') || spark.startsWith('🍳') || spark.startsWith('🏠') || spark.startsWith('🏖️') ? 'Lifestyle Fit' : 'Mutual Spark'))}
+                    </Text>
+                    <View style={styles.useThisBtn}>
+                      <Text style={styles.useThisBtnText}>Send in Chat 💬</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Action Button */}
         {isAnswered && (
-          <TouchableOpacity style={styles.startChatBtn} onPress={handleStartChat}>
+          <TouchableOpacity style={styles.startChatBtn} onPress={() => handleStartChat()}>
             <Text style={styles.startChatBtnText}>Start Chat with {match.otherUserName} 💬</Text>
           </TouchableOpacity>
         )}
@@ -414,6 +460,81 @@ const styles = StyleSheet.create({
   startChatBtnText: {
     color: '#ffffff',
     fontSize: 16,
+    fontWeight: '800',
+  },
+  mutualSparksCard: {
+    backgroundColor: '#161922',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1.5,
+    borderColor: '#2D344B',
+    marginTop: 18,
+  },
+  mutualSparksHeader: {
+    marginBottom: 14,
+  },
+  mutualSparksTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 6,
+  },
+  mutualSparksTitle: {
+    color: '#FFB703',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  matchGroundBadge: {
+    backgroundColor: 'rgba(255, 183, 3, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FFB703',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  matchGroundBadgeText: {
+    color: '#FFB703',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  mutualSparksSubtitle: {
+    color: '#A0A7BC',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  mutualSparkItem: {
+    backgroundColor: '#1E2230',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2E354B',
+  },
+  sparkBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#282E42',
+  },
+  sparkCategoryHint: {
+    color: '#8E96AF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  useThisBtn: {
+    backgroundColor: '#E94057',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  useThisBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '800',
   },
 });

@@ -5,6 +5,9 @@ import {
   Animated,
   AppState,
   AppStateStatus,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -13,15 +16,23 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import * as Location from 'expo-location';
 import { api } from '@/services/api';
 import { DatingIntent } from '@/types';
 import LivenessCameraModal from '@/components/liveness-camera-modal';
 import { FEATURE_FLAGS } from '@/config/features';
+
+const ONBOARDING_LANGUAGES = [
+  'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
+  'Kannada 🌿', 'Malayalam 🌴', 'Marathi 🚩', 'Gujarati 💎', 'Marwari 🏜️', 'Urdu 📜',
+  'French 🥐', 'Spanish 💃', 'German 🥨'
+];
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -44,9 +55,40 @@ export default function AuthScreen() {
   const [isAutoDetectingOtp, setIsAutoDetectingOtp] = useState(false);
   const [autoDetectedSuccess, setAutoDetectedSuccess] = useState(false);
   const [otpFeedbackMsg, setOtpFeedbackMsg] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const isCompact = windowHeight < 750;
+  const isUltraCompact = windowHeight < 680;
+  const stackHeight = isUltraCompact ? 250 : isCompact ? 290 : 330;
+  const cardWidth = isUltraCompact ? 220 : isCompact ? 245 : 260;
+  const cardHeight = isUltraCompact ? 245 : isCompact ? 285 : 320;
+  const photoHeight = isUltraCompact ? 170 : isCompact ? 198 : 225;
   const [resendTimer, setResendTimer] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const otpInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const orbAnim1 = useRef(new Animated.Value(0.22)).current;
+  const orbAnim2 = useRef(new Animated.Value(0.18)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const orbDriftAnim = useRef(new Animated.Value(0)).current;
+  const [isPlayingVoice, setIsPlayingVoice] = useState(true);
+  const soundWaveAnim = useRef(new Animated.Value(0)).current;
+  const keyboardAnim = useRef(new Animated.Value(0)).current;
+
+  const animStackHeight = keyboardAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [stackHeight, isUltraCompact ? 90 : isCompact ? 105 : 125],
+  });
+  const animStackScale = keyboardAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, isUltraCompact ? 0.40 : isCompact ? 0.44 : 0.48],
+  });
+  const animStackMarginVertical = keyboardAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [4, 0],
+  });
 
   // KYC state
   const [digilockerVerified, setDigilockerVerified] = useState(false);
@@ -61,15 +103,59 @@ export default function AuthScreen() {
   // Intent
   const [intent, setIntent] = useState<DatingIntent>('SERIOUS_DATING');
 
-  // Modals
+  // Languages state for onboarding
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['English', 'Hindi']);
+  const [customLangInput, setCustomLangInput] = useState('');
+
+  const toggleLanguage = (lang: string) => {
+    const cleanLang = lang.split(' ')[0];
+    if (selectedLanguages.includes(cleanLang)) {
+      if (selectedLanguages.length > 1) {
+        setSelectedLanguages(selectedLanguages.filter((l) => l !== cleanLang));
+      }
+    } else {
+      setSelectedLanguages([...selectedLanguages, cleanLang]);
+    }
+  };
+
+  const handleAddCustomLanguage = () => {
+    const trimmed = customLangInput.trim();
+    if (!trimmed) return;
+    const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    if (!selectedLanguages.includes(capitalized)) {
+      setSelectedLanguages([...selectedLanguages, capitalized]);
+    }
+    setCustomLangInput('');
+  };
+
+  // Modals & Permissions
   const [showDigiLockerModal, setShowDigiLockerModal] = useState(false);
   const [showLivenessModal, setShowLivenessModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
+
+  // Phone validation: user must fill exactly 10 digits before OTP dispatch buttons are enabled
+  const cleanedPhoneDigits = phone.replace(/[^0-9]/g, '').slice(0, 10);
+  const isPhoneFilled = cleanedPhoneDigits.length === 10;
 
   // Check WhatsApp App Availability and Existing Onboarding Status
   useEffect(() => {
     checkWhatsAppInstalled();
     checkExistingStatus();
   }, []);
+
+  const navigateBasedOnCompleteness = (prof: any) => {
+    const hasName = Boolean(prof?.displayName?.trim() || prof?.fullName?.trim());
+    const hasGender = Boolean(prof?.gender || prof?.genderDisplay);
+    const hasOrientation = Boolean(prof?.sexualOrientation);
+    const completionPct = prof?.completionPercentage || 0;
+    if (!hasName || !hasGender || !hasOrientation || completionPct < 30) {
+      router.replace({ pathname: '/(tabs)/profile', params: { edit: 'true', reason: 'incomplete' } });
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
 
   const checkExistingStatus = async () => {
     try {
@@ -80,21 +166,21 @@ export default function AuthScreen() {
         return;
       }
 
+      const profile = await api.getMyProfile();
       const isCompleted = await api.isOnboardingCompleted();
       if (isCompleted) {
-        router.replace('/(tabs)');
+        navigateBasedOnCompleteness(profile);
         return;
       }
 
-      const profile = await api.getMyProfile();
       const isPhoneOrWa = Boolean(profile.whatsappVerified || profile.phoneE164);
       const isLiveness = Boolean((profile.livenessScore && profile.livenessScore >= 0.85) || profile.digilockerVerified);
       const hasIntent = Boolean(profile.intent || profile.relationshipIntent);
 
-      // If user already verified or completed onboarding, redirect directly to Discover:
+      // If user already verified or completed onboarding, redirect to Discover (or Edit Profile if incomplete):
       if (isPhoneOrWa && (isLiveness || hasIntent || (profile.photos && profile.photos.length > 0) || (profile.displayName && profile.displayName.trim()))) {
         await api.setOnboardingCompleted(true);
-        router.replace('/(tabs)');
+        navigateBasedOnCompleteness(profile);
         return;
       }
 
@@ -111,6 +197,9 @@ export default function AuthScreen() {
       if (profile.intent) {
         setIntent(profile.intent);
       }
+      if (profile.languagesSpoken && profile.languagesSpoken.length > 0) {
+        setSelectedLanguages(profile.languagesSpoken);
+      }
 
       // Automatically advance to only the incomplete step
       if (!isLiveness) {
@@ -119,7 +208,7 @@ export default function AuthScreen() {
         setStep(4);
       } else {
         await api.setOnboardingCompleted(true);
-        router.replace('/(tabs)');
+        navigateBasedOnCompleteness(profile);
       }
     } catch (e) {}
   };
@@ -176,6 +265,123 @@ export default function AuthScreen() {
       pulseAnim.setValue(1);
     }
   }, [isAutoDetectingOtp]);
+
+  // Ambient 3D Breathing Glow & Levitating Animations
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(orbAnim1, {
+          toValue: 0.38,
+          duration: 3800,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(orbAnim1, {
+          toValue: 0.18,
+          duration: 3800,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(orbAnim2, {
+          toValue: 0.36,
+          duration: 4800,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(orbAnim2, {
+          toValue: 0.16,
+          duration: 4800,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ])
+    ).start();
+
+    // Smooth 3D Floating / Levitating Animation for Brand Emblem & Elements
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: -7,
+          duration: 2600,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 2600,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ])
+    ).start();
+
+    // 3D Ambient Horizontal Drift
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(orbDriftAnim, {
+          toValue: 16,
+          duration: 4000,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(orbDriftAnim, {
+          toValue: -16,
+          duration: 4000,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ])
+    ).start();
+
+    // Sound waveform pulsing animation for Concept 2 Voice Note
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(soundWaveAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: false,
+        }),
+        Animated.timing(soundWaveAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // Keyboard visibility listener to dynamically prevent keypad override & smoothly scale photo deck
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setIsKeyboardVisible(true);
+        if (e?.endCoordinates?.height) {
+          setKeyboardHeight(e.endCoordinates.height);
+        }
+        Animated.timing(keyboardAnim, {
+          toValue: 1,
+          duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      (e) => {
+        setIsKeyboardVisible(false);
+        setKeyboardHeight(0);
+        Animated.timing(keyboardAnim, {
+          toValue: 0,
+          duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
+          useNativeDriver: false,
+        }).start();
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+
 
   // Real-time Clipboard Auto-Detection Effect:
   // When an SMS arrives on Android or iOS, tapping "Copy code" in the notification shade
@@ -234,6 +440,10 @@ export default function AuthScreen() {
 
   // Send OTP via live API (WhatsApp or SMS channel)
   const handleSendOtp = async (channel: 'whatsapp' | 'sms' = authChannel) => {
+    if (!isPhoneFilled) {
+      Alert.alert('Mobile Number Required', 'Please enter a valid 10-digit mobile number first.');
+      return;
+    }
     setLoading(true);
     setAuthChannel(channel);
     setAutoDetectedSuccess(false);
@@ -244,19 +454,107 @@ export default function AuthScreen() {
       setLoading(false);
       setOtpSent(true);
       setResendTimer(30);
-      setIsAutoDetectingOtp(true);
       const codeLen = (res && (res.otpLength === 4 || res.otpLength === 6)) ? res.otpLength : 6;
       setExpectedOtpLength(codeLen);
       const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
-      setOtpFeedbackMsg(res.message || `OTP sent via ${channelLabel}`);
+
+      const isMock = FEATURE_FLAGS.USE_MOCK_OTP || res?.isMockOtp;
+      if (isMock) {
+        const mockCode = res?.mockOtp || '123456';
+        setOtp(mockCode);
+        setIsAutoDetectingOtp(false);
+        setAutoDetectedSuccess(true);
+        setOtpFeedbackMsg(res?.message || '⚡ Test Mode Active: Verification Code 123456');
+      } else {
+        setIsAutoDetectingOtp(true);
+        setOtpFeedbackMsg(res?.message || `OTP sent via ${channelLabel}`);
+      }
+
       setTimeout(() => {
         otpInputRef.current?.focus();
-      }, 200);
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 250);
     } catch (e: any) {
       setLoading(false);
       setIsAutoDetectingOtp(false);
       const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
       Alert.alert(`${channelLabel} Error`, e.message || `Could not send OTP.`);
+    }
+  };
+
+  const promptLocationIfPending = async (onProceed: () => void) => {
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        try {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          if (loc?.coords) {
+            let cityName: string | undefined;
+            try {
+              const geo = await Location.reverseGeocodeAsync({
+                latitude: loc.coords.latitude,
+                longitude: loc.coords.longitude,
+              });
+              if (geo && geo.length > 0) {
+                cityName = (geo[0].city || geo[0].subregion || geo[0].district || geo[0].region) ?? undefined;
+              }
+            } catch (e) {}
+            await api.updateLocation(loc.coords.latitude, loc.coords.longitude, cityName);
+          }
+        } catch (e) {}
+        onProceed();
+        return;
+      }
+    } catch (e) {}
+
+    // Permission not yet granted: ask user via Location Access Modal
+    setPendingNavigation(() => onProceed);
+    setShowLocationModal(true);
+  };
+
+  const requestLocationAndProceed = async () => {
+    setIsRequestingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (loc?.coords) {
+          let cityName: string | undefined;
+          try {
+            const geo = await Location.reverseGeocodeAsync({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+            if (geo && geo.length > 0) {
+              cityName = (geo[0].city || geo[0].subregion || geo[0].district || geo[0].region) ?? undefined;
+            }
+          } catch (e) {}
+          await api.updateLocation(loc.coords.latitude, loc.coords.longitude, cityName);
+        }
+      }
+    } catch (err) {
+      console.warn('Location permission / acquisition error:', err);
+    } finally {
+      setIsRequestingLocation(false);
+      setShowLocationModal(false);
+      if (pendingNavigation) {
+        const next = pendingNavigation;
+        setPendingNavigation(null);
+        next();
+      }
+    }
+  };
+
+  const handleSkipLocation = () => {
+    setShowLocationModal(false);
+    if (pendingNavigation) {
+      const next = pendingNavigation;
+      setPendingNavigation(null);
+      next();
     }
   };
 
@@ -267,12 +565,60 @@ export default function AuthScreen() {
       return;
     }
     setLoading(true);
+
+    // Auto-acquire device GPS location and reverse-geocoded city immediately
+    let userLat: number | undefined;
+    let userLon: number | undefined;
+    let userCity: string | undefined;
+
     try {
-      const res = await api.verifyOtp(phone, finalOtp, authChannel);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (loc?.coords) {
+          userLat = loc.coords.latitude;
+          userLon = loc.coords.longitude;
+          try {
+            const geo = await Location.reverseGeocodeAsync({
+              latitude: userLat,
+              longitude: userLon,
+            });
+            if (geo && geo.length > 0) {
+              userCity = (geo[0].city || geo[0].subregion || geo[0].district || geo[0].region) ?? undefined;
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (e) {
+      console.warn('Location capture during OTP verify:', e);
+    }
+
+    try {
+      const res = await api.verifyOtp(phone, finalOtp, authChannel, userLat, userLon, userCity);
       setLoading(false);
       if (res?.whatsappVerified || authChannel === 'whatsapp') {
         setWhatsappVerified(true);
       }
+
+      // Persist location immediately to profile and DB
+      if (userLat != null && userLon != null) {
+        api.updateLocation(userLat, userLon, userCity).catch(() => {});
+      }
+
+      const proceedWithLocation = (action: 'navigate' | 'step2' | 'step4', targetProfile?: any) => {
+        promptLocationIfPending(async () => {
+          if (action === 'navigate') {
+            await api.setOnboardingCompleted(true);
+            navigateBasedOnCompleteness(targetProfile);
+          } else if (action === 'step2') {
+            setStep(2);
+          } else if (action === 'step4') {
+            setStep(4);
+          }
+        });
+      };
 
       // Check existing user profile and verifications so returning users bypass redundant steps:
       try {
@@ -282,26 +628,23 @@ export default function AuthScreen() {
 
         // If returning user or user already completed liveness/intent, or has an active profile/photos:
         if (!res?.isNewUser && (isLivenessDone || hasIntent || (profile.photos && profile.photos.length > 0) || (profile.displayName && profile.displayName.trim()))) {
-          await api.setOnboardingCompleted(true);
-          router.replace('/(tabs)');
+          proceedWithLocation('navigate', profile);
           return;
         }
 
         // For new or partially onboarded users, only navigate to the missing step:
         if (!isLivenessDone) {
-          setStep(2);
+          proceedWithLocation('step2');
         } else if (!hasIntent) {
-          setStep(4);
+          proceedWithLocation('step4');
         } else {
-          await api.setOnboardingCompleted(true);
-          router.replace('/(tabs)');
+          proceedWithLocation('navigate', profile);
         }
       } catch (err) {
         if (!res?.isNewUser) {
-          await api.setOnboardingCompleted(true);
-          router.replace('/(tabs)');
+          proceedWithLocation('navigate', null);
         } else {
-          setStep(2);
+          proceedWithLocation('step2');
         }
       }
     } catch (e: any) {
@@ -323,18 +666,14 @@ export default function AuthScreen() {
     Alert.alert('Gold Shield Awarded! 🛡️', res.message);
   };
 
-  const handleLivenessSuccess = async (score: number) => {
+  const handleLivenessSuccess = (score: number) => {
     setLivenessScore(score);
     setLivenessDone(true);
-    try {
-      await api.verifyLiveness(3000);
-    } catch (err) {
-      console.warn('Liveness verification error:', err);
-    }
-    Alert.alert(
-      '3D Liveness Verified ✓',
-      `Zero Deepfake detected. Verified live human! Score: ${Math.round(score * 100)}%`
-    );
+    setShowLivenessModal(false);
+    // Smoothly and automatically proceed to Step 3 (Safety Shield) so user is not stuck on Step 2
+    setTimeout(() => {
+      setStep(3);
+    }, 400);
   };
 
   const handleSaveShieldAndIntent = async () => {
@@ -346,10 +685,11 @@ export default function AuthScreen() {
       if (blockContacts) {
         await api.syncContacts(['+919876500001', '+919876500002']);
       }
-      await api.updateMyProfile({ intent, digilockerVerified });
+      await api.updateMyProfile({ intent, digilockerVerified, languagesSpoken: selectedLanguages });
       await api.setOnboardingCompleted(true);
+      const updatedProfile = await api.getMyProfile().catch(() => null);
       setLoading(false);
-      router.replace('/(tabs)');
+      navigateBasedOnCompleteness(updatedProfile);
     } catch (e: any) {
       setLoading(false);
       Alert.alert('Error', e.message || 'Failed to save settings');
@@ -358,211 +698,475 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header Branding */}
-        <View style={styles.header}>
-          <View style={styles.badgeRow}>
-            <Text style={styles.brandTitle}>Blunderr Dating</Text>
-            <View style={styles.sparkBadge}>
-              <Text style={styles.sparkBadgeText}>✦ Trust Pass</Text>
+      {/* 3D Multi-Plane Ambient Velvet & Plum Glow Orbs */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Animated.View
+          style={[
+            styles.ambientOrbTop,
+            { opacity: orbAnim1, transform: [{ translateY: floatAnim }] },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.ambientOrbRight,
+            { opacity: orbAnim2, transform: [{ translateX: orbDriftAnim }] },
+          ]}
+        />
+        <View style={styles.ambientOrbBottom} />
+      </View>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scrollFlex}
+          contentContainerStyle={[
+            styles.scrollContent,
+            step === 1 && (isKeyboardVisible ? [styles.scrollContentStep1Keyboard, { paddingTop: isUltraCompact ? 36 : 68 }] : styles.scrollContentStep1),
+          ]}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={step > 1}
+          bounces={step > 1}
+          alwaysBounceVertical={false}
+          showsVerticalScrollIndicator={false}>
+          {/* Header above steps 2, 3, 4 */}
+          {step > 1 && (
+            <View style={styles.headerStepAbove}>
+              <View style={styles.brandLogoRow}>
+                <Text style={styles.brandTitleWhite}>Blunderr </Text>
+                <Text style={styles.brandTitleAccent}>Dating</Text>
+              </View>
+              <View style={styles.stepIndicatorPill}>
+                <Text style={styles.stepIndicatorText}>Step {step} of 4</Text>
+              </View>
             </View>
-          </View>
-          <Text style={styles.subHeadline}>100% Real Indian Singles</Text>
-          <Text style={styles.subText}>No fake profiles. Zero creepy spam. Total privacy.</Text>
-        </View>
+          )}
 
-        {/* STEP 1: Phone / WhatsApp OTP with Auto-Detection */}
-        {step === 1 && (
-          <View style={styles.card}>
-            <Text style={styles.cardHeader}>1. Instant Verification</Text>
-            <Text style={styles.cardDesc}>
-              Authenticate securely with a 6-digit verification code. Receive your code via WhatsApp (recommended) or SMS.
-            </Text>
+          {/* STEP 1: Concept 2 — The Kinetic Card Stack Aesthetic */}
+          {step === 1 && (
+            <View style={[styles.kineticPageContainer, isKeyboardVisible && styles.kineticPageContainerKeyboard]}>
+              {/* Top Wordmark Header */}
+              <View style={[styles.kineticBrandHeader, isKeyboardVisible && styles.kineticBrandHeaderCompact]}>
+                <View style={styles.brandLogoRow}>
+                  <View style={[styles.brandLogoIconGlow, isKeyboardVisible && styles.brandLogoIconGlowCompact]}>
+                    <Text style={[styles.brandLogoIconText, isKeyboardVisible && { fontSize: 13 }]}>🔥</Text>
+                  </View>
+                  <Text style={[styles.brandTitleWhite, isKeyboardVisible && { fontSize: 20 }]}>Blunderr </Text>
+                  <Text style={[styles.brandTitleAccent, isKeyboardVisible && { fontSize: 20 }]}>Dating</Text>
+                </View>
+                {!isKeyboardVisible && (
+                  <View style={styles.kineticVipTagPill}>
+                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
+                    <Text style={styles.kineticVipTagText}>100% VERIFIED HIGH-INTENT STACK</Text>
+                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
+                  </View>
+                )}
+              </View>
 
-            {/* WhatsApp Detection Indicator */}
-            <View style={styles.detectionBadgeRow}>
-              <View style={[styles.statusDot, isWhatsAppDetected ? styles.dotGreen : styles.dotGray]} />
-              <Text style={styles.detectionText}>
-                {isCheckingWhatsApp
-                  ? 'Detecting WhatsApp on this device...'
-                  : isWhatsAppDetected
-                  ? '⚡ WhatsApp Detected on this device'
-                  : 'WhatsApp not detected • SMS OTP available'}
-              </Text>
-            </View>
-
-            {/* Mobile Number Field */}
-            <Text style={styles.inputLabel}>Mobile Number (+91)</Text>
-            <View style={styles.phoneInputRow}>
-              <TextInput
-                style={styles.phoneInput}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="+91 98765 43210"
-                placeholderTextColor="#6B7082"
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            {/* Channel Selection Buttons */}
-            <View style={styles.channelButtonsContainer}>
-              {/* WhatsApp Verification Button */}
-              <TouchableOpacity
+              {/* 3D Kinetic Card Stack Centerpiece */}
+              <Animated.View
                 style={[
-                  styles.waButton,
-                  authChannel === 'whatsapp' && otpSent && styles.waButtonActive,
-                  isWhatsAppDetected && styles.waButtonDetected,
-                ]}
-                onPress={() => handleSendOtp('whatsapp')}
-                disabled={loading || (resendTimer > 0 && authChannel === 'whatsapp')}
-                activeOpacity={0.85}>
-                {loading && authChannel === 'whatsapp' ? (
-                  <ActivityIndicator color="#ffffff" />
+                  styles.kineticStackContainer,
+                  {
+                    height: animStackHeight,
+                    transform: [{ scale: animStackScale }],
+                    marginTop: isKeyboardVisible ? 12 : animStackMarginVertical,
+                    marginBottom: animStackMarginVertical,
+                  },
+                ]}>
+                {/* Background Card 4 (Deepest Shadow Card - Tilted -27 deg) */}
+                <View
+                  style={[styles.kineticCard4, { width: cardWidth, height: cardHeight }]}
+                  pointerEvents="none"
+                />
+
+                {/* Background Card 3 (Tilted -20 deg with Dark Photo Layer) */}
+                <View
+                  style={[styles.kineticCard3, { width: cardWidth, height: cardHeight }]}
+                  pointerEvents="none">
+                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
+                    <Image
+                      source={{
+                        uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600',
+                      }}
+                      style={styles.cardInnerPhotoDimmed}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.cardDimmerOverlay} />
+                  </View>
+                </View>
+
+                {/* Background Card 2 (Tilted -13 deg with Cyan/Mint Glow & Photo Preview) */}
+                <View
+                  style={[styles.kineticCard2, { width: cardWidth, height: cardHeight }]}
+                  pointerEvents="none">
+                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
+                    <Image
+                      source={{
+                        uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600',
+                      }}
+                      style={styles.cardInnerPhotoDimmed}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.cardDimmerOverlaySoft} />
+                  </View>
+                </View>
+
+                {/* Foreground Hero Card 1 (Tilted -6 deg with Levitating Float Physics) */}
+                <Animated.View
+                  style={[
+                    styles.kineticCardHero,
+                    {
+                      width: cardWidth,
+                      height: cardHeight,
+                      transform: [{ translateY: floatAnim }, { rotate: '-6deg' }],
+                    },
+                  ]}>
+                  {/* Outer Frame with Inner Photo Container */}
+                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
+                    <Image
+                      source={{
+                        uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800',
+                      }}
+                      style={styles.cardInnerPhoto}
+                      resizeMode="cover"
+                    />
+                  </View>
+
+                  {/* Floating 3D Verified Checkmark Badge on Card Right Edge */}
+                  <View style={styles.floatingVerifiedBadgeRight}>
+                    <Text style={styles.floatingVerifiedText}>✓</Text>
+                  </View>
+
+                  {/* Card Lower-Right Heart Accent */}
+                  <View style={styles.cardHeartAccent}>
+                    <Text style={styles.cardHeartIcon}>❤️</Text>
+                  </View>
+
+                  {/* Tilted Glass Candidate Info & Voice Waveform Overlay (Tilted Right) */}
+                  <View style={styles.candidateGlassOverlay}>
+                    {/* Left Verified Badge mounted directly on Name Card */}
+                    <View style={styles.nameCardVerifiedBadge}>
+                      <Text style={styles.floatingVerifiedText}>✓</Text>
+                    </View>
+
+                    {/* Name, Age, Profession */}
+                    <View style={styles.candidateIdentityRow}>
+                      <Text style={styles.candidateName}>Aanya, 25</Text>
+                      <View style={styles.candidateDot} />
+                      <Text style={styles.candidateProfession}>Product Designer @ Swiggy</Text>
+                    </View>
+
+                    {/* Interactive Voice Note Player Bar */}
+                    <TouchableOpacity
+                      style={styles.voiceNoteBar}
+                      activeOpacity={0.8}
+                      onPress={() => setIsPlayingVoice(!isPlayingVoice)}>
+                      <View style={styles.voicePlayBtn}>
+                        <Text style={styles.voicePlayIcon}>{isPlayingVoice ? '⏸' : '▶'}</Text>
+                      </View>
+
+                      {/* Dynamic Pulsing Sound Waveform Bars */}
+                      <View style={styles.waveformContainer}>
+                        {[10, 20, 14, 26, 18, 28, 22, 16, 24, 19, 26, 15, 21, 12].map((baseHeight, idx) => {
+                          const barHeight = isPlayingVoice
+                            ? soundWaveAnim.interpolate({
+                                inputRange: [0, 0.5, 1],
+                                outputRange: [
+                                  baseHeight * (0.4 + ((idx % 3) * 0.2)),
+                                  baseHeight * (0.9 + ((idx % 2) * 0.3)),
+                                  baseHeight * (0.5 + (((idx + 1) % 3) * 0.2)),
+                                ],
+                              })
+                            : baseHeight * 0.5;
+
+                          return (
+                            <Animated.View
+                              key={idx}
+                              style={[
+                                styles.waveformBar,
+                                { height: barHeight },
+                                idx < 6 && styles.waveformBarActive,
+                              ]}
+                            />
+                          );
+                        })}
+                      </View>
+
+                      <Text style={styles.voiceDurationText}>15s Voice Note</Text>
+                    </TouchableOpacity>
+
+                    {/* Vedic Astrology Match Pill */}
+                    <View style={styles.vedicMatchPill}>
+                      <Text style={styles.vedicEmoji}>🦁</Text>
+                      <Text style={styles.vedicMatchText}>Simha (Leo) • 92% Match</Text>
+                    </View>
+                  </View>
+                </Animated.View>
+              </Animated.View>
+
+              {/* Bottom Sheet Auth Drawer */}
+              <View style={[styles.kineticAuthDrawer, isKeyboardVisible && styles.kineticAuthDrawerKeyboard]}>
+                {/* Drawer Top Handle Indicator */}
+                {!isKeyboardVisible && <View style={styles.drawerHandleBar} />}
+
+                {/* Social Proof Hook */}
+                {!isKeyboardVisible && (
+                  <View style={styles.socialProofRow}>
+                    <View style={styles.livePulseDot} />
+                    <Text style={styles.socialProofText}>Someone 3.2 km away is listening right now</Text>
+                  </View>
+                )}
+
+                {!otpSent ? (
+                  <>
+                    {/* WhatsApp 1-Tap Hero Button with Neon Glow Rim */}
+                    <TouchableOpacity
+                      style={[
+                        styles.waKineticBtn,
+                        !isPhoneFilled && styles.waKineticBtnDisabled,
+                        isWhatsAppDetected && isPhoneFilled && styles.waKineticBtnGlow,
+                      ]}
+                      onPress={() => handleSendOtp('whatsapp')}
+                      disabled={!isPhoneFilled || loading || (resendTimer > 0 && authChannel === 'whatsapp')}
+                      activeOpacity={0.85}>
+                      {loading && authChannel === 'whatsapp' ? (
+                        <ActivityIndicator color="#ffffff" />
+                      ) : (
+                        <View style={styles.waKineticBtnInner}>
+                          <Text style={styles.waKineticIcon}>💬</Text>
+                          <Text style={[styles.waKineticText, !isPhoneFilled && styles.waKineticTextDisabled]}>
+                            WhatsApp
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Sunken Dark Pill Phone Input */}
+                    <View style={[styles.kineticPhoneBox, isPhoneFilled && styles.kineticPhoneBoxActive]}>
+                      <View style={styles.kineticFlagContainer}>
+                        <Text style={styles.kineticFlagIcon}>🇮🇳</Text>
+                        <Text style={styles.kineticCountryCode}>+91</Text>
+                      </View>
+                      <View style={styles.kineticPhoneDivider} />
+                      <TextInput
+                        style={styles.kineticPhoneInput}
+                        value={phone}
+                        onChangeText={(text) => {
+                          const digitsOnly = text.replace(/[^0-9]/g, '').slice(0, 10);
+                          setPhone(digitsOnly);
+                          if (otpSent) {
+                            setOtpSent(false);
+                            setOtp('');
+                            setResendTimer(0);
+                            setIsAutoDetectingOtp(false);
+                            setOtpFeedbackMsg(null);
+                          }
+                        }}
+                        placeholder="Phone number"
+                        placeholderTextColor="#687285"
+                        keyboardType="number-pad"
+                        maxLength={10}
+                      />
+                    </View>
+
+                    {/* Mobile Number Validation Status Hint */}
+                    <View style={styles.kineticPhoneStatusRow}>
+                      <Text
+                        style={[
+                          styles.kineticPhoneStatusText,
+                          isPhoneFilled ? styles.kineticPhoneStatusSuccess : styles.kineticPhoneStatusHint,
+                        ]}>
+                        {isPhoneFilled
+                          ? '✓ 10-digit number ready • Tap WhatsApp or Next'
+                          : cleanedPhoneDigits.length > 0
+                          ? `Enter 10-digit mobile number (${cleanedPhoneDigits.length}/10 digits)`
+                          : 'Enter your 10-digit mobile number above'}
+                      </Text>
+                    </View>
+
+                    {/* Velvet Rose Action Button ("Next" / SMS OTP) */}
+                    <TouchableOpacity
+                      style={[
+                        styles.kineticNextBtn,
+                        !isPhoneFilled && styles.kineticNextBtnDisabled,
+                      ]}
+                      onPress={() => handleSendOtp('sms')}
+                      disabled={!isPhoneFilled || loading || (resendTimer > 0 && authChannel === 'sms')}
+                      activeOpacity={0.85}>
+                      {loading && authChannel === 'sms' ? (
+                        <ActivityIndicator color="#ffffff" />
+                      ) : (
+                        <View style={styles.kineticNextBtnInner}>
+                          <Text style={[styles.kineticNextBtnText, !isPhoneFilled && styles.kineticNextBtnTextDisabled]}>
+                            Next
+                          </Text>
+                          <Text style={styles.kineticNextArrow}>→</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* WhatsApp Detection Indicator Badge */}
+                    <View style={styles.detectionRow}>
+                      <View style={[styles.statusDot, isWhatsAppDetected ? styles.dotGreen : styles.dotGray]} />
+                      <Text style={styles.detectionText}>
+                        {isCheckingWhatsApp
+                          ? 'Detecting WhatsApp on this device...'
+                          : isWhatsAppDetected
+                          ? '⚡ WhatsApp Detected • 1-Tap OTP Enabled'
+                          : 'SMS OTP Fallback Ready'}
+                      </Text>
+                    </View>
+                  </>
                 ) : (
                   <>
-                    <View style={styles.waButtonInner}>
-                      <Text style={styles.waButtonEmoji}>💬</Text>
-                      <Text style={styles.waButtonText}>
-                        {otpSent && authChannel === 'whatsapp'
-                          ? (resendTimer > 0 ? `Resend on WhatsApp (${resendTimer}s)` : 'Resend Code via WhatsApp')
-                          : 'Verify via WhatsApp OTP'}
+                    {/* OTP Sent State Inside Bottom Sheet */}
+                    <View style={styles.otpHeaderBox}>
+                      <Text style={styles.otpHeaderTitle}>Verification Code</Text>
+                      <Text style={styles.otpHeaderSub}>
+                        Code dispatched to +91 {cleanedPhoneDigits.slice(-4).padStart(10, '•')} via {authChannel === 'whatsapp' ? 'WhatsApp 💬' : 'SMS 📱'}
                       </Text>
-                      <View style={styles.instantPill}>
-                        <Text style={styles.instantPillText}>RECOMMENDED ⚡</Text>
-                      </View>
                     </View>
-                    <Text style={styles.waSubText}>
-                      Instant 6-digit OTP code sent directly to WhatsApp • 0% SMS carrier drops
-                    </Text>
+
+                    {/* Mock OTP Badge */}
+                    {FEATURE_FLAGS.USE_MOCK_OTP && (
+                      <View style={styles.mockOtpBanner}>
+                        <Text style={styles.mockOtpText}>⚡ Test Mode Active: Code 123456 Auto-Filled!</Text>
+                      </View>
+                    )}
+
+                    {autoDetectedSuccess && !FEATURE_FLAGS.USE_MOCK_OTP && (
+                      <View style={styles.autoDetectSuccessBanner}>
+                        <Text style={styles.autoDetectSuccessText}>
+                          {authChannel === 'whatsapp'
+                            ? '✓ WhatsApp OTP Auto-detected!'
+                            : '✓ SMS OTP Auto-detected!'}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Dynamic OTP Boxes UI */}
+                    <Text style={styles.otpBoxesLabel}>Enter {expectedOtpLength}-Digit Verification Code</Text>
+                    <TouchableOpacity
+                      activeOpacity={1}
+                      onPress={() => otpInputRef.current?.focus()}
+                      style={styles.otpBoxesContainer}>
+                      <View style={styles.otpBoxesRow} pointerEvents="none">
+                        {Array.from({ length: expectedOtpLength }).map((_, idx) => {
+                          const digit = otp[idx] || '';
+                          const isFocused = otp.length === idx;
+                          const isSuccess = autoDetectedSuccess && otp.length === expectedOtpLength;
+                          return (
+                            <View
+                              key={idx}
+                              style={[
+                                styles.liquidOtpBox,
+                                isFocused && styles.liquidOtpBoxFocused,
+                                isSuccess && styles.liquidOtpBoxSuccess,
+                              ]}>
+                              <Text style={[styles.otpDigit, isSuccess && styles.otpDigitSuccess]}>{digit}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+
+                      <TextInput
+                        ref={otpInputRef}
+                        value={otp}
+                        onChangeText={(val) => {
+                          const digitsOnly = val.replace(/[^0-9]/g, '').slice(0, expectedOtpLength);
+                          setOtp(digitsOnly);
+                          if (digitsOnly.length === expectedOtpLength) {
+                            handleVerifyOtp(digitsOnly);
+                          }
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={expectedOtpLength}
+                        style={styles.hiddenOtpInput}
+                        autoFocus
+                        textContentType="oneTimeCode"
+                        autoComplete="one-time-code"
+                      />
+                    </TouchableOpacity>
+
+                    {/* Velvet Rose Action Button ("Verify & Proceed") */}
+                    <TouchableOpacity
+                      style={[
+                        styles.kineticNextBtn,
+                        styles.kineticVerifyBtn,
+                        (otp.length !== expectedOtpLength || loading) && styles.kineticNextBtnDisabled,
+                      ]}
+                      onPress={() => handleVerifyOtp(otp)}
+                      disabled={otp.length !== expectedOtpLength || loading}
+                      activeOpacity={0.85}>
+                      {loading ? (
+                        <ActivityIndicator color="#ffffff" />
+                      ) : (
+                        <View style={styles.kineticNextBtnInner}>
+                          <Text
+                            style={[
+                              styles.kineticNextBtnText,
+                              otp.length !== expectedOtpLength && styles.kineticNextBtnTextDisabled,
+                            ]}>
+                            Verify & Proceed
+                          </Text>
+                          <Text style={styles.kineticNextArrow}>→</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Resend Actions & Change Number */}
+                    <View style={styles.otpResendWrapper}>
+                      {resendTimer > 0 ? (
+                        <Text style={styles.resendTimerText}>
+                          Resend code in {resendTimer}s
+                        </Text>
+                      ) : (
+                        <View style={styles.resendLinksRow}>
+                          <TouchableOpacity
+                            onPress={() => handleSendOtp('whatsapp')}
+                            disabled={loading}>
+                            <Text style={styles.resendLinkText}>Resend WhatsApp Code</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.resendDot}>•</Text>
+                          <TouchableOpacity
+                            onPress={() => handleSendOtp('sms')}
+                            disabled={loading}>
+                            <Text style={styles.resendLinkText}>Send via SMS</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                      <TouchableOpacity
+                        style={styles.editNumberBtn}
+                        onPress={() => {
+                          setOtpSent(false);
+                          setOtp('');
+                          setResendTimer(0);
+                          setIsAutoDetectingOtp(false);
+                          setOtpFeedbackMsg(null);
+                        }}>
+                        <Text style={styles.editNumberText}>← Change Mobile Number</Text>
+                      </TouchableOpacity>
+                    </View>
                   </>
                 )}
-              </TouchableOpacity>
 
-              {/* SMS Verification Button */}
-              <TouchableOpacity
-                style={[styles.smsButton, authChannel === 'sms' && otpSent && styles.smsButtonActive]}
-                onPress={() => handleSendOtp('sms')}
-                disabled={loading || (resendTimer > 0 && authChannel === 'sms')}
-                activeOpacity={0.85}>
-                {loading && authChannel === 'sms' ? (
-                  <ActivityIndicator color="#CACDD8" />
-                ) : (
-                  <View style={styles.smsButtonInner}>
-                    <Text style={styles.smsButtonEmoji}>📱</Text>
-                    <Text style={styles.smsButtonText}>
-                      {otpSent && authChannel === 'sms'
-                        ? (resendTimer > 0 ? `Resend SMS (${resendTimer}s)` : 'Resend Code via SMS')
-                        : 'Send Code via SMS OTP'}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Feedback Message */}
-            {otpFeedbackMsg && (
-              <View style={styles.otpInfoBanner}>
-                <Text style={styles.otpInfoText}>{otpFeedbackMsg}</Text>
-              </View>
-            )}
-
-            {/* Auto-Detection Status Indicator */}
-            {isAutoDetectingOtp && (
-              <View style={styles.autoDetectWrapper}>
-                <Animated.View style={[styles.autoDetectBanner, { transform: [{ scale: pulseAnim }] }]}>
-                  <ActivityIndicator size="small" color="#4CAF50" />
-                  <Text style={styles.autoDetectText}>
-                    {authChannel === 'whatsapp'
-                      ? '📡 Auto-detecting WhatsApp OTP'
-                      : '📡 Auto-detecting SMS OTP'}
-                  </Text>
-                </Animated.View>
-                {authChannel === 'whatsapp' && (
-                  <View style={styles.autoDetectButtonsRow}>
-                    <TouchableOpacity
-                      style={styles.openWhatsAppBtn}
-                      onPress={handleOpenWhatsApp}>
-                      <Text style={styles.openWhatsAppText}>💬 Open WhatsApp</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {autoDetectedSuccess && (
-              <View style={styles.autoDetectSuccessBanner}>
-                <Text style={styles.autoDetectSuccessText}>
-                  {authChannel === 'whatsapp'
-                    ? '✓ WhatsApp OTP Auto-detected!'
-                    : '✓ SMS OTP Auto-detected!'}
-                </Text>
-              </View>
-            )}
-
-            {/* Dynamic OTP Boxes UI (adapts to 4 or 6 digits) */}
-            <Text style={styles.inputLabel}>Enter {expectedOtpLength}-Digit Verification Code</Text>
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => otpInputRef.current?.focus()}
-              style={styles.otpBoxesContainer}>
-              <View style={styles.otpBoxesRow} pointerEvents="none">
-                {Array.from({ length: expectedOtpLength }).map((_, idx) => {
-                  const digit = otp[idx] || '';
-                  const isFocused = otp.length === idx;
-                  const isSuccess = autoDetectedSuccess && otp.length === expectedOtpLength;
-                  return (
-                    <View
-                      key={idx}
-                      style={[
-                        styles.otpBox,
-                        isFocused && styles.otpBoxFocused,
-                        isSuccess && styles.otpBoxSuccess,
-                      ]}>
-                      <Text style={[styles.otpDigit, isSuccess && styles.otpDigitSuccess]}>{digit}</Text>
+                {/* Bottom: 3D Holographic Trust Pass Badge (Feature Flag Controlled) */}
+                {FEATURE_FLAGS.ENABLE_DIGILOCKER && !isKeyboardVisible && (
+                  <View style={styles.trustBadgeContainer}>
+                    <View style={styles.trustBadgePill}>
+                      <Text style={styles.trustBadgeIcon}>🛡️</Text>
+                      <Text style={styles.trustBadgeBrand}>DigiLocker</Text>
+                      <View style={styles.trustBadgeDivider} />
+                      <Text style={styles.trustBadgeText}>100% Verified Singles</Text>
                     </View>
-                  );
-                })}
+                  </View>
+                )}
               </View>
-
-              {/* Underlying Input with full accessibility and Android Autofill support */}
-              <TextInput
-                ref={otpInputRef}
-                style={styles.hiddenOtpInput}
-                value={otp}
-                onChangeText={(text) => {
-                  const clean = text.replace(/\D/g, '').slice(0, expectedOtpLength);
-                  setOtp(clean);
-                  if (clean.length === expectedOtpLength) {
-                    setIsAutoDetectingOtp(false);
-                    setAutoDetectedSuccess(true);
-                    setTimeout(() => {
-                      handleVerifyOtp(clean);
-                    }, 400);
-                  }
-                }}
-                placeholder=""
-                keyboardType="number-pad"
-                textContentType="oneTimeCode"
-                autoComplete="sms-otp"
-                importantForAutofill="yes"
-                caretHidden={true}
-                selectionColor="transparent"
-                maxLength={expectedOtpLength}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.primaryButton, (!otp || otp.length < expectedOtpLength) && styles.primaryButtonDisabled]}
-              onPress={() => handleVerifyOtp()}
-              disabled={loading || otp.length < expectedOtpLength}>
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Verify & Proceed →</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+            </View>
+          )}
 
         {/* STEP 2: Zero-Knowledge Trust Pass (DigiLocker & 3D Liveness) */}
         {step === 2 && (
@@ -709,6 +1313,69 @@ export default function AuthScreen() {
               ))}
             </View>
 
+            {/* Languages Known Section */}
+            <View style={styles.languageSectionWrap}>
+              <View style={styles.langHeaderRow}>
+                <Text style={styles.langSectionTitle}>🗣️ Languages Known</Text>
+                <Text style={styles.langCountBadge}>{selectedLanguages.length} selected</Text>
+              </View>
+              <Text style={styles.langSectionSub}>
+                Select languages you speak or add your mother tongue to connect on authentic cultural vibes.
+              </Text>
+
+              {/* Active Selected Chips */}
+              <View style={styles.selectedLangRow}>
+                {selectedLanguages.map((lang) => (
+                  <TouchableOpacity
+                    key={lang}
+                    style={styles.selectedLangChip}
+                    onPress={() => toggleLanguage(lang)}
+                    activeOpacity={0.7}>
+                    <Text style={styles.selectedLangChipText}>✓ {lang}</Text>
+                    <Text style={styles.selectedLangRemoveText}>✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Preset Language Options */}
+              <View style={styles.presetLangRow}>
+                {ONBOARDING_LANGUAGES.map((item) => {
+                  const clean = item.split(' ')[0];
+                  const isSel = selectedLanguages.includes(clean);
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[styles.presetLangPill, isSel && styles.presetLangPillSelected]}
+                      onPress={() => toggleLanguage(item)}
+                      activeOpacity={0.75}>
+                      <Text style={[styles.presetLangPillText, isSel && styles.presetLangPillTextSelected]}>
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Add Custom Language */}
+              <View style={styles.customLangRow}>
+                <TextInput
+                  style={styles.customLangInput}
+                  value={customLangInput}
+                  onChangeText={setCustomLangInput}
+                  placeholder="Add custom language (e.g. Italian, Konkani)..."
+                  placeholderTextColor="#6B7280"
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddCustomLanguage}
+                />
+                <TouchableOpacity
+                  style={styles.customLangAddBtn}
+                  onPress={handleAddCustomLanguage}
+                  activeOpacity={0.8}>
+                  <Text style={styles.customLangAddBtnText}>+ Add</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <TouchableOpacity style={styles.primaryButton} onPress={handleSaveShieldAndIntent} disabled={loading}>
               {loading ? (
                 <ActivityIndicator color="#fff" />
@@ -719,6 +1386,7 @@ export default function AuthScreen() {
           </View>
         )}
       </ScrollView>
+    </KeyboardAvoidingView>
 
       {/* DigiLocker ZK Modal (Feature Flag Controlled) */}
       {FEATURE_FLAGS.ENABLE_DIGILOCKER && (
@@ -746,6 +1414,66 @@ export default function AuthScreen() {
         </Modal>
       )}
 
+      {/* Location Access Permission Modal */}
+      <Modal visible={showLocationModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.locIconCircle}>
+              <Text style={styles.locIconEmoji}>📍</Text>
+            </View>
+            <Text style={styles.modalTitle}>Enable Location Access</Text>
+            <Text style={styles.modalDesc}>
+              Blunderr Dating uses your location to show verified singles nearby and calculate real-time distance.
+            </Text>
+
+            <View style={styles.locFeatureList}>
+              <View style={styles.locFeatureItem}>
+                <Text style={styles.locFeatureBullet}>✨</Text>
+                <View style={styles.locFeatureTextCol}>
+                  <Text style={styles.locFeatureHead}>Verified Nearby Matches</Text>
+                  <Text style={styles.locFeatureSub}>Discover singles who live or work in your neighborhood.</Text>
+                </View>
+              </View>
+              <View style={styles.locFeatureItem}>
+                <Text style={styles.locFeatureBullet}>📏</Text>
+                <View style={styles.locFeatureTextCol}>
+                  <Text style={styles.locFeatureHead}>Accurate Distance</Text>
+                  <Text style={styles.locFeatureSub}>See real-time km distance to potential dates.</Text>
+                </View>
+              </View>
+              <View style={styles.locFeatureItem}>
+                <Text style={styles.locFeatureBullet}>🛡️</Text>
+                <View style={styles.locFeatureTextCol}>
+                  <Text style={styles.locFeatureHead}>Total Privacy</Text>
+                  <Text style={styles.locFeatureSub}>Your exact coordinates and address are never shared.</Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, { marginTop: 14 }]}
+              onPress={requestLocationAndProceed}
+              disabled={isRequestingLocation}>
+              {isRequestingLocation ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.primaryButtonText}>Detecting Location...</Text>
+                </View>
+              ) : (
+                <Text style={styles.primaryButtonText}>Allow Location Access 📍</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.secondaryButton, { marginTop: 10 }]}
+              onPress={handleSkipLocation}
+              disabled={isRequestingLocation}>
+              <Text style={styles.secondaryButtonText}>Maybe Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* 3D Liveness Camera & Movement Recording Modal */}
       <LivenessCameraModal
         visible={showLivenessModal}
@@ -759,11 +1487,1012 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0E0F13',
+    backgroundColor: '#08080E',
+  },
+  ambientOrbTop: {
+    position: 'absolute',
+    top: -80,
+    left: -80,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: '#E94057',
+    ...Platform.select({
+      web: {
+        filter: 'blur(85px)',
+      },
+      default: {
+        shadowColor: '#E94057',
+        shadowOpacity: 0.8,
+        shadowRadius: 100,
+        elevation: 20,
+      },
+    }),
+  },
+  ambientOrbRight: {
+    position: 'absolute',
+    top: 220,
+    right: -100,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: '#7928CA',
+    ...Platform.select({
+      web: {
+        filter: 'blur(95px)',
+      },
+      default: {
+        shadowColor: '#7928CA',
+        shadowOpacity: 0.8,
+        shadowRadius: 110,
+        elevation: 20,
+      },
+    }),
+  },
+  ambientOrbBottom: {
+    position: 'absolute',
+    bottom: -60,
+    left: 20,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: '#FF3B70',
+    opacity: 0.16,
+    ...Platform.select({
+      web: {
+        filter: 'blur(80px)',
+      },
+      default: {
+        shadowColor: '#FF3B70',
+        shadowOpacity: 0.6,
+        shadowRadius: 90,
+        elevation: 15,
+      },
+    }),
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollFlex: {
+    flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  scrollContentStep1: {
+    flexGrow: 1,
+    height: '100%',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+  },
+  scrollContentStep1Keyboard: {
+    flexGrow: 1,
+    justifyContent: 'flex-start',
+    paddingTop: 68,
+    paddingBottom: 4,
+    paddingHorizontal: 16,
+  },
+  headerStepAbove: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  stepIndicatorPill: {
+    backgroundColor: 'rgba(233, 64, 87, 0.18)',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  stepIndicatorText: {
+    color: '#E94057',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  // Concept 2: The Kinetic Card Stack Styles
+  kineticPageContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  kineticPageContainerKeyboard: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  kineticBrandHeader: {
+    alignItems: 'center',
+    marginTop: 2,
+    marginBottom: 4,
+    zIndex: 25,
+  },
+  kineticBrandHeaderCompact: {
+    alignItems: 'center',
+    marginTop: 0,
+    marginBottom: 14,
+    zIndex: 25,
+  },
+  brandLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  brandLogoIconGlow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 56, 92, 0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.6)',
+  },
+  brandLogoIconGlowCompact: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 6,
+  },
+  brandLogoIconText: {
+    fontSize: 17,
+  },
+  brandTitleWhite: {
+    fontSize: 27,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: -0.5,
+    ...Platform.select({
+      web: {
+        textShadow: '0 2px 8px rgba(0, 0, 0, 0.6)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.65)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 6,
+      },
+    }),
+  },
+  brandTitleAccent: {
+    fontSize: 27,
+    fontWeight: '900',
+    color: '#FF385C',
+    letterSpacing: -0.5,
+    ...Platform.select({
+      web: {
+        textShadow: '0 0 20px rgba(255, 56, 92, 0.75), 0 2px 6px rgba(0, 0, 0, 0.5)',
+      },
+      default: {
+        textShadowColor: 'rgba(255, 56, 92, 0.75)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 18,
+      },
+    }),
+  },
+  kineticVipTagPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0, 242, 254, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.28)',
+    paddingVertical: 3,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginTop: 6,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 10px rgba(0, 242, 254, 0.2)',
+      },
+      default: {
+        shadowColor: '#00F2FE',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        elevation: 3,
+      },
+    }),
+  },
+  kineticVipTagSparkle: {
+    color: '#00F2FE',
+    fontSize: 9,
+  },
+  kineticVipTagText: {
+    color: '#D2F8FE',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+  },
+  kineticStackContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+    position: 'relative',
+    width: '100%',
+  },
+  kineticCard4: {
+    position: 'absolute',
+    borderRadius: 22,
+    backgroundColor: '#0F1219',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    transform: [{ rotate: '-27deg' }, { translateX: -36 }, { translateY: 12 }],
+    opacity: 0.5,
+    elevation: 2,
+  },
+  kineticCard3: {
+    position: 'absolute',
+    borderRadius: 22,
+    backgroundColor: '#131722',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    transform: [{ rotate: '-20deg' }, { translateX: -24 }, { translateY: 8 }],
+    padding: 8,
+    paddingBottom: 20,
+    overflow: 'hidden',
+    elevation: 4,
+  },
+  kineticCard2: {
+    position: 'absolute',
+    borderRadius: 22,
+    backgroundColor: '#161B26',
+    borderWidth: 2,
+    borderColor: '#38E8C6',
+    transform: [{ rotate: '-13deg' }, { translateX: -12 }, { translateY: 4 }],
+    padding: 8,
+    paddingBottom: 20,
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 26px rgba(56, 232, 198, 0.35)',
+      },
+      default: {
+        shadowColor: '#38E8C6',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+        elevation: 7,
+      },
+    }),
+  },
+  kineticCardHero: {
+    borderRadius: 22,
+    backgroundColor: '#171D2A',
+    borderWidth: 2,
+    borderColor: '#4EE1BE',
+    padding: 8,
+    paddingBottom: 28,
+    overflow: 'visible',
+    position: 'relative',
+    transform: [{ rotate: '-6deg' }],
+    ...Platform.select({
+      web: {
+        boxShadow: '0 24px 60px rgba(0, 0, 0, 0.8), 0 0 20px rgba(56, 232, 198, 0.3)',
+      },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.75,
+        shadowRadius: 28,
+        elevation: 14,
+      },
+    }),
+  },
+  cardPhotoFrame: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#0C0F15',
+  },
+  cardInnerPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  cardInnerPhotoDimmed: {
+    width: '100%',
+    height: '100%',
+    opacity: 0.45,
+  },
+  cardDimmerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(10, 14, 22, 0.65)',
+  },
+  cardDimmerOverlaySoft: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(12, 17, 26, 0.45)',
+  },
+  nameCardVerifiedBadge: {
+    position: 'absolute',
+    top: -12,
+    left: -10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#0088FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#171D2A',
+    zIndex: 25,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 14px rgba(0, 136, 255, 0.7)',
+      },
+      default: {
+        shadowColor: '#0088FF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.7,
+        shadowRadius: 8,
+        elevation: 12,
+      },
+    }),
+  },
+  floatingVerifiedBadgeRight: {
+    position: 'absolute',
+    top: '42%',
+    right: -12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#0088FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#171D2A',
+    zIndex: 15,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 12px rgba(0, 136, 255, 0.6)',
+      },
+      default: {
+        shadowColor: '#0088FF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
+        elevation: 8,
+      },
+    }),
+  },
+  floatingVerifiedText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  cardHeartAccent: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+    zIndex: 9,
+  },
+  cardHeartIcon: {
+    fontSize: 16,
+    color: '#FF3366',
+  },
+  candidateGlassOverlay: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    right: 22,
+    backgroundColor: 'rgba(14, 18, 28, 0.94)',
+    borderRadius: 14,
+    padding: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    transform: [{ rotate: '5deg' }],
+    overflow: 'visible',
+    zIndex: 12,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(16px)',
+        boxShadow: '0 8px 20px rgba(0, 0, 0, 0.6)',
+      },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 14,
+        elevation: 10,
+      },
+    }),
+  },
+  candidateIdentityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    flexWrap: 'wrap',
+  },
+  candidateName: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  candidateDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#8E99AF',
+    marginHorizontal: 6,
+  },
+  candidateProfession: {
+    color: '#C7D0E0',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  voiceNoteBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  voicePlayBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  voicePlayIcon: {
+    fontSize: 10,
+    color: '#121620',
+    fontWeight: '900',
+  },
+  waveformContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 28,
+    gap: 2.5,
+    marginRight: 8,
+  },
+  waveformBar: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  waveformBarActive: {
+    backgroundColor: '#00F2FE',
+  },
+  voiceDurationText: {
+    color: '#A0ADC2',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  vedicMatchPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 171, 0, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 171, 0, 0.35)',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  vedicEmoji: {
+    fontSize: 11,
+  },
+  vedicMatchText: {
+    color: '#FFD56B',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  kineticAuthDrawer: {
+    width: '100%',
+    backgroundColor: 'rgba(16, 20, 30, 0.94)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 4,
+    marginBottom: 4,
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65)',
+      },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 8,
+      },
+    }),
+  },
+  kineticAuthDrawerKeyboard: {
+    marginTop: 2,
+    marginBottom: 2,
+    paddingVertical: 8,
+  },
+  drawerHandleBar: {
+    width: 32,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: '#4A556B',
+    alignSelf: 'center',
+    marginBottom: 6,
+  },
+  socialProofRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginBottom: 6,
+  },
+  livePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#00E676',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 8px #00E676',
+      },
+      default: {
+        shadowColor: '#00E676',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 6,
+        elevation: 4,
+      },
+    }),
+  },
+  socialProofText: {
+    color: '#BAC4D6',
+    fontSize: 11.5,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  waKineticBtn: {
+    backgroundColor: '#1E9E5A',
+    borderRadius: 14,
+    paddingVertical: 10.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.45)',
+    borderBottomWidth: 3,
+    borderBottomColor: '#0E5C35',
+    marginBottom: 6,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 6px 18px rgba(30, 158, 90, 0.38), inset 0 1px 1px rgba(255, 255, 255, 0.4)',
+      },
+      default: {
+        shadowColor: '#1E9E5A',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 6,
+      },
+    }),
+  },
+  waKineticBtnDisabled: {
+    opacity: 0.45,
+    backgroundColor: '#1A3326',
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
+    borderBottomColor: '#102219',
+    borderBottomWidth: 2.5,
+    ...Platform.select({
+      web: { boxShadow: 'none' },
+      default: { shadowOpacity: 0, elevation: 0 },
+    }),
+  },
+  waKineticBtnGlow: {
+    backgroundColor: '#22B867',
+    borderTopColor: 'rgba(255, 255, 255, 0.6)',
+    borderBottomColor: '#126A3B',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 8px 24px rgba(37, 211, 102, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.5)',
+      },
+      default: {
+        shadowColor: '#25D366',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.6,
+        shadowRadius: 16,
+        elevation: 8,
+      },
+    }),
+  },
+  waKineticBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  waKineticIcon: {
+    fontSize: 17,
+  },
+  waKineticText: {
+    color: '#ffffff',
+    fontSize: 15.5,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    ...Platform.select({
+      web: {
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
+  },
+  waKineticTextDisabled: {
+    color: '#8BA598',
+  },
+  kineticPhoneBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(10, 12, 18, 0.88)',
+    borderRadius: 14,
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(0, 0, 0, 0.85)',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.16)',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 12,
+    height: 46,
+    marginBottom: 3,
+  },
+  kineticPhoneBoxActive: {
+    borderColor: '#00F2FE',
+    borderTopColor: 'rgba(0, 242, 254, 0.7)',
+    borderBottomColor: 'rgba(0, 242, 254, 0.9)',
+    backgroundColor: 'rgba(0, 242, 254, 0.06)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 16px rgba(0, 242, 254, 0.35)',
+      },
+      default: {
+        shadowColor: '#00F2FE',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 3,
+      },
+    }),
+  },
+  kineticFlagContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.25)',
+    borderBottomWidth: 1.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  kineticFlagIcon: {
+    fontSize: 16,
+  },
+  kineticCountryCode: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  kineticPhoneDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginHorizontal: 10,
+  },
+  kineticPhoneInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    paddingVertical: 0,
+  },
+  kineticPhoneStatusRow: {
+    marginTop: 2,
+    marginBottom: 4,
+    paddingHorizontal: 4,
+  },
+  kineticPhoneStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  kineticPhoneStatusHint: {
+    color: '#768297',
+  },
+  kineticPhoneStatusSuccess: {
+    color: '#00F2FE',
+  },
+  kineticNextBtn: {
+    backgroundColor: '#FF385C',
+    borderRadius: 14,
+    paddingVertical: 10.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255, 170, 185, 0.7)',
+    borderBottomWidth: 3,
+    borderBottomColor: '#901224',
+    marginBottom: 4,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 6px 20px rgba(255, 56, 92, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4)',
+      },
+      default: {
+        shadowColor: '#FF385C',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.45,
+        shadowRadius: 14,
+        elevation: 7,
+      },
+    }),
+  },
+  kineticNextBtnDisabled: {
+    opacity: 0.42,
+    backgroundColor: '#351B24',
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    borderBottomColor: '#1A0C11',
+    borderBottomWidth: 2.5,
+    ...Platform.select({
+      web: { boxShadow: 'none' },
+      default: { shadowOpacity: 0, elevation: 0 },
+    }),
+  },
+  kineticVerifyBtn: {
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  kineticNextBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  kineticNextBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+    ...Platform.select({
+      web: {
+        textShadow: '0 1px 3px rgba(0, 0, 0, 0.4)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.4)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
+  },
+  kineticNextBtnTextDisabled: {
+    color: '#8A7A80',
+  },
+  kineticNextArrow: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  detectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  otpHeaderBox: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  otpHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  otpHeaderSub: {
+    fontSize: 12,
+    color: '#9E97B2',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  otpBoxesLabel: {
+    color: '#A099B5',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginTop: 6,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  liquidOtpBox: {
+    flex: 1,
+    marginHorizontal: 3,
+    aspectRatio: 1,
+    backgroundColor: 'rgba(11, 7, 20, 0.82)',
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.28)',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255, 255, 255, 0.12)',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(0, 0, 0, 0.5)',
+    borderBottomWidth: 2.5,
+    borderBottomColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 3px 8px rgba(0, 0, 0, 0.4)',
+      },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 4,
+        elevation: 3,
+      },
+    }),
+  },
+  liquidOtpBoxFocused: {
+    borderColor: '#E94057',
+    borderTopColor: 'rgba(255, 120, 150, 0.9)',
+    borderBottomColor: 'rgba(140, 15, 40, 0.9)',
+    backgroundColor: 'rgba(233, 64, 87, 0.18)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 0 14px rgba(233, 64, 87, 0.4)',
+      },
+      default: {
+        shadowColor: '#E94057',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 3,
+      },
+    }),
+  },
+  liquidOtpBoxSuccess: {
+    borderColor: '#25D366',
+    borderTopColor: 'rgba(120, 255, 170, 0.9)',
+    borderBottomColor: 'rgba(10, 80, 40, 0.9)',
+    backgroundColor: 'rgba(37, 211, 102, 0.16)',
+  },
+  mockOtpBanner: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  mockOtpText: {
+    color: '#FF6584',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  otpResendWrapper: {
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 8,
+  },
+  resendTimerText: {
+    color: '#8E94A5',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  resendLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resendLinkText: {
+    color: '#E94057',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  resendDot: {
+    color: '#555A6B',
+    fontSize: 11,
+  },
+  editNumberBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  editNumberText: {
+    color: '#CACDD8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  trustBadgeContainer: {
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  trustBadgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.28)',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255, 255, 255, 0.12)',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(255, 255, 255, 0.12)',
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    gap: 5,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+      },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 3,
+      },
+    }),
+  },
+  trustBadgeIcon: {
+    fontSize: 12,
+  },
+  trustBadgeBrand: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  trustBadgeDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  trustBadgeText: {
+    color: '#CACDD8',
+    fontSize: 11,
+    fontWeight: '600',
   },
   header: {
     marginVertical: 20,
@@ -806,12 +2535,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#16171E',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: 'rgba(20, 13, 32, 0.74)',
+    borderRadius: 26,
+    padding: 22,
     borderWidth: 1,
-    borderColor: '#262833',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     marginBottom: 20,
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(24px)',
+        boxShadow: '0 20px 50px rgba(233, 64, 87, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.08) inset',
+      },
+      default: {
+        shadowColor: '#E94057',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.22,
+        shadowRadius: 26,
+        elevation: 6,
+      },
+    }),
   },
   cardHeader: {
     fontSize: 18,
@@ -855,6 +2597,40 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 6,
     marginBottom: 16,
+  },
+  channelButtonCompact: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  channelButtonDisabled: {
+    opacity: 0.4,
+    backgroundColor: '#15161E',
+    borderColor: '#262835',
+    ...Platform.select({
+      web: { boxShadow: 'none' },
+      default: { shadowOpacity: 0, elevation: 0 },
+    }),
+  },
+  channelButtonDisabledText: {
+    color: '#6B7082',
+  },
+  channelButtonDisabledSub: {
+    color: '#525565',
+  },
+  phoneStatusRow: {
+    marginTop: 6,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  phoneStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  phoneStatusTextHint: {
+    color: '#7F8496',
+  },
+  phoneStatusTextSuccess: {
+    color: '#25D366',
   },
   waButton: {
     backgroundColor: '#128C7E',
@@ -1339,5 +3115,169 @@ const styles = StyleSheet.create({
   scanSub: {
     color: '#E94057',
     fontSize: 12,
+  },
+  locIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#E94057',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    alignSelf: 'center',
+  },
+  locIconEmoji: {
+    fontSize: 28,
+  },
+  locFeatureList: {
+    backgroundColor: '#1E202B',
+    borderRadius: 16,
+    padding: 14,
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: '#2D3040',
+    gap: 12,
+  },
+  locFeatureItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  locFeatureBullet: {
+    fontSize: 16,
+    marginTop: 1,
+  },
+  locFeatureTextCol: {
+    flex: 1,
+  },
+  locFeatureHead: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  locFeatureSub: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  languageSectionWrap: {
+    marginTop: 18,
+    marginBottom: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#262836',
+  },
+  langHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  langSectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  langCountBadge: {
+    color: '#00E5FF',
+    fontSize: 11,
+    fontWeight: '700',
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  langSectionSub: {
+    color: '#8E8E93',
+    fontSize: 12,
+    marginBottom: 12,
+    lineHeight: 17,
+  },
+  selectedLangRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
+  selectedLangChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  selectedLangChipText: {
+    color: '#FF385C',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  selectedLangRemoveText: {
+    color: '#FF385C',
+    fontSize: 12,
+    fontWeight: '900',
+    marginLeft: 4,
+  },
+  presetLangRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
+  presetLangPill: {
+    backgroundColor: '#1A1C28',
+    borderWidth: 1,
+    borderColor: '#2E3245',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  presetLangPillSelected: {
+    borderColor: '#00E5FF',
+    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+  },
+  presetLangPillText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  presetLangPillTextSelected: {
+    color: '#00E5FF',
+    fontWeight: '800',
+  },
+  customLangRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  customLangInput: {
+    flex: 1,
+    backgroundColor: '#13141E',
+    borderWidth: 1,
+    borderColor: '#2E3245',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    color: '#FFFFFF',
+    fontSize: 13,
+  },
+  customLangAddBtn: {
+    backgroundColor: '#7928CA',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customLangAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });

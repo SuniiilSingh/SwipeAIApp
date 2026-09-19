@@ -51,10 +51,13 @@ export interface UserProfile {
   occupation?: string;
   job?: string;
   education?: string;
+  institute?: string;
   interests?: string;
   height?: number;
   location?: string;
   maxDistanceKm?: number;
+  latitude?: number;
+  longitude?: number;
   sexualOrientation?: string;
   showOrientationOnProfile?: boolean;
   genderDisplay?: string;
@@ -83,6 +86,8 @@ export interface UserProfile {
   boostsBalance: number;
   directDmsBalance: number;
   hasActivePass: boolean;
+  selectedMemeUrl?: string;
+  selectedMemeTitle?: string;
 }
 
 export interface CandidateCard {
@@ -120,6 +125,7 @@ export interface CandidateCard {
   occupation?: string;
   job?: string;
   education?: string;
+  institute?: string;
   height?: number;
   interests?: string;
   sexualOrientation?: string;
@@ -134,10 +140,35 @@ export interface CandidateCard {
   drinkingHabit?: string;
   hobbies?: string;
   vacationPreference?: string;
+  languagesSpoken?: string[];
   city?: string;
   neighborhood?: string;
   microCircle?: string;
   photos: string[];
+  desireMatchPercent?: number;
+  desireMatchHighlights?: string[];
+}
+
+export interface DesireProfile {
+  userId?: string;
+  isConfigured?: boolean;
+  minAge: number;
+  maxAge: number;
+  ageFlexible: boolean;
+  maxDistanceKm: number;
+  dietaryHarmony: string;
+  smokingComfort: string;
+  drinkingComfort: string;
+  livingSituationComfort: string;
+  relationshipIntentMatch: string;
+  weekendVibe: string;
+  communicationPace: string;
+  banterStyle: string;
+  loveLanguage: string;
+  greenFlags: string[];
+  preferredProfessions?: string[];
+  naturalLanguagePrompt?: string;
+  updatedAt?: string;
 }
 
 export interface IcebreakerQuiz {
@@ -178,8 +209,12 @@ export interface ChatMessage {
   content: string;
   mediaUrl?: string;
   mediaType: 'TEXT' | 'AUDIO_NOTE' | 'IMAGE' | 'MEME' | 'VIRTUAL_CHAI' | 'SYSTEM';
+  status?: 'SENT' | 'DELIVERED' | 'READ';
+  isEncrypted?: boolean;
+  encryptionAlgo?: string;
   isBlurred?: boolean;
   blurReason?: string;
+  readAt?: string;
   createdAt: string;
   isFromMe: boolean;
 }
@@ -214,4 +249,15 @@ export interface MicroCircle {
   description: string;
   activeMembers: number;
   icon: string;
+}
+
+export interface VirtualChaiSession {
+  roomName: string;
+  participantToken: string;
+  serverUrl: string;
+  callerMaskedName: string;
+  recipientMaskedName: string;
+  phoneMasked: boolean;
+  isVideo?: boolean;
+  isSimulated?: boolean;
 }

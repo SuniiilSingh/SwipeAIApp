@@ -38,6 +38,7 @@ export default function RootLayout() {
         <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />
         <Stack.Screen name="safe-date/index" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
       </Stack>
     </>
   );

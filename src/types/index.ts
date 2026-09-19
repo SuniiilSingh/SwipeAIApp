@@ -261,3 +261,21 @@ export interface VirtualChaiSession {
   isVideo?: boolean;
   isSimulated?: boolean;
 }
+
+export type NotificationType = 'MATCH' | 'CHAT' | 'CHAT_UNLOCKED' | 'SYSTEM';
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  data?: {
+    type?: string;
+    matchId?: string;
+    url?: string;
+    [key: string]: any;
+  };
+  isRead: boolean;
+  createdAt: string;
+}

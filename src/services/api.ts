@@ -15,6 +15,7 @@ import {
   UserProfile,
   VirtualChaiSession,
   DesireProfile,
+  AppNotification,
 } from '@/types';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -1071,6 +1072,98 @@ export const api = {
       return res.ok;
     } catch (e) {
       console.warn('[api] Failed to send test push notification:', e);
+      return false;
+    }
+  },
+
+  // In-App Notification Center
+  getNotifications: async (unreadOnly: boolean = false, page: number = 0, size: number = 30): Promise<AppNotification[]> => {
+    try {
+      if (!authToken) await initAuth();
+      if (!authToken) return [];
+
+      const queryParams = new URLSearchParams({
+        page: String(page),
+        size: String(size),
+      });
+      if (unreadOnly) {
+        queryParams.append('unreadOnly', 'true');
+      }
+
+      const res = await fetch(`${BASE_URL}/v1/notifications?${queryParams.toString()}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('[api] Failed to fetch in-app notifications:', e);
+    }
+    return [];
+  },
+
+  getUnreadNotificationCount: async (): Promise<number> => {
+    try {
+      if (!authToken) await initAuth();
+      if (!authToken) return 0;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/unread-count`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return typeof data.unreadCount === 'number' ? data.unreadCount : 0;
+      }
+    } catch (e) {
+      console.warn('[api] Failed to fetch unread notification count:', e);
+    }
+    return 0;
+  },
+
+  markNotificationAsRead: async (id: string): Promise<boolean> => {
+    try {
+      if (!authToken) await initAuth();
+      if (!authToken) return false;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[api] Failed to mark notification as read:', e);
+      return false;
+    }
+  },
+
+  markAllNotificationsAsRead: async (): Promise<boolean> => {
+    try {
+      if (!authToken) await initAuth();
+      if (!authToken) return false;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/read-all`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[api] Failed to mark all notifications as read:', e);
+      return false;
+    }
+  },
+
+  deleteNotification: async (id: string): Promise<boolean> => {
+    try {
+      if (!authToken) await initAuth();
+      if (!authToken) return false;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[api] Failed to delete notification:', e);
       return false;
     }
   },

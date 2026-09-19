@@ -101,9 +101,13 @@ export default function DiscoveryScreen() {
   const [chaiModalVisible, setChaiModalVisible] = useState(false);
   const [chaiTargetCandidate, setChaiTargetCandidate] = useState<CandidateCard | null>(null);
 
+  // Unread notification count for header badge
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+
   useFocusEffect(
     useCallback(() => {
       loadFeed();
+      api.getUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => {});
     }, [])
   );
 
@@ -586,11 +590,27 @@ function SwipeableCandidateCard({
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.boostButton}
-          onPress={() => router.push('/(tabs)/store')}>
-          <Text style={styles.boostButtonText}>⚡ Boost</Text>
-        </TouchableOpacity>
+        <View style={styles.brandActionsRow}>
+          <TouchableOpacity
+            style={styles.notificationBellButton}
+            onPress={() => router.push('/notifications' as any)}
+            activeOpacity={0.8}>
+            <Text style={styles.bellIconText}>🔔</Text>
+            {unreadNotificationCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.boostButton}
+            onPress={() => router.push('/(tabs)/store')}>
+            <Text style={styles.boostButtonText}>⚡ Boost</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Horizontal Filter Bar with My Desire Button */}
@@ -894,6 +914,44 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 10,
     fontWeight: '700',
+  },
+  brandActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notificationBellButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#161822',
+    borderWidth: 1,
+    borderColor: '#262936',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  bellIconText: {
+    fontSize: 16,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#E94057',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#0E0F13',
+  },
+  bellBadgeText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   boostButton: {
     backgroundColor: 'rgba(233, 64, 87, 0.15)',

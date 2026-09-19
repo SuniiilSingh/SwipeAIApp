@@ -25,479 +25,33 @@ import SelfieCameraModal from '@/components/selfie-camera-modal';
 
 const { width } = Dimensions.get('window');
 
-// MatchAI Presets
-const INTERESTS_PRESETS = [
-  'Soul music', 'Hip hop', 'Skincare', 'Musical theatre', 'J-Pop', 'Cricket',
-  'Freelancing', 'K-Pop', 'Skateboarding', 'Pop music', 'Punk rock',
-  'Trying new things', 'Photography', 'Bollywood', 'Reading', 'Singing',
-  'Rap music', 'Sports', 'Poetry', 'Stand-up comedy', 'Coffee', 'Karaoke',
-  'Fortnite', 'Self-development', 'Mental health awareness', 'Food tours',
-  'Climate change', 'Walking my dog', 'Feminism', 'Escape rooms', 'Shopping',
-  'Brunch', 'Jetskiing', 'Jogging', 'Harry Potter', 'Self-care', 'Heavy metal',
-  'House parties', 'Gymnastics', 'Ludo', 'Biryani', 'Meditation', 'Foodie',
-  'Sushi', 'Spotify', 'Hockey', 'Basketball', 'Fantasy films', 'Home workouts',
-  'Theatre', 'Café hopping', 'Aquarium', 'Instagram', 'Walking', 'Running',
-  'Travel', 'Films', 'Gym', 'Social media'
-];
+import {
+  INTERESTS_PRESETS,
+  JOB_PRESETS,
+  EDUCATION_PRESETS,
+  SEXUAL_ORIENTATION_PRESETS,
+  GENDER_PRESETS,
+  GENDER_PREFERENCE_PRESETS,
+  RELATIONSHIP_INTENT_PRESETS,
+  PROMPT_PRESETS,
+  DIETARY_OPTIONS,
+  LANGUAGE_OPTIONS,
+  LIVING_OPTIONS,
+  SMOKING_OPTIONS,
+  DRINKING_OPTIONS,
+  VACATION_OPTIONS,
+  HOBBIES_PRESETS,
+  VEDIC_ZODIAC_OPTIONS,
+  VOICE_PROMPT_TOPICS,
+  MEME_PRESETS,
+} from '@/constants/profile-presets';
 
-const JOB_PRESETS = [
-  'Software Engineer', 'Doctor', 'Designer', 'Student', 'Artist', 'Manager',
-  'Entrepreneur', 'Teacher', 'Writer', 'Chef', 'Lawyer', 'Consultant',
-  'Photographer', 'Architect', 'Scientist', 'Musician', 'Product Manager',
-  'Freelancer', 'Finance Analyst', 'Other'
-];
-
-const EDUCATION_PRESETS = [
-  '8th pass', '10th pass', '12th pass', 'High School', 'Bachelors Degree', 'Masters Degree', 'PhD / Doctorate',
-  'Stanford University', 'Harvard University', 'MIT', 'Oxford University',
-  'Cambridge University', 'University of California', 'Delhi University',
-  'IIT', 'IIM', 'BITS Pilani', 'Self-Taught', 'Other'
-];
-
-const SEXUAL_ORIENTATION_PRESETS = [
-  'Straight', 'Gay', 'Lesbian', 'Bisexual', 'Asexual', 'Demisexual', 'Pansexual', 'Queer', 'Other'
-];
-
-const GENDER_PRESETS = [
-  'Man', 'Woman', 'Non-binary', 'Transgender', 'Agender', 'Bigender', 'Genderfluid', 'Other'
-];
-
-const GENDER_PREFERENCE_PRESETS = [
-  'Women', 'Men', 'Everyone', 'Other'
-];
-
-const RELATIONSHIP_INTENT_PRESETS = [
-  'Long-term partner',
-  'Long-term, open to short',
-  'Short-term, open to long',
-  'Short-term fun',
-  'New friends',
-  'Still figuring it out',
-  'Other'
-];
-
-const PROMPT_PRESETS = [
-  'The key to my heart is...',
-  'My most controversial opinion is...',
-  'First concert I ever went to was...',
-  'I’m looking for someone who...',
-  'We’ll get along if...',
-  'A boundary of mine is...',
-  'My favorite weekend activity is...',
-  'A random fact I love is...'
-];
-
-const DIETARY_OPTIONS: { key: DietaryPreference; label: string; emoji: string }[] = [
-  { key: 'STRICT_JAIN', label: 'Strict Jain (No Root Veg)', emoji: '🪷' },
-  { key: 'PURE_VEG', label: 'Pure Veg', emoji: '🥦' },
-  { key: 'VEGAN', label: 'Vegan (Plant-Based)', emoji: '🌱' },
-  { key: 'EGGETARIAN', label: 'Eggetarian', emoji: '🍳' },
-  { key: 'NON_VEG', label: 'Non-Veg', emoji: '🍗' },
-];
-
-export const LANGUAGE_OPTIONS = [
-  'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
-  'Kannada 🌿', 'Malayalam 🌴', 'Marathi 🚩', 'Gujarati 💎', 'Marwari 🏜️', 'Odia ⛵',
-  'Assamese 🫖', 'Urdu 📜', 'Sanskrit 🕉️', 'French 🥐', 'Spanish 💃', 'German 🥨'
-];
-
-const LIVING_OPTIONS: { key: LivingStatus; label: string; emoji: string }[] = [
-  { key: 'WITH_PARENTS', label: 'Living with Parents', emoji: '👨‍👩‍👧' },
-  { key: 'INDEPENDENT_FLAT', label: 'Independent Flat', emoji: '🏙️' },
-  { key: 'PG', label: 'PG / Co-Living', emoji: '🏠' },
-];
-
-const SMOKING_OPTIONS = [
-  { key: 'NON_SMOKER', label: 'Non-Smoker', emoji: '🚭' },
-  { key: 'OCCASIONAL', label: 'Social / Occasional', emoji: '🚬' },
-  { key: 'REGULAR', label: 'Regular Smoker', emoji: '🚬' },
-  { key: 'TRYING_TO_QUIT', label: 'Trying to Quit', emoji: '🌿' },
-];
-
-const DRINKING_OPTIONS = [
-  { key: 'NON_DRINKER', label: 'Non-Drinker / Teetotaler', emoji: '🚫🍺' },
-  { key: 'SOCIAL_DRINKER', label: 'Social / Weekend Drinker', emoji: '🍷' },
-  { key: 'REGULAR_DRINKER', label: 'Regular Drinker', emoji: '🍻' },
-  { key: 'SOBER', label: 'Sober / Mindful', emoji: '🧘' },
-];
-
-const VACATION_OPTIONS = [
-  { key: 'MOUNTAINS', label: 'Majestic Mountains', emoji: '🏔️' },
-  { key: 'BEACHES', label: 'Sunny Beaches', emoji: '🏖️' },
-  { key: 'BOTH', label: 'Both (Mountain Streams & Beach Sunsets)', emoji: '🌊⛰️' },
-  { key: 'CITY_BREAKS', label: 'Vibrant City Breaks', emoji: '🏙️' },
-];
-
-const HOBBIES_PRESETS = [
-  'Photography 📷', 'Cooking & Baking 🍳', 'Trekking & Hiking 🥾', 'Cycling 🚴',
-  'Reading & Books 📚', 'Gym & Fitness 🏋️', 'Yoga & Meditation 🧘', 'Painting & Art 🎨',
-  'Gaming 🎮', 'Gardening 🪴', 'Writing & Poetry ✍️', 'Music Production 🎧',
-  'Solo Travel ✈️', 'Specialty Coffee ☕', 'Board Games 🎲', 'Swimming 🏊',
-  'Badminton 🏸', 'Film Making 🎬', 'Dog Fostering 🐕', 'Pottery 🏺'
-];
-
-export const VEDIC_ZODIAC_OPTIONS = [
-  { rashi: 'Mesha', western: 'Aries', symbol: '♈', element: 'Fire (Agni)', lord: 'Mars (Mangal)', traits: 'Bold, energetic, fearless pioneer' },
-  { rashi: 'Vrishabha', western: 'Taurus', symbol: '♉', element: 'Earth (Prithvi)', lord: 'Venus (Shukra)', traits: 'Patient, grounded, aesthetic lover' },
-  { rashi: 'Mithuna', western: 'Gemini', symbol: '♊', element: 'Air (Vayu)', lord: 'Mercury (Budha)', traits: 'Witty, versatile, engaging conversationalist' },
-  { rashi: 'Karka', western: 'Cancer', symbol: '♋', element: 'Water (Jala)', lord: 'Moon (Chandra)', traits: 'Deeply intuitive, nurturing, emotional anchor' },
-  { rashi: 'Simha', western: 'Leo', symbol: '♌', element: 'Fire (Agni)', lord: 'Sun (Surya)', traits: 'Charismatic, regal, generous heart' },
-  { rashi: 'Kanya', western: 'Virgo', symbol: '♍', element: 'Earth (Prithvi)', lord: 'Mercury (Budha)', traits: 'Mindful, articulate, detail-oriented' },
-  { rashi: 'Tula', western: 'Libra', symbol: '♎', element: 'Air (Vayu)', lord: 'Venus (Shukra)', traits: 'Harmonious, graceful, charming diplomat' },
-  { rashi: 'Vrischika', western: 'Scorpio', symbol: '♏', element: 'Water (Jala)', lord: 'Mars / Ketu', traits: 'Intense, magnetic, fiercely loyal' },
-  { rashi: 'Dhanu', western: 'Sagittarius', symbol: '♐', element: 'Fire (Agni)', lord: 'Jupiter (Brihaspati)', traits: 'Free-spirited, philosophical, candid' },
-  { rashi: 'Makara', western: 'Capricorn', symbol: '♑', element: 'Earth (Prithvi)', lord: 'Saturn (Shani)', traits: 'Disciplined, ambitious, steady foundation' },
-  { rashi: 'Kumbha', western: 'Aquarius', symbol: '♒', element: 'Air (Vayu)', lord: 'Saturn (Shani)', traits: 'Visionary, eccentric, progressive thinker' },
-  { rashi: 'Meena', western: 'Pisces', symbol: '♓', element: 'Water (Jala)', lord: 'Jupiter (Brihaspati)', traits: 'Compassionate, dreamy, soulful artist' },
-];
-
-export const VOICE_PROMPT_TOPICS = [
-  'Say hello & introduce yourself in your mother tongue 🗣️',
-  'The way to my heart: Filter coffee vs Cutting chai ☕',
-  'My favorite street food guilty pleasure in my city 🥟',
-  'My most controversial Indian dating opinion 🌶️',
-  'Sing or hum 10 seconds of your favorite song 🎶',
-  'Describe your ideal Sunday morning vibe ☀️',
-  'A travel story that made you laugh until you cried ✈️',
-];
-
-export const MEME_PRESETS = [
-  // --- 🌍 GLOBAL INTERNET LEGENDS ---
-  {
-    title: 'Distracted Boyfriend 👫👀',
-    caption: 'When someone with emotional maturity and great communication walks by.',
-    imageUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Woman Yelling at a Cat 🐱🥗',
-    caption: 'Her explaining her complex emotional trauma vs Me peacefully eating fries.',
-    imageUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Roll Safe (Big Brain) 🧠💡',
-    caption: 'You cannot get heartbroken if you convince yourself you are a lone wolf.',
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'This Is Fine (Room on Fire) 🔥☕',
-    caption: 'Me smiling on a first date while my personal life is in complete shambles.',
-    imageUrl: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Drake Hotline Bling 🕺❌',
-    caption: 'Awkward small talk about weather ❌ | Debating if aliens exist at 2 AM ✔️',
-    imageUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Disaster Girl Smirking 👧🔥',
-    caption: 'Me leaving the WhatsApp group after dropping one unhinged voice note.',
-    imageUrl: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Spider-Man Pointing 🕷️👉',
-    caption: 'Two emotionally guarded introverts wondering why neither is texting first.',
-    imageUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Two Buttons Sweating Hero 🔴😰',
-    caption: 'Reply in 3 seconds to show interest vs Wait 4 hours to appear mysterious.',
-    imageUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Leo Laughing Drink 🍸😏',
-    caption: 'Watching them ignore the exact red flag I explicitly warned them about.',
-    imageUrl: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Leo Pointing at TV 📺👉',
-    caption: 'Me when my date casually mentions my favorite niche obscure indie band.',
-    imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Hide The Pain Harold 😬☕',
-    caption: 'Smiling pleasantly when the restaurant bill arrives and they forgot their wallet.',
-    imageUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Success Kid Fist Pump 👶✊',
-    caption: 'Went to a social gathering, talked to zero strangers, left early with snacks.',
-    imageUrl: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Grumpy Cat Universal No 😾🚫',
-    caption: 'I went outside once. The graphics were good but the people were terrible.',
-    imageUrl: 'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Doge: Much Romance, Very Wow 🐕✨',
-    caption: 'Such mutual attraction. Much butterflies. Very situationship. Wow.',
-    imageUrl: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Buff Doge vs Cheems 🐕💪🐕🥺',
-    caption: 'Dating in my head: Charming & smooth | Dating in reality: Knocking over water glasses.',
-    imageUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Trade Offer 🤝📜',
-    caption: 'I receive: Memes & Sunday cuddles. You receive: Unlimited loyalty & bad jokes.',
-    imageUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Evil Kermit Whisper 🐸🦹',
-    caption: 'Healthy me: Do not double text. Inner Kermit: Send a paragraph and a meme.',
-    imageUrl: 'https://images.unsplash.com/photo-1534067783941-51c9c23ecefd?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Confused Travolta Looking Around 🧥🤷',
-    caption: 'Me walking into the cafe trying to figure out who matches their profile picture.',
-    imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Surprised Pikachu Face ⚡😲',
-    caption: 'Ignores obvious red flags for 6 months. Gets heartbroken. Surprised Pikachu.',
-    imageUrl: 'https://images.unsplash.com/photo-1613771404784-3a5686aa2be3?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Bernie Sanders In Mittens 🧤🥶',
-    caption: 'I am once again asking for your love, affection, and hand in marriage.',
-    imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Change My Mind Table 🪑☕',
-    caption: 'Leaving a house party at 9:45 PM to sleep is peak self-care. Change my mind.',
-    imageUrl: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Is This a Pigeon? 🦋🙋‍♂️',
-    caption: 'Receives standard polite customer service. Brain: Is this my true soulmate?',
-    imageUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Gru Presentation Board 📈🤦',
-    caption: 'Match on SwipeAI -> Great witty banter -> Meet in person -> Panic & freeze.',
-    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Expanding Brain (Galaxy Brain) 🌌🧠',
-    caption: 'Small talk -> Deep trauma dump -> Sending 50 reels -> Lifelong soul bond.',
-    imageUrl: 'https://images.unsplash.com/photo-1507499739999-097706ad8914?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Waiting Skeleton on Park Bench 💀🪑',
-    caption: 'Still sitting on the bench waiting after they texted "Give me 2 minutes".',
-    imageUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Disappointed Cricket Fan 🧍‍♂️👀',
-    caption: 'Me standing with hands on my hips after getting ghosted for the third time.',
-    imageUrl: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Side-Eye Chloe 👧😒',
-    caption: 'When they claim they do not listen to music while taking a road trip.',
-    imageUrl: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Math Lady / Confused Calculation 📐👩',
-    caption: 'Calculating the optimal mathematical delay before replying so I do not look desperate.',
-    imageUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Panik Kalm Panik 😱😌😱',
-    caption: 'They text you: Panik. They like you: Kalm. They ask for your Spotify wrapped: Panik.',
-    imageUrl: 'https://images.unsplash.com/photo-1527525443983-6e60c75fff46?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-  {
-    title: 'Shaq Sleeping vs Real Alert 😴👀',
-    caption: 'Healthy 8 hours of sleep: I sleep. 2 AM gossip about people I barely know: REAL TALK.',
-    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
-    category: 'Global Legends',
-  },
-
-  // --- ❤️ DATING & ROMANCE ---
-  {
-    title: 'Red Flag Carnival 🚩🎪',
-    caption: 'My fatal flaw is convincing myself their red flags are just festive carnival decor.',
-    imageUrl: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'Delulu is the Solulu ✨🔮',
-    caption: 'Mentally planning our European summer vacation after exchanging exactly four messages.',
-    imageUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'Situationship Doctorate 🎓💔',
-    caption: 'We are not technically dating, but if I see you smiling at your phone I am shattered.',
-    imageUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'Forensic Analyst of "K" 🕵️‍♂️🔍',
-    caption: 'Did they type "K" or lowercase "k"? The uppercase letter indicates hostility.',
-    imageUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'The Ghosting Olympics 👻🥇',
-    caption: 'Won gold medal in vanishing into thin air 10 minutes after saying "You are amazing".',
-    imageUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'Screenshot Sent to the Same Person 📲😱',
-    caption: 'Accidentally sent the screenshot of the conversation right back into the chat.',
-    imageUrl: 'https://images.unsplash.com/photo-1516251193007-45ef944ab0c6?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'Astrological Birth Chart Audit 🪐✨',
-    caption: 'Need their exact birth time, latitude, and hospital room number before date two.',
-    imageUrl: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'First Date Deep Interrogation 🕵️‍♀️☕',
-    caption: 'Skip your job title. Tell me your deepest childhood trauma by 8:15 PM.',
-    imageUrl: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'Last 2 Brain Cells on a Date 🧠💨',
-    caption: 'Waiter: Enjoy your meal! Me: You too, sir! (Soul immediately exits body).',
-    imageUrl: 'https://images.unsplash.com/photo-1519741497674-611481863552?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-  {
-    title: 'Love Language: 45 Reels Daily 📲❤️',
-    caption: 'I will never say "I love you", but you will receive 40 Instagram reels before noon.',
-    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
-    category: 'Dating & Romance',
-  },
-
-  // --- 🇮🇳 DESI & INDIAN INTERNET CULTURE ---
-  {
-    title: 'Silk Board Traffic Survivor 🚗🚦',
-    caption: 'If I can endure Silk Board junction at 6:30 PM, I can survive any relationship.',
-    imageUrl: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Filter Coffee > Everything Else ☕✨',
-    caption: 'My circulatory system is 80% Kumbakonam degree filter coffee and 20% hope.',
-    imageUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Cutting Chai at 2 AM ☕🌙',
-    caption: 'Looking for someone who believes tapri cutting chai dates are the pinnacle of romance.',
-    imageUrl: 'https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Relatives: "Shaadi Kab Karoge?" 👵👀',
-    caption: 'Neighborhood aunties calculating my biological timeline faster than an ISRO mainframe.',
-    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Biryani is my Love Language 🍗❤️',
-    caption: 'Order extra mirchi ka salan and raita without being asked and I will propose.',
-    imageUrl: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Auto Driver: "Nahi Jaunga" 🛺💸',
-    caption: 'My emotional rejection resilience was forged by Bengaluru and Mumbai auto drivers.',
-    imageUrl: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Babu Bhaiya: "21 Din Mein Double" 💰🎩',
-    caption: 'Promising myself I will start sensible mutual fund SIPs immediately after this date.',
-    imageUrl: 'https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Taarak Mehta: "Chai Piyo Biscuit Khao" ☕🍪',
-    caption: 'My universal remedy for existential dread, work stress, and modern dating heartaches.',
-    imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Pankaj Tripathi: "Aram Se Dekhiye" 🧘‍♂️📺',
-    caption: 'Radiating calm, serene wisdom when the world around is pure unadulterated chaos.',
-    imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Pawri Hori Hai 🚗🎉',
-    caption: 'Ye hum hai, ye hamara match hai, aur yaha bill barabari se split ho raha hai.',
-    imageUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'The Goa Trip Plan That Never Was 🏖️✈️',
-    caption: 'Seven years, nine WhatsApp groups, four roadmaps, and exactly zero flights boarded.',
-    imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Swiggy vs Zomato War at 11:45 PM 🍕🛵',
-    caption: 'Toggling delivery coupons across both apps like a high-frequency commodities trader.',
-    imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Golmaal: "Abhi Hum Zinda Hai" 🎬🔥',
-    caption: 'Crawling out alive after back-to-back Monday sprint planning meetings.',
-    imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'Techie Burnout: Code by Day, Chai by Night 💻☕',
-    caption: 'Merging Pull Requests at 8:00 PM, searching for emotional salvation by 8:05 PM.',
-    imageUrl: 'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-  {
-    title: 'First Date: Expectation vs Reality 🤡🍕',
-    caption: 'Hoping for deep existential dialogue, ended up comparing Swiggy Instamart discounts.',
-    imageUrl: 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=600&auto=format&fit=crop&q=80',
-    category: 'Desi Classics',
-  },
-];
+export {
+  LANGUAGE_OPTIONS,
+  VEDIC_ZODIAC_OPTIONS,
+  VOICE_PROMPT_TOPICS,
+  MEME_PRESETS,
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -2617,888 +2171,930 @@ export default function ProfileScreen() {
       {/* ========================================================================= */}
 
       {/* 1. Date of Birth Picker Modal */}
-      <Modal visible={showDobPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderEmoji}>🎂</Text>
-            <Text style={styles.modalHeaderTitle}>Select Date of Birth</Text>
-            <Text style={styles.modalHeaderSub}>Use the controls below to set your birthdate.</Text>
+      {showDobPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderEmoji}>🎂</Text>
+              <Text style={styles.modalHeaderTitle}>Select Date of Birth</Text>
+              <Text style={styles.modalHeaderSub}>Use the controls below to set your birthdate.</Text>
 
-            <View style={styles.dobSpinnersRow}>
-              <View style={styles.dobCol}>
-                <Text style={styles.dobColLabel}>DAY</Text>
-                <TouchableOpacity onPress={() => setPickerDay(p => (p === 31 ? 1 : p + 1))} style={styles.spinnerArrowBtn}>
-                  <Text style={styles.spinnerArrowText}>▲</Text>
-                </TouchableOpacity>
-                <Text style={styles.spinnerValueText}>{String(pickerDay).padStart(2, '0')}</Text>
-                <TouchableOpacity onPress={() => setPickerDay(p => (p === 1 ? 31 : p - 1))} style={styles.spinnerArrowBtn}>
-                  <Text style={styles.spinnerArrowText}>▼</Text>
-                </TouchableOpacity>
+              <View style={styles.dobSpinnersRow}>
+                <View style={styles.dobCol}>
+                  <Text style={styles.dobColLabel}>DAY</Text>
+                  <TouchableOpacity onPress={() => setPickerDay(p => (p === 31 ? 1 : p + 1))} style={styles.spinnerArrowBtn}>
+                    <Text style={styles.spinnerArrowText}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.spinnerValueText}>{String(pickerDay).padStart(2, '0')}</Text>
+                  <TouchableOpacity onPress={() => setPickerDay(p => (p === 1 ? 31 : p - 1))} style={styles.spinnerArrowBtn}>
+                    <Text style={styles.spinnerArrowText}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.dobCol}>
+                  <Text style={styles.dobColLabel}>MONTH</Text>
+                  <TouchableOpacity onPress={() => setPickerMonth(p => (p === 12 ? 1 : p + 1))} style={styles.spinnerArrowBtn}>
+                    <Text style={styles.spinnerArrowText}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.spinnerValueText}>{String(pickerMonth).padStart(2, '0')}</Text>
+                  <TouchableOpacity onPress={() => setPickerMonth(p => (p === 1 ? 12 : p - 1))} style={styles.spinnerArrowBtn}>
+                    <Text style={styles.spinnerArrowText}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.dobCol}>
+                  <Text style={styles.dobColLabel}>YEAR</Text>
+                  <TouchableOpacity onPress={() => setPickerYear(p => (p >= 2007 ? 1970 : p + 1))} style={styles.spinnerArrowBtn}>
+                    <Text style={styles.spinnerArrowText}>▲</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.spinnerValueText}>{pickerYear}</Text>
+                  <TouchableOpacity onPress={() => setPickerYear(p => (p <= 1970 ? 2007 : p - 1))} style={styles.spinnerArrowBtn}>
+                    <Text style={styles.spinnerArrowText}>▼</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              <View style={styles.dobCol}>
-                <Text style={styles.dobColLabel}>MONTH</Text>
-                <TouchableOpacity onPress={() => setPickerMonth(p => (p === 12 ? 1 : p + 1))} style={styles.spinnerArrowBtn}>
-                  <Text style={styles.spinnerArrowText}>▲</Text>
-                </TouchableOpacity>
-                <Text style={styles.spinnerValueText}>{String(pickerMonth).padStart(2, '0')}</Text>
-                <TouchableOpacity onPress={() => setPickerMonth(p => (p === 1 ? 12 : p - 1))} style={styles.spinnerArrowBtn}>
-                  <Text style={styles.spinnerArrowText}>▼</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                onPress={() => {
+                  setSetupDateOfBirth(`${pickerYear}-${String(pickerMonth).padStart(2, '0')}-${String(pickerDay).padStart(2, '0')}`);
+                  setShowDobPickerModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Confirm Birth Date ✓</Text>
+              </TouchableOpacity>
 
-              <View style={styles.dobCol}>
-                <Text style={styles.dobColLabel}>YEAR</Text>
-                <TouchableOpacity onPress={() => setPickerYear(p => (p >= 2007 ? 1970 : p + 1))} style={styles.spinnerArrowBtn}>
-                  <Text style={styles.spinnerArrowText}>▲</Text>
-                </TouchableOpacity>
-                <Text style={styles.spinnerValueText}>{pickerYear}</Text>
-                <TouchableOpacity onPress={() => setPickerYear(p => (p <= 1970 ? 2007 : p - 1))} style={styles.spinnerArrowBtn}>
-                  <Text style={styles.spinnerArrowText}>▼</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { marginTop: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#3A3F50' }]}
+                onPress={() => setShowDobPickerModal(false)}>
+                <Text style={[styles.modalConfirmBtnText, { color: '#8E94A5' }]}>Cancel</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={styles.modalConfirmBtn}
-              onPress={() => {
-                setSetupDateOfBirth(`${pickerYear}-${String(pickerMonth).padStart(2, '0')}-${String(pickerDay).padStart(2, '0')}`);
-                setShowDobPickerModal(false);
-              }}>
-              <Text style={styles.modalConfirmBtnText}>Confirm Birth Date ✓</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalConfirmBtn, { marginTop: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: '#3A3F50' }]}
-              onPress={() => setShowDobPickerModal(false)}>
-              <Text style={[styles.modalConfirmBtnText, { color: '#8E94A5' }]}>Cancel</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* 2. Dietary Preference Modal Picker */}
-      <Modal visible={showDietPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Dietary Preference 🥗</Text>
-            <Text style={styles.modalHeaderSub}>Crucial in Indian dating to prevent awkward dining surprises.</Text>
-            <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 12 }}>
-              {DIETARY_OPTIONS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupDiet === item.key && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupDiet(item.key);
-                    setShowDietPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupDiet === item.key && styles.pickerOptionTextActive]}>
-                    {item.emoji} {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDietPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+      {showDietPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Dietary Preference 🥗</Text>
+              <Text style={styles.modalHeaderSub}>Crucial in Indian dating to prevent awkward dining surprises.</Text>
+              <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 12 }}>
+                {DIETARY_OPTIONS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupDiet === item.key && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupDiet(item.key);
+                      setShowDietPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupDiet === item.key && styles.pickerOptionTextActive]}>
+                      {item.emoji} {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDietPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* 3. Living Situation Modal Picker */}
-      <Modal visible={showLivingPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Living Situation 🏠</Text>
-            <Text style={styles.modalHeaderSub}>Affects spontaneous dating logistics & curfew compatibility.</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {LIVING_OPTIONS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupLiving === item.key && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupLiving(item.key);
-                    setShowLivingPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupLiving === item.key && styles.pickerOptionTextActive]}>
-                    {item.emoji} {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLivingPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+      {showLivingPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Living Situation 🏠</Text>
+              <Text style={styles.modalHeaderSub}>Affects spontaneous dating logistics & curfew compatibility.</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {LIVING_OPTIONS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupLiving === item.key && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupLiving(item.key);
+                      setShowLivingPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupLiving === item.key && styles.pickerOptionTextActive]}>
+                      {item.emoji} {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLivingPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* 3B. Smoking Modal Picker */}
-      <Modal visible={showSmokingPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Smoking Habit 🚭</Text>
-            <Text style={styles.modalHeaderSub}>Be upfront about your smoking habits for better compatibility.</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {SMOKING_OPTIONS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupSmoking.startsWith(item.label) && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupSmoking(`${item.label} ${item.emoji}`);
-                    setShowSmokingPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupSmoking.startsWith(item.label) && styles.pickerOptionTextActive]}>
-                    {item.emoji} {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowSmokingPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+      {showSmokingPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Smoking Habit 🚭</Text>
+              <Text style={styles.modalHeaderSub}>Be upfront about your smoking habits for better compatibility.</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {SMOKING_OPTIONS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupSmoking.startsWith(item.label) && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupSmoking(`${item.label} ${item.emoji}`);
+                      setShowSmokingPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupSmoking.startsWith(item.label) && styles.pickerOptionTextActive]}>
+                      {item.emoji} {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowSmokingPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* 3C. Drinking Modal Picker */}
-      <Modal visible={showDrinkingPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Alcohol / Drinking Habit 🍷</Text>
-            <Text style={styles.modalHeaderSub}>Your drinking comfort level for Friday night plans & cocktail dates.</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {DRINKING_OPTIONS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupDrinking.startsWith(item.label) && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupDrinking(`${item.label} ${item.emoji}`);
-                    setShowDrinkingPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupDrinking.startsWith(item.label) && styles.pickerOptionTextActive]}>
-                    {item.emoji} {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDrinkingPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+      {showDrinkingPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Alcohol / Drinking Habit 🍷</Text>
+              <Text style={styles.modalHeaderSub}>Your drinking comfort level for Friday night plans & cocktail dates.</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {DRINKING_OPTIONS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupDrinking.startsWith(item.label) && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupDrinking(`${item.label} ${item.emoji}`);
+                      setShowDrinkingPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupDrinking.startsWith(item.label) && styles.pickerOptionTextActive]}>
+                      {item.emoji} {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDrinkingPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* 3D. Vacation Vibe: Mountains vs Beaches Modal Picker */}
-      <Modal visible={showVacationPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Mountains or Beaches? 🏔️🏖️</Text>
-            <Text style={styles.modalHeaderSub}>Choose your go-to weekend escape & holiday vibe.</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {VACATION_OPTIONS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupVacation.startsWith(item.label) && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupVacation(`${item.label} ${item.emoji}`);
-                    setShowVacationPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupVacation.startsWith(item.label) && styles.pickerOptionTextActive]}>
-                    {item.emoji} {item.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowVacationPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+      {showVacationPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Mountains or Beaches? 🏔️🏖️</Text>
+              <Text style={styles.modalHeaderSub}>Choose your go-to weekend escape & holiday vibe.</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {VACATION_OPTIONS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupVacation.startsWith(item.label) && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupVacation(`${item.label} ${item.emoji}`);
+                      setShowVacationPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupVacation.startsWith(item.label) && styles.pickerOptionTextActive]}>
+                      {item.emoji} {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowVacationPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
 
       {/* 3E. Hobbies Multi-Select Modal */}
-      <Modal visible={showHobbiesPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '80%' }]}>
-            <Text style={styles.modalHeaderTitle}>Select Hobbies & Pursuits 🎨</Text>
-            <Text style={styles.modalHeaderSub}>Tap to select or deselect what you enjoy doing.</Text>
-            <ScrollView style={{ width: '100%', marginVertical: 12 }} contentContainerStyle={styles.interestsModalWrap}>
-              {HOBBIES_PRESETS.map((item, idx) => {
-                const cleanName = item.split(' ')[0];
-                const list = (tempHobbies || '').split(',').map(s => s.trim()).filter(s => s);
-                const isSelected = list.some(h => h.includes(cleanName) || item.includes(h));
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.interestModalPill,
-                      isSelected && {
-                        backgroundColor: 'rgba(255, 152, 0, 0.2)',
-                        borderColor: '#FF9800',
-                      },
-                    ]}
-                    onPress={() => {
-                      let newList;
-                      if (isSelected) {
-                        newList = list.filter(h => !h.includes(cleanName) && !item.includes(h));
-                      } else {
-                        newList = [...list, item];
-                      }
-                      setTempHobbies(newList.join(', '));
-                    }}>
-                    <Text
-                      style={[
-                        styles.interestModalPillText,
-                        isSelected && { color: '#FF9800', fontWeight: '800' },
-                      ]}>
-                      {item} {isSelected ? '✓' : ''}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <TouchableOpacity
-              style={[styles.modalConfirmBtn, { backgroundColor: '#FF9800' }]}
-              onPress={() => {
-                setSetupHobbies(tempHobbies);
-                setShowHobbiesPickerModal(false);
-              }}>
-              <Text style={styles.modalConfirmBtnText}>Save Hobbies ✓</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 4. Job / Occupation Picker Modal */}
-      <Modal visible={showJobPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Occupation 💼</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {JOB_PRESETS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupJob === item && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupJob(item);
-                    setShowJobPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupJob === item && styles.pickerOptionTextActive]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowJobPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 5. Education Picker Modal */}
-      <Modal visible={showEduPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Education 🎓</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {EDUCATION_PRESETS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupEducation === item && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupEducation(item);
-                    setShowEduPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupEducation === item && styles.pickerOptionTextActive]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowEduPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 6. Interests Multi-Select Modal */}
-      <Modal visible={showInterestPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '80%' }]}>
-            <Text style={styles.modalHeaderTitle}>Select Interests (At least 3) 🏷️</Text>
-            <Text style={styles.modalHeaderSub}>Tap to select or deselect interests.</Text>
-            <ScrollView style={{ width: '100%', marginVertical: 12 }} contentContainerStyle={styles.interestsModalWrap}>
-              {INTERESTS_PRESETS.map((item, idx) => {
-                const list = (tempInterests || '').split(',').map(s => s.trim()).filter(s => s);
-                const isSelected = list.includes(item);
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.interestModalPill, isSelected && styles.interestModalPillActive]}
-                    onPress={() => {
-                      let newList;
-                      if (isSelected) {
-                        newList = list.filter(i => i !== item);
-                      } else {
-                        newList = [...list, item];
-                      }
-                      setTempInterests(newList.join(', '));
-                    }}>
-                    <Text style={[styles.interestModalPillText, isSelected && styles.interestModalPillTextActive]}>
-                      {item} {isSelected ? '✓' : ''}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.modalConfirmBtn}
-              onPress={() => {
-                setSetupInterests(tempInterests);
-                setShowInterestPickerModal(false);
-              }}>
-              <Text style={styles.modalConfirmBtnText}>Save Interests ✓</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 7. Sexual Orientation Modal */}
-      <Modal visible={showOrientationPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Sexual Orientation 🏳️‍🌈</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {SEXUAL_ORIENTATION_PRESETS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupOrientation === item && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupOrientation(item);
-                    setShowOrientationPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupOrientation === item && styles.pickerOptionTextActive]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowOrientationPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 8. Gender Modal */}
-      <Modal visible={showGenderPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Gender 👤</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {GENDER_PRESETS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupGenderDisplay === item && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupGenderDisplay(item);
-                    setShowGenderPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupGenderDisplay === item && styles.pickerOptionTextActive]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowGenderPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 9. Gender Preference Modal */}
-      <Modal visible={showPreferencePickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Interested In 👥</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {GENDER_PREFERENCE_PRESETS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupPreferenceDisplay === item && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupPreferenceDisplay(item);
-                    setShowPreferencePickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupPreferenceDisplay === item && styles.pickerOptionTextActive]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowPreferencePickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 10. Intent Modal */}
-      <Modal visible={showIntentPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Relationship Goal 🎯</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {RELATIONSHIP_INTENT_PRESETS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupIntent === item && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupIntent(item);
-                    setShowIntentPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupIntent === item && styles.pickerOptionTextActive]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowIntentPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 11. Prompt Question Modal */}
-      <Modal visible={showPromptPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalHeaderTitle}>Select Prompt Question 🗣️</Text>
-            <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
-              {PROMPT_PRESETS.map((item, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pickerOptionItem, setupPromptQuestion === item && styles.pickerOptionActive]}
-                  onPress={() => {
-                    setSetupPromptQuestion(item);
-                    setShowPromptPickerModal(false);
-                  }}>
-                  <Text style={[styles.pickerOptionText, setupPromptQuestion === item && styles.pickerOptionTextActive]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowPromptPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 12. Vedic Zodiac (Rashi) Picker Modal */}
-      <Modal visible={showZodiacPickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '85%' }]}>
-            <Text style={styles.modalHeaderEmoji}>🪐</Text>
-            <Text style={styles.modalHeaderTitle}>Select Vedic Zodiac (Rashi)</Text>
-            <Text style={styles.modalHeaderSub}>Jyotish Rashis determine Moon Sign compatibility & cosmic harmony.</Text>
-            <ScrollView style={{ width: '100%', marginVertical: 12 }} showsVerticalScrollIndicator={false}>
-              {VEDIC_ZODIAC_OPTIONS.map((item, idx) => {
-                const isSelected = setupZodiacSign.includes(item.rashi);
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.zodiacOptionCard, isSelected && styles.zodiacOptionCardActive]}
-                    onPress={() => handleSelectZodiac(item)}>
-                    <View style={styles.zodiacTopRow}>
-                      <Text style={styles.zodiacSymbol}>{item.symbol}</Text>
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={[styles.zodiacRashiText, isSelected && styles.zodiacTextActive]}>
-                            {item.rashi}
-                          </Text>
-                          <Text style={styles.zodiacWesternText}>({item.western})</Text>
-                        </View>
-                        <Text style={styles.zodiacSubText}>
-                          {item.element} • Lord: {item.lord}
-                        </Text>
-                      </View>
-                      {isSelected && <Text style={styles.zodiacTick}>✓</Text>}
-                    </View>
-                    <Text style={styles.zodiacTraitsText}>{item.traits}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowZodiacPickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 13. 15-Second Voice Note Recorder Modal */}
-      <Modal visible={showVoiceRecorderModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '88%' }]}>
-            <Text style={styles.modalHeaderEmoji}>🎙️</Text>
-            <Text style={styles.modalHeaderTitle}>15s Vernacular Voice Note</Text>
-            <Text style={styles.modalHeaderSub}>
-              Share your voice, accent, or native language to connect on a deeper human level.
-            </Text>
-
-            {/* Topic Selector Chips */}
-            <Text style={styles.modalSectionSubTitle}>Choose a Prompt Topic:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.topicScrollView}>
-              {VOICE_PROMPT_TOPICS.map((topic, idx) => {
-                const isSelected = setupVoicePromptText === topic;
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[styles.topicChip, isSelected && styles.topicChipActive]}
-                    onPress={() => setSetupVoicePromptText(topic)}>
-                    <Text style={[styles.topicChipText, isSelected && styles.topicChipTextActive]}>
-                      {topic}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Selected Topic Display */}
-            <View style={styles.activeTopicBox}>
-              <Text style={styles.activeTopicQuote}>"{setupVoicePromptText || VOICE_PROMPT_TOPICS[0]}"</Text>
-            </View>
-
-            {/* Timer & Waveform Display */}
-            <View style={styles.recorderStatusBox}>
-              <Text style={styles.recorderTimerText}>
-                00:{String(voiceRecordSeconds).padStart(2, '0')} / 00:15
-              </Text>
-              <View style={styles.waveformContainer}>
-                {[12, 26, 38, 18, 32, 10, 36, 22, 42, 16, 28, 20, 34, 14, 30].map((h, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.waveformBar,
-                      {
-                        height: isVoiceRecording
-                          ? ((h * 1.4 + idx * 3) % 36) + 8
-                          : isPlayingVoice
-                          ? ((h * 1.2) % 30) + 6
-                          : 6,
-                        backgroundColor: isVoiceRecording ? '#E94057' : (recordedAudioUri ? '#2ED573' : '#3A3E4E'),
-                      },
-                    ]}
-                  />
-                ))}
-              </View>
-              <Text style={styles.recordingStatusLabel}>
-                {isVoiceRecording
-                  ? '🔴 Recording in progress... (15s limit)'
-                  : recordedAudioUri
-                  ? '✅ Voice note recorded! Listen preview or save.'
-                  : 'Tap below to begin speaking'}
-              </Text>
-            </View>
-
-            {/* Record Controls */}
-            <View style={styles.recorderControlsRow}>
-              {!isVoiceRecording ? (
-                <TouchableOpacity
-                  style={styles.recordStartBtn}
-                  onPress={startVoiceRecording}>
-                  <Text style={styles.recordStartBtnText}>
-                    {recordedAudioUri ? '🔄 Record Again' : '🎙️ Start Recording'}
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.recordStopBtn}
-                  onPress={stopVoiceRecording}>
-                  <Text style={styles.recordStopBtnText}>⏹️ Stop Recording ({15 - voiceRecordSeconds}s)</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Play Preview & Save Options (if recorded) */}
-            {recordedAudioUri && !isVoiceRecording ? (
-              <View style={styles.previewActionsRow}>
-                <TouchableOpacity
-                  style={styles.previewPlayBtn}
-                  onPress={() => handleTogglePlayVoice(recordedAudioUri)}>
-                  <Text style={styles.previewPlayBtnText}>
-                    {isPlayingVoice ? '⏸️ Pause' : '▶ Listen Preview'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.saveVoiceBtn}
-                  onPress={handleSaveVoiceNote}>
-                  <Text style={styles.saveVoiceBtnText}>Save Voice Note ✓</Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
-            <TouchableOpacity
-              style={[styles.modalCancelBtn, { marginTop: 14 }]}
-              onPress={() => {
-                if (isVoiceRecording) stopVoiceRecording();
-                stopAudibleVoiceNote();
-                setIsPlayingVoice(false);
-                setShowVoiceRecorderModal(false);
-              }}>
-              <Text style={styles.modalCancelBtnText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 14. Profile Meme Selector Modal */}
-      <Modal visible={showMemePickerModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '88%' }]}>
-            <Text style={styles.modalHeaderEmoji}>🤣</Text>
-            <Text style={styles.modalHeaderTitle}>Select Profile Meme</Text>
-            <Text style={styles.modalHeaderSub}>
-              Pick from curated Indian dating memes or upload your own to showcase your vibe.
-            </Text>
-
-            {/* Custom Meme Upload Button */}
-            <TouchableOpacity
-              style={styles.uploadMemeOptionBtn}
-              onPress={handleUploadCustomMeme}>
-              <Text style={styles.uploadMemeOptionIcon}>🖼️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.uploadMemeOptionTitle}>Upload Custom Meme</Text>
-                <Text style={styles.uploadMemeOptionSub}>Pick an image from your device photos</Text>
-              </View>
-              <Text style={styles.uploadMemeOptionAction}>Browse →</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.modalSectionSubTitle}>Or Pick a Curated Preset ({MEME_PRESETS.length} Memes):</Text>
-
-            {/* Category Filter Chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ maxHeight: 38, marginVertical: 6 }}>
-              <View style={styles.memeCategoryFilterRow}>
-                {(['All', 'Global Legends', 'Dating & Romance', 'Desi Classics'] as const).map((cat) => {
-                  const count = cat === 'All' ? MEME_PRESETS.length : MEME_PRESETS.filter(m => m.category === cat).length;
-                  const isActive = selectedMemeCategory === cat;
+      {showHobbiesPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '80%' }]}>
+              <Text style={styles.modalHeaderTitle}>Select Hobbies & Pursuits 🎨</Text>
+              <Text style={styles.modalHeaderSub}>Tap to select or deselect what you enjoy doing.</Text>
+              <ScrollView style={{ width: '100%', marginVertical: 12 }} contentContainerStyle={styles.interestsModalWrap}>
+                {HOBBIES_PRESETS.map((item, idx) => {
+                  const cleanName = item.split(' ')[0];
+                  const list = (tempHobbies || '').split(',').map(s => s.trim()).filter(s => s);
+                  const isSelected = list.some(h => h.includes(cleanName) || item.includes(h));
                   return (
                     <TouchableOpacity
-                      key={cat}
-                      style={[styles.memeCategoryChip, isActive && styles.memeCategoryChipActive]}
-                      onPress={() => setSelectedMemeCategory(cat)}>
-                      <Text style={[styles.memeCategoryChipText, isActive && styles.memeCategoryChipTextActive]}>
-                        {cat} ({count})
+                      key={idx}
+                      style={[
+                        styles.interestModalPill,
+                        isSelected && {
+                          backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                          borderColor: '#FF9800',
+                        },
+                      ]}
+                      onPress={() => {
+                        let newList;
+                        if (isSelected) {
+                          newList = list.filter(h => !h.includes(cleanName) && !item.includes(h));
+                        } else {
+                          newList = [...list, item];
+                        }
+                        setTempHobbies(newList.join(', '));
+                      }}>
+                      <Text
+                        style={[
+                          styles.interestModalPillText,
+                          isSelected && { color: '#FF9800', fontWeight: '800' },
+                        ]}>
+                        {item} {isSelected ? '✓' : ''}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
-            </ScrollView>
-
-            <ScrollView style={{ width: '100%', maxHeight: 320, marginVertical: 4 }} showsVerticalScrollIndicator={false}>
-              <View style={styles.memePresetsGrid}>
-                {MEME_PRESETS
-                  .filter((preset) => selectedMemeCategory === 'All' || preset.category === selectedMemeCategory)
-                  .map((preset, idx) => {
-                    const isSelected = setupMemeUrl === preset.imageUrl;
-                    return (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[styles.memeGridCard, isSelected && styles.memeGridCardActive]}
-                        onPress={() => handleSelectPresetMeme(preset)}>
-                        <Image
-                          source={{ uri: preset.imageUrl }}
-                          style={styles.memeGridImg}
-                          contentFit="cover"
-                          transition={200}
-                        />
-                        <View style={styles.memeGridInfo}>
-                          <Text style={styles.memeGridTitle} numberOfLines={2}>{preset.title}</Text>
-                          <Text style={styles.memeGridCategory}>{preset.category}</Text>
-                          {isSelected && (
-                            <View style={styles.memeSelectedBadge}>
-                              <Text style={styles.memeSelectedBadgeText}>✓ Selected</Text>
-                            </View>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                })}
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowMemePickerModal(false)}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* 15. 100% Profile Completion Guide Modal */}
-      <Modal
-        visible={showCompletionGuideModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCompletionGuideModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.guideModalCard}>
-            <View style={styles.guideHeaderIconWrap}>
-              <Text style={{ fontSize: 30 }}>🚀</Text>
-            </View>
-
-            <Text style={styles.guideModalTitle}>Discovery Unlocked! ({completionScore}%)</Text>
-            <Text style={styles.guideModalSub}>
-              You’ve crossed the minimum 30% milestone! Profiles with 100% completion receive up to 3.5x more mutual matches.
-            </Text>
-
-            {/* Score Progress Bar */}
-            <View style={styles.guideProgressBox}>
-              <View style={styles.guideProgressTrack}>
-                <View style={[styles.guideProgressFill, { width: `${completionScore}%` }]} />
-              </View>
-              <View style={styles.guideProgressLabels}>
-                <Text style={styles.guideCurrentScoreText}>{completionScore}% Current</Text>
-                <Text style={styles.guideTargetScoreText}>Target: 100% 🎯</Text>
-              </View>
-            </View>
-
-            {/* Missing Items Checklist */}
-            <Text style={styles.guideSectionTitle}>Add these to reach 100%:</Text>
-            <ScrollView style={{ maxHeight: 220, width: '100%', marginVertical: 6 }} showsVerticalScrollIndicator={false}>
-              {/* Photo Checklist */}
-              <View style={styles.guideItemRow}>
-                <Text style={styles.guideItemIcon}>{setupPhoto2 && setupPhoto3 ? '✅' : '📷'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guideItemTitle}>Upload 4+ Profile Photos</Text>
-                  <Text style={styles.guideItemSub}>Profiles with multiple angles get 3x more swipes (+8%)</Text>
-                </View>
-                <Text style={setupPhoto2 && setupPhoto3 ? styles.guideItemPointsDone : styles.guideItemPoints}>
-                  {setupPhoto2 && setupPhoto3 ? 'Done' : '+8%'}
-                </Text>
-              </View>
-
-              {/* Bio Checklist */}
-              <View style={styles.guideItemRow}>
-                <Text style={styles.guideItemIcon}>{setupBio ? '✅' : '✍️'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guideItemTitle}>Write a Bio</Text>
-                  <Text style={styles.guideItemSub}>Share your story, humor & vibe (+8%)</Text>
-                </View>
-                <Text style={setupBio ? styles.guideItemPointsDone : styles.guideItemPoints}>
-                  {setupBio ? 'Done' : '+8%'}
-                </Text>
-              </View>
-
-              {/* Prompt Checklist */}
-              <View style={styles.guideItemRow}>
-                <Text style={styles.guideItemIcon}>{setupPromptAnswer ? '✅' : '☕'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guideItemTitle}>Answer a Lifestyle Prompt</Text>
-                  <Text style={styles.guideItemSub}>Spark conversations about coffee & weekend plans (+7%)</Text>
-                </View>
-                <Text style={setupPromptAnswer ? styles.guideItemPointsDone : styles.guideItemPoints}>
-                  {setupPromptAnswer ? 'Done' : '+7%'}
-                </Text>
-              </View>
-
-              {/* Verified Selfie Checklist */}
+              </ScrollView>
               <TouchableOpacity
-                style={styles.guideItemRow}
-                activeOpacity={0.7}
-                onPress={handleTakeSelfie}>
-                <Text style={styles.guideItemIcon}>{setupSelfie ? '✅' : '🤳'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guideItemTitle}>Biometric Selfie Verification</Text>
-                  <Text style={styles.guideItemSub}>Earn the Gold Trust Shield badge (+4%)</Text>
-                </View>
-                <Text style={setupSelfie ? styles.guideItemPointsDone : styles.guideItemPoints}>
-                  {setupSelfie ? 'Done' : '+4%'}
+                style={[styles.modalConfirmBtn, { backgroundColor: '#FF9800' }]}
+                onPress={() => {
+                  setSetupHobbies(tempHobbies);
+                  setShowHobbiesPickerModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Hobbies ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 4. Job / Occupation Picker Modal */}
+      {showJobPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Occupation 💼</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {JOB_PRESETS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupJob === item && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupJob(item);
+                      setShowJobPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupJob === item && styles.pickerOptionTextActive]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowJobPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 5. Education Picker Modal */}
+      {showEduPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Education 🎓</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {EDUCATION_PRESETS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupEducation === item && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupEducation(item);
+                      setShowEduPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupEducation === item && styles.pickerOptionTextActive]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowEduPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 6. Interests Multi-Select Modal */}
+      {showInterestPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '80%' }]}>
+              <Text style={styles.modalHeaderTitle}>Select Interests (At least 3) 🏷️</Text>
+              <Text style={styles.modalHeaderSub}>Tap to select or deselect interests.</Text>
+              <ScrollView style={{ width: '100%', marginVertical: 12 }} contentContainerStyle={styles.interestsModalWrap}>
+                {INTERESTS_PRESETS.map((item, idx) => {
+                  const list = (tempInterests || '').split(',').map(s => s.trim()).filter(s => s);
+                  const isSelected = list.includes(item);
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[styles.interestModalPill, isSelected && styles.interestModalPillActive]}
+                      onPress={() => {
+                        let newList;
+                        if (isSelected) {
+                          newList = list.filter(i => i !== item);
+                        } else {
+                          newList = [...list, item];
+                        }
+                        setTempInterests(newList.join(', '));
+                      }}>
+                      <Text style={[styles.interestModalPillText, isSelected && styles.interestModalPillTextActive]}>
+                        {item} {isSelected ? '✓' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                onPress={() => {
+                  setSetupInterests(tempInterests);
+                  setShowInterestPickerModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Interests ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 7. Sexual Orientation Modal */}
+      {showOrientationPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Sexual Orientation 🏳️‍🌈</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {SEXUAL_ORIENTATION_PRESETS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupOrientation === item && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupOrientation(item);
+                      setShowOrientationPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupOrientation === item && styles.pickerOptionTextActive]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowOrientationPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 8. Gender Modal */}
+      {showGenderPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Gender 👤</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {GENDER_PRESETS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupGenderDisplay === item && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupGenderDisplay(item);
+                      setShowGenderPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupGenderDisplay === item && styles.pickerOptionTextActive]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowGenderPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 9. Gender Preference Modal */}
+      {showPreferencePickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Interested In 👥</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {GENDER_PREFERENCE_PRESETS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupPreferenceDisplay === item && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupPreferenceDisplay(item);
+                      setShowPreferencePickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupPreferenceDisplay === item && styles.pickerOptionTextActive]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowPreferencePickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 10. Intent Modal */}
+      {showIntentPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Relationship Goal 🎯</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {RELATIONSHIP_INTENT_PRESETS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupIntent === item && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupIntent(item);
+                      setShowIntentPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupIntent === item && styles.pickerOptionTextActive]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowIntentPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 11. Prompt Question Modal */}
+      {showPromptPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderTitle}>Select Prompt Question 🗣️</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
+                {PROMPT_PRESETS.map((item, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pickerOptionItem, setupPromptQuestion === item && styles.pickerOptionActive]}
+                    onPress={() => {
+                      setSetupPromptQuestion(item);
+                      setShowPromptPickerModal(false);
+                    }}>
+                    <Text style={[styles.pickerOptionText, setupPromptQuestion === item && styles.pickerOptionTextActive]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowPromptPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 12. Vedic Zodiac (Rashi) Picker Modal */}
+      {showZodiacPickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '85%' }]}>
+              <Text style={styles.modalHeaderEmoji}>🪐</Text>
+              <Text style={styles.modalHeaderTitle}>Select Vedic Zodiac (Rashi)</Text>
+              <Text style={styles.modalHeaderSub}>Jyotish Rashis determine Moon Sign compatibility & cosmic harmony.</Text>
+              <ScrollView style={{ width: '100%', marginVertical: 12 }} showsVerticalScrollIndicator={false}>
+                {VEDIC_ZODIAC_OPTIONS.map((item, idx) => {
+                  const isSelected = setupZodiacSign.includes(item.rashi);
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[styles.zodiacOptionCard, isSelected && styles.zodiacOptionCardActive]}
+                      onPress={() => handleSelectZodiac(item)}>
+                      <View style={styles.zodiacTopRow}>
+                        <Text style={styles.zodiacSymbol}>{item.symbol}</Text>
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.zodiacRashiText, isSelected && styles.zodiacTextActive]}>
+                              {item.rashi}
+                            </Text>
+                            <Text style={styles.zodiacWesternText}>({item.western})</Text>
+                          </View>
+                          <Text style={styles.zodiacSubText}>
+                            {item.element} • Lord: {item.lord}
+                          </Text>
+                        </View>
+                        {isSelected && <Text style={styles.zodiacTick}>✓</Text>}
+                      </View>
+                      <Text style={styles.zodiacTraitsText}>{item.traits}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowZodiacPickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 13. 15-Second Voice Note Recorder Modal */}
+      {showVoiceRecorderModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '88%' }]}>
+              <Text style={styles.modalHeaderEmoji}>🎙️</Text>
+              <Text style={styles.modalHeaderTitle}>15s Vernacular Voice Note</Text>
+              <Text style={styles.modalHeaderSub}>
+                Share your voice, accent, or native language to connect on a deeper human level.
+              </Text>
+
+              {/* Topic Selector Chips */}
+              <Text style={styles.modalSectionSubTitle}>Choose a Prompt Topic:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.topicScrollView}>
+                {VOICE_PROMPT_TOPICS.map((topic, idx) => {
+                  const isSelected = setupVoicePromptText === topic;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[styles.topicChip, isSelected && styles.topicChipActive]}
+                      onPress={() => setSetupVoicePromptText(topic)}>
+                      <Text style={[styles.topicChipText, isSelected && styles.topicChipTextActive]}>
+                        {topic}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Selected Topic Display */}
+              <View style={styles.activeTopicBox}>
+                <Text style={styles.activeTopicQuote}>"{setupVoicePromptText || VOICE_PROMPT_TOPICS[0]}"</Text>
+              </View>
+
+              {/* Timer & Waveform Display */}
+              <View style={styles.recorderStatusBox}>
+                <Text style={styles.recorderTimerText}>
+                  00:{String(voiceRecordSeconds).padStart(2, '0')} / 00:15
                 </Text>
+                <View style={styles.waveformContainer}>
+                  {[12, 26, 38, 18, 32, 10, 36, 22, 42, 16, 28, 20, 34, 14, 30].map((h, idx) => (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.waveformBar,
+                        {
+                          height: isVoiceRecording
+                            ? ((h * 1.4 + idx * 3) % 36) + 8
+                            : isPlayingVoice
+                            ? ((h * 1.2) % 30) + 6
+                            : 6,
+                          backgroundColor: isVoiceRecording ? '#E94057' : (recordedAudioUri ? '#2ED573' : '#3A3E4E'),
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.recordingStatusLabel}>
+                  {isVoiceRecording
+                    ? '🔴 Recording in progress... (15s limit)'
+                    : recordedAudioUri
+                    ? '✅ Voice note recorded! Listen preview or save.'
+                    : 'Tap below to begin speaking'}
+                </Text>
+              </View>
+
+              {/* Record Controls */}
+              <View style={styles.recorderControlsRow}>
+                {!isVoiceRecording ? (
+                  <TouchableOpacity
+                    style={styles.recordStartBtn}
+                    onPress={startVoiceRecording}>
+                    <Text style={styles.recordStartBtnText}>
+                      {recordedAudioUri ? '🔄 Record Again' : '🎙️ Start Recording'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.recordStopBtn}
+                    onPress={stopVoiceRecording}>
+                    <Text style={styles.recordStopBtnText}>⏹️ Stop Recording ({15 - voiceRecordSeconds}s)</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Play Preview & Save Options (if recorded) */}
+              {recordedAudioUri && !isVoiceRecording ? (
+                <View style={styles.previewActionsRow}>
+                  <TouchableOpacity
+                    style={styles.previewPlayBtn}
+                    onPress={() => handleTogglePlayVoice(recordedAudioUri)}>
+                    <Text style={styles.previewPlayBtnText}>
+                      {isPlayingVoice ? '⏸️ Pause' : '▶ Listen Preview'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.saveVoiceBtn}
+                    onPress={handleSaveVoiceNote}>
+                    <Text style={styles.saveVoiceBtnText}>Save Voice Note ✓</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.modalCancelBtn, { marginTop: 14 }]}
+                onPress={() => {
+                  if (isVoiceRecording) stopVoiceRecording();
+                  stopAudibleVoiceNote();
+                  setIsPlayingVoice(false);
+                  setShowVoiceRecorderModal(false);
+                }}>
+                <Text style={styles.modalCancelBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 14. Profile Meme Selector Modal */}
+      {showMemePickerModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '88%' }]}>
+              <Text style={styles.modalHeaderEmoji}>🤣</Text>
+              <Text style={styles.modalHeaderTitle}>Select Profile Meme</Text>
+              <Text style={styles.modalHeaderSub}>
+                Pick from curated Indian dating memes or upload your own to showcase your vibe.
+              </Text>
+
+              {/* Custom Meme Upload Button */}
+              <TouchableOpacity
+                style={styles.uploadMemeOptionBtn}
+                onPress={handleUploadCustomMeme}>
+                <Text style={styles.uploadMemeOptionIcon}>🖼️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.uploadMemeOptionTitle}>Upload Custom Meme</Text>
+                  <Text style={styles.uploadMemeOptionSub}>Pick an image from your device photos</Text>
+                </View>
+                <Text style={styles.uploadMemeOptionAction}>Browse →</Text>
               </TouchableOpacity>
 
-              {/* Career & Education */}
-              <View style={styles.guideItemRow}>
-                <Text style={styles.guideItemIcon}>{setupJob && setupEducation ? '✅' : '💼'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guideItemTitle}>Career & Education</Text>
-                  <Text style={styles.guideItemSub}>Occupation, university & height (+10%)</Text>
+              <Text style={styles.modalSectionSubTitle}>Or Pick a Curated Preset ({MEME_PRESETS.length} Memes):</Text>
+
+              {/* Category Filter Chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ maxHeight: 38, marginVertical: 6 }}>
+                <View style={styles.memeCategoryFilterRow}>
+                  {(['All', 'Global Legends', 'Dating & Romance', 'Desi Classics'] as const).map((cat) => {
+                    const count = cat === 'All' ? MEME_PRESETS.length : MEME_PRESETS.filter(m => m.category === cat).length;
+                    const isActive = selectedMemeCategory === cat;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[styles.memeCategoryChip, isActive && styles.memeCategoryChipActive]}
+                        onPress={() => setSelectedMemeCategory(cat)}>
+                        <Text style={[styles.memeCategoryChipText, isActive && styles.memeCategoryChipTextActive]}>
+                          {cat} ({count})
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
-                <Text style={setupJob && setupEducation ? styles.guideItemPointsDone : styles.guideItemPoints}>
-                  {setupJob && setupEducation ? 'Done' : '+10%'}
-                </Text>
-              </View>
+              </ScrollView>
 
-              {/* Dietary & Habits */}
-              <View style={styles.guideItemRow}>
-                <Text style={styles.guideItemIcon}>{setupDiet && setupLiving ? '✅' : '🥗'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guideItemTitle}>Dietary & Living Arrangement</Text>
-                  <Text style={styles.guideItemSub}>Pure Veg, Non-Veg, Flat or with parents (+10%)</Text>
+              <ScrollView style={{ width: '100%', maxHeight: 320, marginVertical: 4 }} showsVerticalScrollIndicator={false}>
+                <View style={styles.memePresetsGrid}>
+                  {MEME_PRESETS
+                    .filter((preset) => selectedMemeCategory === 'All' || preset.category === selectedMemeCategory)
+                    .map((preset, idx) => {
+                      const isSelected = setupMemeUrl === preset.imageUrl;
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[styles.memeGridCard, isSelected && styles.memeGridCardActive]}
+                          onPress={() => handleSelectPresetMeme(preset)}>
+                          <Image
+                            source={{ uri: preset.imageUrl }}
+                            style={styles.memeGridImg}
+                            contentFit="cover"
+                            transition={200}
+                          />
+                          <View style={styles.memeGridInfo}>
+                            <Text style={styles.memeGridTitle} numberOfLines={2}>{preset.title}</Text>
+                            <Text style={styles.memeGridCategory}>{preset.category}</Text>
+                            {isSelected && (
+                              <View style={styles.memeSelectedBadge}>
+                                <Text style={styles.memeSelectedBadgeText}>✓ Selected</Text>
+                              </View>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                  })}
                 </View>
-                <Text style={setupDiet && setupLiving ? styles.guideItemPointsDone : styles.guideItemPoints}>
-                  {setupDiet && setupLiving ? 'Done' : '+10%'}
-                </Text>
-              </View>
+              </ScrollView>
 
-              {/* Hobbies & Passions */}
-              <View style={styles.guideItemRow}>
-                <Text style={styles.guideItemIcon}>{setupHobbies && setupInterests ? '✅' : '🎨'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.guideItemTitle}>Interests & Passions</Text>
-                  <Text style={styles.guideItemSub}>Specialty Coffee, Trekking, Cycling, Reading (+5%)</Text>
-                </View>
-                <Text style={setupHobbies && setupInterests ? styles.guideItemPointsDone : styles.guideItemPoints}>
-                  {setupHobbies && setupInterests ? 'Done' : '+5%'}
-                </Text>
-              </View>
-            </ScrollView>
-
-            {/* Action Buttons */}
-            <TouchableOpacity
-              style={styles.guideCompleteBtn}
-              onPress={() => {
-                setShowCompletionGuideModal(false);
-                setIsEditingProfile(true);
-              }}>
-              <Text style={styles.guideCompleteBtnText}>Add More Details Now ✍️</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.guideExploreBtn}
-              onPress={() => {
-                setShowCompletionGuideModal(false);
-                router.replace('/(tabs)');
-              }}>
-              <Text style={styles.guideExploreBtnText}>Start Discovering Singles ❤️</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowMemePickerModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
+
+      {/* 15. 100% Profile Completion Guide Modal */}
+      {showCompletionGuideModal && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowCompletionGuideModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.guideModalCard}>
+              <View style={styles.guideHeaderIconWrap}>
+                <Text style={{ fontSize: 30 }}>🚀</Text>
+              </View>
+
+              <Text style={styles.guideModalTitle}>Discovery Unlocked! ({completionScore}%)</Text>
+              <Text style={styles.guideModalSub}>
+                You’ve crossed the minimum 30% milestone! Profiles with 100% completion receive up to 3.5x more mutual matches.
+              </Text>
+
+              {/* Score Progress Bar */}
+              <View style={styles.guideProgressBox}>
+                <View style={styles.guideProgressTrack}>
+                  <View style={[styles.guideProgressFill, { width: `${completionScore}%` }]} />
+                </View>
+                <View style={styles.guideProgressLabels}>
+                  <Text style={styles.guideCurrentScoreText}>{completionScore}% Current</Text>
+                  <Text style={styles.guideTargetScoreText}>Target: 100% 🎯</Text>
+                </View>
+              </View>
+
+              {/* Missing Items Checklist */}
+              <Text style={styles.guideSectionTitle}>Add these to reach 100%:</Text>
+              <ScrollView style={{ maxHeight: 220, width: '100%', marginVertical: 6 }} showsVerticalScrollIndicator={false}>
+                {/* Photo Checklist */}
+                <View style={styles.guideItemRow}>
+                  <Text style={styles.guideItemIcon}>{setupPhoto2 && setupPhoto3 ? '✅' : '📷'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.guideItemTitle}>Upload 4+ Profile Photos</Text>
+                    <Text style={styles.guideItemSub}>Profiles with multiple angles get 3x more swipes (+8%)</Text>
+                  </View>
+                  <Text style={setupPhoto2 && setupPhoto3 ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                    {setupPhoto2 && setupPhoto3 ? 'Done' : '+8%'}
+                  </Text>
+                </View>
+
+                {/* Bio Checklist */}
+                <View style={styles.guideItemRow}>
+                  <Text style={styles.guideItemIcon}>{setupBio ? '✅' : '✍️'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.guideItemTitle}>Write a Bio</Text>
+                    <Text style={styles.guideItemSub}>Share your story, humor & vibe (+8%)</Text>
+                  </View>
+                  <Text style={setupBio ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                    {setupBio ? 'Done' : '+8%'}
+                  </Text>
+                </View>
+
+                {/* Prompt Checklist */}
+                <View style={styles.guideItemRow}>
+                  <Text style={styles.guideItemIcon}>{setupPromptAnswer ? '✅' : '☕'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.guideItemTitle}>Answer a Lifestyle Prompt</Text>
+                    <Text style={styles.guideItemSub}>Spark conversations about coffee & weekend plans (+7%)</Text>
+                  </View>
+                  <Text style={setupPromptAnswer ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                    {setupPromptAnswer ? 'Done' : '+7%'}
+                  </Text>
+                </View>
+
+                {/* Verified Selfie Checklist */}
+                <TouchableOpacity
+                  style={styles.guideItemRow}
+                  activeOpacity={0.7}
+                  onPress={handleTakeSelfie}>
+                  <Text style={styles.guideItemIcon}>{setupSelfie ? '✅' : '🤳'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.guideItemTitle}>Biometric Selfie Verification</Text>
+                    <Text style={styles.guideItemSub}>Earn the Gold Trust Shield badge (+4%)</Text>
+                  </View>
+                  <Text style={setupSelfie ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                    {setupSelfie ? 'Done' : '+4%'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Career & Education */}
+                <View style={styles.guideItemRow}>
+                  <Text style={styles.guideItemIcon}>{setupJob && setupEducation ? '✅' : '💼'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.guideItemTitle}>Career & Education</Text>
+                    <Text style={styles.guideItemSub}>Occupation, university & height (+10%)</Text>
+                  </View>
+                  <Text style={setupJob && setupEducation ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                    {setupJob && setupEducation ? 'Done' : '+10%'}
+                  </Text>
+                </View>
+
+                {/* Dietary & Habits */}
+                <View style={styles.guideItemRow}>
+                  <Text style={styles.guideItemIcon}>{setupDiet && setupLiving ? '✅' : '🥗'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.guideItemTitle}>Dietary & Living Arrangement</Text>
+                    <Text style={styles.guideItemSub}>Pure Veg, Non-Veg, Flat or with parents (+10%)</Text>
+                  </View>
+                  <Text style={setupDiet && setupLiving ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                    {setupDiet && setupLiving ? 'Done' : '+10%'}
+                  </Text>
+                </View>
+
+                {/* Hobbies & Passions */}
+                <View style={styles.guideItemRow}>
+                  <Text style={styles.guideItemIcon}>{setupHobbies && setupInterests ? '✅' : '🎨'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.guideItemTitle}>Interests & Passions</Text>
+                    <Text style={styles.guideItemSub}>Specialty Coffee, Trekking, Cycling, Reading (+5%)</Text>
+                  </View>
+                  <Text style={setupHobbies && setupInterests ? styles.guideItemPointsDone : styles.guideItemPoints}>
+                    {setupHobbies && setupInterests ? 'Done' : '+5%'}
+                  </Text>
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <TouchableOpacity
+                style={styles.guideCompleteBtn}
+                onPress={() => {
+                  setShowCompletionGuideModal(false);
+                  setIsEditingProfile(true);
+                }}>
+                <Text style={styles.guideCompleteBtnText}>Add More Details Now ✍️</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.guideExploreBtn}
+                onPress={() => {
+                  setShowCompletionGuideModal(false);
+                  router.replace('/(tabs)');
+                }}>
+                <Text style={styles.guideExploreBtnText}>Start Discovering Singles ❤️</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* DESIRE PROFILE MODAL */}
-      <DesireProfileModal
-        visible={showDesireModal}
-        onClose={() => setShowDesireModal(false)}
-        onSaved={(updated) => setDesireProfile(updated)}
-      />
+      {showDesireModal && (
+        <DesireProfileModal
+          visible={true}
+          onClose={() => setShowDesireModal(false)}
+          onSaved={(updated) => setDesireProfile(updated)}
+        />
+      )}
 
       {/* BIOMETRIC SELFIE CAMERA MODAL (FRONT CAMERA) */}
-      <SelfieCameraModal
-        visible={showSelfieModal}
-        onClose={() => setShowSelfieModal(false)}
-        onCapture={handleSelfieCaptured}
-      />
+      {showSelfieModal && (
+        <SelfieCameraModal
+          visible={true}
+          onClose={() => setShowSelfieModal(false)}
+          onCapture={handleSelfieCaptured}
+        />
+      )}
     </SafeAreaView>
   );
 }

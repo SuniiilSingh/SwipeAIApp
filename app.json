@@ -45,6 +45,14 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Blunderr Dating uses your location to discover matches nearby and show real-time distance."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#FF2B66",
+          "defaultChannel": "default"
+        }
       ]
     ],
     "experiments": {

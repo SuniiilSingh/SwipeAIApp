@@ -58,6 +58,7 @@ const STORAGE_KEYS = {
   USER_ID: '@swipeai_user_id',
   ONBOARDING_COMPLETED: '@swipeai_onboarding_completed',
   USER_PROFILE: '@swipeai_user_profile',
+  PUSH_TOKEN: '@swipeai_push_token',
 };
 
 let authToken: string | null = null;
@@ -69,6 +70,12 @@ export const setAuthToken = (token: string | null, userId?: string) => {
   if (token) {
     AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token).catch(() => {});
     if (userId) AsyncStorage.setItem(STORAGE_KEYS.USER_ID, userId).catch(() => {});
+    // Auto-sync cached push token if user was registered before login
+    AsyncStorage.getItem(STORAGE_KEYS.PUSH_TOKEN).then((savedPushToken) => {
+      if (savedPushToken && authToken) {
+        api.registerPushToken(savedPushToken).catch(() => {});
+      }
+    }).catch(() => {});
   } else {
     AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN).catch(() => {});
     AsyncStorage.removeItem(STORAGE_KEYS.USER_ID).catch(() => {});
@@ -1006,5 +1013,65 @@ export const api = {
       isVideo,
       isSimulated: false,
     };
+  },
+
+  // Push Notifications (Expo Push Notification API)
+  registerPushToken: async (token: string, platform?: string): Promise<boolean> => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.PUSH_TOKEN, token);
+      if (!authToken) {
+        await initAuth();
+      }
+      if (!authToken) return false;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/push-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ token, platform: platform || Platform.OS }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[api] Failed to register push token:', e);
+      return false;
+    }
+  },
+
+  unregisterPushToken: async (token: string): Promise<boolean> => {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.PUSH_TOKEN);
+      if (!authToken) {
+        await initAuth();
+      }
+      if (!authToken) return false;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/push-token`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ token }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[api] Failed to unregister push token:', e);
+      return false;
+    }
+  },
+
+  sendTestPushNotification: async (title?: string, body?: string): Promise<boolean> => {
+    try {
+      if (!authToken) {
+        await initAuth();
+      }
+      if (!authToken) return false;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/test-push`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ title, body }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[api] Failed to send test push notification:', e);
+      return false;
+    }
   },
 };

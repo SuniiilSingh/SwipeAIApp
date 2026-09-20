@@ -635,7 +635,9 @@ function SwipeableCandidateCard({
       {/* Top App Bar */}
       <View style={styles.brandBar}>
         <View style={styles.brandTitleWrap}>
-          <Text style={styles.brandLogo}>Blunderr Dating</Text>
+          <Text style={styles.brandLogo} numberOfLines={1}>
+            Blunderr Dating
+          </Text>
           <View style={styles.liveIndicator}>
             <View style={styles.liveGreenDot} />
             <Text style={styles.liveText}>
@@ -651,14 +653,15 @@ function SwipeableCandidateCard({
               onPress={handleRewind}
               activeOpacity={0.8}
               accessibilityLabel="Rewind Last Profile">
-              <Text style={styles.headerRewindText}>↺ Rewind</Text>
+              <Text style={styles.headerRewindText}>↺</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
             style={styles.notificationBellButton}
             onPress={() => router.push('/notifications' as any)}
-            activeOpacity={0.8}>
+            activeOpacity={0.8}
+            accessibilityLabel="Notifications">
             <Text style={styles.bellIconText}>🔔</Text>
             {unreadNotificationCount > 0 && (
               <View style={styles.bellBadge}>
@@ -671,7 +674,9 @@ function SwipeableCandidateCard({
 
           <TouchableOpacity
             style={styles.boostButton}
-            onPress={() => router.push('/(tabs)/store')}>
+            activeOpacity={0.8}
+            onPress={() => router.push('/(tabs)/store')}
+            accessibilityLabel="Boost Profile">
             <Text style={styles.boostButtonText}>⚡ Boost</Text>
           </TouchableOpacity>
         </View>
@@ -967,24 +972,26 @@ const styles = StyleSheet.create({
   feedHeaderContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 14,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#1A1C24',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   brandBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   brandTitleWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+    flexShrink: 1,
+    marginRight: 8,
   },
   brandLogo: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
     color: '#E94057',
     letterSpacing: -0.5,
@@ -992,12 +999,13 @@ const styles = StyleSheet.create({
   liveIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(76, 175, 80, 0.12)',
     borderWidth: 1,
-    borderColor: '#4CAF50',
+    borderColor: 'rgba(76, 175, 80, 0.35)',
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingVertical: 2.5,
+    borderRadius: 10,
     gap: 5,
   },
   liveGreenDot: {
@@ -1015,20 +1023,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
   },
   headerRewindBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.4)',
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 14,
-    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   headerRewindText: {
     color: '#F59E0B',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '800',
   },
   notificationBellButton: {
@@ -1041,6 +1051,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    flexShrink: 0,
   },
   bellIconText: {
     fontSize: 16,
@@ -1068,13 +1079,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(233, 64, 87, 0.15)',
     borderWidth: 1,
     borderColor: '#E94057',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 34,
+    borderRadius: 17,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    flexShrink: 0,
   },
   boostButtonText: {
     color: '#E94057',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
   },
   feedTagline: {

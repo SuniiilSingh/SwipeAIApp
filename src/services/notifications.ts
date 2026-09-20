@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { isRunningInExpoGo } from 'expo';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { api } from '@/services/api';
 import type * as NotificationsType from 'expo-notifications';
@@ -8,14 +9,37 @@ let notificationsModule: typeof NotificationsType | null = null;
 let notificationsHandlerConfigured = false;
 
 /**
+ * Checks whether the app is currently running inside Expo Go on Android.
+ * In SDK 53+, remote push notification functionality was removed from Expo Go on Android.
+ * Evaluating require('expo-notifications') inside Expo Go Android throws a fatal error.
+ * Development builds and standalone production APKs/AABs are unaffected.
+ */
+export function isExpoGoOnAndroid(): boolean {
+  if (Platform.OS !== 'android') return false;
+
+  try {
+    if (typeof isRunningInExpoGo === 'function' && isRunningInExpoGo()) {
+      return true;
+    }
+  } catch {}
+
+  return (
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+    (Constants as any).appOwnership === 'expo' ||
+    (Constants.executionEnvironment as string) === 'storeClient'
+  );
+}
+
+/**
  * Returns expo-notifications module dynamically.
+ * Skips loading on web and on Android within Expo Go.
  */
 export function getNotifications(): typeof NotificationsType | null {
   if (notificationsModule) {
     return notificationsModule;
   }
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isExpoGoOnAndroid()) {
     return null;
   }
 
@@ -102,7 +126,12 @@ export async function dismissAllSystemNotifications(): Promise<void> {
  * and syncs token with backend.
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isExpoGoOnAndroid()) {
+    if (isExpoGoOnAndroid()) {
+      console.info(
+        '[Notifications] Remote push notifications are disabled in Expo Go on Android (SDK 53+). Push tokens require a development build or standalone build.'
+      );
+    }
     return null;
   }
 
@@ -218,7 +247,7 @@ export function handleNotificationTap(
  * Initializes notification listeners (both cold start launch & live response).
  */
 export function setupNotificationObserver(router: { push: (href: any) => void }): () => void {
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' || isExpoGoOnAndroid()) {
     return () => {};
   }
 

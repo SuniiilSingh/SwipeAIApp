@@ -209,7 +209,7 @@ export interface ChatMessage {
   recipientId: string;
   content: string;
   mediaUrl?: string;
-  mediaType: 'TEXT' | 'AUDIO_NOTE' | 'IMAGE' | 'MEME' | 'VIRTUAL_CHAI' | 'SYSTEM';
+  mediaType: 'TEXT' | 'AUDIO' | 'AUDIO_NOTE' | 'IMAGE' | 'MEME' | 'VIRTUAL_CHAI' | 'SYSTEM';
   status?: 'SENT' | 'DELIVERED' | 'READ';
   isEncrypted?: boolean;
   encryptionAlgo?: string;

@@ -12,11 +12,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { AppNotification } from '@/types';
+import {
+  dismissNotificationsForMatch,
+  dismissAllSystemNotifications,
+} from '@/services/notifications';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +49,9 @@ export default function NotificationsScreen() {
   const handleMarkAllRead = async () => {
     try {
       await api.markAllNotificationsAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      await dismissAllSystemNotifications();
+      // All notifications vanish
+      setNotifications([]);
       setUnreadCount(0);
     } catch (err) {
       console.warn('Failed to mark all as read:', err);
@@ -53,17 +59,22 @@ export default function NotificationsScreen() {
   };
 
   const handleNotificationPress = async (item: AppNotification) => {
-    // Optimistically mark as read
+    const data = item.data;
+
+    // Vanish from system tray
+    if (data?.matchId) {
+      dismissNotificationsForMatch(String(data.matchId)).catch(() => {});
+      api.markMatchNotificationsAsRead(String(data.matchId)).catch(() => {});
+    }
+
+    // Vanish from notification list
+    setNotifications((prev) => prev.filter((n) => n.id !== item.id));
     if (!item.isRead) {
-      api.markNotificationAsRead(item.id).catch(() => {});
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-      );
       setUnreadCount((c) => Math.max(0, c - 1));
+      api.markNotificationAsRead(item.id).catch(() => {});
     }
 
     // Deep link routing
-    const data = item.data;
     if (data?.url) {
       router.push(data.url as any);
       return;
@@ -204,18 +215,18 @@ export default function NotificationsScreen() {
       {/* Filter Tabs */}
       <View style={styles.filterTabsRow}>
         <TouchableOpacity
-          style={[styles.filterPill, !unreadOnly && styles.filterPillActive]}
-          onPress={() => setUnreadOnly(false)}>
-          <Text style={[styles.filterPillText, !unreadOnly && styles.filterPillTextActive]}>
-            All
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={[styles.filterPill, unreadOnly && styles.filterPillActive]}
           onPress={() => setUnreadOnly(true)}>
           <Text style={[styles.filterPillText, unreadOnly && styles.filterPillTextActive]}>
             Unread ({unreadCount})
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterPill, !unreadOnly && styles.filterPillActive]}
+          onPress={() => setUnreadOnly(false)}>
+          <Text style={[styles.filterPillText, !unreadOnly && styles.filterPillTextActive]}>
+            All History
           </Text>
         </TouchableOpacity>
       </View>

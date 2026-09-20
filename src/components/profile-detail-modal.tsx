@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CandidateCard, DietaryPreference, LivingStatus } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
+import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
+import { hapticFeedback } from '@/utils/haptics';
 
 const { width } = Dimensions.get('window');
 
@@ -71,6 +73,7 @@ export default function ProfileDetailModal({
 }: ProfileDetailModalProps) {
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [showKundaliModal, setShowKundaliModal] = useState(false);
 
   if (!candidate) return null;
 
@@ -328,8 +331,17 @@ export default function ProfileDetailModal({
           )}
 
           {/* Modern Cosmic Chemistry */}
-          <View style={styles.card}>
-            <Text style={styles.cardSectionTitle}>✨ Cosmic Chemistry & Astrological Synergy</Text>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => {
+              hapticFeedback.light();
+              setShowKundaliModal(true);
+            }}
+            activeOpacity={0.85}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={styles.cardSectionTitle}>✨ Cosmic Chemistry & Astrological Synergy</Text>
+              <Text style={{ color: '#FFD700', fontSize: 11, fontWeight: '700' }}>View Kundali →</Text>
+            </View>
             <View style={styles.astroRow}>
               <View style={styles.astroPill}>
                 <Text style={styles.astroLabel}>Sun Sign</Text>
@@ -346,7 +358,7 @@ export default function ProfileDetailModal({
                 </Text>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Vernacular Voice Note */}
           {candidate.voicePrompt && (
@@ -472,6 +484,13 @@ export default function ProfileDetailModal({
           )}
         </View>
       </SafeAreaView>
+
+      {/* Cosmic Kundali & Vibe Harmony Breakdown Modal */}
+      <CosmicKundaliModal
+        visible={showKundaliModal}
+        candidate={candidate}
+        onClose={() => setShowKundaliModal(false)}
+      />
     </Modal>
   );
 }

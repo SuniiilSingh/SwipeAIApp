@@ -20,6 +20,8 @@ import * as Location from 'expo-location';
 import { api } from '@/services/api';
 import { DatingIntent, DesireProfile, DietaryPreference, LivingStatus, UserProfile } from '@/types';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, createAudioPlayer, AudioPlayer } from 'expo-audio';
+import { hapticFeedback } from '@/utils/haptics';
 import DesireProfileModal from '@/components/desire-profile-modal';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
 
@@ -179,11 +181,16 @@ export default function ProfileScreen() {
   const audioChunksRef = React.useRef<any[]>([]);
   const voiceTimerRef = React.useRef<any>(null);
   const playbackAudioRef = React.useRef<any>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const nativeAudioPlayerRef = React.useRef<AudioPlayer | null>(null);
 
   useEffect(() => {
     loadProfile();
     return () => {
       if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      if (nativeAudioPlayerRef.current) {
+        try { nativeAudioPlayerRef.current.release(); } catch {}
+      }
       stopAudibleVoiceNote();
     };
   }, []);
@@ -317,9 +324,15 @@ export default function ProfileScreen() {
     return item ? `${item.emoji} ${item.label}` : 'Select living arrangement';
   };
 
-  // 15s Voice Note Recording & Playback Handlers
+  // 30s Vernacular Voice Note Recording & Playback Handlers
   const startVoiceRecording = async () => {
     try {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        Alert.alert('Microphone Access Needed', 'Please allow microphone access in settings to record your voice prompt.');
+        return;
+      }
+      hapticFeedback.medium();
       setVoiceRecordSeconds(0);
       setRecordedAudioUri('');
       setIsVoiceRecording(true);
@@ -346,8 +359,12 @@ export default function ProfileScreen() {
 
           mediaRecorder.start();
         } catch (webErr) {
-          console.warn('Web microphone access, falling back to simulator:', webErr);
+          console.warn('Web microphone access error:', webErr);
         }
+      } else {
+        // Native device recording via expo-audio
+        await audioRecorder.prepareToRecordAsync();
+        audioRecorder.record();
       }
 
       if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
@@ -355,38 +372,83 @@ export default function ProfileScreen() {
       voiceTimerRef.current = setInterval(() => {
         elapsed += 1;
         setVoiceRecordSeconds(elapsed);
-        if (elapsed >= 15) {
+        if (elapsed >= 30) {
           stopVoiceRecording();
         }
       }, 1000);
     } catch (err) {
       console.warn('Start voice recording error:', err);
       setIsVoiceRecording(false);
+      Alert.alert('Recording Error', 'Could not start microphone recording.');
     }
   };
 
-  const stopVoiceRecording = () => {
+  const stopVoiceRecording = async () => {
+    hapticFeedback.medium();
     if (voiceTimerRef.current) {
       clearInterval(voiceTimerRef.current);
       voiceTimerRef.current = null;
     }
     setIsVoiceRecording(false);
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    if (Platform.OS === 'web') {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch (e) {}
+      }
+    } else {
       try {
-        mediaRecorderRef.current.stop();
-      } catch (e) {}
+        await audioRecorder.stop();
+        const uri = audioRecorder.uri;
+        if (uri) {
+          setRecordedAudioUri(uri);
+        }
+      } catch (e) {
+        console.warn('Stop native audio recording error:', e);
+      }
     }
-
-    setRecordedAudioUri(prev => prev || `simulated_voice_note_${Date.now()}`);
   };
 
   const handleTogglePlayVoice = (audioUrl?: string) => {
     const targetUrl = audioUrl || setupVoicePromptUrl || recordedAudioUri;
+    if (!targetUrl) return;
 
     if (isPlayingVoice) {
+      if (nativeAudioPlayerRef.current) {
+        try { nativeAudioPlayerRef.current.pause(); } catch {}
+      }
       stopAudibleVoiceNote();
       setIsPlayingVoice(false);
+      return;
+    }
+
+    hapticFeedback.selection();
+    if (Platform.OS !== 'web' && (targetUrl.startsWith('file:') || targetUrl.startsWith('content:') || targetUrl.startsWith('http'))) {
+      try {
+        if (nativeAudioPlayerRef.current) {
+          try { nativeAudioPlayerRef.current.release(); } catch {}
+        }
+        const player = createAudioPlayer(targetUrl);
+        nativeAudioPlayerRef.current = player;
+        setIsPlayingVoice(true);
+        player.play();
+        player.addListener('playbackStatusUpdate', (status: any) => {
+          if (status.didJustFinish) {
+            setIsPlayingVoice(false);
+          }
+        });
+      } catch (err) {
+        console.warn('Native player fallback:', err);
+        const dur = voiceRecordSeconds > 0 ? voiceRecordSeconds : (setupVoicePromptDuration || 15);
+        playAudibleVoiceNote({
+          audioUrl: targetUrl,
+          promptText: setupVoicePromptText || VOICE_PROMPT_TOPICS[0],
+          durationSec: dur,
+          onStart: () => setIsPlayingVoice(true),
+          onEnd: () => setIsPlayingVoice(false),
+        });
+      }
     } else {
       const dur = voiceRecordSeconds > 0 ? voiceRecordSeconds : (setupVoicePromptDuration || 15);
       playAudibleVoiceNote({
@@ -404,8 +466,12 @@ export default function ProfileScreen() {
     const dur = voiceRecordSeconds > 0 ? voiceRecordSeconds : (setupVoicePromptDuration || 15);
     const txt = setupVoicePromptText || VOICE_PROMPT_TOPICS[0];
 
+    if (nativeAudioPlayerRef.current) {
+      try { nativeAudioPlayerRef.current.pause(); } catch {}
+    }
     stopAudibleVoiceNote();
     setIsPlayingVoice(false);
+    hapticFeedback.success();
     setSetupVoicePromptUrl(url);
     setSetupVoicePromptDuration(dur);
     setShowVoiceRecorderModal(false);
@@ -419,7 +485,7 @@ export default function ProfileScreen() {
 
     try {
       await api.uploadVoicePrompt(url, dur, txt);
-      Alert.alert('Voice Note Saved 🎙️', 'Your 15-second vernacular voice note has been added to your profile!');
+      Alert.alert('Voice Note Saved 🎙️', 'Your 30-second vernacular voice note has been added to your profile!');
     } catch (e) {
       console.warn('Voice note save error:', e);
     }
@@ -2766,7 +2832,7 @@ export default function ProfileScreen() {
               {/* Timer & Waveform Display */}
               <View style={styles.recorderStatusBox}>
                 <Text style={styles.recorderTimerText}>
-                  00:{String(voiceRecordSeconds).padStart(2, '0')} / 00:15
+                  00:{String(voiceRecordSeconds).padStart(2, '0')} / 00:30
                 </Text>
                 <View style={styles.waveformContainer}>
                   {[12, 26, 38, 18, 32, 10, 36, 22, 42, 16, 28, 20, 34, 14, 30].map((h, idx) => (
@@ -2788,7 +2854,7 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.recordingStatusLabel}>
                   {isVoiceRecording
-                    ? '🔴 Recording in progress... (15s limit)'
+                    ? '🔴 Recording in progress... (30s limit)'
                     : recordedAudioUri
                     ? '✅ Voice note recorded! Listen preview or save.'
                     : 'Tap below to begin speaking'}
@@ -2809,7 +2875,7 @@ export default function ProfileScreen() {
                   <TouchableOpacity
                     style={styles.recordStopBtn}
                     onPress={stopVoiceRecording}>
-                    <Text style={styles.recordStopBtnText}>⏹️ Stop Recording ({15 - voiceRecordSeconds}s)</Text>
+                    <Text style={styles.recordStopBtnText}>⏹️ Stop Recording ({30 - voiceRecordSeconds}s)</Text>
                   </TouchableOpacity>
                 )}
               </View>

@@ -24,7 +24,11 @@ import { api } from '@/services/api';
 import { ActionType, CandidateCard, ContextType } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import DesireProfileModal from '@/components/desire-profile-modal';
+import MatchCelebrationModal from '@/components/match-celebration-modal';
+import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
 import { FEATURE_FLAGS } from '@/config/features';
+import { Image as ExpoImage } from 'expo-image';
+import { hapticFeedback } from '@/utils/haptics';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
@@ -66,6 +70,7 @@ export default function DiscoveryScreen() {
   const [candidates, setCandidates] = useState<CandidateCard[]>([]);
   const [selectedFilter, setSelectedFilter] = useState('ALL');
   const [remainingSwipes, setRemainingSwipes] = useState(25);
+  const [swipedHistory, setSwipedHistory] = useState<{ candidate: CandidateCard; action: ActionType }[]>([]);
 
   // Exact 1-screen viewport dimensions
   const [feedDimensions, setFeedDimensions] = useState<{ width: number; height: number }>({
@@ -77,6 +82,12 @@ export default function DiscoveryScreen() {
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateCard | null>(null);
   const [showFullProfileModal, setShowFullProfileModal] = useState(false);
   const [showDesireModal, setShowDesireModal] = useState(false);
+
+  // Match celebration state
+  const [matchedCandidate, setMatchedCandidate] = useState<CandidateCard | null>(null);
+  const [celebrationMatchId, setCelebrationMatchId] = useState<string | undefined>(undefined);
+  const [showCelebrationModal, setShowCelebrationModal] = useState(false);
+  const [kundaliCandidate, setKundaliCandidate] = useState<CandidateCard | null>(null);
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -180,25 +191,31 @@ export default function DiscoveryScreen() {
     const targetId = targetCandidate.userId;
     const targetName = targetCandidate.displayName || 'Candidate';
 
-    // 1. Immediately remove the profile from candidates so it GOES AWAY and the next loads
+    // 1. Record in swiped history for Rewind
+    setSwipedHistory((prev) => [{ candidate: targetCandidate, action: actionType }, ...prev.slice(0, 9)]);
+
+    // 2. Immediately remove the profile from candidates so it GOES AWAY and the next loads
     setCandidates((prev) => prev.filter((c) => c.userId !== targetId));
 
-    // 2. If the full detail sheet is viewing this candidate, dismiss it
+    // 3. If the full detail sheet is viewing this candidate, dismiss it
     if (selectedCandidate?.userId === targetId) {
       setShowFullProfileModal(false);
       setSelectedCandidate(null);
     }
 
-    // 3. Show instant tactile feedback toast
+    // 4. Show instant tactile feedback toast & haptics
     if (actionType === 'PASS') {
+      hapticFeedback.light();
       showToast(`✕ Passed on ${targetName}`);
     } else if (actionType === 'LIKE') {
+      hapticFeedback.medium();
       showToast(`❤️ Liked ${targetName}`);
     } else if (actionType === 'SUPER_CHAI') {
+      hapticFeedback.heavy();
       showToast(`☕ Sent Chai to ${targetName}!`);
     }
 
-    // 4. Record interaction in backend
+    // 5. Record interaction in backend
     try {
       const res = await api.interact(
         targetId,
@@ -209,17 +226,9 @@ export default function DiscoveryScreen() {
       );
 
       if (res.isMatch) {
-        Alert.alert(
-          '✨ It’s a Vibe Match!',
-          `You matched with ${targetName}! Unlock the chat lounge via the 10s Icebreaker Quiz.`,
-          [
-            { text: 'Keep Exploring', style: 'cancel' },
-            {
-              text: 'Play Icebreaker ⚡',
-              onPress: () => router.push('/(tabs)/matches'),
-            },
-          ]
-        );
+        setMatchedCandidate(targetCandidate);
+        setCelebrationMatchId(res.matchId || targetId);
+        setShowCelebrationModal(true);
       }
 
       setRemainingSwipes(res.remainingDailySwipes);
@@ -227,6 +236,21 @@ export default function DiscoveryScreen() {
 
     setCommentText('');
     setCommentModalVisible(false);
+  };
+
+  const handleRewind = () => {
+    if (swipedHistory.length === 0) {
+      showToast('No swiped profiles to rewind!');
+      return;
+    }
+    hapticFeedback.medium();
+    const [lastSwiped, ...restHistory] = swipedHistory;
+    setSwipedHistory(restHistory);
+    setCandidates((prev) => [
+      lastSwiped.candidate,
+      ...prev.filter((c) => c.userId !== lastSwiped.candidate.userId),
+    ]);
+    showToast(`↺ Restored ${lastSwiped.candidate.displayName || 'profile'}`);
   };
 
   const handleSendCuttingChai = (candidate: CandidateCard) => {
@@ -288,6 +312,18 @@ export default function DiscoveryScreen() {
     return true;
   });
 
+  // Pre-fetch top 4 candidate photos into memory-disk cache for 60/120fps instantaneous swiping
+  useEffect(() => {
+    if (filteredCandidates.length > 0) {
+      const topUrls = filteredCandidates
+        .slice(0, 4)
+        .flatMap((c) => (c.photos && c.photos.length > 0 ? [c.photos[0]] : []));
+      if (topUrls.length > 0) {
+        ExpoImage.prefetch(topUrls).catch(() => {});
+      }
+    }
+  }, [filteredCandidates]);
+
 interface SwipeableCardProps {
   item: CandidateCard;
   feedDimensions: { width: number; height: number };
@@ -295,6 +331,8 @@ interface SwipeableCardProps {
   onPass: (item: CandidateCard) => void;
   onSendChai: (item: CandidateCard) => void;
   onOpenDetails: (item: CandidateCard) => void;
+  onRewind?: () => void;
+  canRewind?: boolean;
 }
 
 function SwipeableCandidateCard({
@@ -304,6 +342,8 @@ function SwipeableCandidateCard({
   onPass,
   onSendChai,
   onOpenDetails,
+  onRewind,
+  canRewind,
 }: SwipeableCardProps) {
   const pan = useRef(new Animated.ValueXY()).current;
 
@@ -419,12 +459,13 @@ function SwipeableCandidateCard({
           activeOpacity={0.94}
           onPress={() => onOpenDetails(item)}
           style={styles.heroTouchWrap}>
-          <Image
+          <ExpoImage
             source={{
               uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800',
             }}
             style={styles.heroImage}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
           />
 
           {/* Top Badges Overlaid on Photo */}
@@ -450,27 +491,33 @@ function SwipeableCandidateCard({
             </View>
           </View>
 
-          {/* Bottom Overlaid Details Scrim */}
+          {/* Bottom Card Scrim / Quick Profile Header */}
           <View style={styles.photoBottomScrim}>
-            {/* Row 1: Compatibility Pill, Desire Match & Location */}
+            {/* Row 1: Badges */}
             <View style={styles.scrimPillsRow}>
-              <View style={styles.compatPill}>
+              <TouchableOpacity
+                style={styles.compatPill}
+                onPress={() => {
+                  hapticFeedback.light();
+                  setKundaliCandidate(item);
+                }}
+                activeOpacity={0.8}>
                 <Text style={styles.compatPillText}>
-                  ⚡ {item.compatibilityScore}% Match • {item.culturalBadges?.zodiac || 'Aries'} ♈
+                  ✨ {item.compatibilityScore}% Vibe
                 </Text>
-              </View>
+              </TouchableOpacity>
 
               {item.desireMatchPercent ? (
                 <View style={styles.desireMatchPill}>
                   <Text style={styles.desireMatchPillText}>
-                    ✨ {item.desireMatchPercent}% Desire
+                    🎯 {item.desireMatchPercent}% Desire
                   </Text>
                 </View>
               ) : null}
 
               <View style={styles.locationPill}>
                 <Text style={styles.locationPillText}>
-                  📍 {item.neighborhood ? `${item.neighborhood}, ` : ''}{item.city || 'Bengaluru'} • {typeof item.distanceKm === 'number' && item.distanceKm >= 0 ? (item.distanceKm < 1 ? '< 1 km' : `${item.distanceKm.toFixed(1)} km`) : 'Nearby'}
+                  📍 {item.distanceKm || 3.5} km • {item.neighborhood || item.city || 'Bengaluru'}
                 </Text>
               </View>
             </View>
@@ -514,8 +561,8 @@ function SwipeableCandidateCard({
               )}
             </View>
 
-            {/* Row 5: Prompt Quote Teaser */}
-            {item.profilePromptAnswer ? (
+            {/* Row 5: Profile Prompt Teaser */}
+            {item.profilePromptQuestion && item.profilePromptAnswer ? (
               <Text style={styles.promptTeaserText} numberOfLines={1}>
                 💬 "{item.profilePromptAnswer}"
               </Text>
@@ -524,16 +571,21 @@ function SwipeableCandidateCard({
                 "{item.bio}"
               </Text>
             ) : null}
-
-            {/* Row 6: Tap to View Details hint */}
-            <Text style={styles.tapForMoreHint}>
-              🔍 Tap card for full photos, audio note & details →
-            </Text>
           </View>
         </TouchableOpacity>
 
         {/* Action Buttons Row - ALWAYS 100% VISIBLE WITHIN THE SCREEN */}
         <View style={styles.actionButtonsRow}>
+          {canRewind && onRewind && (
+            <TouchableOpacity
+              style={styles.rewindBtn}
+              activeOpacity={0.8}
+              onPress={onRewind}
+              accessibilityLabel="Rewind Last Profile">
+              <Text style={styles.rewindBtnIcon}>↺</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.passBtn}
             activeOpacity={0.8}
@@ -572,6 +624,8 @@ function SwipeableCandidateCard({
         onPass={(cand) => handleAction(cand, 'PASS')}
         onSendChai={(cand) => handleSendCuttingChai(cand)}
         onOpenDetails={(cand) => handleOpenProfile(cand)}
+        onRewind={handleRewind}
+        canRewind={swipedHistory.length > 0}
       />
     );
   };
@@ -591,6 +645,16 @@ function SwipeableCandidateCard({
         </View>
 
         <View style={styles.brandActionsRow}>
+          {swipedHistory.length > 0 && (
+            <TouchableOpacity
+              style={styles.headerRewindBtn}
+              onPress={handleRewind}
+              activeOpacity={0.8}
+              accessibilityLabel="Rewind Last Profile">
+              <Text style={styles.headerRewindText}>↺ Rewind</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.notificationBellButton}
             onPress={() => router.push('/notifications' as any)}
@@ -837,6 +901,38 @@ function SwipeableCandidateCard({
         }}
       />
 
+      {/* FULL SCREEN CELEBRATION MODAL ON MATCH */}
+      <MatchCelebrationModal
+        visible={showCelebrationModal}
+        candidate={matchedCandidate}
+        matchId={celebrationMatchId}
+        onPlayIcebreaker={(matchId) => {
+          setShowCelebrationModal(false);
+          router.push({
+            pathname: '/matches/icebreaker',
+            params: { matchId },
+          });
+        }}
+        onOpenChat={(matchId, candidateName) => {
+          setShowCelebrationModal(false);
+          router.push({
+            pathname: '/chat/[id]',
+            params: { id: matchId, name: candidateName },
+          });
+        }}
+        onKeepSwiping={() => {
+          setShowCelebrationModal(false);
+          setMatchedCandidate(null);
+        }}
+      />
+
+      {/* COSMIC KUNDALI & VIBE HARMONY MODAL */}
+      <CosmicKundaliModal
+        visible={!!kundaliCandidate}
+        candidate={kundaliCandidate}
+        onClose={() => setKundaliCandidate(null)}
+      />
+
       {/* DESIRE PROFILE MODAL (QUICK EDIT FROM FEED) */}
       <DesireProfileModal
         visible={showDesireModal}
@@ -919,6 +1015,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  headerRewindBtn: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerRewindText: {
+    color: '#F59E0B',
+    fontSize: 11,
+    fontWeight: '800',
   },
   notificationBellButton: {
     width: 34,
@@ -1212,6 +1323,21 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#242736',
     gap: 8,
+  },
+  rewindBtn: {
+    width: 42,
+    height: 42,
+    backgroundColor: '#202330',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rewindBtnIcon: {
+    color: '#F59E0B',
+    fontSize: 18,
+    fontWeight: '800',
   },
   passBtn: {
     flex: 1,

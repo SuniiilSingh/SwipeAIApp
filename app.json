@@ -53,6 +53,13 @@
           "color": "#FF2B66",
           "defaultChannel": "default"
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Blunderr Dating uses your microphone for encrypted Virtual Chai calling and in-chat voice notes.",
+          "recordAudioAndroid": true
+        }
       ]
     ],
     "experiments": {

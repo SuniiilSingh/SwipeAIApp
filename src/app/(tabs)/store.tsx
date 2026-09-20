@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -40,8 +41,37 @@ export default function StoreScreen() {
     setProcessingPayment(false);
   };
 
-  const handleSimulateUpiAppPayment = async (appName: string) => {
-    if (!upiOrderData) return;
+  const handleSimulateUpiAppPayment = async (appName: string, appKey?: string) => {
+    if (!upiOrderData || !checkoutItem) return;
+
+    const amt = checkoutItem.priceInr;
+    const tn = encodeURIComponent(`Blunderr Dating - ${checkoutItem.title}`);
+    const tr = upiOrderData.orderId;
+    const genericUpi = `upi://pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
+
+    let targetUrl = genericUpi;
+    if (appKey === 'gpay') {
+      targetUrl = `tez://upi/pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
+    } else if (appKey === 'phonepe') {
+      targetUrl = `phonepe://pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
+    } else if (appKey === 'paytm') {
+      targetUrl = `paytmmp://pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
+    }
+
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      if (canOpen) {
+        await Linking.openURL(targetUrl);
+      } else {
+        const canOpenGeneric = await Linking.canOpenURL(genericUpi);
+        if (canOpenGeneric) {
+          await Linking.openURL(genericUpi);
+        }
+      }
+    } catch (err) {
+      // Simulator or intent error, fallback to in-app simulation
+    }
+
     setProcessingPayment(true);
     setTimeout(async () => {
       await api.confirmUpiPayment(upiOrderData.orderId);
@@ -164,7 +194,7 @@ export default function StoreScreen() {
                       <TouchableOpacity
                         key={app.key}
                         style={styles.upiAppBtn}
-                        onPress={() => handleSimulateUpiAppPayment(app.name)}>
+                        onPress={() => handleSimulateUpiAppPayment(app.name, app.key)}>
                         <Text style={styles.upiAppIcon}>{app.icon}</Text>
                         <Text style={styles.upiAppName}>{app.name}</Text>
                         <Text style={styles.upiAppAction}>Pay Now →</Text>

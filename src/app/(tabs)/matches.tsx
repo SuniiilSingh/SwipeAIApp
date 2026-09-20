@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,12 +17,18 @@ import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { CandidateCard, MatchItem } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
+import { hapticFeedback } from '@/utils/haptics';
+
+export type MatchFilterType = 'ALL' | 'QUIZ' | 'EXPIRING' | 'ACTIVE';
 
 export default function MatchesScreen() {
   const router = useRouter();
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<MatchItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<MatchFilterType>('ALL');
 
   useEffect(() => {
     loadMatches();
@@ -29,6 +39,38 @@ export default function MatchesScreen() {
     const list = await api.getMatches();
     setMatches(list);
     setLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    const list = await api.getMatches();
+    setMatches(list);
+    setIsRefreshing(false);
+  };
+
+  const counts = useMemo(() => ({
+    all: matches.length,
+    quiz: matches.filter((m) => m.status === 'PENDING_ICEBREAKER').length,
+    expiring: matches.filter((m) => m.remainingHours <= 24).length,
+    active: matches.filter((m) => m.status === 'ACTIVE_CHAT').length,
+  }), [matches]);
+
+  const filteredMatches = useMemo(() => {
+    return matches.filter((item) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch = !q || (item.otherUserName && item.otherUserName.toLowerCase().includes(q));
+      if (!matchesSearch) return false;
+
+      if (filterType === 'QUIZ') return item.status === 'PENDING_ICEBREAKER';
+      if (filterType === 'EXPIRING') return item.remainingHours <= 24;
+      if (filterType === 'ACTIVE') return item.status === 'ACTIVE_CHAT';
+      return true;
+    });
+  }, [matches, searchQuery, filterType]);
+
+  const handleSelectFilter = (type: MatchFilterType) => {
+    hapticFeedback.selection();
+    setFilterType(type);
   };
 
   const getCandidateProfile = (item: MatchItem): CandidateCard => {
@@ -104,9 +146,29 @@ export default function MatchesScreen() {
         <View style={styles.matchInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.matchName}>{item.otherUserName}, {item.otherUserAge}</Text>
-            <View style={[styles.timerBadge, isPending && styles.timerBadgePending]}>
-              <Text style={[styles.timerText, isPending && styles.timerTextPending]}>
-                ⏳ {item.remainingHours}h remaining
+            <View
+              style={[
+                styles.timerBadge,
+                item.remainingHours <= 12
+                  ? styles.timerBadgeUrgent
+                  : item.remainingHours <= 24
+                  ? styles.timerBadgeWarning
+                  : isPending
+                  ? styles.timerBadgePending
+                  : styles.timerBadgeNormal,
+              ]}>
+              <Text
+                style={[
+                  styles.timerText,
+                  item.remainingHours <= 12
+                    ? styles.timerTextUrgent
+                    : item.remainingHours <= 24
+                    ? styles.timerTextWarning
+                    : isPending
+                    ? styles.timerTextPending
+                    : styles.timerTextNormal,
+                ]}>
+                ⏳ {item.remainingHours === 0 ? 'Expired' : `${item.remainingHours}h left`}
               </Text>
             </View>
           </View>
@@ -156,6 +218,66 @@ export default function MatchesScreen() {
         </View>
       </View>
 
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search matches by name..."
+          placeholderTextColor="#6B7280"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          clearButtonMode="while-editing"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+            <Text style={styles.clearSearchText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Smart Filter Tabs */}
+      <View style={styles.filterTabsContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterTabsContent}>
+          <TouchableOpacity
+            style={[styles.filterChip, filterType === 'ALL' && styles.filterChipActive]}
+            onPress={() => handleSelectFilter('ALL')}
+            activeOpacity={0.8}>
+            <Text style={[styles.filterChipText, filterType === 'ALL' && styles.filterChipTextActive]}>
+              All ({counts.all})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, filterType === 'QUIZ' && styles.filterChipActive]}
+            onPress={() => handleSelectFilter('QUIZ')}
+            activeOpacity={0.8}>
+            <Text style={[styles.filterChipText, filterType === 'QUIZ' && styles.filterChipTextActive]}>
+              ⚡ Quiz Required ({counts.quiz})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, filterType === 'EXPIRING' && styles.filterChipActive]}
+            onPress={() => handleSelectFilter('EXPIRING')}
+            activeOpacity={0.8}>
+            <Text style={[styles.filterChipText, filterType === 'EXPIRING' && styles.filterChipTextActive]}>
+              ⏳ Expiring Soon ({counts.expiring})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, filterType === 'ACTIVE' && styles.filterChipActive]}
+            onPress={() => handleSelectFilter('ACTIVE')}
+            activeOpacity={0.8}>
+            <Text style={[styles.filterChipText, filterType === 'ACTIVE' && styles.filterChipTextActive]}>
+              💬 Active Lounge ({counts.active})
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#E94057" />
@@ -166,12 +288,35 @@ export default function MatchesScreen() {
           <Text style={styles.emptyTitle}>No Matches Yet</Text>
           <Text style={styles.emptySub}>Send high-intent comments on prompt cards in discovery!</Text>
         </View>
+      ) : filteredMatches.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyIcon}>🔍</Text>
+          <Text style={styles.emptyTitle}>No Matches Found</Text>
+          <Text style={styles.emptySub}>
+            No conversations match your search or current filter.
+          </Text>
+          <TouchableOpacity
+            style={styles.clearFilterBtn}
+            onPress={() => {
+              setSearchQuery('');
+              setFilterType('ALL');
+            }}>
+            <Text style={styles.clearFilterBtnText}>Reset Filters</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
-          data={matches}
+          data={filteredMatches}
           keyExtractor={(item) => item.id}
           renderItem={renderMatchItem}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="#E94057"
+            />
+          }
         />
       )}
 
@@ -306,24 +451,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   timerBadge: {
-    backgroundColor: '#242734',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
+    borderWidth: 1,
+  },
+  timerBadgeNormal: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   timerBadgePending: {
     backgroundColor: 'rgba(242, 113, 33, 0.15)',
-    borderWidth: 1,
     borderColor: '#F27121',
   },
+  timerBadgeWarning: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+  },
+  timerBadgeUrgent: {
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+  },
   timerText: {
-    color: '#8E94A5',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  timerTextNormal: {
+    color: '#34D399',
   },
   timerTextPending: {
     color: '#F27121',
-    fontWeight: '700',
+  },
+  timerTextWarning: {
+    color: '#FCD34D',
+  },
+  timerTextUrgent: {
+    color: '#F87171',
   },
   quizUnlockRow: {
     marginTop: 4,
@@ -386,6 +549,78 @@ const styles = StyleSheet.create({
   viewProfileChipText: {
     color: '#E94057',
     fontSize: 10,
+    fontWeight: '700',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#181922',
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 8,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    borderWidth: 1,
+    borderColor: '#252836',
+  },
+  searchIcon: {
+    fontSize: 14,
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    padding: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  clearSearchText: {
+    color: '#8A8D98',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterTabsContainer: {
+    marginBottom: 10,
+  },
+  filterTabsContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterChip: {
+    backgroundColor: '#161720',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#262938',
+  },
+  filterChipActive: {
+    backgroundColor: 'rgba(233, 64, 87, 0.16)',
+    borderColor: '#E94057',
+  },
+  filterChipText: {
+    color: '#8A8D98',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterChipTextActive: {
+    color: '#FF6584',
+    fontWeight: '700',
+  },
+  clearFilterBtn: {
+    marginTop: 14,
+    backgroundColor: '#E94057',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  clearFilterBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '700',
   },
 });

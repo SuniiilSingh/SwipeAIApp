@@ -781,6 +781,45 @@ export const api = {
     return api.getWingmanSparks(matchId);
   },
 
+  unmatch: async (matchId: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/unmatch`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('Unmatch error:', e);
+      return false;
+    }
+  },
+
+  reportUser: async (matchId: string, reason: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ reason }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('Report user error:', e);
+      return false;
+    }
+  },
+
+  getCosmicChemistry: async (targetUserId: string) => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/profile/cosmic-chemistry/${targetUserId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('Cosmic chemistry fetch error:', e);
+    }
+    return null;
+  },
+
   // Chat & Shield 360
   getMessages: async (matchId: string): Promise<ChatMessage[]> => {
     try {
@@ -809,7 +848,7 @@ export const api = {
     } catch (e) {}
   },
 
-  sendMessage: async (matchId: string, content: string, mediaUrl?: string, mediaType: 'TEXT' | 'IMAGE' | 'VIRTUAL_CHAI' = 'TEXT'): Promise<ChatMessage> => {
+  sendMessage: async (matchId: string, content: string, mediaUrl?: string, mediaType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'AUDIO_NOTE' | 'VIRTUAL_CHAI' = 'TEXT'): Promise<ChatMessage> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/chat/${matchId}/messages`, {
         method: 'POST',
@@ -1016,6 +1055,24 @@ export const api = {
     };
   },
 
+  sendCallSignal: async (
+    matchId: string,
+    signalType: 'CALL_ACCEPTED' | 'CALL_DECLINED' | 'CALL_ENDED'
+  ): Promise<boolean> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetch(`${BASE_URL}/v1/calling/virtual-chai/signal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ matchId, signalType }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[Calling] Failed to send call signal:', e);
+      return false;
+    }
+  },
+
   // Push Notifications (Expo Push Notification API)
   registerPushToken: async (token: string, platform?: string): Promise<boolean> => {
     try {
@@ -1148,6 +1205,22 @@ export const api = {
       return res.ok;
     } catch (e) {
       console.warn('[api] Failed to mark all notifications as read:', e);
+      return false;
+    }
+  },
+
+  markMatchNotificationsAsRead: async (matchId: string): Promise<boolean> => {
+    try {
+      if (!authToken) await initAuth();
+      if (!authToken || !matchId) return false;
+
+      const res = await fetch(`${BASE_URL}/v1/notifications/match/${matchId}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('[api] Failed to mark match notifications as read:', e);
       return false;
     }
   },

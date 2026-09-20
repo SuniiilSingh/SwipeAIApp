@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as ScreenCapture from 'expo-screen-capture';
 import { usePreventScreenCapture } from 'expo-screen-capture';
 import { registerForPushNotificationsAsync, setupNotificationObserver } from '@/services/notifications';
+import { CallProvider } from '@/context/call-context';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function RootLayout() {
   }, [router]);
 
   return (
-    <>
+    <CallProvider>
       <StatusBar style="light" />
       <Stack
         initialRouteName="index"
@@ -61,6 +62,6 @@ export default function RootLayout() {
         <Stack.Screen name="safe-date/index" options={{ headerShown: false }} />
         <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </CallProvider>
   );
 }

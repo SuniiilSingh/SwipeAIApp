@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Image,
   Modal,
   Platform,
   StyleSheet,
@@ -14,12 +15,17 @@ import { VirtualChaiSession } from '@/types';
 
 const { width, height } = Dimensions.get('window');
 
+export type CallStatus = 'RINGING' | 'INCOMING' | 'CONNECTED' | 'DECLINED' | 'ENDED';
+
 interface VirtualChaiModalProps {
   visible: boolean;
   session: VirtualChaiSession | null;
   recipientName: string;
   recipientPhoto?: string;
   initialVideo?: boolean;
+  callStatus?: CallStatus;
+  onAccept?: () => void;
+  onDecline?: () => void;
   onEndCall: () => void;
 }
 
@@ -29,6 +35,9 @@ export default function VirtualChaiModal({
   recipientName,
   recipientPhoto,
   initialVideo = false,
+  callStatus = 'CONNECTED',
+  onAccept,
+  onDecline,
   onEndCall,
 }: VirtualChaiModalProps) {
   const [isVideo, setIsVideo] = useState(initialVideo);
@@ -47,11 +56,14 @@ export default function VirtualChaiModal({
   // Sync initial video mode
   useEffect(() => {
     setIsVideo(initialVideo);
+    if (initialVideo && (!permission || !permission.granted)) {
+      requestPermission().catch(() => {});
+    }
   }, [initialVideo]);
 
-  // Call duration timer
+  // Call duration timer (only when CONNECTED)
   useEffect(() => {
-    if (!visible) {
+    if (!visible || callStatus !== 'CONNECTED') {
       setCallDuration(0);
       return;
     }
@@ -61,22 +73,22 @@ export default function VirtualChaiModal({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [visible]);
+  }, [visible, callStatus]);
 
-  // Pulsing animation for audio waves
+  // Pulsing animation for audio waves / ringing
   useEffect(() => {
     if (!visible) return;
 
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 1200,
+          toValue: 1.18,
+          duration: 1100,
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1.0,
-          duration: 1200,
+          duration: 1100,
           useNativeDriver: true,
         }),
       ])
@@ -126,7 +138,12 @@ export default function VirtualChaiModal({
     setCameraFacing((prev) => (prev === 'front' ? 'back' : 'front'));
   };
 
-  if (!visible || !session) return null;
+  if (!visible || (!session && callStatus !== 'RINGING')) return null;
+
+  const isRinging = callStatus === 'RINGING';
+  const isIncoming = callStatus === 'INCOMING';
+  const isDeclined = callStatus === 'DECLINED';
+  const isConnected = callStatus === 'CONNECTED';
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onEndCall}>
@@ -139,12 +156,16 @@ export default function VirtualChaiModal({
         {/* Header Bar */}
         <View style={styles.header}>
           <View style={styles.badgeRow}>
-            <View style={styles.liveIndicatorDot} />
-            <Text style={styles.badgeText}>
-              {session.isSimulated ? 'LOCAL SFU ACTIVE' : 'LIVEKIT ENCRYPTED SFU'}
+            <View style={[styles.liveIndicatorDot, (isRinging || isIncoming) && styles.ringingIndicatorDot]} />
+            <Text style={[styles.badgeText, (isRinging || isIncoming) && styles.ringingBadgeText]}>
+              {isIncoming ? 'INCOMING CALL' : isRinging ? 'RINGING...' : session?.isSimulated ? 'LOCAL SFU ACTIVE' : 'LIVEKIT ENCRYPTED SFU'}
             </Text>
           </View>
-          <Text style={styles.timerText}>{formatDuration(callDuration)}</Text>
+
+          <Text style={styles.timerText}>
+            {isConnected ? formatDuration(callDuration) : isIncoming ? 'Incoming...' : isRinging ? 'Calling...' : isDeclined ? 'Declined' : ''}
+          </Text>
+
           <View style={styles.securityPill}>
             <Text style={styles.securityIcon}>🔒</Text>
             <Text style={styles.securityText}>Phone Masked</Text>
@@ -153,28 +174,35 @@ export default function VirtualChaiModal({
 
         {/* Center Calling Body */}
         <View style={styles.callBody}>
-          {isVideo && (permission?.granted || Platform.OS === 'web') ? (
-            // VIDEO CALL VIEW
+          {isVideo && (permission?.granted || Platform.OS === 'web') && isConnected ? (
+            // VIDEO CALL VIEW (Single camera view to prevent Android Camera2 hardware collisions)
             <View style={styles.videoStage}>
-              {/* Main Remote Camera Feed Simulation Container */}
+              {/* Main Remote Video Container */}
               <View style={styles.remoteVideoBox}>
-                <CameraView style={styles.remoteCamera} facing={cameraFacing} />
+                {recipientPhoto ? (
+                  <Image source={{ uri: recipientPhoto }} style={styles.remotePhoto} resizeMode="cover" />
+                ) : (
+                  <View style={styles.remotePlaceholder}>
+                    <Text style={styles.remoteInitial}>{recipientName[0]?.toUpperCase() || 'M'}</Text>
+                  </View>
+                )}
+                <View style={styles.remoteVideoOverlay} />
                 <View style={styles.remoteVideoGradient}>
                   <Text style={styles.remoteVideoName}>{recipientName}</Text>
-                  <Text style={styles.remoteVideoStatus}>Connected via WebRTC</Text>
+                  <Text style={styles.remoteVideoStatus}>☕ Live Virtual Chai Stream • Encrypted</Text>
                 </View>
               </View>
 
-              {/* Picture-in-Picture Local Self Preview */}
+              {/* Picture-in-Picture Local Self Camera Preview */}
               <View style={styles.pipBox}>
-                <CameraView style={styles.pipCamera} facing="front" />
+                <CameraView style={styles.pipCamera} facing={cameraFacing} />
                 <View style={styles.pipBadge}>
-                  <Text style={styles.pipBadgeText}>You</Text>
+                  <Text style={styles.pipBadgeText}>You ({cameraFacing})</Text>
                 </View>
               </View>
             </View>
           ) : (
-            // AUDIO-ONLY VIRTUAL CHAI VIEW
+            // AUDIO / RINGING / INCOMING VIEW
             <View style={styles.audioStage}>
               {/* Pulsing Audio Halos */}
               <Animated.View style={[styles.haloRingOuter, { transform: [{ scale: pulseAnim }] }]} />
@@ -182,26 +210,40 @@ export default function VirtualChaiModal({
 
               {/* Masked Avatar */}
               <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitial}>{recipientName[0]?.toUpperCase() || 'M'}</Text>
+                {recipientPhoto ? (
+                  <Image source={{ uri: recipientPhoto }} style={styles.avatarImage} resizeMode="cover" />
+                ) : (
+                  <Text style={styles.avatarInitial}>{recipientName[0]?.toUpperCase() || 'M'}</Text>
+                )}
               </View>
 
               {/* Recipient Details */}
               <Text style={styles.recipientTitle}>{recipientName}</Text>
-              <Text style={styles.maskedSubtitle}>☕ Virtual Chai • Audio Date</Text>
+              <Text style={styles.maskedSubtitle}>
+                {isIncoming
+                  ? '☕ Incoming Virtual Chai Date... Tap Accept to connect!'
+                  : isRinging
+                  ? 'Ringing partner phone... 100% masked audio'
+                  : isDeclined
+                  ? 'Call was declined by partner'
+                  : '☕ Virtual Chai • Audio Date'}
+              </Text>
 
               {/* Sound Wave Equalizer Bars */}
-              <View style={styles.soundWaveRow}>
-                <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim1 }] }]} />
-                <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim2 }] }]} />
-                <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim3 }] }]} />
-                <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim1 }] }]} />
-                <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim2 }] }]} />
-              </View>
+              {(isConnected || isRinging || isIncoming) && (
+                <View style={styles.soundWaveRow}>
+                  <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim1 }] }]} />
+                  <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim2 }] }]} />
+                  <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim3 }] }]} />
+                  <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim1 }] }]} />
+                  <Animated.View style={[styles.soundBar, { transform: [{ scaleY: waveAnim2 }] }]} />
+                </View>
+              )}
 
-              {/* Server Info */}
+              {/* Security Pill */}
               <View style={styles.serverInfoPill}>
                 <Text style={styles.serverInfoText}>
-                  Room: {session.roomName} • {session.serverUrl}
+                  Zero Number Exchange • Room: {session?.roomName || 'Connecting SFU...'}
                 </Text>
               </View>
             </View>
@@ -210,43 +252,69 @@ export default function VirtualChaiModal({
 
         {/* Bottom Control Actions Dock */}
         <View style={styles.controlsDock}>
-          {/* Mute Toggle */}
-          <TouchableOpacity
-            style={[styles.actionBtn, isMuted && styles.actionBtnActive]}
-            onPress={() => setIsMuted((prev) => !prev)}>
-            <Text style={styles.actionIcon}>{isMuted ? '🔇' : '🎙️'}</Text>
-            <Text style={styles.actionLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
-          </TouchableOpacity>
+          {isIncoming ? (
+            // Incoming Call: Decline and Accept Buttons
+            <View style={styles.incomingActionRow}>
+              <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.8}>
+                <Text style={styles.declineIcon}>✕</Text>
+                <Text style={styles.declineLabel}>Decline</Text>
+              </TouchableOpacity>
 
-          {/* Video Toggle */}
-          <TouchableOpacity
-            style={[styles.actionBtn, isVideo && styles.actionBtnActive]}
-            onPress={toggleVideo}>
-            <Text style={styles.actionIcon}>{isVideo ? '📹' : '☕'}</Text>
-            <Text style={styles.actionLabel}>{isVideo ? 'Video On' : 'Audio Only'}</Text>
-          </TouchableOpacity>
+              <TouchableOpacity style={styles.acceptBtn} onPress={onAccept} activeOpacity={0.8}>
+                <Text style={styles.acceptIcon}>📞</Text>
+                <Text style={styles.acceptLabel}>Accept</Text>
+              </TouchableOpacity>
+            </View>
+          ) : isRinging ? (
+            // Outgoing Ringing: Cancel Button
+            <View style={styles.ringingActionRow}>
+              <TouchableOpacity style={styles.endCallBtn} onPress={onEndCall} activeOpacity={0.8}>
+                <Text style={styles.endCallIcon}>✕</Text>
+                <Text style={styles.endCallLabel}>Cancel Call</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // Active Call Controls
+            <>
+              {/* Mute Toggle */}
+              <TouchableOpacity
+                style={[styles.actionBtn, isMuted && styles.actionBtnActive]}
+                onPress={() => setIsMuted((prev) => !prev)}>
+                <Text style={styles.actionIcon}>{isMuted ? '🔇' : '🎙️'}</Text>
+                <Text style={styles.actionLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
+              </TouchableOpacity>
 
-          {/* Flip Camera (Active in Video Mode) */}
-          {isVideo && (
-            <TouchableOpacity style={styles.actionBtn} onPress={flipCamera}>
-              <Text style={styles.actionIcon}>🔄</Text>
-              <Text style={styles.actionLabel}>Flip</Text>
-            </TouchableOpacity>
+              {/* Video Toggle */}
+              <TouchableOpacity
+                style={[styles.actionBtn, isVideo && styles.actionBtnActive]}
+                onPress={toggleVideo}>
+                <Text style={styles.actionIcon}>{isVideo ? '📹' : '☕'}</Text>
+                <Text style={styles.actionLabel}>{isVideo ? 'Video On' : 'Audio Only'}</Text>
+              </TouchableOpacity>
+
+              {/* Flip Camera (Active in Video Mode) */}
+              {isVideo && (
+                <TouchableOpacity style={styles.actionBtn} onPress={flipCamera}>
+                  <Text style={styles.actionIcon}>🔄</Text>
+                  <Text style={styles.actionLabel}>Flip</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Speaker Toggle */}
+              <TouchableOpacity
+                style={[styles.actionBtn, isSpeaker && styles.actionBtnActive]}
+                onPress={() => setIsSpeaker((prev) => !prev)}>
+                <Text style={styles.actionIcon}>{isSpeaker ? '🔊' : '🔈'}</Text>
+                <Text style={styles.actionLabel}>{isSpeaker ? 'Speaker' : 'Earpiece'}</Text>
+              </TouchableOpacity>
+
+              {/* End Call Button */}
+              <TouchableOpacity style={styles.endCallBtn} onPress={onEndCall} activeOpacity={0.8}>
+                <Text style={styles.endCallIcon}>📞</Text>
+                <Text style={styles.endCallLabel}>End Call</Text>
+              </TouchableOpacity>
+            </>
           )}
-
-          {/* Speaker Toggle */}
-          <TouchableOpacity
-            style={[styles.actionBtn, isSpeaker && styles.actionBtnActive]}
-            onPress={() => setIsSpeaker((prev) => !prev)}>
-            <Text style={styles.actionIcon}>{isSpeaker ? '🔊' : '🔈'}</Text>
-            <Text style={styles.actionLabel}>{isSpeaker ? 'Speaker' : 'Earpiece'}</Text>
-          </TouchableOpacity>
-
-          {/* End Call Button */}
-          <TouchableOpacity style={styles.endCallBtn} onPress={onEndCall}>
-            <Text style={styles.endCallIcon}>📞</Text>
-            <Text style={styles.endCallLabel}>End Call</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -299,11 +367,17 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
     backgroundColor: '#00F2FE',
   },
+  ringingIndicatorDot: {
+    backgroundColor: '#F59E0B',
+  },
   badgeText: {
     color: '#00F2FE',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  ringingBadgeText: {
+    color: '#F59E0B',
   },
   timerText: {
     color: '#FFFFFF',
@@ -371,6 +445,11 @@ const styles = StyleSheet.create({
     elevation: 15,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarInitial: {
     color: '#FFFFFF',
@@ -389,6 +468,8 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '600',
     marginTop: 6,
+    textAlign: 'center',
+    paddingHorizontal: 30,
   },
   soundWaveRow: {
     flexDirection: 'row',
@@ -428,10 +509,33 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#100B1A',
     overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  remoteCamera: {
+  remotePhoto: {
     width: '100%',
     height: '100%',
+  },
+  remotePlaceholder: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#7928CA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  remoteInitial: {
+    color: '#FFFFFF',
+    fontSize: 60,
+    fontWeight: '900',
+  },
+  remoteVideoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
   remoteVideoGradient: {
     position: 'absolute',
@@ -509,6 +613,66 @@ const styles = StyleSheet.create({
     shadowRadius: 25,
     elevation: 12,
   },
+  incomingActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    width: '100%',
+    paddingHorizontal: 20,
+  },
+  ringingActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  declineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#DC2626',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 22,
+    shadowColor: '#DC2626',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  declineIcon: {
+    fontSize: 16,
+    color: '#FFF',
+    fontWeight: '900',
+  },
+  declineLabel: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  acceptBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 22,
+    shadowColor: '#10B981',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  acceptIcon: {
+    fontSize: 18,
+    color: '#FFF',
+  },
+  acceptLabel: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
   actionBtn: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -534,7 +698,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#E11D48',
     paddingVertical: 10,
-    paddingHorizontal: 18,
+    paddingHorizontal: 24,
     borderRadius: 20,
     shadowColor: '#E11D48',
     shadowOpacity: 0.6,
@@ -542,7 +706,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   endCallIcon: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#FFF',
   },
   endCallLabel: {

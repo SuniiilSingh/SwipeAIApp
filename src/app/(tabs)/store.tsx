@@ -2,9 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
-  Linking,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,13 +13,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
 import { SkuCatalogItem } from '@/types';
+import {
+  executePurchase,
+  getActivePaymentRail,
+  resolveDisplayPrice,
+  resolvePlatformProductId,
+} from '@/services/payments';
+import { hapticFeedback } from '@/utils/haptics';
 
 export default function StoreScreen() {
   const [catalog, setCatalog] = useState<SkuCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutItem, setCheckoutItem] = useState<SkuCatalogItem | null>(null);
-  const [upiOrderData, setUpiOrderData] = useState<any | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
+
+  const paymentRail = getActivePaymentRail();
 
   useEffect(() => {
     loadCatalog();
@@ -33,57 +41,33 @@ export default function StoreScreen() {
     setLoading(false);
   };
 
-  const handleOpenCheckout = async (item: SkuCatalogItem) => {
+  const handleOpenCheckout = (item: SkuCatalogItem) => {
+    hapticFeedback.light();
     setCheckoutItem(item);
-    setProcessingPayment(true);
-    const order = await api.createUpiOrder(item.sku);
-    setUpiOrderData(order);
-    setProcessingPayment(false);
   };
 
-  const handleSimulateUpiAppPayment = async (appName: string, appKey?: string) => {
-    if (!upiOrderData || !checkoutItem) return;
-
-    const amt = checkoutItem.priceInr;
-    const tn = encodeURIComponent(`Blunderr Dating - ${checkoutItem.title}`);
-    const tr = upiOrderData.orderId;
-    const genericUpi = `upi://pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
-
-    let targetUrl = genericUpi;
-    if (appKey === 'gpay') {
-      targetUrl = `tez://upi/pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
-    } else if (appKey === 'phonepe') {
-      targetUrl = `phonepe://pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
-    } else if (appKey === 'paytm') {
-      targetUrl = `paytmmp://pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${tn}&tr=${tr}`;
-    }
-
-    try {
-      const canOpen = await Linking.canOpenURL(targetUrl);
-      if (canOpen) {
-        await Linking.openURL(targetUrl);
-      } else {
-        const canOpenGeneric = await Linking.canOpenURL(genericUpi);
-        if (canOpenGeneric) {
-          await Linking.openURL(genericUpi);
-        }
-      }
-    } catch (err) {
-      // Simulator or intent error, fallback to in-app simulation
-    }
+  const handleConfirmPurchase = async () => {
+    if (!checkoutItem) return;
 
     setProcessingPayment(true);
-    setTimeout(async () => {
-      await api.confirmUpiPayment(upiOrderData.orderId);
+    hapticFeedback.medium();
+
+    try {
+      const result = await executePurchase(checkoutItem, (status) => {
+        setProcessingStatus(status);
+      });
+
       setProcessingPayment(false);
-      const skuTitle = checkoutItem?.title || 'Pass';
       setCheckoutItem(null);
-      setUpiOrderData(null);
+
       Alert.alert(
-        '🎉 Payment Successful via ' + appName,
-        `Your ${skuTitle} is now active! All benefits have been credited to your account.`
+        '🎉 Payment Successful',
+        result.message || `Your ${checkoutItem.title} is now active!`
       );
-    }, 1500);
+    } catch (err: any) {
+      setProcessingPayment(false);
+      Alert.alert('Payment Incomplete', err.message || 'Transaction could not be verified.');
+    }
   };
 
   const weekendPass = catalog.find((c) => c.sku === 'WEEKEND_PASS_99');
@@ -92,11 +76,13 @@ export default function StoreScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Dynamic Platform-Aware Store Header */}
         <View style={styles.header}>
-          <Text style={styles.storeBadge}>✦ VIBESTORE (UPI NATIVE)</Text>
-          <Text style={styles.title}>The Indian Sachet Store</Text>
-          <Text style={styles.subtitle}>Micro-pricing (₹19 - ₹99). Zero recurring credit card locks.</Text>
+          <View style={styles.storeBadgeContainer}>
+            <Text style={styles.storeBadge}>{paymentRail.badge.toUpperCase()}</Text>
+          </View>
+          <Text style={styles.title}>VibeStore & Perks</Text>
+          <Text style={styles.subtitle}>{paymentRail.description}</Text>
         </View>
 
         {loading ? (
@@ -111,7 +97,7 @@ export default function StoreScreen() {
                 </View>
                 <Text style={styles.heroTitle}>{weekendPass.title}</Text>
                 <View style={styles.heroPriceRow}>
-                  <Text style={styles.heroPrice}>₹{weekendPass.priceInr}</Text>
+                  <Text style={styles.heroPrice}>₹{resolveDisplayPrice(weekendPass)}</Text>
                   <Text style={styles.heroDuration}>/ weekend pass</Text>
                 </View>
                 <Text style={styles.heroSubtitle}>{weekendPass.subtitle}</Text>
@@ -123,91 +109,122 @@ export default function StoreScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={styles.heroUpiBtn}
+                  style={styles.heroBuyBtn}
+                  activeOpacity={0.85}
                   onPress={() => handleOpenCheckout(weekendPass)}>
-                  <Text style={styles.heroUpiBtnText}>⚡ Activate via UPI (₹99)</Text>
-                  <Text style={styles.heroUpiSubText}>GPay • PhonePe • Paytm • BHIM</Text>
+                  <Text style={styles.heroBuyBtnText}>
+                    {Platform.OS === 'ios'
+                      ? `🍎 Buy with Apple In-App Purchase (₹${resolveDisplayPrice(weekendPass)})`
+                      : Platform.OS === 'android'
+                      ? `🛡️ Buy with Google Play (₹${resolveDisplayPrice(weekendPass)})`
+                      : `⚡ Pay via Cashfree UPI (₹${resolveDisplayPrice(weekendPass)})`}
+                  </Text>
+                  <Text style={styles.heroBuySubText}>
+                    {paymentRail.securityNotice}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
 
             {/* Sachet Micro-Packs Grid */}
-            <Text style={styles.sectionHeading}>Micro-Sachet Packs (No Subscription)</Text>
-            <View style={styles.sachetGrid}>
-              {sachetItems.map((item) => (
-                <TouchableOpacity
-                  key={item.sku}
-                  style={styles.sachetCard}
-                  onPress={() => handleOpenCheckout(item)}>
-                  {item.tag && (
-                    <View style={styles.sachetTag}>
-                      <Text style={styles.sachetTagText}>{item.tag}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.sachetPrice}>₹{item.priceInr}</Text>
-                  <Text style={styles.sachetTitle}>{item.title}</Text>
-                  <Text style={styles.sachetSubtitle}>{item.subtitle}</Text>
+            <View style={styles.sectionHeadingRow}>
+              <Text style={styles.sectionHeading}>Micro-Sachet Packs</Text>
+              <Text style={styles.sectionSubHeading}>No credit card locks</Text>
+            </View>
 
-                  <View style={styles.buySachetBtn}>
-                    <Text style={styles.buySachetBtnText}>Get for ₹{item.priceInr} →</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.sachetGrid}>
+              {sachetItems.map((item) => {
+                const displayPrice = resolveDisplayPrice(item);
+                const productId = resolvePlatformProductId(item);
+                return (
+                  <TouchableOpacity
+                    key={item.sku}
+                    style={styles.sachetCard}
+                    activeOpacity={0.8}
+                    onPress={() => handleOpenCheckout(item)}>
+                    {item.tag && (
+                      <View style={styles.sachetTag}>
+                        <Text style={styles.sachetTagText}>{item.tag}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.sachetPrice}>₹{displayPrice}</Text>
+                    <Text style={styles.sachetTitle}>{item.title}</Text>
+                    <Text style={styles.sachetSubtitle}>{item.subtitle}</Text>
+
+                    <View style={styles.buySachetBtn}>
+                      <Text style={styles.buySachetBtnText}>
+                        {Platform.OS === 'ios' ? 'Apple IAP →' : Platform.OS === 'android' ? 'Google Play →' : 'Get Perks →'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </>
         )}
 
-        {/* 1-CLICK UPI CHECKOUT MODAL */}
+        {/* SECURE CHECKOUT CONFIRMATION MODAL */}
         <Modal visible={!!checkoutItem} transparent animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeaderRow}>
-                <Text style={styles.modalHeading}>1-Click UPI Payment</Text>
-                <TouchableOpacity onPress={() => setCheckoutItem(null)}>
+                <Text style={styles.modalHeading}>
+                  {paymentRail.isStoreKitOrPlay ? 'Store Checkout' : 'Cashfree Checkout'}
+                </Text>
+                <TouchableOpacity onPress={() => setCheckoutItem(null)} disabled={processingPayment}>
                   <Text style={styles.closeModalText}>✕</Text>
                 </TouchableOpacity>
               </View>
 
               {checkoutItem && (
                 <View style={styles.orderSummaryBox}>
-                  <Text style={styles.summaryTitle}>{checkoutItem.title}</Text>
-                  <Text style={styles.summaryPrice}>Total: ₹{checkoutItem.priceInr}</Text>
+                  <View style={styles.summaryItemRow}>
+                    <Text style={styles.summaryTitle}>{checkoutItem.title}</Text>
+                    <Text style={styles.summaryPrice}>₹{resolveDisplayPrice(checkoutItem)}</Text>
+                  </View>
+                  <Text style={styles.summarySubtitle}>{checkoutItem.subtitle}</Text>
+                  <View style={styles.securityBadgeRow}>
+                    <Text style={styles.securityBadgeText}>{paymentRail.badge}</Text>
+                    <Text style={styles.productIdText}>ID: {resolvePlatformProductId(checkoutItem)}</Text>
+                  </View>
                 </View>
               )}
 
               {processingPayment ? (
                 <View style={styles.processingBox}>
                   <ActivityIndicator size="large" color="#E94057" />
-                  <Text style={styles.processingText}>Processing instant UPI payment...</Text>
+                  <Text style={styles.processingText}>
+                    {processingStatus || 'Verifying transaction with store...'}
+                  </Text>
+                  <Text style={styles.processingSubText}>
+                    Please do not close this screen while benefits are being credited.
+                  </Text>
                 </View>
               ) : (
                 <>
-                  <Text style={styles.chooseUpiAppText}>Choose your UPI App:</Text>
-
-                  <View style={styles.upiAppList}>
-                    {[
-                      { name: 'Google Pay', icon: '🟢', key: 'gpay' },
-                      { name: 'PhonePe', icon: '🟣', key: 'phonepe' },
-                      { name: 'Paytm UPI', icon: '🔵', key: 'paytm' },
-                      { name: 'BHIM UPI', icon: '🟠', key: 'bhim' },
-                    ].map((app) => (
-                      <TouchableOpacity
-                        key={app.key}
-                        style={styles.upiAppBtn}
-                        onPress={() => handleSimulateUpiAppPayment(app.name, app.key)}>
-                        <Text style={styles.upiAppIcon}>{app.icon}</Text>
-                        <Text style={styles.upiAppName}>{app.name}</Text>
-                        <Text style={styles.upiAppAction}>Pay Now →</Text>
-                      </TouchableOpacity>
+                  <View style={styles.perksReviewBox}>
+                    <Text style={styles.perksReviewHeading}>Included with this perk:</Text>
+                    {checkoutItem?.perks.map((perk, idx) => (
+                      <Text key={idx} style={styles.perkReviewItem}>• {perk}</Text>
                     ))}
                   </View>
 
-                  {upiOrderData?.qrCodeUrl && (
-                    <View style={styles.qrSection}>
-                      <Text style={styles.qrTitle}>Or scan NPCI QR code:</Text>
-                      <Image source={{ uri: upiOrderData.qrCodeUrl }} style={styles.qrImage} />
-                    </View>
-                  )}
+                  <TouchableOpacity
+                    style={styles.confirmPayBtn}
+                    activeOpacity={0.85}
+                    onPress={handleConfirmPurchase}>
+                    <Text style={styles.confirmPayBtnText}>
+                      {Platform.OS === 'ios'
+                        ? 'Confirm Purchase with Apple'
+                        : Platform.OS === 'android'
+                        ? 'Confirm Purchase with Google Play'
+                        : 'Proceed with Cashfree UPI & Cards'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.disclaimerText}>
+                    {paymentRail.securityNotice} Purchases are tied to your verified Blunderr profile ID and restore automatically across devices.
+                  </Text>
                 </>
               )}
             </View>
@@ -231,9 +248,19 @@ const styles = StyleSheet.create({
   header: {
     marginVertical: 12,
   },
+  storeBadgeContainer: {
+    backgroundColor: 'rgba(233, 64, 87, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(233, 64, 87, 0.3)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginBottom: 6,
+  },
   storeBadge: {
-    color: '#F27121',
-    fontSize: 11,
+    color: '#E94057',
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
@@ -305,28 +332,41 @@ const styles = StyleSheet.create({
     color: '#D8DBE5',
     fontSize: 12,
   },
-  heroUpiBtn: {
+  heroBuyBtn: {
     backgroundColor: '#E94057',
     borderRadius: 14,
     paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: 'center',
     marginTop: 12,
   },
-  heroUpiBtnText: {
+  heroBuyBtnText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
+    textAlign: 'center',
   },
-  heroUpiSubText: {
-    color: 'rgba(255,255,255,0.8)',
+  heroBuySubText: {
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 10,
-    marginTop: 2,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 14,
   },
   sectionHeading: {
     fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
-    marginVertical: 14,
+  },
+  sectionSubHeading: {
+    fontSize: 11,
+    color: '#8E94A5',
+    fontWeight: '600',
   },
   sachetGrid: {
     flexDirection: 'row',
@@ -419,66 +459,80 @@ const styles = StyleSheet.create({
     padding: 14,
     marginVertical: 12,
   },
+  summaryItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   summaryTitle: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
   summaryPrice: {
     color: '#F27121',
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: 2,
+    fontSize: 18,
+    fontWeight: '900',
   },
-  chooseUpiAppText: {
-    color: '#CACDD8',
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
+  summarySubtitle: {
+    color: '#8E94A5',
+    fontSize: 12,
+    marginTop: 4,
   },
-  upiAppList: {
-    gap: 8,
-  },
-  upiAppBtn: {
+  securityBadgeRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#242734',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#343847',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#303444',
   },
-  upiAppIcon: {
-    fontSize: 20,
-    marginRight: 10,
-  },
-  upiAppName: {
-    flex: 1,
-    color: '#ffffff',
-    fontSize: 14,
+  securityBadgeText: {
+    color: '#4CAF50',
+    fontSize: 10,
     fontWeight: '700',
   },
-  upiAppAction: {
-    color: '#E94057',
+  productIdText: {
+    color: '#656A7B',
+    fontSize: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  perksReviewBox: {
+    backgroundColor: '#161822',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  perksReviewHeading: {
+    color: '#CACDD8',
     fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  perkReviewItem: {
+    color: '#8E94A5',
+    fontSize: 12,
+    marginVertical: 1,
+  },
+  confirmPayBtn: {
+    backgroundColor: '#E94057',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  confirmPayBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '800',
   },
-  qrSection: {
-    alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2C303E',
-  },
-  qrTitle: {
-    color: '#8E94A5',
-    fontSize: 11,
-    marginBottom: 8,
-  },
-  qrImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 10,
+  disclaimerText: {
+    color: '#656A7B',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 10,
+    lineHeight: 14,
   },
   processingBox: {
     alignItems: 'center',
@@ -486,8 +540,15 @@ const styles = StyleSheet.create({
   },
   processingText: {
     color: '#ffffff',
-    marginTop: 12,
+    marginTop: 14,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  processingSubText: {
+    color: '#8E94A5',
+    marginTop: 6,
+    fontSize: 11,
+    textAlign: 'center',
   },
 });

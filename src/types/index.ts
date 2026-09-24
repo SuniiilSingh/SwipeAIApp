@@ -239,6 +239,10 @@ export interface SkuCatalogItem {
   sku: string;
   title: string;
   priceInr: number;
+  storePriceInr?: number;
+  directPriceInr?: number;
+  googleProductId?: string;
+  appleProductId?: string;
   subtitle: string;
   tag?: string;
   perks: string[];

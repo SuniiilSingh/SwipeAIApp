@@ -29,9 +29,9 @@ export function getAvailablePaymentRails(): PaymentRailInfo[] {
   return [
     {
       rail: 'CASHFREE_WEB',
-      name: 'Cashfree 1-Click UPI & Cards',
-      badge: '⚡ Cashfree 0% Fee UPI',
-      description: 'Instant UPI (GPay, PhonePe, Paytm, BHIM) with direct discounts.',
+      name: 'Direct UPI & Cards (Cashfree)',
+      badge: '⚡ Direct UPI Offer',
+      description: 'Instant UPI (GPay, PhonePe, Paytm, BHIM) with introductory pricing.',
       securityNotice: '256-bit Bank Grade Encryption via Cashfree Payments.',
       isStoreKitOrPlay: false,
     },

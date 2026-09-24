@@ -96,7 +96,7 @@ export default function StoreScreen() {
               setSelectedRail('CASHFREE_WEB');
             }}>
             <Text style={[styles.railSwitcherText, selectedRail === 'CASHFREE_WEB' && styles.railSwitcherTextActive]}>
-              ⚡ Cashfree UPI (Save 30%)
+              ⚡ UPI Direct Offer
             </Text>
           </TouchableOpacity>
 
@@ -160,7 +160,7 @@ export default function StoreScreen() {
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionHeading}>Micro-Sachet Packs</Text>
               <Text style={styles.sectionSubHeading}>
-                {selectedRail === 'CASHFREE_WEB' ? 'Direct 0% UPI Pricing' : 'Official In-App Billing'}
+                {selectedRail === 'CASHFREE_WEB' ? 'Direct UPI Pricing' : 'In-App Store Billing'}
               </Text>
             </View>
 
@@ -237,7 +237,7 @@ export default function StoreScreen() {
                       <Text style={styles.methodChoiceTitle}>⚡ Cashfree Direct UPI</Text>
                     </View>
                     <View style={styles.discountBadge}>
-                      <Text style={styles.discountBadgeText}>SAVE 30%</Text>
+                      <Text style={styles.discountBadgeText}>PROMO OFFER</Text>
                     </View>
                   </View>
                   <Text style={styles.methodChoiceDesc}>Instant GPay, PhonePe, Paytm, BHIM & NetBanking</Text>

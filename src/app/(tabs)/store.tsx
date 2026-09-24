@@ -16,8 +16,10 @@ import { SkuCatalogItem } from '@/types';
 import {
   executePurchase,
   getActivePaymentRail,
+  getAvailablePaymentRails,
   resolveDisplayPrice,
   resolvePlatformProductId,
+  PaymentRail,
 } from '@/services/payments';
 import { hapticFeedback } from '@/utils/haptics';
 
@@ -27,8 +29,10 @@ export default function StoreScreen() {
   const [checkoutItem, setCheckoutItem] = useState<SkuCatalogItem | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [selectedRail, setSelectedRail] = useState<PaymentRail>('CASHFREE_WEB');
 
-  const paymentRail = getActivePaymentRail();
+  const activeRail = getActivePaymentRail(selectedRail);
+  const nativeStoreRail: PaymentRail = Platform.OS === 'ios' ? 'APPLE_STOREKIT' : 'GOOGLE_PLAY';
 
   useEffect(() => {
     loadCatalog();
@@ -53,7 +57,7 @@ export default function StoreScreen() {
     hapticFeedback.medium();
 
     try {
-      const result = await executePurchase(checkoutItem, (status) => {
+      const result = await executePurchase(checkoutItem, selectedRail, (status) => {
         setProcessingStatus(status);
       });
 
@@ -78,11 +82,35 @@ export default function StoreScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Dynamic Platform-Aware Store Header */}
         <View style={styles.header}>
-          <View style={styles.storeBadgeContainer}>
-            <Text style={styles.storeBadge}>{paymentRail.badge.toUpperCase()}</Text>
-          </View>
-          <Text style={styles.title}>VibeStore & Perks</Text>
-          <Text style={styles.subtitle}>{paymentRail.description}</Text>
+          <Text style={styles.title}>VibeStore & Micro-Sachets</Text>
+          <Text style={styles.subtitle}>Unlock boosts, sparks, and passes instantly</Text>
+        </View>
+
+        {/* PAYMENT RAIL SWITCHER TABS */}
+        <View style={styles.railSwitcherRow}>
+          <TouchableOpacity
+            style={[styles.railSwitcherBtn, selectedRail === 'CASHFREE_WEB' && styles.railSwitcherBtnActive]}
+            activeOpacity={0.8}
+            onPress={() => {
+              hapticFeedback.selection();
+              setSelectedRail('CASHFREE_WEB');
+            }}>
+            <Text style={[styles.railSwitcherText, selectedRail === 'CASHFREE_WEB' && styles.railSwitcherTextActive]}>
+              ⚡ Cashfree UPI (Save 30%)
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.railSwitcherBtn, selectedRail !== 'CASHFREE_WEB' && styles.railSwitcherBtnActive]}
+            activeOpacity={0.8}
+            onPress={() => {
+              hapticFeedback.selection();
+              setSelectedRail(nativeStoreRail);
+            }}>
+            <Text style={[styles.railSwitcherText, selectedRail !== 'CASHFREE_WEB' && styles.railSwitcherTextActive]}>
+              {Platform.OS === 'ios' ? '🍎 Apple StoreKit' : '🛡️ Google Play'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {loading ? (
@@ -97,8 +125,10 @@ export default function StoreScreen() {
                 </View>
                 <Text style={styles.heroTitle}>{weekendPass.title}</Text>
                 <View style={styles.heroPriceRow}>
-                  <Text style={styles.heroPrice}>₹{resolveDisplayPrice(weekendPass)}</Text>
-                  <Text style={styles.heroDuration}>/ weekend pass</Text>
+                  <Text style={styles.heroPrice}>₹{resolveDisplayPrice(weekendPass, selectedRail)}</Text>
+                  <Text style={styles.heroDuration}>
+                    {selectedRail === 'CASHFREE_WEB' ? '/ pass (Direct UPI)' : '/ pass (Store)'}
+                  </Text>
                 </View>
                 <Text style={styles.heroSubtitle}>{weekendPass.subtitle}</Text>
 
@@ -113,14 +143,14 @@ export default function StoreScreen() {
                   activeOpacity={0.85}
                   onPress={() => handleOpenCheckout(weekendPass)}>
                   <Text style={styles.heroBuyBtnText}>
-                    {Platform.OS === 'ios'
-                      ? `🍎 Buy with Apple In-App Purchase (₹${resolveDisplayPrice(weekendPass)})`
-                      : Platform.OS === 'android'
-                      ? `🛡️ Buy with Google Play (₹${resolveDisplayPrice(weekendPass)})`
-                      : `⚡ Pay via Cashfree UPI (₹${resolveDisplayPrice(weekendPass)})`}
+                    {selectedRail === 'CASHFREE_WEB'
+                      ? `⚡ Pay via Cashfree UPI (₹${resolveDisplayPrice(weekendPass, 'CASHFREE_WEB')})`
+                      : Platform.OS === 'ios'
+                      ? `🍎 Buy with Apple In-App (₹${resolveDisplayPrice(weekendPass, 'APPLE_STOREKIT')})`
+                      : `🛡️ Buy with Google Play (₹${resolveDisplayPrice(weekendPass, 'GOOGLE_PLAY')})`}
                   </Text>
                   <Text style={styles.heroBuySubText}>
-                    {paymentRail.securityNotice}
+                    {activeRail.securityNotice}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -129,13 +159,14 @@ export default function StoreScreen() {
             {/* Sachet Micro-Packs Grid */}
             <View style={styles.sectionHeadingRow}>
               <Text style={styles.sectionHeading}>Micro-Sachet Packs</Text>
-              <Text style={styles.sectionSubHeading}>No credit card locks</Text>
+              <Text style={styles.sectionSubHeading}>
+                {selectedRail === 'CASHFREE_WEB' ? 'Direct 0% UPI Pricing' : 'Official In-App Billing'}
+              </Text>
             </View>
 
             <View style={styles.sachetGrid}>
               {sachetItems.map((item) => {
-                const displayPrice = resolveDisplayPrice(item);
-                const productId = resolvePlatformProductId(item);
+                const displayPrice = resolveDisplayPrice(item, selectedRail);
                 return (
                   <TouchableOpacity
                     key={item.sku}
@@ -153,7 +184,7 @@ export default function StoreScreen() {
 
                     <View style={styles.buySachetBtn}>
                       <Text style={styles.buySachetBtnText}>
-                        {Platform.OS === 'ios' ? 'Apple IAP →' : Platform.OS === 'android' ? 'Google Play →' : 'Get Perks →'}
+                        {selectedRail === 'CASHFREE_WEB' ? 'Cashfree UPI →' : 'In-App Store →'}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -163,14 +194,12 @@ export default function StoreScreen() {
           </>
         )}
 
-        {/* SECURE CHECKOUT CONFIRMATION MODAL */}
+        {/* SECURE DUAL-RAIL CHECKOUT CONFIRMATION MODAL */}
         <Modal visible={!!checkoutItem} transparent animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeaderRow}>
-                <Text style={styles.modalHeading}>
-                  {paymentRail.isStoreKitOrPlay ? 'Store Checkout' : 'Cashfree Checkout'}
-                </Text>
+                <Text style={styles.modalHeading}>Checkout & Benefits</Text>
                 <TouchableOpacity onPress={() => setCheckoutItem(null)} disabled={processingPayment}>
                   <Text style={styles.closeModalText}>✕</Text>
                 </TouchableOpacity>
@@ -180,21 +209,74 @@ export default function StoreScreen() {
                 <View style={styles.orderSummaryBox}>
                   <View style={styles.summaryItemRow}>
                     <Text style={styles.summaryTitle}>{checkoutItem.title}</Text>
-                    <Text style={styles.summaryPrice}>₹{resolveDisplayPrice(checkoutItem)}</Text>
+                    <Text style={styles.summaryPrice}>
+                      ₹{resolveDisplayPrice(checkoutItem, selectedRail)}
+                    </Text>
                   </View>
                   <Text style={styles.summarySubtitle}>{checkoutItem.subtitle}</Text>
-                  <View style={styles.securityBadgeRow}>
-                    <Text style={styles.securityBadgeText}>{paymentRail.badge}</Text>
-                    <Text style={styles.productIdText}>ID: {resolvePlatformProductId(checkoutItem)}</Text>
-                  </View>
                 </View>
               )}
+
+              {/* PAYMENT METHOD CHOOSER */}
+              <Text style={styles.paymentMethodLabel}>Choose Payment Method:</Text>
+              <View style={styles.methodChoiceList}>
+                {/* 1. Cashfree Direct UPI Tile */}
+                <TouchableOpacity
+                  style={[
+                    styles.methodChoiceCard,
+                    selectedRail === 'CASHFREE_WEB' && styles.methodChoiceCardActive,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    hapticFeedback.selection();
+                    setSelectedRail('CASHFREE_WEB');
+                  }}>
+                  <View style={styles.methodChoiceHeader}>
+                    <View style={styles.methodTitleRow}>
+                      <Text style={styles.methodRadio}>{selectedRail === 'CASHFREE_WEB' ? '🔘' : '⚪'}</Text>
+                      <Text style={styles.methodChoiceTitle}>⚡ Cashfree Direct UPI</Text>
+                    </View>
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountBadgeText}>SAVE 30%</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.methodChoiceDesc}>Instant GPay, PhonePe, Paytm, BHIM & NetBanking</Text>
+                  <Text style={styles.methodChoicePrice}>
+                    ₹{checkoutItem ? resolveDisplayPrice(checkoutItem, 'CASHFREE_WEB') : 0}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* 2. Google Play / Apple In-App Purchase Tile */}
+                <TouchableOpacity
+                  style={[
+                    styles.methodChoiceCard,
+                    selectedRail !== 'CASHFREE_WEB' && styles.methodChoiceCardActive,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    hapticFeedback.selection();
+                    setSelectedRail(nativeStoreRail);
+                  }}>
+                  <View style={styles.methodChoiceHeader}>
+                    <View style={styles.methodTitleRow}>
+                      <Text style={styles.methodRadio}>{selectedRail !== 'CASHFREE_WEB' ? '🔘' : '⚪'}</Text>
+                      <Text style={styles.methodChoiceTitle}>
+                        {Platform.OS === 'ios' ? '🍎 Apple In-App Purchase' : '🛡️ Google Play Billing'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.methodChoiceDesc}>Official app store 1-tap in-app billing</Text>
+                  <Text style={styles.methodChoicePrice}>
+                    ₹{checkoutItem ? resolveDisplayPrice(checkoutItem, nativeStoreRail) : 0}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
               {processingPayment ? (
                 <View style={styles.processingBox}>
                   <ActivityIndicator size="large" color="#E94057" />
                   <Text style={styles.processingText}>
-                    {processingStatus || 'Verifying transaction with store...'}
+                    {processingStatus || 'Verifying transaction with gateway...'}
                   </Text>
                   <Text style={styles.processingSubText}>
                     Please do not close this screen while benefits are being credited.
@@ -214,16 +296,16 @@ export default function StoreScreen() {
                     activeOpacity={0.85}
                     onPress={handleConfirmPurchase}>
                     <Text style={styles.confirmPayBtnText}>
-                      {Platform.OS === 'ios'
-                        ? 'Confirm Purchase with Apple'
-                        : Platform.OS === 'android'
-                        ? 'Confirm Purchase with Google Play'
-                        : 'Proceed with Cashfree UPI & Cards'}
+                      {selectedRail === 'CASHFREE_WEB'
+                        ? `⚡ Pay ₹${resolveDisplayPrice(checkoutItem!, 'CASHFREE_WEB')} via Cashfree UPI`
+                        : Platform.OS === 'ios'
+                        ? `🍎 Pay ₹${resolveDisplayPrice(checkoutItem!, 'APPLE_STOREKIT')} with Apple`
+                        : `🛡️ Pay ₹${resolveDisplayPrice(checkoutItem!, 'GOOGLE_PLAY')} with Google Play`}
                     </Text>
                   </TouchableOpacity>
 
                   <Text style={styles.disclaimerText}>
-                    {paymentRail.securityNotice} Purchases are tied to your verified Blunderr profile ID and restore automatically across devices.
+                    {activeRail.securityNotice} Purchases are encrypted via AES-256-GCM and restore automatically.
                   </Text>
                 </>
               )}
@@ -550,5 +632,95 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 11,
     textAlign: 'center',
+  },
+  railSwitcherRow: {
+    flexDirection: 'row',
+    backgroundColor: '#161822',
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 14,
+  },
+  railSwitcherBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  railSwitcherBtnActive: {
+    backgroundColor: '#E94057',
+  },
+  railSwitcherText: {
+    color: '#8E94A5',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  railSwitcherTextActive: {
+    color: '#ffffff',
+    fontWeight: '800',
+  },
+  paymentMethodLabel: {
+    color: '#CACDD8',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  methodChoiceList: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  methodChoiceCard: {
+    backgroundColor: '#161822',
+    borderWidth: 1.5,
+    borderColor: '#262A38',
+    borderRadius: 14,
+    padding: 12,
+  },
+  methodChoiceCardActive: {
+    borderColor: '#E94057',
+    backgroundColor: 'rgba(233, 64, 87, 0.08)',
+  },
+  methodChoiceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  methodTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  methodRadio: {
+    fontSize: 14,
+  },
+  methodChoiceTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  discountBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  discountBadgeText: {
+    color: '#4CAF50',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  methodChoiceDesc: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 4,
+    marginLeft: 22,
+  },
+  methodChoicePrice: {
+    color: '#F27121',
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 6,
+    marginLeft: 22,
   },
 });

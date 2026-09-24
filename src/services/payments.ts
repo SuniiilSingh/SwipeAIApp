@@ -15,40 +15,48 @@ export interface PaymentRailInfo {
 }
 
 /**
- * Returns active payment gateway configuration based on runtime platform.
- * Complies with Apple StoreKit (Guideline 3.1.1) and Google Play In-App Billing policies.
+ * Returns all available payment rails for the current runtime.
+ * Allows users to choose between Direct Cashfree UPI (zero fees/discounts) and Native In-App Purchases.
  */
-export function getActivePaymentRail(): PaymentRailInfo {
-  if (Platform.OS === 'ios') {
-    return {
-      rail: 'APPLE_STOREKIT',
-      name: 'Apple In-App Purchase',
-      badge: '🍎 Apple StoreKit Verified',
-      description: 'Secured via Apple Face ID / Touch ID with instant account credit.',
-      securityNotice: 'Protected by Apple App Store Billing & Terms.',
-      isStoreKitOrPlay: true,
-    };
-  }
+export function getAvailablePaymentRails(): PaymentRailInfo[] {
+  const nativeRail: PaymentRail = Platform.OS === 'ios' ? 'APPLE_STOREKIT' : 'GOOGLE_PLAY';
+  const nativeName = Platform.OS === 'ios' ? 'Apple In-App Purchase' : 'Google Play Billing';
+  const nativeBadge = Platform.OS === 'ios' ? '🍎 Apple StoreKit' : '🛡️ Google Play';
+  const nativeNotice = Platform.OS === 'ios'
+    ? 'Protected by Apple App Store Terms & Billing.'
+    : 'Protected by Google Play Store Buyer Protection.';
 
-  if (Platform.OS === 'android') {
-    return {
-      rail: 'GOOGLE_PLAY',
-      name: 'Google Play Billing',
-      badge: '🛡️ Google Play Protected',
-      description: 'Secured via Google Play In-App Billing with 1-tap checkout.',
-      securityNotice: 'Protected by Google Play Store Billing & Buyer Protection.',
+  return [
+    {
+      rail: 'CASHFREE_WEB',
+      name: 'Cashfree 1-Click UPI & Cards',
+      badge: '⚡ Cashfree 0% Fee UPI',
+      description: 'Instant UPI (GPay, PhonePe, Paytm, BHIM) with direct discounts.',
+      securityNotice: '256-bit Bank Grade Encryption via Cashfree Payments.',
+      isStoreKitOrPlay: false,
+    },
+    {
+      rail: nativeRail,
+      name: nativeName,
+      badge: nativeBadge,
+      description: 'Native in-app billing with 1-tap checkout.',
+      securityNotice: nativeNotice,
       isStoreKitOrPlay: true,
-    };
-  }
+    },
+  ];
+}
 
-  return {
-    rail: 'CASHFREE_WEB',
-    name: 'Cashfree Direct Checkout',
-    badge: '⚡ Cashfree 0% Fee UPI',
-    description: 'Instant 1-Click UPI (GPay, PhonePe, Paytm) & Domestic Cards.',
-    securityNotice: '256-bit Bank Grade Encryption via Cashfree Payments.',
-    isStoreKitOrPlay: false,
-  };
+/**
+ * Returns default payment rail. Cashfree is preferred for direct lower pricing,
+ * while Google Play / Apple StoreKit are also fully supported.
+ */
+export function getActivePaymentRail(preferred?: PaymentRail): PaymentRailInfo {
+  const rails = getAvailablePaymentRails();
+  if (preferred) {
+    const found = rails.find((r) => r.rail === preferred);
+    if (found) return found;
+  }
+  return rails[0]; // Cashfree as default for lower direct price
 }
 
 /**
@@ -65,14 +73,17 @@ export function resolvePlatformProductId(item: SkuCatalogItem): string {
 }
 
 /**
- * Resolves the display price for the active runtime platform.
- * Store price (marked up +20%) is shown inside iOS/Android stores to absorb store commissions.
- * Direct price is shown on web/direct checkouts.
+ * Resolves the display price based on the selected payment rail.
+ * Direct Cashfree price is discounted; Store price includes standard app store commissions.
  */
-export function resolveDisplayPrice(item: SkuCatalogItem): number {
-  if (Platform.OS === 'ios' || Platform.OS === 'android') {
+export function resolveDisplayPrice(item: SkuCatalogItem, rail?: PaymentRail): number {
+  if (rail === 'CASHFREE_WEB') {
+    return item.directPriceInr || item.priceInr;
+  }
+  if (rail === 'GOOGLE_PLAY' || rail === 'APPLE_STOREKIT') {
     return item.storePriceInr || Math.round(item.priceInr * 1.3);
   }
+  // Default to direct price if available
   return item.directPriceInr || item.priceInr;
 }
 
@@ -86,22 +97,25 @@ export interface PurchaseResult {
 }
 
 /**
- * Orchestrates unified purchase across Native In-App Purchases (iOS/Android) and Cashfree (Web).
+ * Orchestrates purchase across either Cashfree (Direct UPI) or Native In-App Purchases (Google Play / Apple StoreKit).
  */
 export async function executePurchase(
   item: SkuCatalogItem,
+  chosenRail: PaymentRail = 'CASHFREE_WEB',
   onProgress?: (status: string) => void
 ): Promise<PurchaseResult> {
-  const railInfo = getActivePaymentRail();
-  const displayPrice = resolveDisplayPrice(item);
-  const productId = resolvePlatformProductId(item);
+  const isStore = chosenRail === 'GOOGLE_PLAY' || chosenRail === 'APPLE_STOREKIT';
+  const railName = isStore
+    ? (chosenRail === 'APPLE_STOREKIT' ? 'Apple StoreKit' : 'Google Play')
+    : 'Cashfree Direct Checkout';
 
-  onProgress?.(`Contacting ${railInfo.name}...`);
+  onProgress?.(`Contacting ${railName}...`);
 
   try {
-    if (railInfo.isStoreKitOrPlay) {
+    if (isStore) {
       // Native Apple StoreKit / Google Play In-App Purchase Flow
-      onProgress?.('Verifying purchase authorization...');
+      const productId = resolvePlatformProductId(item);
+      onProgress?.('Verifying store authorization...');
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       const mockPurchaseToken = `token_${Platform.OS}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -124,14 +138,14 @@ export async function executePurchase(
         sku: item.sku,
         title: item.title,
         message: verifyRes?.message || `Your ${item.title} is now active! All benefits have been credited.`,
-        rail: railInfo.rail,
+        rail: chosenRail,
       };
     } else {
-      // Cashfree Direct Web Checkout Flow
-      onProgress?.('Generating Cashfree UPI Payment Session...');
+      // Cashfree Direct UPI / Card Checkout Flow
+      onProgress?.('Generating Cashfree 1-Click UPI Session...');
       const order = await api.createCashfreeOrder(item.sku);
 
-      onProgress?.('Confirming payment capture...');
+      onProgress?.('Confirming payment capture with Cashfree...');
       await api.confirmCashfreeTestPayment(order.orderId);
 
       hapticFeedback.success();
@@ -142,7 +156,7 @@ export async function executePurchase(
         sku: item.sku,
         title: item.title,
         message: `Payment successful! Your ${item.title} has been unlocked via Cashfree.`,
-        rail: railInfo.rail,
+        rail: 'CASHFREE_WEB',
       };
     }
   } catch (err: any) {

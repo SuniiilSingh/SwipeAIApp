@@ -18,6 +18,7 @@ import {
   AppNotification,
   PaymentAuditTimeline,
   PaymentAuditEvent,
+  PaymentExecutionLog,
 } from '@/types';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -1109,6 +1110,27 @@ export const api = {
       console.warn('[Payments] Failed to submit payment review:', e);
     }
     return null;
+  },
+
+  getPaymentExecutionLogs: async (orderId?: string, status?: string): Promise<PaymentExecutionLog[]> => {
+    try {
+      if (!authToken) await initAuth();
+      const endpoint = orderId
+        ? `${BASE_URL}/v1/payments/audit/execution-logs/${orderId}`
+        : `${BASE_URL}/v1/payments/audit/execution-logs${status ? `?status=${status}` : ''}`;
+
+      const res = await fetchWithTimeout(endpoint, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'X-Client-Platform': Platform.OS,
+          'X-App-Version': Constants.expoConfig?.version || '1.0.0',
+        },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[Payments] Failed to fetch payment execution logs:', e);
+    }
+    return [];
   },
 
   // Safe Date Spots & SOS

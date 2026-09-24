@@ -317,3 +317,16 @@ export interface PaymentAuditTimeline {
   events: PaymentAuditEvent[];
 }
 
+export interface PaymentExecutionLog {
+  id: string;
+  orderId?: string;
+  userId?: string;
+  action: string;
+  status: 'SUCCESS' | 'FAILED';
+  executionTimeMs: number;
+  summary: string;
+  errorMessage?: string;
+  createdAt: string;
+}
+
+

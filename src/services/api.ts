@@ -16,6 +16,8 @@ import {
   VirtualChaiSession,
   DesireProfile,
   AppNotification,
+  PaymentAuditTimeline,
+  PaymentAuditEvent,
 } from '@/types';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -954,7 +956,12 @@ export const api = {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/iap/verify`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+          'X-Client-Platform': Platform.OS,
+          'X-App-Version': Constants.expoConfig?.version || '1.0.0',
+        },
         body: JSON.stringify(data),
       });
       if (res.ok) return await res.json();
@@ -986,7 +993,12 @@ export const api = {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/cashfree/create-order`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+          'X-Client-Platform': Platform.OS,
+          'X-App-Version': Constants.expoConfig?.version || '1.0.0',
+        },
         body: JSON.stringify({ sku, customerPhone: customerPhone || cachedProfile.phoneE164 }),
       });
       if (res.ok) return await res.json();
@@ -1020,7 +1032,11 @@ export const api = {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/cashfree/test-confirm/${orderId}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'X-Client-Platform': Platform.OS,
+          'X-App-Version': Constants.expoConfig?.version || '1.0.0',
+        },
       });
       if (res.ok) return await res.json();
     } catch (e) {}
@@ -1028,6 +1044,71 @@ export const api = {
     cachedProfile.hasActivePass = true;
     cachedProfile.sparksBalance += 3;
     return { status: 'success', orderId };
+  },
+
+  // Payment Audit & Forensic Traceability APIs
+  getOrderAuditTimeline: async (orderId: string): Promise<PaymentAuditTimeline | null> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/audit/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'X-Client-Platform': Platform.OS,
+          'X-App-Version': Constants.expoConfig?.version || '1.0.0',
+        },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[Payments] Failed to fetch order audit timeline:', e);
+    }
+    return null;
+  },
+
+  getUserPaymentAuditHistory: async (userId?: string): Promise<PaymentAuditTimeline[]> => {
+    try {
+      if (!authToken) await initAuth();
+      const targetUserId = userId || currentUserId || cachedProfile.userId;
+      if (!targetUserId) return [];
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/audit/user/${targetUserId}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'X-Client-Platform': Platform.OS,
+          'X-App-Version': Constants.expoConfig?.version || '1.0.0',
+        },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[Payments] Failed to fetch user payment audit history:', e);
+    }
+    return [];
+  },
+
+  reviewPaymentOrder: async (
+    orderId: string,
+    review: {
+      adminNotes: string;
+      status?: string;
+      grantPerks?: boolean;
+      adminIdOrName?: string;
+    }
+  ): Promise<PaymentAuditTimeline | null> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/audit/orders/${orderId}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+          'X-Client-Platform': Platform.OS,
+          'X-App-Version': Constants.expoConfig?.version || '1.0.0',
+        },
+        body: JSON.stringify(review),
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[Payments] Failed to submit payment review:', e);
+    }
+    return null;
   },
 
   // Safe Date Spots & SOS

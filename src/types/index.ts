@@ -284,3 +284,36 @@ export interface AppNotification {
   isRead: boolean;
   createdAt: string;
 }
+
+export interface PaymentAuditEvent {
+  id: string;
+  event: string;
+  status: string;
+  decryptedMetadata?: string;
+  clientIp?: string;
+  userAgent?: string;
+  timestamp: string;
+}
+
+export interface PaymentAuditTimeline {
+  orderId: string;
+  userId: string;
+  paymentProvider: 'APPLE_STOREKIT' | 'GOOGLE_PLAY' | 'CASHFREE' | 'RAZORPAY_UPI';
+  sku: string;
+  amountPaise: number;
+  currency: string;
+  status: 'PENDING' | 'CAPTURED' | 'FAILED' | 'REFUNDED' | 'DISPUTED';
+  paymentId?: string;
+  externalTransactionId?: string;
+  clientIp?: string;
+  userAgent?: string;
+  failureReason?: string;
+  adminNotes?: string;
+  reviewedBy?: string;
+  createdAt: string;
+  capturedAt?: string;
+  updatedAt?: string;
+  decryptedRawPayload?: string;
+  events: PaymentAuditEvent[];
+}
+

@@ -702,6 +702,13 @@ export default function StoreScreen() {
                         {availableRails.map((railInfo) => {
                           const isSelected = selectedRail === railInfo.rail;
                           const price = resolveDisplayPrice(checkoutItem, railInfo.rail);
+                          const isGoogle = railInfo.rail === 'GOOGLE_PLAY';
+                          const isApple = railInfo.rail === 'APPLE_STOREKIT';
+                          const icon = isApple ? '🍎' : isGoogle ? '🛡️' : '💳';
+                          const shortTitle = isApple ? 'Apple Pay' : isGoogle ? 'Google Play' : 'Cashfree UPI';
+                          const subNote = isApple ? '1-Tap StoreKit' : isGoogle ? '1-Tap Protected' : 'UPI, Cards & Net';
+                          const badgeTag = isGoogle ? 'Official' : isApple ? 'Official' : 'Instant';
+
                           return (
                             <TouchableOpacity
                               key={railInfo.rail}
@@ -714,14 +721,32 @@ export default function StoreScreen() {
                                 hapticFeedback.selection();
                                 setSelectedRail(railInfo.rail);
                               }}>
-                              <View style={styles.fullMethodHeader}>
-                                <View style={styles.fullMethodTitleRow}>
-                                  <Text style={styles.methodRadio}>{isSelected ? '🔘' : '⚪'}</Text>
-                                  <Text style={styles.fullMethodTitle}>{railInfo.name}</Text>
+                              <View style={styles.squareCardTop}>
+                                <View style={[styles.squareIconBox, isSelected && styles.squareIconBoxActive]}>
+                                  <Text style={styles.squareIcon}>{icon}</Text>
                                 </View>
-                                <Text style={styles.fullMethodPrice}>₹{price}</Text>
+                                <View style={[styles.squareRadio, isSelected && styles.squareRadioActive]}>
+                                  {isSelected && <Text style={styles.squareRadioCheck}>✓</Text>}
+                                </View>
                               </View>
-                              <Text style={styles.fullMethodDesc}>{railInfo.description}</Text>
+
+                              <View style={styles.squareCardMiddle}>
+                                <Text style={styles.squareCardTitle} numberOfLines={1}>
+                                  {shortTitle}
+                                </Text>
+                                <Text style={styles.squareCardSub} numberOfLines={2}>
+                                  {subNote}
+                                </Text>
+                              </View>
+
+                              <View style={styles.squareCardBottom}>
+                                <Text style={styles.squareCardPrice}>₹{price}</Text>
+                                <View style={[styles.squareBadge, isSelected && styles.squareBadgeActive]}>
+                                  <Text style={[styles.squareBadgeText, isSelected && styles.squareBadgeTextActive]}>
+                                    {badgeTag}
+                                  </Text>
+                                </View>
+                              </View>
                             </TouchableOpacity>
                           );
                         })}
@@ -1447,56 +1472,140 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // PAYMENT METHODS
+  // PAYMENT METHODS (PARALLEL SQUARE CARDS)
   methodSelectSection: {
     marginTop: 4,
     marginBottom: 12,
   },
   methodChoiceList: {
-    gap: 10,
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 10,
   },
   fullMethodCard: {
+    flex: 1,
+    minHeight: 155,
     backgroundColor: '#161822',
     borderWidth: 1.5,
     borderColor: '#262A38',
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 14,
+    justifyContent: 'space-between',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+      },
+      default: {
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 6,
+      },
+    }),
   },
   fullMethodCardActive: {
     borderColor: '#E94057',
-    backgroundColor: 'rgba(233, 64, 87, 0.08)',
+    backgroundColor: 'rgba(233, 64, 87, 0.10)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 16px rgba(233, 64, 87, 0.25)',
+      },
+      default: {
+        elevation: 6,
+        shadowColor: '#E94057',
+        shadowOpacity: 0.35,
+        shadowOffset: { width: 0, height: 3 },
+        shadowRadius: 8,
+      },
+    }),
   },
-  fullMethodHeader: {
+  squareCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
   },
-  fullMethodTitleRow: {
-    flexDirection: 'row',
+  squareIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
-    gap: 8,
-    flex: 1,
+    justifyContent: 'center',
   },
-  methodRadio: {
-    fontSize: 16,
+  squareIconBoxActive: {
+    backgroundColor: 'rgba(233, 64, 87, 0.20)',
   },
-  fullMethodTitle: {
+  squareIcon: {
+    fontSize: 20,
+  },
+  squareRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#4A5068',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  squareRadioActive: {
+    borderColor: '#E94057',
+    backgroundColor: '#E94057',
+  },
+  squareRadioCheck: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  squareCardMiddle: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  squareCardTitle: {
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '800',
+    letterSpacing: 0.2,
   },
-  fullMethodPrice: {
-    color: '#F27121',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-  fullMethodDesc: {
+  squareCardSub: {
     color: '#8E94A5',
     fontSize: 11,
-    marginTop: 4,
-    marginLeft: 24,
-    lineHeight: 16,
+    fontWeight: '500',
+    marginTop: 3,
+    lineHeight: 15,
+  },
+  squareCardBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  squareCardPrice: {
+    color: '#F27121',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  squareBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  squareBadgeActive: {
+    backgroundColor: 'rgba(233, 64, 87, 0.25)',
+  },
+  squareBadgeText: {
+    color: '#A0A6B8',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  squareBadgeTextActive: {
+    color: '#FF6B81',
   },
   ucbNoticeText: {
     color: '#8E94A5',

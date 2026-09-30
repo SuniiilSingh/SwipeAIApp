@@ -21,11 +21,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { api } from '@/services/api';
-import { ActionType, CandidateCard, ContextType } from '@/types';
+import { ActionType, CandidateCard, ContextType, UserProfile } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import DesireProfileModal from '@/components/desire-profile-modal';
 import MatchCelebrationModal from '@/components/match-celebration-modal';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
+import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscription-gating-modal';
 import { FEATURE_FLAGS } from '@/config/features';
 import { Image as ExpoImage } from 'expo-image';
 import { hapticFeedback } from '@/utils/haptics';
@@ -71,6 +72,11 @@ export default function DiscoveryScreen() {
   const [selectedFilter, setSelectedFilter] = useState('ALL');
   const [remainingSwipes, setRemainingSwipes] = useState(25);
   const [swipedHistory, setSwipedHistory] = useState<{ candidate: CandidateCard; action: ActionType }[]>([]);
+
+  // User Profile & Plan Gating State
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [gatingModalVisible, setGatingModalVisible] = useState(false);
+  const [gatingFeature, setGatingFeature] = useState<GatingFeatureType>('SWIPE');
 
   // Exact 1-screen viewport dimensions
   const [feedDimensions, setFeedDimensions] = useState<{ width: number; height: number }>({
@@ -126,6 +132,7 @@ export default function DiscoveryScreen() {
     try {
       // 1. Discovery Gating Check: Name, Gender, Sexual Orientation and >= 30% completion required
       const myProfile = await api.getMyProfile();
+      setUserProfile(myProfile);
       const hasName = Boolean(myProfile.displayName?.trim() || myProfile.fullName?.trim());
       const hasGender = Boolean(myProfile.gender || myProfile.genderDisplay);
       const hasOrientation = Boolean(myProfile.sexualOrientation);
@@ -161,10 +168,10 @@ export default function DiscoveryScreen() {
       });
       const list = feed?.candidates && Array.isArray(feed.candidates) ? feed.candidates : [];
       setCandidates(list);
-      setRemainingSwipes(feed?.remainingDailySwipes || 25);
+      setRemainingSwipes(myProfile.hasActivePass ? 999 : (feed?.remainingDailySwipes ?? 25));
     } catch (e) {
       setCandidates([]);
-      setRemainingSwipes(25);
+      setRemainingSwipes(userProfile?.hasActivePass ? 999 : 25);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -187,6 +194,28 @@ export default function DiscoveryScreen() {
     noteText?: string
   ) => {
     if (!targetCandidate) return;
+
+    // 1. PLAN GATING CHECKS:
+    if (actionType === 'LIKE') {
+      const isVip = Boolean(userProfile?.hasActivePass);
+      if (!isVip && remainingSwipes <= 0) {
+        hapticFeedback.warning();
+        setGatingFeature('SWIPE');
+        setGatingModalVisible(true);
+        return;
+      }
+    }
+
+    if (actionType === 'SUPER_CHAI') {
+      const isVip = Boolean(userProfile?.hasActivePass);
+      const sparks = userProfile?.sparksBalance || 0;
+      if (!isVip && sparks <= 0) {
+        hapticFeedback.warning();
+        setGatingFeature('SUPER_LIKE');
+        setGatingModalVisible(true);
+        return;
+      }
+    }
 
     const targetId = targetCandidate.userId;
     const targetName = targetCandidate.displayName || 'Candidate';
@@ -239,6 +268,12 @@ export default function DiscoveryScreen() {
   };
 
   const handleRewind = () => {
+    if (!userProfile?.hasActivePass) {
+      hapticFeedback.warning();
+      setGatingFeature('REWIND');
+      setGatingModalVisible(true);
+      return;
+    }
     if (swipedHistory.length === 0) {
       showToast('No swiped profiles to rewind!');
       return;
@@ -254,6 +289,14 @@ export default function DiscoveryScreen() {
   };
 
   const handleSendCuttingChai = (candidate: CandidateCard) => {
+    const isVip = Boolean(userProfile?.hasActivePass);
+    const sparks = userProfile?.sparksBalance || 0;
+    if (!isVip && sparks <= 0) {
+      hapticFeedback.warning();
+      setGatingFeature('SUPER_LIKE');
+      setGatingModalVisible(true);
+      return;
+    }
     setChaiTargetCandidate(candidate);
     setChaiModalVisible(true);
   };
@@ -264,6 +307,9 @@ export default function DiscoveryScreen() {
     setChaiModalVisible(false);
     setChaiTargetCandidate(null);
 
+    if (userProfile && userProfile.sparksBalance > 0) {
+      setUserProfile((prev) => prev ? { ...prev, sparksBalance: Math.max(0, prev.sparksBalance - 1) } : null);
+    }
     await api.createUpiOrder('CUTTING_CHAI_21');
     handleAction(target, 'SUPER_CHAI');
   };
@@ -333,6 +379,7 @@ interface SwipeableCardProps {
   onOpenDetails: (item: CandidateCard) => void;
   onRewind?: () => void;
   canRewind?: boolean;
+  canLike?: boolean;
 }
 
 function SwipeableCandidateCard({
@@ -344,6 +391,7 @@ function SwipeableCandidateCard({
   onOpenDetails,
   onRewind,
   canRewind,
+  canLike = true,
 }: SwipeableCardProps) {
   const pan = useRef(new Animated.ValueXY()).current;
 
@@ -364,6 +412,17 @@ function SwipeableCandidateCard({
         onPanResponderRelease: (_, gestureState) => {
           const SWIPE_THRESHOLD = 95;
           if (gestureState.dx > SWIPE_THRESHOLD || gestureState.vx > 0.5) {
+            // Check plan gating before animating like
+            if (!canLike) {
+              Animated.spring(pan, {
+                toValue: { x: 0, y: 0 },
+                friction: 5,
+                tension: 40,
+                useNativeDriver: false,
+              }).start();
+              onLike(item);
+              return;
+            }
             // Right swipe -> LIKE
             Animated.timing(pan, {
               toValue: { x: feedDimensions.width * 1.5, y: gestureState.dy },
@@ -616,6 +675,8 @@ function SwipeableCandidateCard({
 }
 
   const renderCandidateCard = ({ item }: { item: CandidateCard }) => {
+    const isVip = Boolean(userProfile?.hasActivePass);
+    const canLike = isVip || remainingSwipes > 0;
     return (
       <SwipeableCandidateCard
         item={item}
@@ -626,6 +687,7 @@ function SwipeableCandidateCard({
         onOpenDetails={(cand) => handleOpenProfile(cand)}
         onRewind={handleRewind}
         canRewind={swipedHistory.length > 0}
+        canLike={canLike}
       />
     );
   };
@@ -681,6 +743,43 @@ function SwipeableCandidateCard({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Plan Status Banner */}
+      {!userProfile?.hasActivePass ? (
+        <TouchableOpacity
+          style={styles.planBannerFree}
+          activeOpacity={0.85}
+          onPress={() => {
+            hapticFeedback.selection();
+            setGatingFeature('SWIPE');
+            setGatingModalVisible(true);
+          }}>
+          <View style={styles.planBannerLeft}>
+            <View style={styles.planBannerTag}>
+              <Text style={styles.planBannerTagText}>FREE TIER</Text>
+            </View>
+            <Text style={styles.planBannerTitle} numberOfLines={1}>
+              {remainingSwipes > 0 ? `${remainingSwipes} Free Likes Left Today` : 'Daily Likes Exhausted'}
+            </Text>
+          </View>
+          <View style={styles.planBannerBtn}>
+            <Text style={styles.planBannerBtnText}>Buy Subscription →</Text>
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.planBannerVip}
+          activeOpacity={0.85}
+          onPress={() => router.push('/(tabs)/store')}>
+          <View style={styles.planBannerLeft}>
+            <Text style={styles.planBannerVipTag}>👑 VIP PASS ACTIVE</Text>
+            <Text style={styles.planBannerVipTitle} numberOfLines={1}>
+              Unlimited Swipes • {userProfile.sparksBalance || 0} Sparks • {userProfile.directDmsBalance || 0} DMs
+            </Text>
+          </View>
+          <Text style={styles.planBannerVipAction}>Store ⚡</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Horizontal Filter Bar with My Desire Button */}
       <View style={styles.filterBarContainer}>
@@ -822,6 +921,18 @@ function SwipeableCandidateCard({
             <TouchableOpacity
               style={styles.modalSubmitBtn}
               onPress={() => {
+                const isVip = Boolean(userProfile?.hasActivePass);
+                const dms = userProfile?.directDmsBalance || 0;
+                if (!isVip && dms <= 0) {
+                  setCommentModalVisible(false);
+                  hapticFeedback.warning();
+                  setGatingFeature('DIRECT_DM');
+                  setGatingModalVisible(true);
+                  return;
+                }
+                if (userProfile && userProfile.directDmsBalance > 0) {
+                  setUserProfile((prev) => prev ? { ...prev, directDmsBalance: Math.max(0, prev.directDmsBalance - 1) } : null);
+                }
                 if (selectedCandidate) {
                   handleAction(selectedCandidate, 'LIKE');
                 }
@@ -895,6 +1006,14 @@ function SwipeableCandidateCard({
         }}
         onComment={() => {
           setShowFullProfileModal(false);
+          const isVip = Boolean(userProfile?.hasActivePass);
+          const dms = userProfile?.directDmsBalance || 0;
+          if (!isVip && dms <= 0) {
+            hapticFeedback.warning();
+            setGatingFeature('DIRECT_DM');
+            setGatingModalVisible(true);
+            return;
+          }
           if (selectedCandidate) {
             setSelectedContext({
               type: 'PROMPT',
@@ -943,6 +1062,17 @@ function SwipeableCandidateCard({
         visible={showDesireModal}
         onClose={() => setShowDesireModal(false)}
         onSaved={() => loadFeed()}
+      />
+
+      {/* PLAN / SUBSCRIPTION GATING MODAL */}
+      <SubscriptionGatingModal
+        visible={gatingModalVisible}
+        feature={gatingFeature}
+        onClose={() => setGatingModalVisible(false)}
+        onUpgrade={() => {
+          setGatingModalVisible(false);
+          router.push('/(tabs)/store');
+        }}
       />
     </SafeAreaView>
   );
@@ -1582,5 +1712,82 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  planBannerFree: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(233, 64, 87, 0.12)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(233, 64, 87, 0.35)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  planBannerLeft: {
+    flex: 1,
+    marginRight: 10,
+  },
+  planBannerTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E94057',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginBottom: 3,
+  },
+  planBannerTagText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  planBannerTitle: {
+    color: '#E0E0E0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  planBannerBtn: {
+    backgroundColor: '#E94057',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  planBannerBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  planBannerVip: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.4)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  planBannerVipTag: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  planBannerVipTitle: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  planBannerVipAction: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

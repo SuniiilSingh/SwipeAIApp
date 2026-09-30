@@ -15,8 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
-import { CandidateCard, MatchItem } from '@/types';
+import { CandidateCard, MatchItem, UserProfile } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
+import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscription-gating-modal';
 import { hapticFeedback } from '@/utils/haptics';
 
 export type MatchFilterType = 'ALL' | 'QUIZ' | 'EXPIRING' | 'ACTIVE';
@@ -29,6 +30,9 @@ export default function MatchesScreen() {
   const [selectedMatch, setSelectedMatch] = useState<MatchItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<MatchFilterType>('ALL');
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [gatingModalVisible, setGatingModalVisible] = useState(false);
+  const [gatingFeature, setGatingFeature] = useState<GatingFeatureType>('REVIVE');
 
   useEffect(() => {
     loadMatches();
@@ -36,15 +40,23 @@ export default function MatchesScreen() {
 
   const loadMatches = async () => {
     setLoading(true);
-    const list = await api.getMatches();
+    const [list, profile] = await Promise.all([
+      api.getMatches(),
+      api.getMyProfile().catch(() => null),
+    ]);
     setMatches(list);
+    if (profile) setUserProfile(profile);
     setLoading(false);
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    const list = await api.getMatches();
+    const [list, profile] = await Promise.all([
+      api.getMatches(),
+      api.getMyProfile().catch(() => null),
+    ]);
     setMatches(list);
+    if (profile) setUserProfile(profile);
     setIsRefreshing(false);
   };
 
@@ -120,6 +132,12 @@ export default function MatchesScreen() {
       <TouchableOpacity
         style={styles.matchCard}
         onPress={() => {
+          if (item.remainingHours <= 0 && !userProfile?.hasActivePass) {
+            hapticFeedback.warning();
+            setGatingFeature('REVIVE');
+            setGatingModalVisible(true);
+            return;
+          }
           if (isPending) {
             router.push({
               pathname: '/matches/icebreaker',
@@ -329,6 +347,12 @@ export default function MatchesScreen() {
           if (!selectedMatch) return;
           const target = selectedMatch;
           setSelectedMatch(null);
+          if (target.remainingHours <= 0 && !userProfile?.hasActivePass) {
+            hapticFeedback.warning();
+            setGatingFeature('REVIVE');
+            setGatingModalVisible(true);
+            return;
+          }
           if (target.status === 'PENDING_ICEBREAKER') {
             router.push({
               pathname: '/matches/icebreaker',
@@ -349,6 +373,17 @@ export default function MatchesScreen() {
             pathname: '/chat/[id]',
             params: { id: target.id, name: target.otherUserName },
           });
+        }}
+      />
+
+      {/* PLAN / SUBSCRIPTION GATING MODAL */}
+      <SubscriptionGatingModal
+        visible={gatingModalVisible}
+        feature={gatingFeature}
+        onClose={() => setGatingModalVisible(false)}
+        onUpgrade={() => {
+          setGatingModalVisible(false);
+          router.push('/(tabs)/store');
         }}
       />
     </SafeAreaView>

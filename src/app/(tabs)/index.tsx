@@ -744,43 +744,6 @@ function SwipeableCandidateCard({
         </View>
       </View>
 
-      {/* Plan Status Banner */}
-      {!userProfile?.hasActivePass ? (
-        <TouchableOpacity
-          style={styles.planBannerFree}
-          activeOpacity={0.85}
-          onPress={() => {
-            hapticFeedback.selection();
-            setGatingFeature('SWIPE');
-            setGatingModalVisible(true);
-          }}>
-          <View style={styles.planBannerLeft}>
-            <View style={styles.planBannerTag}>
-              <Text style={styles.planBannerTagText}>FREE TIER</Text>
-            </View>
-            <Text style={styles.planBannerTitle} numberOfLines={1}>
-              {remainingSwipes > 0 ? `${remainingSwipes} Free Likes Left Today` : 'Daily Likes Exhausted'}
-            </Text>
-          </View>
-          <View style={styles.planBannerBtn}>
-            <Text style={styles.planBannerBtnText}>Buy Subscription →</Text>
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={styles.planBannerVip}
-          activeOpacity={0.85}
-          onPress={() => router.push('/(tabs)/store')}>
-          <View style={styles.planBannerLeft}>
-            <Text style={styles.planBannerVipTag}>👑 VIP PASS ACTIVE</Text>
-            <Text style={styles.planBannerVipTitle} numberOfLines={1}>
-              Unlimited Swipes • {userProfile.sparksBalance || 0} Sparks • {userProfile.directDmsBalance || 0} DMs
-            </Text>
-          </View>
-          <Text style={styles.planBannerVipAction}>Store ⚡</Text>
-        </TouchableOpacity>
-      )}
-
       {/* Horizontal Filter Bar with My Desire Button */}
       <View style={styles.filterBarContainer}>
         <TouchableOpacity
@@ -1712,82 +1675,5 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 1,
-  },
-  planBannerFree: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(233, 64, 87, 0.12)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(233, 64, 87, 0.35)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  planBannerLeft: {
-    flex: 1,
-    marginRight: 10,
-  },
-  planBannerTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E94057',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginBottom: 3,
-  },
-  planBannerTagText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-  planBannerTitle: {
-    color: '#E0E0E0',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  planBannerBtn: {
-    backgroundColor: '#E94057',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  planBannerBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  planBannerVip: {
-    marginHorizontal: 16,
-    marginBottom: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.4)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  planBannerVipTag: {
-    color: '#FFD700',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  planBannerVipTitle: {
-    color: '#E2E8F0',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  planBannerVipAction: {
-    color: '#FFD700',
-    fontSize: 12,
-    fontWeight: '800',
   },
 });

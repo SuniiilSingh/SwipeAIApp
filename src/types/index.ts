@@ -329,4 +329,34 @@ export interface PaymentExecutionLog {
   createdAt: string;
 }
 
+export type TicketCategory =
+  | 'PAYMENTS_BILLING'
+  | 'PROFILE_VERIFICATION'
+  | 'SAFETY_HARASSMENT'
+  | 'MATCHES_CHAT'
+  | 'APP_BUG'
+  | 'OTHER';
+
+export type TicketStatus = 'PENDING' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+export interface SupportTicket {
+  id: string;
+  ticketNumber: string;
+  category: TicketCategory;
+  status: TicketStatus;
+  subject: string;
+  description: string;
+  resolutionNotes?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface FaqItem {
+  id: string;
+  category: string;
+  question: string;
+  answer: string;
+}
+
+
 

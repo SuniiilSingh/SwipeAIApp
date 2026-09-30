@@ -1609,6 +1609,19 @@ export default function ProfileScreen() {
               <Text style={styles.privacyArrow}>→</Text>
             </TouchableOpacity>
 
+            {/* Help & Support Hub */}
+            <TouchableOpacity
+              style={styles.supportShortcut}
+              onPress={() => router.push('/support' as any)}
+              activeOpacity={0.85}>
+              <Text style={styles.privacyIcon}>💬</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.supportShortcutTitle}>Help, Support & FAQs</Text>
+                <Text style={styles.privacySub}>Browse FAQs, raise concerns & track ticket resolution live.</Text>
+              </View>
+              <Text style={styles.privacyArrow}>→</Text>
+            </TouchableOpacity>
+
             {/* Log Out */}
             <TouchableOpacity
               style={styles.logoutBtn}
@@ -3526,6 +3539,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginVertical: 6,
     gap: 12,
+  },
+  supportShortcut: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#131A26',
+    borderWidth: 1,
+    borderColor: '#1F2C40',
+    padding: 14,
+    borderRadius: 16,
+    marginVertical: 6,
+    gap: 12,
+  },
+  supportShortcutTitle: {
+    color: '#38BDF8',
+    fontSize: 13,
+    fontWeight: '700',
   },
   privacyIcon: {
     fontSize: 22,

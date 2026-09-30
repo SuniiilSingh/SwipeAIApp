@@ -19,6 +19,10 @@ import {
   PaymentAuditTimeline,
   PaymentAuditEvent,
   PaymentExecutionLog,
+  SupportTicket,
+  TicketCategory,
+  TicketStatus,
+  FaqItem,
 } from '@/types';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -1481,5 +1485,157 @@ export const api = {
       console.warn('[api] Failed to delete notification:', e);
       return false;
     }
+  },
+
+  // Help & Support
+  getFaqs: async (): Promise<FaqItem[]> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/support/faqs`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('[api] Failed to fetch FAQs from server, using fallback:', e);
+    }
+    return [
+      {
+        id: 'faq-1',
+        category: 'Matches & Chat',
+        question: 'How does the 48-hour ephemeral timer work?',
+        answer: 'When a match is formed, a 48-hour countdown timer begins. This prevents ghosting and keeps momentum active. Completing the 10s Icebreaker Quiz unlocks the chat lounge. Once you exchange 4+ messages, ghost-buster protection activates!',
+      },
+      {
+        id: 'faq-2',
+        category: 'Verification & Safety',
+        question: 'How do I get DigiLocker and Liveness verified?',
+        answer: 'Go to your Profile and tap "DigiLocker Verification". We use zero-knowledge proofs to verify your identity without storing your Aadhaar number. Complete the 3D selfie liveness check to earn the gold shield badge on your profile.',
+      },
+      {
+        id: 'faq-3',
+        category: 'Privacy & Shadow Shield',
+        question: 'Can colleagues, exes, or family see my profile?',
+        answer: 'No! Enable "Shadow Shield" under Privacy in your Profile tab. You can sync your phone contacts or enter a corporate email domain (e.g., flipkart.com). We hash phone numbers using SHA-256 on your device, completely hiding you from those contacts.',
+      },
+      {
+        id: 'faq-4',
+        category: 'Plans & Billing',
+        question: 'What perks are included with Blunderr Pass?',
+        answer: 'Blunderr Pass unlocks Unlimited Daily Swipes, Rewind accidental passes, Super Sparks to highlight your profile, Direct Pre-Match Notes, and Priority Visibility. Remember: chat and messaging after matching is ALWAYS 100% free!',
+      },
+      {
+        id: 'faq-5',
+        category: 'Plans & Billing',
+        question: 'What payment methods are supported?',
+        answer: 'You can pay securely via all UPI apps (Google Pay, PhonePe, Paytm, BHIM), Credit/Debit Cards, NetBanking via Cashfree, or official Google Play / Apple StoreKit in-app billing.',
+      },
+      {
+        id: 'faq-6',
+        category: 'Safety & SOS',
+        question: 'How does Safe Date & Live SOS check-in work?',
+        answer: 'Under Profile > Safe Date, you can choose verified, well-lit partner cafes (like Blue Tokai & Third Wave) and start a live SOS session. A discrete tracking link is shared with your trusted emergency contact, plus you get a 15% cafe discount coupon.',
+      },
+      {
+        id: 'faq-7',
+        category: 'Account & Data',
+        question: 'How do I delete my account and data?',
+        answer: 'Under your Profile tab, scroll to the bottom and tap "Delete Account". Confirming will immediately wipe your profile, photos, matches, and messages in compliance with the India DPDP Act and App Store guidelines.',
+      },
+    ];
+  },
+
+  getSupportTickets: async (): Promise<SupportTicket[]> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/support/tickets`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        await AsyncStorage.setItem('cached_support_tickets', JSON.stringify(data));
+        return data;
+      }
+    } catch (e) {
+      console.warn('[api] Failed to fetch support tickets, checking cache:', e);
+    }
+    try {
+      const cached = await AsyncStorage.getItem('cached_support_tickets');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  },
+
+  createSupportTicket: async (ticket: {
+    category: TicketCategory;
+    subject: string;
+    description: string;
+  }): Promise<SupportTicket> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/support/tickets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(ticket),
+      });
+      if (res.ok) {
+        const newTicket = await res.json();
+        // Update local cache
+        const existing = await api.getSupportTickets();
+        await AsyncStorage.setItem('cached_support_tickets', JSON.stringify([newTicket, ...existing]));
+        return newTicket;
+      }
+    } catch (e) {
+      console.warn('[api] Failed to create support ticket on server, creating local ticket:', e);
+    }
+    // Local fallback
+    const fallbackTicket: SupportTicket = {
+      id: 'tkt_' + Date.now(),
+      ticketNumber: 'TKT-' + Math.floor(10000 + Math.random() * 90000),
+      category: ticket.category,
+      status: 'PENDING',
+      subject: ticket.subject,
+      description: ticket.description,
+      createdAt: new Date().toISOString(),
+    };
+    const existing = await api.getSupportTickets();
+    await AsyncStorage.setItem('cached_support_tickets', JSON.stringify([fallbackTicket, ...existing]));
+    return fallbackTicket;
+  },
+
+  resolveSupportTicket: async (id: string, resolutionNotes?: string): Promise<SupportTicket> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/support/tickets/${id}/resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ resolutionNotes }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('[api] Failed to resolve support ticket on server:', e);
+    }
+    // Fallback local update
+    const existing = await api.getSupportTickets();
+    const updated = existing.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            status: 'RESOLVED' as TicketStatus,
+            resolvedAt: new Date().toISOString(),
+            resolutionNotes:
+              resolutionNotes ||
+              'Your concern has been thoroughly reviewed and resolved by our safety & support team. Thank you for your patience.',
+          }
+        : t
+    );
+    await AsyncStorage.setItem('cached_support_tickets', JSON.stringify(updated));
+    return updated.find((t) => t.id === id) || existing[0];
   },
 };

@@ -216,6 +216,19 @@ export const api = {
     } catch (e) {}
   },
 
+  deleteAccount: async (): Promise<boolean> => {
+    try {
+      await fetchWithTimeout(`${BASE_URL}/v1/profiles/me`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+    } catch (e) {
+      console.warn('[api] Failed to delete account from server:', e);
+    }
+    await api.logout();
+    return true;
+  },
+
   // Helper to normalize Indian/international phone numbers into clean E.164
   normalizePhone: (p: string) => {
     const cleaned = p.replace(/[^0-9+]/g, '');

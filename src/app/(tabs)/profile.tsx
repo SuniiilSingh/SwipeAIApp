@@ -170,6 +170,7 @@ export default function ProfileScreen() {
   const [voiceRecordSeconds, setVoiceRecordSeconds] = useState(0);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [recordedAudioUri, setRecordedAudioUri] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Profile Meme state
   const [setupMemeUrl, setSetupMemeUrl] = useState('');
@@ -509,6 +510,34 @@ export default function ProfileScreen() {
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    hapticFeedback.warning();
+    Alert.alert(
+      '⚠️ Delete Account Permanently?',
+      'Are you sure you want to delete your account? This action cannot be undone.\n\n• Your profile, photos, and voice notes will be permanently erased.\n• All matches, icebreakers, and chat history will be removed immediately.\n• In accordance with India DPDP Act and App Store guidelines, all your personal data will be completely wiped from our servers.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete My Account 🗑️',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeletingAccount(true);
+              hapticFeedback.heavy();
+              await api.deleteAccount();
+              Alert.alert('Account Deleted', 'Your account and personal data have been permanently removed.');
+              router.replace('/auth');
+            } catch (err) {
+              Alert.alert('Error', 'Failed to delete account. Please check your network connection and try again.');
+            } finally {
+              setIsDeletingAccount(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Vedic Zodiac & Meme Selection Handlers
@@ -1588,6 +1617,19 @@ export default function ProfileScreen() {
                 router.replace('/auth');
               }}>
               <Text style={styles.logoutBtnText}>🚪 Log Out</Text>
+            </TouchableOpacity>
+
+            {/* Delete Account (Mandatory App Store & Google Play compliance) */}
+            <TouchableOpacity
+              style={styles.deleteAccountBtn}
+              activeOpacity={0.8}
+              onPress={handleDeleteAccount}
+              disabled={isDeletingAccount}>
+              {isDeletingAccount ? (
+                <ActivityIndicator size="small" color="#FF3B30" />
+              ) : (
+                <Text style={styles.deleteAccountBtnText}>🗑️ Delete Account</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}
@@ -3521,6 +3563,22 @@ const styles = StyleSheet.create({
     color: '#E94057',
     fontSize: 13,
     fontWeight: '700',
+  },
+  deleteAccountBtn: {
+    backgroundColor: 'rgba(255, 59, 48, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.25)',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  deleteAccountBtnText: {
+    color: '#FF3B30',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 
   // Edit Mode Styles

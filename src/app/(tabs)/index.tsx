@@ -700,12 +700,6 @@ function SwipeableCandidateCard({
           <Text style={styles.brandLogo} numberOfLines={1}>
             Blunderr Dating
           </Text>
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveGreenDot} />
-            <Text style={styles.liveText}>
-              {filteredCandidates.length} Singles in Deck
-            </Text>
-          </View>
         </View>
 
         <View style={styles.brandActionsRow}>

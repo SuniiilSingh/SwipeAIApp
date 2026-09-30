@@ -834,6 +834,33 @@ export const api = {
     }
   },
 
+  reportProfile: async (targetUserId: string, reason: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/${targetUserId}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ reason }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('Report profile error:', e);
+      return false;
+    }
+  },
+
+  blockUser: async (targetUserId: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/${targetUserId}/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('Block user error:', e);
+      return false;
+    }
+  },
+
   getCosmicChemistry: async (targetUserId: string) => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/profile/cosmic-chemistry/${targetUserId}`, {

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
   Platform,
   RefreshControl,
@@ -210,6 +211,36 @@ export default function StoreScreen() {
     loadCatalog();
   };
 
+  const [restoring, setRestoring] = useState(false);
+
+  const handleRestorePurchases = async () => {
+    setRestoring(true);
+    hapticFeedback.light();
+    try {
+      const profile = await api.getMyProfile();
+      setRestoring(false);
+      if (profile && profile.hasActivePass) {
+        hapticFeedback.success();
+        Alert.alert(
+          'Purchases Restored',
+          'Your active VIP membership was verified. All entitlements and benefits have been restored!',
+          [{ text: 'OK' }]
+        );
+        loadCatalog();
+      } else {
+        hapticFeedback.medium();
+        Alert.alert(
+          'Restore Complete',
+          'No active subscriptions or past purchases were found for this account. If you were recently charged, please ensure you are signed in with the same Apple ID or Google Play account used during purchase.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (e) {
+      setRestoring(false);
+      Alert.alert('Restore Error', 'Could not connect to server to restore purchases. Please check your internet connection.');
+    }
+  };
+
   const handleOpenCheckout = (item: SkuCatalogItem) => {
     hapticFeedback.light();
     setSelectedRail(availableRails[0].rail);
@@ -271,8 +302,23 @@ export default function StoreScreen() {
         }>
         {/* Dynamic Platform-Aware Store Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>VibeStore & Passes</Text>
-          <Text style={styles.subtitle}>Unlock direct messages, unlimited likes, and profile sparks</Text>
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.title}>VibeStore & Passes</Text>
+              <Text style={styles.subtitle}>Unlock direct messages, unlimited likes, and profile sparks</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.restoreHeaderBtn}
+              onPress={handleRestorePurchases}
+              disabled={restoring}
+              activeOpacity={0.75}>
+              {restoring ? (
+                <ActivityIndicator size="small" color="#10B981" />
+              ) : (
+                <Text style={styles.restoreHeaderBtnText}>🔄 Restore</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loading ? (
@@ -505,6 +551,35 @@ export default function StoreScreen() {
                   </TouchableOpacity>
                 );
               })}
+            </View>
+
+            {/* Apple & Google Play Required Restore Purchases & EULA Terms */}
+            <TouchableOpacity
+              style={styles.mainRestoreBtn}
+              onPress={handleRestorePurchases}
+              disabled={restoring}
+              activeOpacity={0.8}>
+              {restoring ? (
+                <ActivityIndicator size="small" color="#10B981" />
+              ) : (
+                <Text style={styles.mainRestoreBtnText}>🔄 Restore Previous Purchases</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.legalDisclosureBox}>
+              <Text style={styles.legalDisclosureHead}>Subscription Information & Terms</Text>
+              <Text style={styles.legalDisclosureBody}>
+                Payment will be charged to your Apple ID or Google Play account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours prior to the end of the current billing period. You may manage or cancel subscriptions anytime in your Account Settings.
+              </Text>
+              <View style={styles.legalLinksRow}>
+                <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}>
+                  <Text style={styles.legalLinkText}>Terms of Use (EULA)</Text>
+                </TouchableOpacity>
+                <Text style={styles.legalLinkSeparator}>•</Text>
+                <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}>
+                  <Text style={styles.legalLinkText}>Privacy Policy</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </>
         )}
@@ -759,6 +834,20 @@ export default function StoreScreen() {
                       Google Play terms and buyer protections apply to purchases completed through Google Play.
                     </Text>
                   )}
+
+                  <View style={styles.checkoutLegalRow}>
+                    <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}>
+                      <Text style={styles.checkoutLegalLink}>Terms of Use (EULA)</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.checkoutLegalSep}>•</Text>
+                    <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}>
+                      <Text style={styles.checkoutLegalLink}>Privacy Policy</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.checkoutLegalSep}>•</Text>
+                    <TouchableOpacity onPress={handleRestorePurchases}>
+                      <Text style={styles.checkoutLegalLink}>Restore</Text>
+                    </TouchableOpacity>
+                  </View>
 
                   <View style={{ height: 110 }} />
                 </>
@@ -1665,5 +1754,98 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // RESTORE & LEGAL STYLES
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  restoreHeaderBtn: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  restoreHeaderBtnText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mainRestoreBtn: {
+    backgroundColor: '#161822',
+    borderWidth: 1,
+    borderColor: '#262A38',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 18,
+    marginBottom: 12,
+  },
+  mainRestoreBtnText: {
+    color: '#10B981',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  legalDisclosureBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  legalDisclosureHead: {
+    color: '#A0A6B8',
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  legalDisclosureBody: {
+    color: '#6B7280',
+    fontSize: 10,
+    lineHeight: 14,
+    marginBottom: 10,
+  },
+  legalLinksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  legalLinkText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  legalLinkSeparator: {
+    color: '#4B5563',
+    fontSize: 11,
+  },
+  checkoutLegalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  checkoutLegalLink: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  checkoutLegalSep: {
+    color: '#4B5563',
+    fontSize: 11,
   },
 });

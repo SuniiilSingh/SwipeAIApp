@@ -8,9 +8,27 @@
     "scheme": "blunderrdating",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.blunderr.dating",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Blunderr Dating requires camera access for 3D Biometric Liveness verification to eliminate catfish profiles and deepfakes.",
+        "NSPhotoLibraryUsageDescription": "Blunderr Dating requires photo library access to upload authentic pictures to your dating profile.",
+        "NSMicrophoneUsageDescription": "Blunderr Dating uses your microphone for encrypted Virtual Chai calling and in-chat voice notes.",
+        "NSLocationWhenInUseUsageDescription": "Blunderr Dating uses your location to discover matches nearby and show real-time distance.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Blunderr Dating uses your location to discover matches nearby and show real-time distance."
+      }
     },
     "android": {
+      "package": "com.blunderr.dating",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "VIBRATE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#08080E",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -59,6 +77,12 @@
         {
           "microphonePermission": "Blunderr Dating uses your microphone for encrypted Virtual Chai calling and in-chat voice notes.",
           "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Blunderr Dating requires photo library access to upload authentic pictures to your dating profile."
         }
       ]
     ],

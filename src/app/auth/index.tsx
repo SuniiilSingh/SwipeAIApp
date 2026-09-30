@@ -1019,6 +1019,25 @@ export default function AuthScreen() {
                           : 'SMS OTP Fallback Ready'}
                       </Text>
                     </View>
+
+                    {/* Apple & Google Mandatory Legal Terms & Privacy Policy */}
+                    <View style={styles.authLegalBox}>
+                      <Text style={styles.authLegalText}>
+                        By continuing, you agree to Blunderr's{' '}
+                        <Text
+                          style={styles.authLegalLink}
+                          onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}>
+                          Terms of Service
+                        </Text>
+                        {' '}and{' '}
+                        <Text
+                          style={styles.authLegalLink}
+                          onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}>
+                          Privacy Policy
+                        </Text>
+                        . You must be at least 18 years old to join.
+                      </Text>
+                    </View>
                   </>
                 ) : (
                   <>
@@ -3279,5 +3298,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+  authLegalBox: {
+    marginTop: 14,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  authLegalText: {
+    color: '#8A8D98',
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  authLegalLink: {
+    color: '#E94057',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

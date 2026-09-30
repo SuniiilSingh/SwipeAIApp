@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -1621,6 +1622,42 @@ export default function ProfileScreen() {
               </View>
               <Text style={styles.privacyArrow}>→</Text>
             </TouchableOpacity>
+
+            {/* Legal, Safety & Regulatory Policies */}
+            <View style={styles.legalSectionCard}>
+              <Text style={styles.legalSectionTitle}>LEGAL & SAFETY POLICIES</Text>
+              
+              <TouchableOpacity
+                style={styles.legalRowItem}
+                onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}
+                activeOpacity={0.7}>
+                <Text style={styles.legalItemEmoji}>📜</Text>
+                <Text style={styles.legalItemText}>Terms of Service & EULA</Text>
+                <Text style={styles.legalItemArrow}>→</Text>
+              </TouchableOpacity>
+
+              <View style={styles.legalDivider} />
+
+              <TouchableOpacity
+                style={styles.legalRowItem}
+                onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}
+                activeOpacity={0.7}>
+                <Text style={styles.legalItemEmoji}>🔒</Text>
+                <Text style={styles.legalItemText}>Privacy Policy & Data Safety</Text>
+                <Text style={styles.legalItemArrow}>→</Text>
+              </TouchableOpacity>
+
+              <View style={styles.legalDivider} />
+
+              <TouchableOpacity
+                style={styles.legalRowItem}
+                onPress={() => Linking.openURL('https://blunderr.in/community-guidelines').catch(() => {})}
+                activeOpacity={0.7}>
+                <Text style={styles.legalItemEmoji}>🛡️</Text>
+                <Text style={styles.legalItemText}>Zero-Tolerance UGC & Safety Rules</Text>
+                <Text style={styles.legalItemArrow}>→</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Log Out */}
             <TouchableOpacity
@@ -4931,5 +4968,47 @@ const styles = StyleSheet.create({
     color: '#00E5FF',
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // LEGAL & POLICIES CARD
+  legalSectionCard: {
+    backgroundColor: '#161822',
+    borderWidth: 1,
+    borderColor: '#262A38',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+  },
+  legalSectionTitle: {
+    color: '#8E94A5',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  legalRowItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  legalItemEmoji: {
+    fontSize: 18,
+  },
+  legalItemText: {
+    flex: 1,
+    color: '#CACDD8',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  legalItemArrow: {
+    color: '#656A7B',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  legalDivider: {
+    height: 1,
+    backgroundColor: '#262A38',
+    marginVertical: 2,
   },
 });

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   Modal,
@@ -15,6 +17,7 @@ import { FEATURE_FLAGS } from '@/config/features';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
 import { hapticFeedback } from '@/utils/haptics';
+import { api } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -74,6 +77,18 @@ export default function ProfileDetailModal({
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showKundaliModal, setShowKundaliModal] = useState(false);
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+
+  const CANDIDATE_REPORT_REASONS = [
+    { key: 'CATFISH', emoji: '🎭', label: 'Fake Profile / Catfishing', desc: 'Stolen photos, fake bio, or someone impersonating another person.' },
+    { key: 'INAPPROPRIATE', emoji: '🔞', label: 'Inappropriate Photos or Bio', desc: 'Nudity, sexual solicitation, or vulgar content.' },
+    { key: 'HARASSMENT', emoji: '🚫', label: 'Harassment & Abusive Behavior', desc: 'Hate speech, threatening text, or offensive messages.' },
+    { key: 'SCAM', emoji: '💸', label: 'Commercial Spam or Financial Scam', desc: 'Asking for money, selling services, or spamming links.' },
+    { key: 'UNDERAGE', emoji: '🚸', label: 'Suspected Minor (Under 18)', desc: 'Blunderr strictly forbids anyone under 18 years of age.' },
+  ];
 
   if (!candidate) return null;
 
@@ -88,7 +103,67 @@ export default function ProfileDetailModal({
   const handleClose = () => {
     stopAudibleVoiceNote();
     setIsPlayingAudio(false);
+    setShowActionSheet(false);
+    setShowReportModal(false);
     onClose();
+  };
+
+  const handleBlockUser = () => {
+    setShowActionSheet(false);
+    hapticFeedback.warning();
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${candidate.displayName}? You will no longer see each other anywhere on Blunderr.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block User',
+          style: 'destructive',
+          onPress: async () => {
+            setBlocking(true);
+            hapticFeedback.medium();
+            await api.blockUser(candidate.userId);
+            setBlocking(false);
+            hapticFeedback.success();
+            Alert.alert(
+              'User Blocked',
+              `${candidate.displayName} has been blocked and removed from your feed.`,
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    if (onPass) onPass();
+                    handleClose();
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmReport = async (reason: string) => {
+    setReporting(true);
+    hapticFeedback.medium();
+    const ok = await api.reportProfile(candidate.userId, reason);
+    setReporting(false);
+    setShowReportModal(false);
+    hapticFeedback.success();
+    Alert.alert(
+      'Report Submitted',
+      `Thank you for helping keep Blunderr safe. We received your report for "${reason}". Our Trust & Safety team will review this within 24 hours. This user has been blocked and removed from your feed.`,
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            if (onPass) onPass();
+            handleClose();
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -109,7 +184,15 @@ export default function ProfileDetailModal({
                 : 'VibeCheck Pass'}
             </Text>
           </View>
-          <View style={styles.headerRightSpacer} />
+          <TouchableOpacity
+            onPress={() => {
+              hapticFeedback.light();
+              setShowActionSheet(true);
+            }}
+            style={styles.moreOptionsBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Text style={styles.moreOptionsText}>•••</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -491,6 +574,106 @@ export default function ProfileDetailModal({
         candidate={candidate}
         onClose={() => setShowKundaliModal(false)}
       />
+
+      {/* UGC Safety Action Sheet Modal */}
+      <Modal
+        visible={showActionSheet}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowActionSheet(false)}>
+        <TouchableOpacity
+          style={styles.sheetOverlay}
+          activeOpacity={1}
+          onPress={() => setShowActionSheet(false)}>
+          <View style={styles.sheetContainer}>
+            <View style={styles.sheetIndicator} />
+            <Text style={styles.sheetTitle}>Safety & Trust Options</Text>
+            <Text style={styles.sheetSub}>
+              Take safety action regarding {candidate.displayName}'s profile
+            </Text>
+
+            <TouchableOpacity
+              style={styles.sheetOptionDestructive}
+              onPress={() => {
+                setShowActionSheet(false);
+                setShowReportModal(true);
+              }}>
+              <Text style={styles.sheetOptionEmoji}>🚩</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sheetOptionTextDestructive}>Report Profile</Text>
+                <Text style={styles.sheetOptionDesc}>
+                  Flag objectionable photos, fake bio, or abusive behavior
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={handleBlockUser}
+              disabled={blocking}>
+              <Text style={styles.sheetOptionEmoji}>🚫</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sheetOptionText}>Block User</Text>
+                <Text style={styles.sheetOptionDesc}>
+                  Hide this profile permanently and prevent all future interactions
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetCancelBtn}
+              onPress={() => setShowActionSheet(false)}>
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* UGC Report Reason Picker Modal */}
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReportModal(false)}>
+        <View style={styles.sheetOverlay}>
+          <View style={styles.reportModalContainer}>
+            <View style={styles.reportHeader}>
+              <Text style={styles.reportHeaderTitle}>Report to Trust & Safety</Text>
+              <TouchableOpacity onPress={() => setShowReportModal(false)} style={styles.reportCloseBtn}>
+                <Text style={styles.reportCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reportHeaderSub}>
+              Help keep Blunderr safe. Why are you reporting {candidate.displayName}? Our moderation team reviews every report within 24 hours.
+            </Text>
+
+            {reporting ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#E94057" />
+                <Text style={{ color: '#CACDD8', marginTop: 12, fontSize: 13, fontWeight: '600' }}>
+                  Submitting report and shielding profile...
+                </Text>
+              </View>
+            ) : (
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                {CANDIDATE_REPORT_REASONS.map((reason) => (
+                  <TouchableOpacity
+                    key={reason.key}
+                    style={styles.reasonCard}
+                    onPress={() => handleConfirmReport(reason.label)}>
+                    <Text style={styles.reasonEmoji}>{reason.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reasonLabel}>{reason.label}</Text>
+                      <Text style={styles.reasonDesc}>{reason.desc}</Text>
+                    </View>
+                    <Text style={styles.reasonArrow}>→</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -536,8 +719,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-  headerRightSpacer: {
+  moreOptionsBtn: {
     width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1E1F28',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreOptionsText: {
+    color: '#CACDD8',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   scrollContent: {
     paddingBottom: 20,
@@ -1000,5 +1194,168 @@ const styles = StyleSheet.create({
     color: '#FF9800',
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // UGC Action Sheet & Report Styles
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: '#161822',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+    borderWidth: 1,
+    borderColor: '#262A38',
+  },
+  sheetIndicator: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#373A4A',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  sheetSub: {
+    color: '#8E94A5',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  sheetOptionDestructive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(233, 64, 87, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(233, 64, 87, 0.25)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  sheetOptionEmoji: {
+    fontSize: 22,
+  },
+  sheetOptionTextDestructive: {
+    color: '#E94057',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E212D',
+    borderWidth: 1,
+    borderColor: '#2E3242',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  sheetOptionText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  sheetOptionDesc: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 3,
+    lineHeight: 15,
+  },
+  sheetCancelBtn: {
+    backgroundColor: '#262A38',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  sheetCancelText: {
+    color: '#CACDD8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Report Modal Container
+  reportModalContainer: {
+    backgroundColor: '#161822',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 36,
+    borderWidth: 1,
+    borderColor: '#262A38',
+    maxHeight: '85%',
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  reportHeaderTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  reportCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#262A38',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportCloseText: {
+    color: '#8E94A5',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reportHeaderSub: {
+    color: '#8E94A5',
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 16,
+  },
+  reasonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E212D',
+    borderWidth: 1,
+    borderColor: '#2A2E3D',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    gap: 12,
+  },
+  reasonEmoji: {
+    fontSize: 22,
+  },
+  reasonLabel: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reasonDesc: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  reasonArrow: {
+    color: '#E94057',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { api } from '@/services/api';
 import { SkuCatalogItem } from '@/types';
 import {
@@ -26,6 +28,7 @@ import { hapticFeedback } from '@/utils/haptics';
 export default function StoreScreen() {
   const [catalog, setCatalog] = useState<SkuCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [checkoutItem, setCheckoutItem] = useState<SkuCatalogItem | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
@@ -34,15 +37,28 @@ export default function StoreScreen() {
 
   const activeRail = getActivePaymentRail(selectedRail);
 
-  useEffect(() => {
-    loadCatalog();
-  }, []);
-
   const loadCatalog = async () => {
-    setLoading(true);
-    const items = await api.getCatalog();
-    setCatalog(items);
-    setLoading(false);
+    try {
+      const items = await api.getCatalog();
+      if (items && items.length > 0) {
+        setCatalog(items);
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCatalog();
+    }, [])
+  );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    hapticFeedback.light();
+    loadCatalog();
   };
 
   const handleOpenCheckout = (item: SkuCatalogItem) => {
@@ -80,7 +96,17 @@ export default function StoreScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#E94057"
+            colors={['#E94057']}
+          />
+        }>
         {/* Dynamic Platform-Aware Store Header */}
         <View style={styles.header}>
           <Text style={styles.title}>VibeStore & Micro-Sachets</Text>

@@ -1505,15 +1505,15 @@ const styles = StyleSheet.create({
     }),
   },
   fullMethodCardActive: {
-    borderColor: '#E94057',
-    backgroundColor: 'rgba(233, 64, 87, 0.10)',
+    borderColor: '#10B981',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
     ...Platform.select({
       web: {
-        boxShadow: '0 4px 16px rgba(233, 64, 87, 0.25)',
+        boxShadow: '0 4px 16px rgba(16, 185, 129, 0.22)',
       },
       default: {
         elevation: 6,
-        shadowColor: '#E94057',
+        shadowColor: '#10B981',
         shadowOpacity: 0.35,
         shadowOffset: { width: 0, height: 3 },
         shadowRadius: 8,
@@ -1535,7 +1535,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   squareIconBoxActive: {
-    backgroundColor: 'rgba(233, 64, 87, 0.20)',
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
   },
   squareIcon: {
     fontSize: 20,
@@ -1551,8 +1551,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   squareRadioActive: {
-    borderColor: '#E94057',
-    backgroundColor: '#E94057',
+    borderColor: '#10B981',
+    backgroundColor: '#10B981',
   },
   squareRadioCheck: {
     color: '#ffffff',
@@ -1586,7 +1586,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255, 255, 255, 0.06)',
   },
   squareCardPrice: {
-    color: '#F27121',
+    color: '#10B981',
     fontSize: 18,
     fontWeight: '900',
   },
@@ -1597,7 +1597,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   squareBadgeActive: {
-    backgroundColor: 'rgba(233, 64, 87, 0.25)',
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
   },
   squareBadgeText: {
     color: '#A0A6B8',
@@ -1605,7 +1605,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   squareBadgeTextActive: {
-    color: '#FF6B81',
+    color: '#34D399',
   },
   ucbNoticeText: {
     color: '#8E94A5',
@@ -1630,14 +1630,14 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 24 : 14,
   },
   fixedPayBtn: {
-    backgroundColor: '#E94057',
+    backgroundColor: '#059669',
     borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#E94057',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 5,
   },

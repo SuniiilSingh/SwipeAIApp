@@ -891,15 +891,18 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {}
     return [
-      { sku: 'WEEKEND_PASS_99', title: 'Weekend Dating Pass', priceInr: 99, subtitle: 'Unlimited Likes + 3 Sparks + See Who Liked You', tag: 'MOST POPULAR IN BENGALURU', perks: ['Unlimited Swipes', '3 Super Sparks Included', 'Priority Profile Pool'] },
-      { sku: 'SUPER_SPARK_19', title: '1 Super Spark', priceInr: 19, subtitle: 'Stand out instantly with 3x reply rate', tag: 'SACHET', perks: ['Highlights your profile at top of feed'] },
-      { sku: 'CUTTING_CHAI_21', title: 'Virtual Cutting Chai Invite', priceInr: 21, subtitle: 'Send a digital cutting chai + 15% partner cafe coupon', tag: 'HIGH REACTION', perks: ['100% of women say they reply to chai invites', '15% off Blue Tokai & Third Wave coupon'] },
-      { sku: 'BOOST_1X_FRIDAY_29', title: '1 Friday Night Boost', priceInr: 29, subtitle: '10x profile visibility during 9 PM - 1 AM peak', tag: 'PEAK CONVERSION', perks: ['Surfaces profile to top of nearby candidates'] },
-      { sku: 'DIRECT_DMS_3X_49', title: '3 Direct DMs', priceInr: 49, subtitle: 'Skip the queue & message high-intent matches directly', tag: 'SACHET', perks: ['Send personalized intro before matching'] },
-      { sku: 'REVIVE_MATCH_19', title: 'Revive Expired Match', priceInr: 19, subtitle: 'Unfreeze 48h timer and restore match', tag: 'SACHET', perks: ['Re-opens chat lounge for 48 hours'] },
-      { sku: 'WEEKLY_PASS_149', title: 'Weekly VIP Pass', priceInr: 149, subtitle: 'Full VIP access for 7 days with direct DMs', tag: 'POPULAR', perks: ['Unlimited likes', '5 Super Sparks', '3 Direct DMs'] },
-      { sku: 'FORTNIGHT_PASS_199', title: '14-Day Fortnight Pass', priceInr: 199, subtitle: 'Full VIP access for 14 days + 6 Sparks + 2 Boosts', tag: 'BEST VALUE', perks: ['Unlimited likes for 14 days', '6 Super Sparks', '2 Profile Boosts', '5 Direct DMs'] },
-      { sku: 'SELECT_QUARTERLY_999', title: 'Select Club (Quarterly)', priceInr: 999, subtitle: 'Concierge recommendations & priority DigiLocker pool', tag: 'PREMIUM', perks: ['Concierge curated dates', 'Exclusive offline mixers'] },
+      { sku: 'WEEKEND_PASS_79', title: 'Weekend Dating Pass', priceInr: 79, directPriceInr: 79, storePriceInr: 99, subtitle: 'Unlimited Likes + 3 Sparks + See Who Liked You', tag: 'MOST POPULAR FOR WEEKENDS', perks: ['Unlimited Daily Swipes (3 Days)', '3 Super Sparks Included', 'Priority Profile Pool'] },
+      { sku: 'SUPER_SPARK_19', title: '1 Super Spark', priceInr: 19, directPriceInr: 19, storePriceInr: 29, subtitle: 'Stand out instantly with 3x reply rate', tag: 'SACHET', perks: ['Highlights your profile at top of feed'] },
+      { sku: 'SPARKS_PACK_5_79', title: '5 Super Sparks Pack', priceInr: 79, directPriceInr: 79, storePriceInr: 99, subtitle: 'Top-of-feed visibility 5 times (Save ₹16)', tag: 'VOLUME VALUE', perks: ['5 Super Sparks to highlight profile', 'Valid anytime'] },
+      { sku: 'CUTTING_CHAI_21', title: 'Virtual Cutting Chai Invite', priceInr: 21, directPriceInr: 21, storePriceInr: 29, subtitle: 'Send a digital cutting chai + 15% partner cafe coupon', tag: 'HIGH REACTION', perks: ['100% of women say they reply to chai invites', '15% off Blue Tokai & Third Wave coupon'] },
+      { sku: 'BOOST_1X_FRIDAY_39', title: '1 Friday Night Boost', priceInr: 39, directPriceInr: 39, storePriceInr: 59, subtitle: '10x profile visibility during 9 PM - 1 AM peak', tag: 'PEAK CONVERSION', perks: ['Surfaces profile to top of nearby candidates for 1 hour'] },
+      { sku: 'DIRECT_DMS_3X_89', title: '3 Direct DMs', priceInr: 89, directPriceInr: 89, storePriceInr: 119, subtitle: 'Skip the queue & message high-intent matches directly', tag: 'SCARCITY PERK', perks: ['Send personalized intro before matching', 'Verified direct inbox placement'] },
+      { sku: 'REVIVE_MATCH_19', title: 'Revive Expired Match', priceInr: 19, directPriceInr: 19, storePriceInr: 29, subtitle: 'Unfreeze 48h timer and restore match', tag: 'SACHET', perks: ['Re-opens chat lounge for 48 hours'] },
+      { sku: 'WEEKLY_PASS_149', title: 'Weekly VIP Pass', priceInr: 149, directPriceInr: 149, storePriceInr: 199, subtitle: 'Full VIP access for 7 days + 1 Boost + 5 Sparks + 3 DMs', tag: 'POPULAR', perks: ['Unlimited likes for 7 days', '5 Super Sparks Included', '1 Profile Boost', '3 Direct DMs'] },
+      { sku: 'WINGMAN_BUNDLE_199', title: 'Weekend Wingman Bundle', priceInr: 199, directPriceInr: 199, storePriceInr: 249, subtitle: 'Weekend Pass + 5 Sparks + 1 Boost + 2 Direct DMs (Save ₹88)', tag: 'ALL-IN-ONE BUNDLE', perks: ['Active VIP Pass for 3 days', '5 Super Sparks', '1 Profile Boost', '2 Direct DMs'] },
+      { sku: 'MONTHLY_PASS_349', title: '30-Day Monthly VIP Pass', priceInr: 349, directPriceInr: 349, storePriceInr: 449, subtitle: 'Full monthly unlimited access + 15 Sparks + 4 Boosts + 10 DMs', tag: 'BEST OVERALL VALUE', perks: ['Unlimited likes for 30 days', '15 Super Sparks Included', '4 Profile Boosts', '10 Direct DMs', 'Priority DigiLocker badge'] },
+      { sku: 'FORTNIGHT_PASS_199', title: '14-Day Fortnight Pass', priceInr: 199, directPriceInr: 199, storePriceInr: 249, subtitle: 'Full VIP access for 14 days + 6 Sparks + 2 Boosts', tag: 'VALUE PASS', perks: ['Unlimited likes for 14 days', '6 Super Sparks', '2 Profile Boosts', '5 Direct DMs'] },
+      { sku: 'SELECT_QUARTERLY_899', title: 'Select Club (Quarterly Concierge)', priceInr: 899, directPriceInr: 899, storePriceInr: 1199, subtitle: '90-day concierge recommendations & priority DigiLocker pool', tag: 'PREMIUM CLUB', perks: ['Concierge curated dates', 'Unlimited access for 90 days', 'Exclusive offline mixers'] },
     ];
   },
 
@@ -914,14 +917,21 @@ export const api = {
     } catch (e) {}
 
     const prices: Record<string, number> = {
+      WEEKEND_PASS_79: 79,
       WEEKEND_PASS_99: 99,
       SUPER_SPARK_19: 19,
+      SPARKS_PACK_5_79: 79,
       CUTTING_CHAI_21: 21,
+      BOOST_1X_FRIDAY_39: 39,
       BOOST_1X_FRIDAY_29: 29,
+      DIRECT_DMS_3X_89: 89,
       DIRECT_DMS_3X_49: 49,
       REVIVE_MATCH_19: 19,
       WEEKLY_PASS_149: 149,
+      WINGMAN_BUNDLE_199: 199,
+      MONTHLY_PASS_349: 349,
       FORTNIGHT_PASS_199: 199,
+      SELECT_QUARTERLY_899: 899,
       SELECT_QUARTERLY_999: 999,
     };
     const amt = prices[sku] || 29;
@@ -1016,14 +1026,21 @@ export const api = {
     } catch (e) {}
 
     const prices: Record<string, number> = {
+      WEEKEND_PASS_79: 79,
       WEEKEND_PASS_99: 99,
       SUPER_SPARK_19: 19,
+      SPARKS_PACK_5_79: 79,
       CUTTING_CHAI_21: 21,
+      BOOST_1X_FRIDAY_39: 39,
       BOOST_1X_FRIDAY_29: 29,
+      DIRECT_DMS_3X_89: 89,
       DIRECT_DMS_3X_49: 49,
       REVIVE_MATCH_19: 19,
       WEEKLY_PASS_149: 149,
+      WINGMAN_BUNDLE_199: 199,
+      MONTHLY_PASS_349: 349,
       FORTNIGHT_PASS_199: 199,
+      SELECT_QUARTERLY_899: 899,
       SELECT_QUARTERLY_999: 999,
     };
     const amt = prices[sku] || 21;

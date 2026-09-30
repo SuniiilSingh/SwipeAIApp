@@ -463,140 +463,211 @@ export default function StoreScreen() {
           </>
         )}
 
-        {/* SECURE DUAL-RAIL CHECKOUT CONFIRMATION MODAL */}
-        <Modal visible={!!checkoutItem} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeaderRow}>
-                <Text style={styles.modalHeading}>Checkout & Deliverables</Text>
-                <TouchableOpacity onPress={() => setCheckoutItem(null)} disabled={processingPayment}>
-                  <Text style={styles.closeModalText}>✕</Text>
-                </TouchableOpacity>
-              </View>
+        {/* FULL-SCREEN IMMERSIVE CHECKOUT & DETAIL SCREEN */}
+        <Modal
+          visible={!!checkoutItem}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => {
+            if (!processingPayment) setCheckoutItem(null);
+          }}>
+          <SafeAreaView style={styles.fullScreenContainer}>
+            {/* Top Navigation Bar */}
+            <View style={styles.fullScreenHeader}>
+              <TouchableOpacity
+                style={styles.fullScreenBackBtn}
+                activeOpacity={0.8}
+                onPress={() => setCheckoutItem(null)}
+                disabled={processingPayment}>
+                <Text style={styles.fullScreenBackText}>✕ Close</Text>
+              </TouchableOpacity>
+              <Text style={styles.fullScreenHeaderTitle}>Plan Details & Deliverables</Text>
+              <View style={{ width: 60 }} />
+            </View>
 
+            <ScrollView
+              contentContainerStyle={styles.fullScreenScrollContent}
+              showsVerticalScrollIndicator={false}>
               {checkoutItem && (
-                <View style={styles.orderSummaryBox}>
-                  <View style={styles.summaryItemRow}>
-                    <Text style={styles.summaryTitle}>{checkoutItem.title}</Text>
-                    <Text style={styles.summaryPrice}>
-                      ₹{resolveDisplayPrice(checkoutItem, selectedRail)}
+                <>
+                  {/* Hero Presentation */}
+                  <View style={styles.fullScreenHeroCard}>
+                    {checkoutItem.tag && (
+                      <View style={styles.fullScreenTag}>
+                        <Text style={styles.fullScreenTagText}>{checkoutItem.tag}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.fullScreenTitle}>{checkoutItem.title}</Text>
+                    <Text style={styles.fullScreenSubtitle}>{checkoutItem.subtitle}</Text>
+
+                    <View style={styles.fullScreenPriceRow}>
+                      <Text style={styles.fullScreenPrice}>
+                        ₹{resolveDisplayPrice(checkoutItem, selectedRail)}
+                      </Text>
+                      <Text style={styles.fullScreenPriceSub}>
+                        {selectedRail === 'CASHFREE_WEB' ? '• Direct UPI Price' : '• Store Price'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* 4 Metric Counter Cards (Messages, Likes, Super Sparks, Boosts) */}
+                  <View style={styles.fullScreenSectionHeader}>
+                    <Text style={styles.fullScreenSectionTitle}>📦 What You Get in This Pack</Text>
+                    <Text style={styles.fullScreenSectionSubtitle}>
+                      Exact breakdown of messages, likes, and profile boosts
                     </Text>
                   </View>
-                  <Text style={styles.summarySubtitle}>{checkoutItem.subtitle}</Text>
-                </View>
-              )}
 
-              {/* EXACT DELIVERABLES BREAKDOWN TABLE */}
-              {checkoutItem && (
-                <View style={styles.modalDeliverablesCard}>
-                  <Text style={styles.modalDeliverablesHeader}>
-                    📦 EXACT DELIVERABLES IN THIS PACK:
-                  </Text>
-                  
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalRowLabel}>💬 Direct Messages:</Text>
-                    <Text style={styles.modalRowValue}>{checkoutBenefits.messages}</Text>
+                  <View style={styles.metricGrid}>
+                    <View style={[styles.metricCard, styles.metricCardMessages]}>
+                      <Text style={styles.metricIcon}>💬</Text>
+                      <Text style={styles.metricLabel}>Direct Messages</Text>
+                      <Text style={styles.metricValue}>{checkoutBenefits.messages}</Text>
+                      <Text style={styles.metricHint}>Message high-intent matches directly</Text>
+                    </View>
+
+                    <View style={[styles.metricCard, styles.metricCardLikes]}>
+                      <Text style={styles.metricIcon}>❤️</Text>
+                      <Text style={styles.metricLabel}>Likes & Swipes</Text>
+                      <Text style={styles.metricValue}>{checkoutBenefits.likes}</Text>
+                      <Text style={styles.metricHint}>Swipe candidates without timeouts</Text>
+                    </View>
+
+                    <View style={[styles.metricCard, styles.metricCardSparks]}>
+                      <Text style={styles.metricIcon}>⭐</Text>
+                      <Text style={styles.metricLabel}>Super Likes / Sparks</Text>
+                      <Text style={styles.metricValue}>{checkoutBenefits.superLikes}</Text>
+                      <Text style={styles.metricHint}>Pins profile to top of candidate feed</Text>
+                    </View>
+
+                    <View style={[styles.metricCard, styles.metricCardBoosts]}>
+                      <Text style={styles.metricIcon}>🚀</Text>
+                      <Text style={styles.metricLabel}>Visibility Boosts</Text>
+                      <Text style={styles.metricValue}>
+                        {checkoutBenefits.boosts || 'Standard pool'}
+                      </Text>
+                      <Text style={styles.metricHint}>10x profile views during 9 PM - 1 AM peak</Text>
+                    </View>
                   </View>
-                  
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalRowLabel}>❤️ Daily Likes & Swipes:</Text>
-                    <Text style={styles.modalRowValue}>{checkoutBenefits.likes}</Text>
+
+                  {/* Full Included Perks Checklist */}
+                  <View style={styles.fullPerksCard}>
+                    <Text style={styles.fullPerksTitle}>✨ All Included Features & Privileges</Text>
+                    {checkoutItem.perks?.map((perk, idx) => (
+                      <View key={idx} style={styles.fullPerkItemRow}>
+                        <View style={styles.checkCircle}>
+                          <Text style={styles.checkMarkText}>✓</Text>
+                        </View>
+                        <Text style={styles.fullPerkItemText}>{perk}</Text>
+                      </View>
+                    ))}
+                    {checkoutBenefits.extra && (
+                      <View style={styles.fullPerkItemRow}>
+                        <View style={styles.checkCircle}>
+                          <Text style={styles.checkMarkText}>✓</Text>
+                        </View>
+                        <Text style={styles.fullPerkItemText}>{checkoutBenefits.extra}</Text>
+                      </View>
+                    )}
                   </View>
-                  
-                  <View style={styles.modalRow}>
-                    <Text style={styles.modalRowLabel}>⭐ Super Likes / Sparks:</Text>
-                    <Text style={styles.modalRowValue}>{checkoutBenefits.superLikes}</Text>
+
+                  {/* Trust & Guarantee Badges */}
+                  <View style={styles.trustBadgesRow}>
+                    <View style={styles.trustBadge}>
+                      <Text style={styles.trustBadgeIcon}>🛡️</Text>
+                      <Text style={styles.trustBadgeTitle}>Safe & Verified</Text>
+                      <Text style={styles.trustBadgeDesc}>DigiLocker Profiles</Text>
+                    </View>
+                    <View style={styles.trustBadge}>
+                      <Text style={styles.trustBadgeIcon}>⚡</Text>
+                      <Text style={styles.trustBadgeTitle}>Instant Credit</Text>
+                      <Text style={styles.trustBadgeDesc}>Active right after pay</Text>
+                    </View>
+                    <View style={styles.trustBadge}>
+                      <Text style={styles.trustBadgeIcon}>🔒</Text>
+                      <Text style={styles.trustBadgeTitle}>Bank Grade</Text>
+                      <Text style={styles.trustBadgeDesc}>AES-256 Encrypted</Text>
+                    </View>
                   </View>
-                  
-                  {checkoutBenefits.boosts && (
-                    <View style={styles.modalRow}>
-                      <Text style={styles.modalRowLabel}>🚀 Visibility Boosts:</Text>
-                      <Text style={styles.modalRowValue}>{checkoutBenefits.boosts}</Text>
+
+                  {/* Payment Method Selector */}
+                  {availableRails.length > 1 && (
+                    <View style={styles.methodSelectSection}>
+                      <Text style={styles.fullScreenSectionTitle}>💳 Select Billing Option</Text>
+                      <View style={styles.methodChoiceList}>
+                        {availableRails.map((railInfo) => {
+                          const isSelected = selectedRail === railInfo.rail;
+                          const price = resolveDisplayPrice(checkoutItem, railInfo.rail);
+                          return (
+                            <TouchableOpacity
+                              key={railInfo.rail}
+                              style={[
+                                styles.fullMethodCard,
+                                isSelected && styles.fullMethodCardActive,
+                              ]}
+                              activeOpacity={0.85}
+                              onPress={() => {
+                                hapticFeedback.selection();
+                                setSelectedRail(railInfo.rail);
+                              }}>
+                              <View style={styles.fullMethodHeader}>
+                                <View style={styles.fullMethodTitleRow}>
+                                  <Text style={styles.methodRadio}>{isSelected ? '🔘' : '⚪'}</Text>
+                                  <Text style={styles.fullMethodTitle}>{railInfo.name}</Text>
+                                </View>
+                                <Text style={styles.fullMethodPrice}>₹{price}</Text>
+                              </View>
+                              <Text style={styles.fullMethodDesc}>{railInfo.description}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </View>
                   )}
-                  
-                  {checkoutBenefits.extra && (
-                    <View style={styles.modalRow}>
-                      <Text style={styles.modalRowLabel}>🛡️ Extra Privilege:</Text>
-                      <Text style={styles.modalRowValue}>{checkoutBenefits.extra}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
 
-              {/* PAYMENT METHOD CHOOSER */}
-              {availableRails.length > 1 && (
-                <>
-                  <Text style={styles.paymentMethodLabel}>Select Billing Option:</Text>
-                  <View style={styles.methodChoiceList}>
-                    {availableRails.map((railInfo) => {
-                      const isSelected = selectedRail === railInfo.rail;
-                      const price = resolveDisplayPrice(checkoutItem, railInfo.rail);
-                      return (
-                        <TouchableOpacity
-                          key={railInfo.rail}
-                          style={[
-                            styles.methodChoiceCard,
-                            isSelected && styles.methodChoiceCardActive,
-                          ]}
-                          activeOpacity={0.85}
-                          onPress={() => {
-                            hapticFeedback.selection();
-                            setSelectedRail(railInfo.rail);
-                          }}>
-                          <View style={styles.methodChoiceHeader}>
-                            <View style={styles.methodTitleRow}>
-                              <Text style={styles.methodRadio}>{isSelected ? '🔘' : '⚪'}</Text>
-                              <Text style={styles.methodChoiceTitle}>{railInfo.name}</Text>
-                            </View>
-                            <Text style={styles.methodChoicePrice}>₹{price}</Text>
-                          </View>
-                          <Text style={styles.methodChoiceDesc}>{railInfo.description}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
-
-              {processingPayment ? (
-                <View style={styles.processingBox}>
-                  <ActivityIndicator size="large" color="#E94057" />
-                  <Text style={styles.processingText}>
-                    {processingStatus || 'Verifying transaction with gateway...'}
-                  </Text>
-                  <Text style={styles.processingSubText}>
-                    Please do not close this screen while benefits are being credited.
-                  </Text>
-                </View>
-              ) : (
-                <>
                   {availableRails.length > 1 && (
                     <Text style={styles.ucbNoticeText}>
                       Google Play terms and buyer protections apply to purchases completed through Google Play.
                     </Text>
                   )}
 
-                  <TouchableOpacity
-                    style={styles.confirmPayBtn}
-                    activeOpacity={0.85}
-                    onPress={handleConfirmPurchase}>
-                    <Text style={styles.confirmPayBtnText}>
-                      {selectedRail === 'CASHFREE_WEB'
-                        ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'CASHFREE_WEB')} with Cashfree (UPI & Cards)`
-                        : Platform.OS === 'ios'
-                        ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'APPLE_STOREKIT')} with Apple`
-                        : `Pay ₹${resolveDisplayPrice(checkoutItem, 'GOOGLE_PLAY')} with Google Play`}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <Text style={styles.disclaimerText}>
-                    {activeRail.securityNotice} Purchases are encrypted via AES-256-GCM and restore automatically.
-                  </Text>
+                  <View style={{ height: 110 }} />
                 </>
               )}
-            </View>
-          </View>
+            </ScrollView>
+
+            {/* Fixed Bottom Action Bar */}
+            {checkoutItem && (
+              <View style={styles.fixedBottomBar}>
+                {processingPayment ? (
+                  <View style={styles.processingBarBox}>
+                    <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 8 }} />
+                    <Text style={styles.processingBarText}>
+                      {processingStatus || 'Verifying transaction with gateway...'}
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.fixedPayBtn}
+                      activeOpacity={0.85}
+                      onPress={handleConfirmPurchase}>
+                      <Text style={styles.fixedPayBtnText}>
+                        {selectedRail === 'CASHFREE_WEB'
+                          ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'CASHFREE_WEB')} via Direct UPI →`
+                          : Platform.OS === 'ios'
+                          ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'APPLE_STOREKIT')} with Apple →`
+                          : `Pay ₹${resolveDisplayPrice(checkoutItem, 'GOOGLE_PLAY')} with Google Play →`}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={styles.fixedSecurityNotice}>
+                      🔒 256-bit bank encrypted • Benefits restore automatically
+                    </Text>
+                  </>
+                )}
+              </View>
+            )}
+          </SafeAreaView>
         </Modal>
 
         <View style={{ height: 40 }} />
@@ -958,188 +1029,287 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // MODAL STYLES
-  modalOverlay: {
+  // FULL-SCREEN MODAL STYLES
+  fullScreenContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'flex-end',
-    padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+    backgroundColor: '#0E0F13',
   },
-  modalContent: {
-    backgroundColor: '#1E2028',
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#363946',
-  },
-  modalHeaderRow: {
+  fullScreenHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  modalHeading: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  closeModalText: {
-    color: '#8E94A5',
-    fontSize: 18,
-    fontWeight: '700',
-    padding: 4,
-  },
-  orderSummaryBox: {
-    backgroundColor: '#242734',
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  summaryItemRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  summaryPrice: {
-    color: '#F27121',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  summarySubtitle: {
-    color: '#8E94A5',
-    fontSize: 12,
-    marginTop: 4,
-  },
-
-  // MODAL DELIVERABLES CARD
-  modalDeliverablesCard: {
-    backgroundColor: '#161822',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  modalDeliverablesHeader: {
-    color: '#E94057',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  modalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.04)',
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
-  modalRowLabel: {
-    color: '#A0A4B4',
-    fontSize: 12,
-    fontWeight: '600',
+  fullScreenBackBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  modalRowValue: {
-    color: '#ffffff',
-    fontSize: 12,
+  fullScreenBackText: {
+    color: '#CACDD8',
+    fontSize: 13,
     fontWeight: '700',
   },
-
-  confirmPayBtn: {
-    backgroundColor: '#E94057',
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  confirmPayBtnText: {
+  fullScreenHeaderTitle: {
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800',
   },
-  disclaimerText: {
-    color: '#656A7B',
-    fontSize: 10,
-    textAlign: 'center',
-    marginTop: 10,
-    lineHeight: 14,
+  fullScreenScrollContent: {
+    padding: 16,
+    paddingBottom: 24,
   },
-  processingBox: {
-    alignItems: 'center',
-    padding: 30,
+  fullScreenHeroCard: {
+    backgroundColor: '#181A24',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: '#2B2F40',
+    marginBottom: 20,
   },
-  processingText: {
+  fullScreenTag: {
+    backgroundColor: 'rgba(233, 64, 87, 0.18)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  fullScreenTagText: {
+    color: '#E94057',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  fullScreenTitle: {
     color: '#ffffff',
-    marginTop: 14,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  fullScreenSubtitle: {
+    color: '#9EABC0',
+    fontSize: 14,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  fullScreenPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 12,
+  },
+  fullScreenPrice: {
+    color: '#ffffff',
+    fontSize: 34,
+    fontWeight: '900',
+  },
+  fullScreenPriceSub: {
+    color: '#4CAF50',
     fontSize: 14,
     fontWeight: '700',
-    textAlign: 'center',
+    marginLeft: 8,
   },
-  processingSubText: {
+
+  // 4 METRIC COUNTERS
+  fullScreenSectionHeader: {
+    marginBottom: 12,
+  },
+  fullScreenSectionTitle: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  fullScreenSectionSubtitle: {
     color: '#8E94A5',
-    marginTop: 6,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  metricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 10,
+    marginBottom: 20,
+  },
+  metricCard: {
+    width: '48.5%',
+    backgroundColor: '#161822',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    borderColor: '#262A38',
+  },
+  metricCardMessages: {
+    borderColor: 'rgba(0, 180, 216, 0.35)',
+    backgroundColor: '#121C26',
+  },
+  metricCardLikes: {
+    borderColor: 'rgba(233, 64, 87, 0.35)',
+    backgroundColor: '#20151C',
+  },
+  metricCardSparks: {
+    borderColor: 'rgba(255, 183, 3, 0.35)',
+    backgroundColor: '#221D13',
+  },
+  metricCardBoosts: {
+    borderColor: 'rgba(157, 78, 221, 0.35)',
+    backgroundColor: '#1B1424',
+  },
+  metricIcon: {
+    fontSize: 22,
+    marginBottom: 6,
+  },
+  metricLabel: {
+    color: '#8E94A5',
     fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  metricValue: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+    marginTop: 4,
+    minHeight: 38,
+  },
+  metricHint: {
+    color: '#656A7B',
+    fontSize: 10,
+    marginTop: 4,
+    lineHeight: 14,
+  },
+
+  // PERKS LIST
+  fullPerksCard: {
+    backgroundColor: '#161822',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#262A38',
+    marginBottom: 16,
+  },
+  fullPerksTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 12,
+  },
+  fullPerkItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkMarkText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  fullPerkItemText: {
+    color: '#E0E3EE',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+
+  // TRUST BADGES
+  trustBadgesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 20,
+  },
+  trustBadge: {
+    flex: 1,
+    backgroundColor: '#161822',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  trustBadgeIcon: {
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  trustBadgeTitle: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
     textAlign: 'center',
   },
-  paymentMethodLabel: {
-    color: '#CACDD8',
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 8,
+  trustBadgeDesc: {
+    color: '#8E94A5',
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+
+  // PAYMENT METHODS
+  methodSelectSection: {
+    marginTop: 4,
+    marginBottom: 12,
   },
   methodChoiceList: {
-    gap: 8,
-    marginBottom: 14,
+    gap: 10,
+    marginTop: 10,
   },
-  methodChoiceCard: {
+  fullMethodCard: {
     backgroundColor: '#161822',
     borderWidth: 1.5,
     borderColor: '#262A38',
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
   },
-  methodChoiceCardActive: {
+  fullMethodCardActive: {
     borderColor: '#E94057',
     backgroundColor: 'rgba(233, 64, 87, 0.08)',
   },
-  methodChoiceHeader: {
+  fullMethodHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  methodTitleRow: {
+  fullMethodTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flex: 1,
   },
   methodRadio: {
-    fontSize: 14,
-  },
-  methodChoiceTitle: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-  methodChoicePrice: {
-    color: '#F27121',
     fontSize: 16,
-    fontWeight: '900',
-    marginLeft: 8,
   },
-  methodChoiceDesc: {
+  fullMethodTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  fullMethodPrice: {
+    color: '#F27121',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  fullMethodDesc: {
     color: '#8E94A5',
     fontSize: 11,
     marginTop: 4,
-    marginLeft: 22,
-    lineHeight: 15,
+    marginLeft: 24,
+    lineHeight: 16,
   },
   ucbNoticeText: {
     color: '#8E94A5',
@@ -1148,5 +1318,56 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
     paddingHorizontal: 8,
+  },
+
+  // STICKY BOTTOM BAR
+  fixedBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#14161F',
+    borderTopWidth: 1,
+    borderTopColor: '#262A38',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+  },
+  fixedPayBtn: {
+    backgroundColor: '#E94057',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#E94057',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  fixedPayBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  fixedSecurityNotice: {
+    color: '#656A7B',
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  processingBarBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#242734',
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  processingBarText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

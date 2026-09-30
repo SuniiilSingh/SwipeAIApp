@@ -28,6 +28,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FEATURE_FLAGS } from '@/config/features';
 
 const getBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  if (!__DEV__) {
+    return 'https://api.blunderr.in';
+  }
   try {
     const hostUri = Constants.expoConfig?.hostUri;
     if (hostUri) {
@@ -955,6 +961,7 @@ export const api = {
     sku?: string;
   }) => {
     try {
+      if (!authToken) await initAuth();
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/iap/verify`, {
         method: 'POST',
         headers: {
@@ -975,6 +982,8 @@ export const api = {
       cachedProfile.boostsBalance += 1;
     } else if (data.sku === 'DIRECT_DMS_3X_49') {
       cachedProfile.directDmsBalance += 3;
+    } else if (data.sku === 'SUPER_SPARK_19') {
+      cachedProfile.sparksBalance += 1;
     } else {
       cachedProfile.hasActivePass = true;
       cachedProfile.sparksBalance += 3;
@@ -992,6 +1001,7 @@ export const api = {
   // Cashfree Checkout (Web / Direct UPI)
   createCashfreeOrder: async (sku: string, customerPhone?: string) => {
     try {
+      if (!authToken) await initAuth();
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/cashfree/create-order`, {
         method: 'POST',
         headers: {
@@ -1000,7 +1010,7 @@ export const api = {
           'X-Client-Platform': Platform.OS,
           'X-App-Version': Constants.expoConfig?.version || '1.0.0',
         },
-        body: JSON.stringify({ sku, customerPhone: customerPhone || cachedProfile.phoneE164 }),
+        body: JSON.stringify({ sku, customerPhone: customerPhone || cachedProfile.phoneE164 || '+919876543210' }),
       });
       if (res.ok) return await res.json();
     } catch (e) {}
@@ -1029,8 +1039,9 @@ export const api = {
     };
   },
 
-  confirmCashfreeTestPayment: async (orderId: string) => {
+  confirmCashfreeTestPayment: async (orderId: string, sku?: string) => {
     try {
+      if (!authToken) await initAuth();
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/cashfree/test-confirm/${orderId}`, {
         method: 'POST',
         headers: {
@@ -1042,8 +1053,19 @@ export const api = {
       if (res.ok) return await res.json();
     } catch (e) {}
 
-    cachedProfile.hasActivePass = true;
-    cachedProfile.sparksBalance += 3;
+    // Fallback simulation when backend or network is offline
+    if (sku === 'CUTTING_CHAI_21') {
+      cachedProfile.sparksBalance += 1;
+    } else if (sku === 'BOOST_1X_FRIDAY_29') {
+      cachedProfile.boostsBalance += 1;
+    } else if (sku === 'DIRECT_DMS_3X_49') {
+      cachedProfile.directDmsBalance += 3;
+    } else if (sku === 'SUPER_SPARK_19') {
+      cachedProfile.sparksBalance += 1;
+    } else {
+      cachedProfile.hasActivePass = true;
+      cachedProfile.sparksBalance += 3;
+    }
     return { status: 'success', orderId };
   },
 

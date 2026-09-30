@@ -26,120 +26,150 @@ import {
 import { hapticFeedback } from '@/utils/haptics';
 
 export interface BenefitBreakdown {
-  messages: string;     // e.g. "10 Direct Messages"
-  likes: string;        // e.g. "Unlimited (30 Days)"
-  superLikes: string;   // e.g. "15 Super Sparks"
-  boosts?: string;      // e.g. "4 Friday Peak Boosts"
-  extra?: string;       // e.g. "DigiLocker Trust Badge"
+  messages: string;       // e.g. "10 Direct DMs (Pre-Match)"
+  chatAfterMatch: string; // e.g. "Unlimited Always (Free)"
+  likes: string;          // e.g. "Unlimited (30 Days)"
+  superLikes: string;     // e.g. "15 Super Sparks"
+  boosts?: string;        // e.g. "4 Friday Peak Boosts"
+  validity: string;       // e.g. "30 Days Full Access"
+  extra?: string;         // e.g. "DigiLocker Trust Badge"
 }
 
 export function getBenefitBreakdown(sku?: string): BenefitBreakdown {
   if (!sku) {
     return {
       messages: 'Standard Matching',
+      chatAfterMatch: 'Unlimited Always (100% Free)',
       likes: 'Standard Swipes',
       superLikes: 'None',
+      validity: 'Active Immediately',
     };
   }
   switch (sku) {
     case 'MONTHLY_PASS_349':
       return {
         likes: 'Unlimited Swipes (30 Days)',
-        messages: '10 Direct Messages',
+        messages: '10 Direct DMs (Pre-Match)',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: '15 Super Sparks',
         boosts: '4 Friday Night Boosts',
+        validity: '30 Days Full Access',
         extra: 'DigiLocker Trust Badge',
       };
     case 'WEEKEND_PASS_79':
     case 'WEEKEND_PASS_99':
       return {
         likes: 'Unlimited Swipes (3 Days)',
-        messages: 'Matching Required',
+        messages: 'Matching Required (0 Pre-Match DMs)',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: '3 Super Sparks Included',
         boosts: 'Priority Pool Visibility',
+        validity: '3 Days (Fri 6 PM - Mon 6 AM)',
         extra: 'See Who Liked You',
       };
     case 'WINGMAN_BUNDLE_199':
       return {
-        likes: 'Weekend Pass (3 Days)',
-        messages: '2 Direct Messages',
+        likes: 'Unlimited Swipes (7 Days)',
+        messages: '2 Direct DMs (Pre-Match)',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: '5 Super Sparks',
         boosts: '1 Friday Night Boost',
+        validity: '7 Days VIP Access',
         extra: 'All-In-One Weekend Kit',
       };
     case 'WEEKLY_PASS_149':
       return {
         likes: 'Unlimited Swipes (7 Days)',
-        messages: '3 Direct Messages',
+        messages: '3 Direct DMs (Pre-Match)',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: '5 Super Sparks',
         boosts: '1 Profile Boost',
+        validity: '7 Days Full Access',
       };
     case 'FORTNIGHT_PASS_199':
       return {
         likes: 'Unlimited Swipes (14 Days)',
-        messages: '5 Direct Messages',
+        messages: '5 Direct DMs (Pre-Match)',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: '6 Super Sparks',
         boosts: '2 Profile Boosts',
+        validity: '14 Days Full Access',
       };
     case 'SELECT_QUARTERLY_899':
     case 'SELECT_QUARTERLY_999':
       return {
         likes: 'Unlimited Swipes (90 Days)',
-        messages: '25 Direct Messages',
+        messages: '25 Direct DMs (Pre-Match)',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: '25 Super Sparks',
         boosts: 'Concierge Curation',
+        validity: '90 Days Full Access',
         extra: 'Exclusive Offline Mixers',
       };
     case 'DIRECT_DMS_3X_89':
     case 'DIRECT_DMS_3X_49':
       return {
-        messages: '3 Direct Messages',
-        likes: 'Standard Swipes',
+        messages: '3 Direct DMs (Pre-Match)',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
+        likes: 'Standard Daily Swipes',
         superLikes: 'None',
-        extra: 'Chat before matching',
+        validity: 'No Expiry (Valid until used)',
+        extra: 'Skip swiping and message direct',
       };
     case 'SPARKS_PACK_5_79':
       return {
         superLikes: '5 Super Sparks',
-        likes: 'Standard Swipes',
-        messages: 'Standard Match',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
+        likes: 'Standard Daily Swipes',
+        messages: 'Standard Matching',
+        validity: 'No Expiry (Valid until used)',
         extra: 'Top of feed visibility (5x)',
       };
     case 'SUPER_SPARK_19':
       return {
         superLikes: '1 Super Spark',
-        likes: 'Standard Swipes',
-        messages: 'Standard Match',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
+        likes: 'Standard Daily Swipes',
+        messages: 'Standard Matching',
+        validity: 'No Expiry (Valid until used)',
         extra: '3x higher reply rate',
       };
     case 'BOOST_1X_FRIDAY_39':
     case 'BOOST_1X_FRIDAY_29':
       return {
         boosts: '1 Friday Peak Boost',
-        likes: 'Standard Swipes',
-        messages: 'Standard Match',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
+        likes: 'Standard Daily Swipes',
+        messages: 'Standard Matching',
         superLikes: 'None',
+        validity: '90 Days to Activate',
         extra: '10x profile views (1 hr)',
       };
     case 'CUTTING_CHAI_21':
       return {
         messages: '1 Chai Micro-Invite',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: '1 Chai Highlight',
-        likes: 'Standard Swipes',
+        likes: 'Standard Daily Swipes',
+        validity: '30 Days to Redeem',
         extra: '15% Partner Cafe Coupon',
       };
     case 'REVIVE_MATCH_19':
       return {
         messages: 'Restores Chat for 48h',
-        likes: 'Standard Swipes',
+        chatAfterMatch: 'Unlimited in 48h window',
+        likes: 'Standard Daily Swipes',
         superLikes: 'None',
+        validity: '48 Hours Active Window',
         extra: 'Unfreezes 1 expired match',
       };
     default:
       return {
-        likes: 'Standard Swipes',
-        messages: 'Standard Match',
+        likes: 'Standard Daily Swipes',
+        messages: 'Standard Matching',
+        chatAfterMatch: 'Unlimited Always (100% Free)',
         superLikes: 'Included with perk',
+        validity: 'Active Immediately',
       };
   }
 }
@@ -258,7 +288,7 @@ export default function StoreScreen() {
 
                 <View style={styles.heroPriceRow}>
                   <Text style={styles.heroPrice}>₹{weekendPass.priceInr}</Text>
-                  <Text style={styles.heroDuration}>/ weekend pass (Fri - Sun)</Text>
+                  <Text style={styles.heroDuration}>/ 3-day access (Fri - Sun)</Text>
                 </View>
 
                 <Text style={styles.heroTitle}>{weekendPass.title}</Text>
@@ -266,11 +296,17 @@ export default function StoreScreen() {
 
                 {/* EXACT DELIVERABLE STAT PILLS */}
                 <View style={styles.statsPillRow}>
-                  <View style={styles.statPill}>
+                  <View style={[styles.statPill, styles.statPillHighlight]}>
                     <Text style={styles.statPillText}>❤️ Unlimited Likes (3d)</Text>
                   </View>
-                  <View style={styles.statPill}>
-                    <Text style={styles.statPillText}>⭐ 3 Super Sparks</Text>
+                  <View style={[styles.statPill, styles.statPillSparks]}>
+                    <Text style={[styles.statPillText, styles.statPillTextSparks]}>⭐ 3 Super Sparks</Text>
+                  </View>
+                  <View style={[styles.statPill, styles.statPillChat]}>
+                    <Text style={[styles.statPillText, styles.statPillTextChat]}>💌 Unlimited Chat</Text>
+                  </View>
+                  <View style={[styles.statPill, styles.statPillValidity]}>
+                    <Text style={[styles.statPillText, styles.statPillTextValidity]}>⏳ 3-Day Validity</Text>
                   </View>
                   <View style={styles.statPill}>
                     <Text style={styles.statPillText}>👁️ See Who Liked You</Text>
@@ -347,7 +383,7 @@ export default function StoreScreen() {
                       </View>
                     </View>
 
-                    {/* KEY DELIVERABLES BADGES (Messages, Likes, Sparks, Boosts) */}
+                    {/* KEY DELIVERABLES BADGES (Messages, Likes, Sparks, Boosts, Chat, Validity) */}
                     <View style={styles.statsPillRow}>
                       <View style={[styles.statPill, styles.statPillHighlight]}>
                         <Text style={styles.statPillText}>❤️ {benefits.likes}</Text>
@@ -360,6 +396,16 @@ export default function StoreScreen() {
                       <View style={[styles.statPill, styles.statPillSparks]}>
                         <Text style={[styles.statPillText, styles.statPillTextSparks]}>
                           ⭐ {benefits.superLikes}
+                        </Text>
+                      </View>
+                      <View style={[styles.statPill, styles.statPillChat]}>
+                        <Text style={[styles.statPillText, styles.statPillTextChat]}>
+                          💌 Unlimited Chat
+                        </Text>
+                      </View>
+                      <View style={[styles.statPill, styles.statPillValidity]}>
+                        <Text style={[styles.statPillText, styles.statPillTextValidity]}>
+                          ⏳ {benefits.validity}
                         </Text>
                       </View>
                       {benefits.boosts && (
@@ -437,15 +483,15 @@ export default function StoreScreen() {
                       <View style={styles.sachetDeliverableBox}>
                         {isDms ? (
                           <Text style={styles.sachetDeliverableHighlight}>
-                            💬 3 Direct Messages to chat before matching
+                            💬 3 Direct DMs (Pre-Match) • 💌 Unlimited Chat Post-Match • ⏳ {benefits.validity}
                           </Text>
                         ) : isSparks ? (
                           <Text style={styles.sachetDeliverableHighlight}>
-                            ⭐ Highlights profile at top of candidate feed
+                            ⭐ Highlights profile at top of feed • ⏳ {benefits.validity}
                           </Text>
                         ) : (
                           <Text style={styles.sachetDeliverableHighlight}>
-                            {item.subtitle}
+                            {item.subtitle} • ⏳ {benefits.validity}
                           </Text>
                         )}
                       </View>
@@ -492,13 +538,26 @@ export default function StoreScreen() {
                 <>
                   {/* Hero Presentation */}
                   <View style={styles.fullScreenHeroCard}>
-                    {checkoutItem.tag && (
-                      <View style={styles.fullScreenTag}>
-                        <Text style={styles.fullScreenTagText}>{checkoutItem.tag}</Text>
+                    <View style={styles.heroTopRow}>
+                      {checkoutItem.tag ? (
+                        <View style={styles.fullScreenTag}>
+                          <Text style={styles.fullScreenTagText}>{checkoutItem.tag}</Text>
+                        </View>
+                      ) : <View />}
+                      <View style={styles.heroValidityBadge}>
+                        <Text style={styles.heroValidityBadgeText}>⏳ {checkoutBenefits.validity}</Text>
                       </View>
-                    )}
+                    </View>
+
                     <Text style={styles.fullScreenTitle}>{checkoutItem.title}</Text>
                     <Text style={styles.fullScreenSubtitle}>{checkoutItem.subtitle}</Text>
+
+                    {/* Unlimited Chat Highlight Box */}
+                    <View style={styles.heroHighlightBanner}>
+                      <Text style={styles.heroHighlightText}>
+                        💌 <Text style={styles.heroHighlightBold}>Unlimited Chat Messages</Text> after matching with any profile is 100% free & included!
+                      </Text>
+                    </View>
 
                     <View style={styles.fullScreenPriceRow}>
                       <Text style={styles.fullScreenPrice}>
@@ -510,29 +569,42 @@ export default function StoreScreen() {
                     </View>
                   </View>
 
-                  {/* 4 Metric Counter Cards (Messages, Likes, Super Sparks, Boosts) */}
+                  {/* 6 Metric Counter Cards (Messages, Chat After Match, Likes, Super Sparks, Boosts, Validity) */}
                   <View style={styles.fullScreenSectionHeader}>
                     <Text style={styles.fullScreenSectionTitle}>📦 What You Get in This Pack</Text>
                     <Text style={styles.fullScreenSectionSubtitle}>
-                      Exact breakdown of messages, likes, and profile boosts
+                      Exact allowances, messaging rules, and package validity
                     </Text>
                   </View>
 
                   <View style={styles.metricGrid}>
+                    {/* 1. Direct Messages Before Matching */}
                     <View style={[styles.metricCard, styles.metricCardMessages]}>
                       <Text style={styles.metricIcon}>💬</Text>
-                      <Text style={styles.metricLabel}>Direct Messages</Text>
+                      <Text style={styles.metricLabel}>Direct DMs (Pre-Match)</Text>
                       <Text style={styles.metricValue}>{checkoutBenefits.messages}</Text>
-                      <Text style={styles.metricHint}>Message high-intent matches directly</Text>
+                      <Text style={styles.metricHint}>Skip swiping & reach inbox directly</Text>
                     </View>
 
+                    {/* 2. Messages After Match (UNLIMITED!) */}
+                    <View style={[styles.metricCard, styles.metricCardChat]}>
+                      <Text style={styles.metricIcon}>💌</Text>
+                      <Text style={styles.metricLabel}>Chat After Match</Text>
+                      <Text style={[styles.metricValue, styles.metricValueChat]}>
+                        {checkoutBenefits.chatAfterMatch}
+                      </Text>
+                      <Text style={styles.metricHint}>100% free unlimited messages once matched</Text>
+                    </View>
+
+                    {/* 3. Likes & Swipes */}
                     <View style={[styles.metricCard, styles.metricCardLikes]}>
                       <Text style={styles.metricIcon}>❤️</Text>
                       <Text style={styles.metricLabel}>Likes & Swipes</Text>
                       <Text style={styles.metricValue}>{checkoutBenefits.likes}</Text>
-                      <Text style={styles.metricHint}>Swipe candidates without timeouts</Text>
+                      <Text style={styles.metricHint}>Swipe candidates without daily timeouts</Text>
                     </View>
 
+                    {/* 4. Super Likes / Sparks */}
                     <View style={[styles.metricCard, styles.metricCardSparks]}>
                       <Text style={styles.metricIcon}>⭐</Text>
                       <Text style={styles.metricLabel}>Super Likes / Sparks</Text>
@@ -540,6 +612,7 @@ export default function StoreScreen() {
                       <Text style={styles.metricHint}>Pins profile to top of candidate feed</Text>
                     </View>
 
+                    {/* 5. Visibility Boosts */}
                     <View style={[styles.metricCard, styles.metricCardBoosts]}>
                       <Text style={styles.metricIcon}>🚀</Text>
                       <Text style={styles.metricLabel}>Visibility Boosts</Text>
@@ -548,11 +621,42 @@ export default function StoreScreen() {
                       </Text>
                       <Text style={styles.metricHint}>10x profile views during 9 PM - 1 AM peak</Text>
                     </View>
+
+                    {/* 6. Plan Validity */}
+                    <View style={[styles.metricCard, styles.metricCardValidity]}>
+                      <Text style={styles.metricIcon}>⏳</Text>
+                      <Text style={styles.metricLabel}>Plan Validity</Text>
+                      <Text style={[styles.metricValue, styles.metricValueValidity]}>
+                        {checkoutBenefits.validity}
+                      </Text>
+                      <Text style={styles.metricHint}>Active duration for all pack privileges</Text>
+                    </View>
                   </View>
 
                   {/* Full Included Perks Checklist */}
                   <View style={styles.fullPerksCard}>
                     <Text style={styles.fullPerksTitle}>✨ All Included Features & Privileges</Text>
+
+                    {/* 1. Explicit Unlimited Messages After Match */}
+                    <View style={styles.fullPerkItemRow}>
+                      <View style={styles.checkCircleHighlight}>
+                        <Text style={styles.checkMarkTextHighlight}>✓</Text>
+                      </View>
+                      <Text style={styles.fullPerkItemHighlight}>
+                        Unlimited Messages & Chat once matched (Always 100% Free)
+                      </Text>
+                    </View>
+
+                    {/* 2. Explicit Validity */}
+                    <View style={styles.fullPerkItemRow}>
+                      <View style={styles.checkCircleHighlight}>
+                        <Text style={styles.checkMarkTextHighlight}>✓</Text>
+                      </View>
+                      <Text style={styles.fullPerkItemHighlight}>
+                        Package Validity: {checkoutBenefits.validity}
+                      </Text>
+                    </View>
+
                     {checkoutItem.perks?.map((perk, idx) => (
                       <View key={idx} style={styles.fullPerkItemRow}>
                         <View style={styles.checkCircle}>
@@ -776,6 +880,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 183, 3, 0.15)',
     borderColor: 'rgba(255, 183, 3, 0.4)',
   },
+  statPillChat: {
+    backgroundColor: 'rgba(0, 230, 118, 0.12)',
+    borderColor: 'rgba(0, 230, 118, 0.35)',
+  },
+  statPillValidity: {
+    backgroundColor: 'rgba(255, 183, 3, 0.12)',
+    borderColor: 'rgba(255, 183, 3, 0.35)',
+  },
   statPillText: {
     color: '#E0E3EE',
     fontSize: 11,
@@ -785,6 +897,12 @@ const styles = StyleSheet.create({
     color: '#00B4D8',
   },
   statPillTextSparks: {
+    color: '#FFB703',
+  },
+  statPillTextChat: {
+    color: '#00E676',
+  },
+  statPillTextValidity: {
     color: '#FFB703',
   },
 
@@ -1071,13 +1189,49 @@ const styles = StyleSheet.create({
     borderColor: '#2B2F40',
     marginBottom: 20,
   },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  heroValidityBadge: {
+    backgroundColor: 'rgba(255, 183, 3, 0.15)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 183, 3, 0.35)',
+  },
+  heroValidityBadgeText: {
+    color: '#FFB703',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  heroHighlightBanner: {
+    backgroundColor: 'rgba(0, 230, 118, 0.08)',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 230, 118, 0.25)',
+  },
+  heroHighlightText: {
+    color: '#D8DBE5',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  heroHighlightBold: {
+    color: '#00E676',
+    fontWeight: '800',
+  },
   fullScreenTag: {
     backgroundColor: 'rgba(233, 64, 87, 0.18)',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 2,
   },
   fullScreenTagText: {
     color: '#E94057',
@@ -1114,7 +1268,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  // 4 METRIC COUNTERS
+  // 6 METRIC COUNTERS
   fullScreenSectionHeader: {
     marginBottom: 12,
   },
@@ -1147,6 +1301,13 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 180, 216, 0.35)',
     backgroundColor: '#121C26',
   },
+  metricCardChat: {
+    borderColor: 'rgba(0, 230, 118, 0.4)',
+    backgroundColor: '#0F2018',
+  },
+  metricValueChat: {
+    color: '#00E676',
+  },
   metricCardLikes: {
     borderColor: 'rgba(233, 64, 87, 0.35)',
     backgroundColor: '#20151C',
@@ -1158,6 +1319,13 @@ const styles = StyleSheet.create({
   metricCardBoosts: {
     borderColor: 'rgba(157, 78, 221, 0.35)',
     backgroundColor: '#1B1424',
+  },
+  metricCardValidity: {
+    borderColor: 'rgba(255, 183, 3, 0.4)',
+    backgroundColor: '#201A12',
+  },
+  metricValueValidity: {
+    color: '#FFB703',
   },
   metricIcon: {
     fontSize: 22,
@@ -1215,8 +1383,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  checkCircleHighlight: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 230, 118, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   checkMarkText: {
     color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  checkMarkTextHighlight: {
+    color: '#00E676',
     fontSize: 12,
     fontWeight: '900',
   },
@@ -1224,6 +1405,12 @@ const styles = StyleSheet.create({
     color: '#E0E3EE',
     fontSize: 13,
     fontWeight: '600',
+    flex: 1,
+  },
+  fullPerkItemHighlight: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
     flex: 1,
   },
 

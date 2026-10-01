@@ -36,7 +36,7 @@ const getBaseUrl = () => {
     return process.env.EXPO_PUBLIC_API_URL;
   }
   if (!__DEV__) {
-    return 'https://api.blunderr.in';
+    return 'http://188.245.13.211';
   }
   try {
     const hostUri = Constants.expoConfig?.hostUri;
@@ -45,7 +45,7 @@ const getBaseUrl = () => {
       return `http://${ip}:8080`;
     }
   } catch (e) {}
-  return Platform.OS === 'android' ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
+  return 'http://188.245.13.211';
 };
 
 const BASE_URL = getBaseUrl();

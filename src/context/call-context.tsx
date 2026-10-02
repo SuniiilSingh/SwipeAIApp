@@ -48,7 +48,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const connectWebSocket = () => {
       try {
         const uid = api.getCurrentUserId();
-        if (!uid) return;
+        if (!uid) {
+          if (isMounted) {
+            reconnectTimerRef.current = setTimeout(connectWebSocket, 3000);
+          }
+          return;
+        }
 
         const base = api.getBaseUrl().replace('http://', 'ws://').replace('https://', 'wss://');
         const ws = new WebSocket(`${base}/ws/chat?userId=${uid}`);

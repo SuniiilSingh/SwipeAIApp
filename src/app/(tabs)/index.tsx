@@ -206,7 +206,7 @@ export default function DiscoveryScreen() {
       }
     }
 
-    if (actionType === 'SUPER_CHAI') {
+    if (actionType === 'SUPER_SPARK') {
       const isVip = Boolean(userProfile?.hasActivePass);
       const sparks = userProfile?.sparksBalance || 0;
       if (!isVip && sparks <= 0) {
@@ -239,7 +239,7 @@ export default function DiscoveryScreen() {
     } else if (actionType === 'LIKE') {
       hapticFeedback.medium();
       showToast(`❤️ Liked ${targetName}`);
-    } else if (actionType === 'SUPER_CHAI' || actionType === 'SUPER_SPARK') {
+    } else if (actionType === 'SUPER_SPARK') {
       hapticFeedback.heavy();
       showToast(`⚡ Sent Super Spark to ${targetName}!`);
     }
@@ -958,11 +958,11 @@ function SwipeableCandidateCard({
           setShowFullProfileModal(false);
           setSelectedCandidate(null);
         }}
-        onSendChai={() => {
+        onSendSuperSpark={() => {
           const target = selectedCandidate;
           setShowFullProfileModal(false);
           setSelectedCandidate(null);
-          if (target) handleSendCuttingChai(target);
+          if (target) confirmSendCuttingChai();
         }}
         onComment={() => {
           setShowFullProfileModal(false);

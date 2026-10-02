@@ -147,13 +147,14 @@ export function getBenefitBreakdown(sku?: string): BenefitBreakdown {
         extra: '10x profile views (1 hr)',
       };
     case 'CUTTING_CHAI_21':
+    case 'SUPER_SPARK_19':
       return {
-        messages: '1 Chai Micro-Invite',
+        messages: '1 Super Spark Highlight',
         chatAfterMatch: 'Unlimited Always (100% Free)',
-        superLikes: '1 Chai Highlight',
+        superLikes: '1 Super Spark (⚡)',
         likes: 'Standard Daily Swipes',
-        validity: '30 Days to Redeem',
-        extra: '15% Partner Cafe Coupon',
+        validity: 'Valid Until Used',
+        extra: '3x Higher Match Rate',
       };
     case 'REVIVE_MATCH_19':
       return {

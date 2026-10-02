@@ -27,7 +27,7 @@ interface ProfileDetailModalProps {
   onClose: () => void;
   onLike?: () => void;
   onPass?: () => void;
-  onSendChai?: () => void;
+  onSendSuperSpark?: () => void;
   onComment?: () => void;
   onStartChat?: () => void;
   onVirtualChai?: () => void;
@@ -69,7 +69,7 @@ export default function ProfileDetailModal({
   onClose,
   onLike,
   onPass,
-  onSendChai,
+  onSendSuperSpark,
   onComment,
   onStartChat,
   onVirtualChai,
@@ -543,10 +543,10 @@ export default function ProfileDetailModal({
             </TouchableOpacity>
           )}
 
-          {onSendChai && (
-            <TouchableOpacity style={styles.actionChaiBtn} onPress={onSendChai}>
-              <Text style={styles.actionChaiEmoji}>☕</Text>
-              <Text style={styles.actionChaiText}>Send Chai (₹21)</Text>
+          {onSendSuperSpark && (
+            <TouchableOpacity style={styles.actionChaiBtn} onPress={onSendSuperSpark}>
+              <Text style={styles.actionChaiEmoji}>⚡</Text>
+              <Text style={styles.actionChaiText}>Super Spark (₹19)</Text>
             </TouchableOpacity>
           )}
 

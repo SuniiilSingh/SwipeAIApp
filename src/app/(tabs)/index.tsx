@@ -714,6 +714,14 @@ function SwipeableCandidateCard({
           )}
 
           <TouchableOpacity
+            style={styles.boostButton}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(tabs)/store')}
+            accessibilityLabel="Boost Profile">
+            <Text style={styles.boostButtonText}>⚡ Boost</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.notificationBellButton}
             onPress={() => router.push('/notifications' as any)}
             activeOpacity={0.8}
@@ -726,14 +734,6 @@ function SwipeableCandidateCard({
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.boostButton}
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/store')}
-            accessibilityLabel="Boost Profile">
-            <Text style={styles.boostButtonText}>⚡ Boost</Text>
           </TouchableOpacity>
         </View>
       </View>

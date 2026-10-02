@@ -26,27 +26,27 @@ interface FeatureConfig {
 
 const FEATURE_CONFIGS: Record<GatingFeatureType, FeatureConfig> = {
   SWIPE: {
-    icon: '❤️',
+    icon: '⚡',
     tag: 'OUT OF DAILY SWIPES',
     title: 'Unlock Unlimited Swipes',
-    subtitle: 'You have exhausted your free daily swipes. Get an active pass for unlimited likes and zero daily timeouts!',
+    subtitle: 'You have exhausted your free daily swipes. Get an active pass for unlimited swipes, likes, and zero daily timeouts!',
     perks: [
-      'Unlimited likes & daily swipes without caps',
+      'Unlimited swipes, likes & messages without caps',
       '100% Unlimited Chat once matched (Always Free)',
       'See who liked your profile before swiping',
-      'Weekend Pass starts at just ₹79 (Fri - Sun)',
+      'Weekend Pass starts at just ₹99 (Fri - Sun)',
     ],
-    ctaText: 'Buy Subscription • From ₹79 →',
+    ctaText: 'Buy Subscription • From ₹99 →',
   },
   SUPER_LIKE: {
-    icon: '⭐',
+    icon: '⚡',
     tag: 'SUPER SPARKS REQUIRED',
-    title: 'Super Likes & Sparks',
+    title: 'Super Sparks (⚡)',
     subtitle: 'Super Sparks pin your profile right at the top of candidate decks with a 3x higher match & reply rate!',
     perks: [
       'Top-of-deck spotlight on candidate feeds',
       'Special gold flame notification to recipient',
-      'Available in 5 Sparks Pack (₹79) or Monthly VIP',
+      'Available in 1 Spark (₹19), 5 Sparks Pack (₹79) or VIP Passes',
       '100% Unlimited Chat once matched (Free)',
     ],
     ctaText: 'Unlock Sparks in VibeStore →',
@@ -59,7 +59,7 @@ const FEATURE_CONFIGS: Record<GatingFeatureType, FeatureConfig> = {
     perks: [
       'Direct message note placed in priority inbox',
       'Skip the swiping queue entirely',
-      'Included with VIP Passes or 3x Direct DMs Pack (₹89)',
+      'Included with VIP Passes or 3x Direct DMs Pack (₹49)',
       '100% Unlimited Chat once matched (Free)',
     ],
     ctaText: 'Buy Subscription / DM Pack →',
@@ -72,7 +72,7 @@ const FEATURE_CONFIGS: Record<GatingFeatureType, FeatureConfig> = {
     perks: [
       'Undo any accidental pass in 1 tap',
       'Restore candidate back to top of deck',
-      'Included with Weekend Pass (₹79) & Monthly Pass',
+      'Included with Weekend Pass (₹99) & VIP Passes',
       'Unlimited rewinds while pass is active',
     ],
     ctaText: 'Buy Subscription to Rewind →',

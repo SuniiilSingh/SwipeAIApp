@@ -25,6 +25,12 @@ export const FEATURE_FLAGS = {
   ENABLE_UPI_PAYMENTS: true,
 
   /**
+   * Virtual Chai Audio/Video Masked Calling.
+   * Set to false for V1.0 launch; will be enabled in V1.1 feature update.
+   */
+  ENABLE_CALLING: false,
+
+  /**
    * Twilio Test Mode / Mock OTP:
    * When true, bypasses real Twilio SMS/WhatsApp dispatch, accepts OTP 123456,
    * and auto-populates it for instant onboarding advancement.

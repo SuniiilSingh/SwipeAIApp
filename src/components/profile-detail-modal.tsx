@@ -568,7 +568,7 @@ export default function ProfileDetailModal({
             </TouchableOpacity>
           )}
 
-          {onVirtualChai && (
+          {FEATURE_FLAGS.ENABLE_CALLING && onVirtualChai && (
             <TouchableOpacity style={styles.secondaryFooterBtn} onPress={onVirtualChai}>
               <Text style={styles.secondaryFooterBtnText}>☕ Virtual Chai</Text>
             </TouchableOpacity>

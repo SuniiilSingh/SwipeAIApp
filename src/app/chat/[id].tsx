@@ -637,24 +637,28 @@ export default function ChatScreen() {
             </TouchableOpacity>
 
             {/* Audio Call / Virtual Chai Call Button */}
-            <TouchableOpacity
-              style={styles.audioCallBtn}
-              onPress={() => handleStartCall(false)}
-              activeOpacity={0.75}
-              accessibilityLabel="Start Audio Call">
-              <AudioCallIcon size={19} color="#FF385C" />
-              <View style={styles.audioLiveDot} />
-            </TouchableOpacity>
+            {FEATURE_FLAGS.ENABLE_CALLING && (
+              <TouchableOpacity
+                style={styles.audioCallBtn}
+                onPress={() => handleStartCall(false)}
+                activeOpacity={0.75}
+                accessibilityLabel="Start Audio Call">
+                <AudioCallIcon size={19} color="#FF385C" />
+                <View style={styles.audioLiveDot} />
+              </TouchableOpacity>
+            )}
 
             {/* Video Call Button */}
-            <TouchableOpacity
-              style={styles.videoCallBtn}
-              onPress={() => handleStartCall(true)}
-              activeOpacity={0.75}
-              accessibilityLabel="Start Video Call">
-              <VideoCallIcon size={20} color="#C084FC" />
-              <View style={styles.videoLiveDot} />
-            </TouchableOpacity>
+            {FEATURE_FLAGS.ENABLE_CALLING && (
+              <TouchableOpacity
+                style={styles.videoCallBtn}
+                onPress={() => handleStartCall(true)}
+                activeOpacity={0.75}
+                accessibilityLabel="Start Video Call">
+                <VideoCallIcon size={20} color="#C084FC" />
+                <View style={styles.videoLiveDot} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 

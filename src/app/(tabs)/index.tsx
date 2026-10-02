@@ -239,9 +239,9 @@ export default function DiscoveryScreen() {
     } else if (actionType === 'LIKE') {
       hapticFeedback.medium();
       showToast(`❤️ Liked ${targetName}`);
-    } else if (actionType === 'SUPER_CHAI') {
+    } else if (actionType === 'SUPER_CHAI' || actionType === 'SUPER_SPARK') {
       hapticFeedback.heavy();
-      showToast(`☕ Sent Chai to ${targetName}!`);
+      showToast(`⚡ Sent Super Spark to ${targetName}!`);
     }
 
     // 5. Record interaction in backend
@@ -310,8 +310,8 @@ export default function DiscoveryScreen() {
     if (userProfile && userProfile.sparksBalance > 0) {
       setUserProfile((prev) => prev ? { ...prev, sparksBalance: Math.max(0, prev.sparksBalance - 1) } : null);
     }
-    await api.createUpiOrder('CUTTING_CHAI_21');
-    handleAction(target, 'SUPER_CHAI');
+    await api.createUpiOrder('SUPER_SPARK_19');
+    handleAction(target, 'SUPER_SPARK');
   };
 
   // Filter candidates based on selected tag
@@ -657,8 +657,8 @@ function SwipeableCandidateCard({
             style={styles.chaiBtn}
             activeOpacity={0.8}
             onPress={() => onSendChai(item)}>
-            <Text style={styles.chaiBtnIcon}>☕</Text>
-            <Text style={styles.chaiBtnText}>Send Chai (₹21)</Text>
+            <Text style={styles.chaiBtnIcon}>⚡</Text>
+            <Text style={styles.chaiBtnText}>Super Spark (₹19)</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -917,18 +917,18 @@ function SwipeableCandidateCard({
         onRequestClose={() => setChaiModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalHeading}>☕ Virtual Cutting Chai (₹21)</Text>
+            <Text style={styles.modalHeading}>⚡ Send Super Spark (₹19)</Text>
             <Text style={styles.modalTarget}>
-              Invite {chaiTargetCandidate?.displayName} for a conversation
+              Highlight your profile to {chaiTargetCandidate?.displayName}
             </Text>
             <Text style={styles.modalDesc}>
-              A micro-invite with high response rate. If accepted, you both get a 15% discount coupon at Blue Tokai Indiranagar!
+              A Super Spark pins your profile at the top of their discovery deck with a 3x higher match & reply rate!
             </Text>
 
             <TouchableOpacity
               style={styles.modalSubmitBtn}
               onPress={confirmSendCuttingChai}>
-              <Text style={styles.modalSubmitBtnText}>Pay ₹21 via UPI & Send Chai ☕</Text>
+              <Text style={styles.modalSubmitBtnText}>Pay ₹19 via UPI & Send Spark ⚡</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

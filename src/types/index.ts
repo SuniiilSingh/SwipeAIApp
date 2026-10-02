@@ -21,7 +21,7 @@ export type MatchStatus =
   | 'EXPIRED'
   | 'UNMATCHED';
 
-export type ActionType = 'LIKE' | 'PASS' | 'SUPER_CHAI';
+export type ActionType = 'LIKE' | 'PASS' | 'SUPER_CHAI' | 'SUPER_SPARK';
 export type ContextType = 'PHOTO' | 'VOICE' | 'PROMPT' | 'MEME';
 
 export interface UserProfile {

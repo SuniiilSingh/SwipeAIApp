@@ -11,12 +11,14 @@ import {
 import { Image as ExpoImage } from 'expo-image';
 import { CandidateCard } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
+import { normalizeImageUrl } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
 interface MatchCelebrationModalProps {
   visible: boolean;
   candidate: CandidateCard | null;
+  myPhoto?: string;
   matchId?: string;
   onPlayIcebreaker: (matchId: string) => void;
   onOpenChat: (matchId: string, candidateName: string) => void;
@@ -26,6 +28,7 @@ interface MatchCelebrationModalProps {
 export default function MatchCelebrationModal({
   visible,
   candidate,
+  myPhoto,
   matchId,
   onPlayIcebreaker,
   onOpenChat,
@@ -82,8 +85,8 @@ export default function MatchCelebrationModal({
 
   if (!visible || !candidate) return null;
 
-  const candidatePhoto = candidate.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500';
-  const myPhoto = 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500';
+  const candidatePhoto = normalizeImageUrl(candidate.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500');
+  const currentMyPhoto = normalizeImageUrl(myPhoto || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500');
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onKeepSwiping}>
@@ -107,7 +110,7 @@ export default function MatchCelebrationModal({
           <View style={styles.avatarsWrapper}>
             <View style={[styles.avatarBox, styles.avatarLeft]}>
               <ExpoImage
-                source={{ uri: myPhoto }}
+                source={{ uri: currentMyPhoto }}
                 style={styles.avatarImage}
                 contentFit="cover"
               />

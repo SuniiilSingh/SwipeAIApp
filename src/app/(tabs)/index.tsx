@@ -989,6 +989,7 @@ function SwipeableCandidateCard({
       <MatchCelebrationModal
         visible={showCelebrationModal}
         candidate={matchedCandidate}
+        myPhoto={userProfile?.photos?.[0] || userProfile?.photo1}
         matchId={celebrationMatchId}
         onPlayIcebreaker={(matchId) => {
           setShowCelebrationModal(false);

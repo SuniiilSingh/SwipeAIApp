@@ -178,6 +178,7 @@ export interface IcebreakerQuiz {
   options: string[];
   userAAnswer?: number | null;
   userBAnswer?: number | null;
+  hasAnswered?: boolean;
   isCompleted: boolean;
   isMutualAgreement: boolean;
   wingmanRecommendation?: string;

@@ -62,9 +62,9 @@ export default function MatchesScreen() {
 
   const counts = useMemo(() => ({
     all: matches.length,
-    quiz: matches.filter((m) => m.status === 'PENDING_ICEBREAKER').length,
+    quiz: matches.filter((m) => m.status === 'PENDING_ICEBREAKER' && !m.icebreakerQuiz?.hasAnswered && !m.icebreakerQuiz?.isCompleted).length,
     expiring: matches.filter((m) => m.remainingHours <= 24).length,
-    active: matches.filter((m) => m.status === 'ACTIVE_CHAT').length,
+    active: matches.filter((m) => m.status === 'ACTIVE_CHAT' || m.icebreakerQuiz?.hasAnswered || m.icebreakerQuiz?.isCompleted).length,
   }), [matches]);
 
   const filteredMatches = useMemo(() => {
@@ -73,9 +73,11 @@ export default function MatchesScreen() {
       const matchesSearch = !q || (item.otherUserName && item.otherUserName.toLowerCase().includes(q));
       if (!matchesSearch) return false;
 
-      if (filterType === 'QUIZ') return item.status === 'PENDING_ICEBREAKER';
+      const isQuizPending = item.status === 'PENDING_ICEBREAKER' && !item.icebreakerQuiz?.hasAnswered && !item.icebreakerQuiz?.isCompleted;
+
+      if (filterType === 'QUIZ') return isQuizPending;
       if (filterType === 'EXPIRING') return item.remainingHours <= 24;
-      if (filterType === 'ACTIVE') return item.status === 'ACTIVE_CHAT';
+      if (filterType === 'ACTIVE') return !isQuizPending;
       return true;
     });
   }, [matches, searchQuery, filterType]);
@@ -126,7 +128,7 @@ export default function MatchesScreen() {
   };
 
   const renderMatchItem = ({ item }: { item: MatchItem }) => {
-    const isPending = item.status === 'PENDING_ICEBREAKER';
+    const isPending = item.status === 'PENDING_ICEBREAKER' && !item.icebreakerQuiz?.hasAnswered && !item.icebreakerQuiz?.isCompleted;
 
     return (
       <TouchableOpacity

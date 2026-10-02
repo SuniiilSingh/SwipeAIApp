@@ -34,14 +34,15 @@ export default function IcebreakerScreen() {
     const m = await api.getMatchDetails(matchId);
     setMatch(m);
     if (m) {
-      setQuiz(m.icebreakerQuiz || null);
-
-      if (m.icebreakerQuiz?.isCompleted) {
-        setIsAnswered(true);
-        setSelectedOption(m.icebreakerQuiz.userAAnswer ?? 0);
-        const sparksRes = await api.getWingmanSparks(matchId);
-        setWingmanSparks(sparksRes.sparks || []);
+      if (m.status === 'ACTIVE_CHAT' || m.icebreakerQuiz?.isCompleted || m.icebreakerQuiz?.hasAnswered) {
+        setLoading(false);
+        router.replace({
+          pathname: '/chat/[id]',
+          params: { id: m.id, name: m.otherUserName },
+        });
+        return;
       }
+      setQuiz(m.icebreakerQuiz || null);
     }
     setLoading(false);
   };
@@ -54,6 +55,17 @@ export default function IcebreakerScreen() {
     setIsAnswered(true);
     setWingmanSparks(res.wingmanSparks || []);
     setLoading(false);
+
+    if (res.isQuizCompleted || res.newMatchStatus === 'ACTIVE_CHAT') {
+      setTimeout(() => {
+        if (match) {
+          router.replace({
+            pathname: '/chat/[id]',
+            params: { id: match.id, name: match.otherUserName },
+          });
+        }
+      }, 800);
+    }
   };
 
   const handleStartChat = (initialSpark?: string) => {

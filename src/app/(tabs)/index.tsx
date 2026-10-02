@@ -576,7 +576,7 @@ function SwipeableCandidateCard({
 
               <View style={styles.locationPill}>
                 <Text style={styles.locationPillText}>
-                  📍 {item.distanceKm || 3.5} km • {item.neighborhood || item.city || 'Bengaluru'}
+                  📍 {item.distanceKm ? `${item.distanceKm.toFixed(1)} km` : '3.5 km'} • {item.neighborhood || item.city || userProfile?.city || userProfile?.location || 'Nearby'}
                 </Text>
               </View>
             </View>
@@ -776,10 +776,13 @@ function SwipeableCandidateCard({
   );
 
   if (loading) {
+    const currentCity = userProfile?.city || userProfile?.location;
     return (
       <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#E94057" />
-        <Text style={styles.loadingText}>Curating verified profiles in Bengaluru...</Text>
+        <Text style={styles.loadingText}>
+          {currentCity ? `Curating verified profiles in ${currentCity}...` : 'Curating verified profiles near you...'}
+        </Text>
       </SafeAreaView>
     );
   }

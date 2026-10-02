@@ -17,7 +17,7 @@ import { FEATURE_FLAGS } from '@/config/features';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
 import { hapticFeedback } from '@/utils/haptics';
-import { api } from '@/services/api';
+import { api, normalizeImageUrl } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -92,9 +92,17 @@ export default function ProfileDetailModal({
 
   if (!candidate) return null;
 
-  const photos = candidate.photos && candidate.photos.length > 0
+  const rawCandidatePhotos = Array.isArray(candidate.photos) && candidate.photos.length > 0
     ? candidate.photos
-    : ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800'];
+    : [];
+
+  const photos = rawCandidatePhotos
+    .map((url) => normalizeImageUrl(url))
+    .filter((url): url is string => !!url && typeof url === 'string' && url.trim() !== '');
+
+  if (photos.length === 0) {
+    photos.push('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800');
+  }
 
   const interestsList = candidate.interests
     ? candidate.interests.split(',').map(s => s.trim()).filter(s => s)
@@ -274,7 +282,7 @@ export default function ProfileDetailModal({
             )}
 
             <Text style={styles.locText}>
-              📍 {candidate.neighborhood ? `${candidate.neighborhood}, ` : ''}{candidate.city || 'Bengaluru'} • {typeof candidate.distanceKm === 'number' && candidate.distanceKm >= 0 ? (candidate.distanceKm < 1 ? '< 1 km away' : `${candidate.distanceKm.toFixed(1)} km away`) : 'Nearby'}
+              📍 {candidate.neighborhood ? `${candidate.neighborhood}, ` : ''}{candidate.city ? candidate.city : ''} • {typeof candidate.distanceKm === 'number' && candidate.distanceKm >= 0 ? (candidate.distanceKm < 1 ? '< 1 km away' : `${candidate.distanceKm.toFixed(1)} km away`) : 'Nearby'}
             </Text>
           </View>
 

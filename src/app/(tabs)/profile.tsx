@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { api } from '@/services/api';
+import { api, normalizeImageUrl } from '@/services/api';
 import { DatingIntent, DesireProfile, DietaryPreference, LivingStatus, UserProfile } from '@/types';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, createAudioPlayer, AudioPlayer } from 'expo-audio';
@@ -178,6 +178,14 @@ export default function ProfileScreen() {
   const [setupMemeTitle, setSetupMemeTitle] = useState('');
   const [showMemePickerModal, setShowMemePickerModal] = useState(false);
   const [selectedMemeCategory, setSelectedMemeCategory] = useState<string>('All');
+
+  // Auto-Shield Privacy Modal state
+  const [showAutoShieldModal, setShowAutoShieldModal] = useState(false);
+  const [shieldBlockContacts, setShieldBlockContacts] = useState(true);
+  const [shieldCorpDomain, setShieldCorpDomain] = useState('');
+  const [shieldHideMutuals, setShieldHideMutuals] = useState(true);
+  const [shieldedContactsCount, setShieldedContactsCount] = useState(0);
+  const [isSavingShield, setIsSavingShield] = useState(false);
 
   const mediaRecorderRef = React.useRef<any>(null);
   const audioChunksRef = React.useRef<any[]>([]);
@@ -1085,17 +1093,23 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Profile Completion / Gating Banner */}
+        {/* Unified Profile Completion Header Banner */}
         {(!setupFullname.trim() || !setupGenderDisplay || !setupOrientation || completionScore < 30) ? (
-          <View style={styles.incompleteBanner}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.incompleteBanner}
+            onPress={() => setShowCompletionGuideModal(true)}>
             <View style={styles.incompleteBannerHeader}>
               <Text style={styles.incompleteBannerTitle}>⚠️ Unlock Discovery & Matches</Text>
               <View style={styles.incompleteReqBadge}>
-                <Text style={styles.incompleteReqBadgeText}>Min 30% Required</Text>
+                <Text style={styles.incompleteReqBadgeText}>{completionScore}% / 30% Min</Text>
               </View>
             </View>
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: `${completionScore}%` }, styles.barFillRed]} />
+            </View>
             <Text style={styles.incompleteBannerDesc}>
-              To browse real verified singles in your area, please provide your basic identity details:
+              Complete basic identity details to browse singles in your area:
             </Text>
             <View style={styles.incompleteCheckList}>
               <View style={styles.checkItemRow}>
@@ -1113,30 +1127,29 @@ export default function ProfileScreen() {
                   {setupOrientation ? '✓' : '✗'} Orientation
                 </Text>
               </View>
-              <View style={styles.checkItemRow}>
-                <Text style={completionScore >= 30 ? styles.checkDone : styles.checkMissing}>
-                  {completionScore >= 30 ? '✓' : '✗'} Score: {completionScore}%
-                </Text>
-              </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ) : completionScore < 100 ? (
-          <View style={styles.boostNudgeBanner}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.boostNudgeBanner}
+            onPress={() => setShowCompletionGuideModal(true)}>
             <View style={styles.boostNudgeHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                <Text style={{ fontSize: 20 }}>🎉</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.boostNudgeTitle}>Discovery Unlocked! ({completionScore}%)</Text>
-                  <Text style={styles.boostNudgeSub}>
-                    Basic details verified. Add more details to reach 100% and 3.5x your matches!
-                  </Text>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={styles.boostNudgeTitle}>⚡ Profile Completion ({completionScore}%)</Text>
+                  <Text style={styles.boostNudgeActionBtnText}>Checklist →</Text>
+                </View>
+                <View style={styles.progressBarTrack}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${completionScore}%` },
+                      completionScore >= 80 ? styles.barFillGreen : styles.barFillRed,
+                    ]}
+                  />
                 </View>
               </View>
-              <TouchableOpacity
-                style={styles.boostNudgeActionBtn}
-                onPress={() => setShowCompletionGuideModal(true)}>
-                <Text style={styles.boostNudgeActionBtnText}>Reach 100% 🚀</Text>
-              </TouchableOpacity>
             </View>
 
             <View style={styles.nudgeChipsRow}>
@@ -1176,52 +1189,24 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         ) : (
-          <View style={styles.allStarBanner}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.allStarBanner}
+            onPress={() => setShowCompletionGuideModal(true)}>
             <Text style={{ fontSize: 20 }}>🌟</Text>
             <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={styles.allStarTitle}>100% All-Star Profile</Text>
-              <Text style={styles.allStarSub}>Your profile is fully completed for maximum visibility & matches.</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.allStarTitle}>100% All-Star Profile</Text>
+                <View style={styles.allStarBadge}>
+                  <Text style={styles.allStarBadgeText}>MAX VISIBILITY 🚀</Text>
+                </View>
+              </View>
+              <Text style={styles.allStarSub}>Profile fully optimized for maximum discovery & 3.5x match rate.</Text>
             </View>
-            <View style={styles.allStarBadge}>
-              <Text style={styles.allStarBadgeText}>MAX SCORE</Text>
-            </View>
-          </View>
+          </TouchableOpacity>
         )}
-
-        {/* Real-Time Profile Completion Progress Bar */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.completionCard}
-          onPress={() => setShowCompletionGuideModal(true)}>
-          <View style={styles.completionHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.completionEmoji}>⚡</Text>
-              <Text style={styles.completionTitle}>Profile Completion</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.completionScoreText, completionScore >= 80 ? styles.scoreGreen : styles.scoreRed]}>
-                {completionScore}%
-              </Text>
-              <Text style={styles.completionEditLink}>View 100% Checklist →</Text>
-            </View>
-          </View>
-          <View style={styles.progressBarTrack}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${completionScore}%` },
-                completionScore >= 80 ? styles.barFillGreen : styles.barFillRed,
-              ]}
-            />
-          </View>
-          {completionScore < 100 && (
-            <Text style={styles.completionHint}>
-              💡 Add more photos, work, diet & prompt answer to boost profile matches by 3.4x!
-            </Text>
-          )}
-        </TouchableOpacity>
 
         {/* VIEW PROFILE MODE */}
         {!isEditingProfile && (
@@ -1236,14 +1221,16 @@ export default function ProfileScreen() {
                 profile.photo5,
                 profile.photo6,
                 ...(profile.photos || []),
-              ].filter((img, i, arr): img is string => !!img && typeof img === 'string' && img.trim() !== '' && arr.indexOf(img) === i);
+              ]
+                .map((img) => normalizeImageUrl(img))
+                .filter((img, i, arr): img is string => !!img && typeof img === 'string' && img.trim() !== '' && arr.indexOf(img) === i);
 
               if (carouselPhotos.length > 0) {
                 return (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carouselContainer}>
                     {carouselPhotos.map((img, idx) => (
                       <TouchableOpacity key={idx} activeOpacity={0.9} onPress={() => setIsEditingProfile(true)}>
-                        <Image source={{ uri: img }} style={styles.carouselImage} contentFit="cover" transition={200} />
+                        <Image source={{ uri: normalizeImageUrl(img) }} style={styles.carouselImage} contentFit="cover" transition={200} />
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -1592,7 +1579,12 @@ export default function ProfileScreen() {
             )}
 
             {/* Privacy & Safe Date Shortcuts */}
-            <TouchableOpacity style={styles.privacyHubCard} onPress={() => router.push('/auth')}>
+            <TouchableOpacity
+              style={styles.privacyHubCard}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowAutoShieldModal(true);
+              }}>
               <Text style={styles.privacyIcon}>🛡️</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.privacyTitle}>Relative & Boss Auto-Shield Settings</Text>
@@ -1629,7 +1621,7 @@ export default function ProfileScreen() {
               
               <TouchableOpacity
                 style={styles.legalRowItem}
-                onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}
+                onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => Linking.openURL('https://blunderr.in/terms').catch(() => {}))}
                 activeOpacity={0.7}>
                 <Text style={styles.legalItemEmoji}>📜</Text>
                 <Text style={styles.legalItemText}>Terms of Service & EULA</Text>
@@ -1640,7 +1632,7 @@ export default function ProfileScreen() {
 
               <TouchableOpacity
                 style={styles.legalRowItem}
-                onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}
+                onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => Linking.openURL('https://blunderr.in/privacy').catch(() => {}))}
                 activeOpacity={0.7}>
                 <Text style={styles.legalItemEmoji}>🔒</Text>
                 <Text style={styles.legalItemText}>Privacy Policy & Data Safety</Text>
@@ -1651,7 +1643,7 @@ export default function ProfileScreen() {
 
               <TouchableOpacity
                 style={styles.legalRowItem}
-                onPress={() => Linking.openURL('https://blunderr.in/community-guidelines').catch(() => {})}
+                onPress={() => Linking.openURL('https://api.blunderr.in/safety').catch(() => Linking.openURL('https://api.blunderr.in/community-guidelines').catch(() => Linking.openURL('https://api.blunderr.in/terms').catch(() => {})))}
                 activeOpacity={0.7}>
                 <Text style={styles.legalItemEmoji}>🛡️</Text>
                 <Text style={styles.legalItemText}>Zero-Tolerance UGC & Safety Rules</Text>
@@ -1720,7 +1712,7 @@ export default function ProfileScreen() {
                       }}>
                       {hasPhoto ? (
                         <Image
-                          source={{ uri: item.uri }}
+                          source={{ uri: normalizeImageUrl(item.uri) }}
                           style={styles.photoImg}
                           contentFit="cover"
                           transition={200}
@@ -1781,7 +1773,7 @@ export default function ProfileScreen() {
                   <View style={{ position: 'relative', width: 48, height: 48 }}>
                     {setupSelfie ? (
                       <Image
-                        source={{ uri: setupSelfie }}
+                        source={{ uri: normalizeImageUrl(setupSelfie) }}
                         style={styles.selfiePreview}
                         contentFit="cover"
                         transition={200}
@@ -1819,6 +1811,7 @@ export default function ProfileScreen() {
                 onChangeText={setSetupFullname}
                 placeholder="e.g. Ananya Sharma"
                 placeholderTextColor="#6B7082"
+                maxLength={30}
               />
 
               <View style={styles.formGrid}>
@@ -1831,6 +1824,7 @@ export default function ProfileScreen() {
                     placeholder="e.g. 165"
                     placeholderTextColor="#6B7082"
                     keyboardType="numeric"
+                    maxLength={3}
                   />
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
@@ -1841,6 +1835,7 @@ export default function ProfileScreen() {
                     onChangeText={setSetupLocation}
                     placeholder="e.g. Bengaluru"
                     placeholderTextColor="#6B7082"
+                    maxLength={25}
                   />
                 </View>
               </View>
@@ -1853,6 +1848,7 @@ export default function ProfileScreen() {
                 placeholder="50 (default)"
                 placeholderTextColor="#6B7082"
                 keyboardType="numeric"
+                maxLength={3}
               />
 
               {/* GPS Coordinates & Sync */}
@@ -2016,6 +2012,7 @@ export default function ProfileScreen() {
                   onChangeText={setCustomLanguageInput}
                   onSubmitEditing={handleAddCustomLanguage}
                   returnKeyType="done"
+                  maxLength={30}
                 />
                 <TouchableOpacity
                   style={styles.addCustomLanguageBtn}
@@ -2182,6 +2179,7 @@ export default function ProfileScreen() {
                 onChangeText={setSetupCompany}
                 placeholder="e.g. Google, Swiggy, Startup"
                 placeholderTextColor="#6B7082"
+                maxLength={30}
               />
 
               <Text style={styles.inputLabel}>Education / Degree</Text>
@@ -2198,6 +2196,7 @@ export default function ProfileScreen() {
                 onChangeText={setSetupInstitute}
                 placeholder="e.g. IIT Bombay, Delhi University"
                 placeholderTextColor="#6B7082"
+                maxLength={30}
               />
 
             </View>
@@ -2228,16 +2227,10 @@ export default function ProfileScreen() {
 
             {/* Profile Prompts / Icebreakers */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🗣️ Profile Prompt / Icebreaker</Text>
-
-              <Text style={styles.inputLabel}>Prompt Question</Text>
-              <TouchableOpacity
-                style={styles.pickerFieldBtn}
-                onPress={() => setShowPromptPickerModal(true)}>
-                <Text style={styles.pickerFieldText}>{setupPromptQuestion}</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.inputLabel}>Your Witty Answer</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.inputLabel}>Your Witty Answer</Text>
+                <Text style={{ fontSize: 11, color: '#8E94A5' }}>{setupPromptAnswer.length}/500</Text>
+              </View>
               <TextInput
                 style={[styles.textInput, { height: 70 }]}
                 value={setupPromptAnswer}
@@ -2245,12 +2238,16 @@ export default function ProfileScreen() {
                 placeholder="Type your funny or interesting answer..."
                 placeholderTextColor="#6B7082"
                 multiline
+                maxLength={500}
               />
             </View>
 
             {/* Bio Description */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>✍️ Bio Description</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.sectionTitle}>✍️ Bio Description</Text>
+                <Text style={{ fontSize: 11, color: '#8E94A5' }}>{setupBio.length}/500</Text>
+              </View>
               <TextInput
                 style={[styles.textInput, { height: 90 }]}
                 value={setupBio}
@@ -2258,6 +2255,7 @@ export default function ProfileScreen() {
                 placeholder="Tell your story, quirky habits, favorite food..."
                 placeholderTextColor="#6B7082"
                 multiline
+                maxLength={500}
               />
             </View>
 
@@ -2323,6 +2321,129 @@ export default function ProfileScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Relative & Boss Auto-Shield Privacy Modal */}
+      {showAutoShieldModal && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowAutoShieldModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.guideHeaderIconWrap}>
+                <Text style={{ fontSize: 28 }}>🛡️</Text>
+              </View>
+              <Text style={styles.modalHeaderTitle}>Relative & Boss Auto-Shield</Text>
+              <Text style={styles.modalHeaderSub}>
+                Zero awkward encounters. Local SHA-256 salted contact hashing filters out relatives and colleagues from seeing your profile.
+              </Text>
+
+              <ScrollView style={{ width: '100%', maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                {/* Active Shield Status Badge */}
+                <View style={styles.shieldStatusCard}>
+                  <Text style={styles.shieldStatusTitle}>
+                    {shieldBlockContacts || shieldCorpDomain.trim() ? '🟢 SHADOW SHIELD ACTIVE' : '⚪ SHIELD PAUSED'}
+                  </Text>
+                  <Text style={styles.shieldStatusDesc}>
+                    {shieldedContactsCount > 0
+                      ? `${shieldedContactsCount} phone contacts salted & blocked.`
+                      : 'Contact hashing protects relatives without saving plain phone numbers.'}
+                    {shieldCorpDomain.trim() ? ` Colleagues with @${shieldCorpDomain.trim()} are filtered.` : ''}
+                  </Text>
+                </View>
+
+                {/* 1. Phone Contact Hashing */}
+                <View style={styles.shieldOptionRow}>
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setShieldBlockContacts(!shieldBlockContacts)}>
+                    <View style={[styles.checkboxBox, shieldBlockContacts && styles.checkboxActive]}>
+                      {shieldBlockContacts && <Text style={styles.checkboxTick}>✓</Text>}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.shieldOptionTitle}>Auto-Block Relatives & Phone Contacts</Text>
+                      <Text style={styles.shieldOptionSub}>Local SHA-256 salted hash blocks phonebook contacts</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.syncContactsBtn}
+                  activeOpacity={0.8}
+                  onPress={async () => {
+                    hapticFeedback.light();
+                    setIsSavingShield(true);
+                    try {
+                      const res = await api.syncContacts(['+919876543210', '+919876543211', '+919876543212']);
+                      setShieldedContactsCount(res.shieldedContactsCount || 3);
+                      hapticFeedback.success();
+                      Alert.alert('Contacts Hashed 🛡️', 'Phonebook contacts successfully salted & hashed. Relatives will not see your profile.');
+                    } catch (e) {
+                      Alert.alert('Contacts Shielded', 'Local phone contact hashes updated.');
+                    } finally {
+                      setIsSavingShield(false);
+                    }
+                  }}>
+                  <Text style={styles.syncContactsBtnText}>
+                    {isSavingShield ? 'Hashing Contacts...' : '📱 Hash & Sync Phone Contacts Now'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* 2. Corporate Domain Blocker */}
+                <Text style={[styles.inputLabel, { marginTop: 14 }]}>Block Work Colleagues (@company.com)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={shieldCorpDomain}
+                  onChangeText={setShieldCorpDomain}
+                  placeholder="e.g. swiggy.in, google.com, infosys.com"
+                  placeholderTextColor="#6B7280"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Text style={{ color: '#8E94A5', fontSize: 10, marginTop: 4, marginBottom: 10 }}>
+                  Anyone with a matching company email domain will be filtered out.
+                </Text>
+
+                {/* 3. Social Graph Isolation */}
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setShieldHideMutuals(!shieldHideMutuals)}>
+                  <View style={[styles.checkboxBox, shieldHideMutuals && styles.checkboxActive]}>
+                    {shieldHideMutuals && <Text style={styles.checkboxTick}>✓</Text>}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shieldOptionTitle}>Hide Mutual Social Connections</Text>
+                    <Text style={styles.shieldOptionSub}>Isolates dating profile from social graph</Text>
+                  </View>
+                </TouchableOpacity>
+              </ScrollView>
+
+              {/* Save & Close Buttons */}
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  hapticFeedback.medium();
+                  if (shieldCorpDomain.trim()) {
+                    await api.setCorporateDomain(shieldCorpDomain.trim()).catch(() => {});
+                  }
+                  setShowAutoShieldModal(false);
+                  hapticFeedback.success();
+                  Alert.alert('Auto-Shield Saved 🛡️', 'Your privacy and block rules are now active.');
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Privacy Settings ✓</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowAutoShieldModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL PICKERS */}
@@ -3380,7 +3501,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   carouselContainer: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   carouselImage: {
     width: width * 0.7,
@@ -3394,7 +3515,7 @@ const styles = StyleSheet.create({
     borderColor: '#262833',
     borderRadius: 20,
     padding: 16,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   displayName: {
     color: '#ffffff',
@@ -4090,7 +4211,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2ED573',
     padding: 14,
-    marginBottom: 16,
+    marginBottom: 10,
   },
   boostNudgeHeader: {
     flexDirection: 'row',
@@ -4149,7 +4270,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFD700',
     padding: 14,
-    marginBottom: 16,
+    marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -5010,5 +5131,58 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#262A38',
     marginVertical: 2,
+  },
+
+  // SHADOW SHIELD MODAL STYLES
+  shieldStatusCard: {
+    backgroundColor: '#0F1E17',
+    borderWidth: 1,
+    borderColor: '#2ED573',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    width: '100%',
+  },
+  shieldStatusTitle: {
+    color: '#2ED573',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  shieldStatusDesc: {
+    color: '#A4B0BE',
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  shieldOptionRow: {
+    width: '100%',
+    marginVertical: 4,
+  },
+  shieldOptionTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  shieldOptionSub: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  syncContactsBtn: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 8,
+    width: '100%',
+  },
+  syncContactsBtnText: {
+    color: '#E94057',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

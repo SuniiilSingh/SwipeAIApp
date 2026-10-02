@@ -351,12 +351,31 @@ export interface SupportTicket {
   resolvedAt?: string;
 }
 
+export interface TransactionHistoryItem {
+  orderId: string;
+  title: string;
+  amountFormatted: string;
+  date: string;
+  status: string;
+  provider: string;
+}
+
+export interface ActivePlanResponse {
+  activePlanName: string;
+  planStatus: string;
+  sparksBalance: number;
+  boostsBalance: number;
+  directDmsBalance: number;
+  hasActivePass: boolean;
+  passExpiryDate?: string;
+  passExpiryDaysLeft?: number;
+  passValidUntil?: string;
+  recentTransactions: TransactionHistoryItem[];
+}
 export interface FaqItem {
   id: string;
   category: string;
   question: string;
   answer: string;
 }
-
-
 

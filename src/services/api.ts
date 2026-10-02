@@ -23,6 +23,8 @@ import {
   TicketCategory,
   TicketStatus,
   FaqItem,
+  ActivePlanResponse,
+  TransactionHistoryItem,
 } from '@/types';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -35,23 +37,78 @@ const getBaseUrl = () => {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
-  if (!__DEV__) {
-    return 'https://api.blunderr.in';
-  }
-  try {
-    const hostUri = Constants.expoConfig?.hostUri;
-    if (hostUri) {
-      const ip = hostUri.split(':')[0];
-      return `http://${ip}:8080`;
-    }
-  } catch (e) {}
   return 'https://api.blunderr.in';
 };
 
 const BASE_URL = getBaseUrl();
 
-// Safe fetch with 2.5s timeout to guarantee instant responsiveness on real mobile devices
-const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 2500): Promise<Response> => {
+export const normalizeImageUrl = (url?: string | null): string => {
+  if (!url || typeof url !== 'string' || !url.trim()) return '';
+  let trimmed = url.trim();
+
+  // Return local file, content, data, or blob URIs as-is (e.g. from local camera/gallery picker)
+  if (trimmed.startsWith('file:') || trimmed.startsWith('content:') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+
+  // Upgrade cleartext HTTP to HTTPS to satisfy iOS ATS and Android Network Security Config
+  if (trimmed.startsWith('http://')) {
+    if (trimmed.includes('api.blunderr.in')) {
+      trimmed = trimmed.replace('http://', 'https://');
+    } else if (trimmed.includes('188.245.13.211') || trimmed.includes('localhost') || trimmed.includes(':8080')) {
+      trimmed = trimmed.replace(/http:\/\/[^\/]+/, BASE_URL);
+    } else {
+      trimmed = trimmed.replace('http://', 'https://');
+    }
+  }
+
+  // Prepend BASE_URL for relative paths starting with /
+  if (trimmed.startsWith('/')) {
+    return `${BASE_URL}${trimmed}`;
+  }
+
+  // Prepend BASE_URL/uploads/ for relative paths or bare filenames
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+    if (trimmed.startsWith('uploads/')) {
+      return `${BASE_URL}/${trimmed}`;
+    }
+    return `${BASE_URL}/uploads/${trimmed}`;
+  }
+
+  return trimmed;
+};
+
+export const normalizeProfilePhotos = (p: UserProfile): UserProfile => {
+  if (!p) return p;
+  const photo1 = normalizeImageUrl(p.photo1);
+  const photo2 = normalizeImageUrl(p.photo2);
+  const photo3 = normalizeImageUrl(p.photo3);
+  const photo4 = normalizeImageUrl(p.photo4);
+  const photo5 = normalizeImageUrl(p.photo5);
+  const photo6 = normalizeImageUrl(p.photo6);
+  const rawPhotos = Array.isArray(p.photos) ? p.photos : [];
+  const photos = rawPhotos.map((url) => normalizeImageUrl(url)).filter(Boolean);
+
+  const constructedPhotos = [photo1, photo2, photo3, photo4, photo5, photo6].filter(Boolean);
+  const finalPhotos = photos.length > 0 ? photos : constructedPhotos;
+
+  return {
+    ...p,
+    photo1: photo1 || finalPhotos[0] || '',
+    photo2: photo2 || finalPhotos[1] || '',
+    photo3: photo3 || finalPhotos[2] || '',
+    photo4: photo4 || finalPhotos[3] || '',
+    photo5: photo5 || finalPhotos[4] || '',
+    photo6: photo6 || finalPhotos[5] || '',
+    photos: finalPhotos,
+    selfieUrl: normalizeImageUrl(p.selfieUrl),
+    selectedMemeUrl: normalizeImageUrl(p.selectedMemeUrl),
+    voicePromptUrl: normalizeImageUrl(p.voicePromptUrl),
+  };
+};
+
+// Safe fetch with 10s timeout for reliable mobile network API requests
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -253,16 +310,6 @@ export const api = {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (FEATURE_FLAGS.USE_MOCK_OTP) {
-          return {
-            status: 'success',
-            channel,
-            message: '⚡ Test Mode Active: Use verification code 123456',
-            isMockOtp: true,
-            mockOtp: '123456',
-            otpLength: 6,
-          };
-        }
         throw new Error(data.message || `Failed to send OTP (${res.status})`);
       }
       return data;
@@ -271,7 +318,7 @@ export const api = {
         return {
           status: 'success',
           channel,
-          message: '⚡ Test Mode Active: Use verification code 123456',
+          message: '⚡ Test Mode Active: Enter code 123456',
           isMockOtp: true,
           mockOtp: '123456',
           otpLength: 6,
@@ -298,55 +345,18 @@ export const api = {
     }
     if (city) bodyPayload.city = city;
     if (location || city) bodyPayload.location = location || city;
-    try {
-      const res = await fetchWithTimeout(`${BASE_URL}/v1/auth/otp/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyPayload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (FEATURE_FLAGS.USE_MOCK_OTP && otp.trim() === '123456') {
-          const mockToken = 'mock_jwt_token_123456';
-          const mockUserId = 'mock_user_' + normalized.replace(/[^0-9]/g, '');
-          setAuthToken(mockToken, mockUserId);
-          return {
-            token: mockToken,
-            userId: mockUserId,
-            phoneE164: normalized,
-            isNewUser: false,
-            whatsappVerified: channel === 'whatsapp',
-            digilockerVerified: false,
-            livenessScore: 1.0,
-            karmaScore: 100,
-            sparksBalance: 3,
-            hasActivePass: false,
-          };
-        }
-        throw new Error(data.message || 'Invalid or expired OTP');
-      }
-      setAuthToken(data.token, data.userId);
-      return data;
-    } catch (err: any) {
-      if (FEATURE_FLAGS.USE_MOCK_OTP && otp.trim() === '123456') {
-        const mockToken = 'mock_jwt_token_123456';
-        const mockUserId = 'mock_user_' + normalized.replace(/[^0-9]/g, '');
-        setAuthToken(mockToken, mockUserId);
-        return {
-          token: mockToken,
-          userId: mockUserId,
-          phoneE164: normalized,
-          isNewUser: false,
-          whatsappVerified: channel === 'whatsapp',
-          digilockerVerified: false,
-          livenessScore: 1.0,
-          karmaScore: 100,
-          sparksBalance: 3,
-          hasActivePass: false,
-        };
-      }
-      throw err;
+
+    const res = await fetchWithTimeout(`${BASE_URL}/v1/auth/otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyPayload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || 'Invalid or expired OTP');
     }
+    setAuthToken(data.token, data.userId);
+    return data;
   },
 
   updateLocation: async (
@@ -455,9 +465,13 @@ export const api = {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/me`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        cachedProfile = normalizeProfilePhotos(data);
+        return cachedProfile;
+      }
     } catch (e) {}
-    return cachedProfile;
+    return normalizeProfilePhotos(cachedProfile);
   },
 
   updateMyProfile: async (updates: Partial<UserProfile>): Promise<UserProfile> => {
@@ -467,9 +481,16 @@ export const api = {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
         body: JSON.stringify(updates),
       });
-      if (res.ok) return await res.json();
-    } catch (e) {}
-    cachedProfile = { ...cachedProfile, ...updates };
+      if (res.ok) {
+        const data = await res.json();
+        cachedProfile = normalizeProfilePhotos(data);
+        return cachedProfile;
+      }
+      console.warn(`[api] Profile update returned HTTP ${res.status}`);
+    } catch (e) {
+      console.warn('[api] Failed to update profile on server:', e);
+    }
+    cachedProfile = normalizeProfilePhotos({ ...cachedProfile, ...updates });
     return cachedProfile;
   },
 
@@ -529,8 +550,9 @@ export const api = {
   },
 
   uploadImage: async (localUri: string, directBase64?: string | null): Promise<string> => {
-    if (!localUri || localUri.startsWith('http://') || localUri.startsWith('https://')) {
-      return localUri;
+    if (!localUri) return '';
+    if (localUri.startsWith('http://') || localUri.startsWith('https://')) {
+      return normalizeImageUrl(localUri);
     }
 
     // 1. Direct Base64 from ImagePicker (instant, skips local file reading, completely reliable)
@@ -563,7 +585,7 @@ export const api = {
         if (res.ok) {
           const data = await res.json();
           if (data && data.publicUrl) {
-            return data.publicUrl;
+            return normalizeImageUrl(data.publicUrl);
           }
         }
       } catch (e) {
@@ -590,7 +612,7 @@ export const api = {
             if (uploadResult.status >= 200 && uploadResult.status < 300) {
               const data = JSON.parse(uploadResult.body);
               if (data && data.publicUrl) {
-                return data.publicUrl;
+                return normalizeImageUrl(data.publicUrl);
               }
             }
           } catch (modernErr) {
@@ -616,7 +638,7 @@ export const api = {
           if (uploadResult.status >= 200 && uploadResult.status < 300) {
             const data = JSON.parse(uploadResult.body);
             if (data && data.publicUrl) {
-              return data.publicUrl;
+              return normalizeImageUrl(data.publicUrl);
             }
           }
         }
@@ -664,7 +686,7 @@ export const api = {
         if (res.ok) {
           const data = await res.json();
           if (data && data.publicUrl) {
-            return data.publicUrl;
+            return normalizeImageUrl(data.publicUrl);
           }
         }
       }
@@ -672,7 +694,7 @@ export const api = {
       console.warn('Fallback base64 upload failed:', e);
     }
 
-    return localUri;
+    return normalizeImageUrl(localUri);
   },
 
   // Discovery Feed
@@ -701,6 +723,16 @@ export const api = {
         const json = await res.json();
         const feedData = json?.data || json;
         if (feedData && Array.isArray(feedData.candidates)) {
+          feedData.candidates = feedData.candidates.map((c: CandidateCard) => ({
+            ...c,
+            photos: (c.photos || []).map((url) => normalizeImageUrl(url)).filter(Boolean),
+            voicePrompt: c.voicePrompt
+              ? { ...c.voicePrompt, audioUrl: normalizeImageUrl(c.voicePrompt.audioUrl) }
+              : undefined,
+            memeMatch: c.memeMatch
+              ? { ...c.memeMatch, memeImageUrl: normalizeImageUrl(c.memeMatch.memeImageUrl) }
+              : undefined,
+          }));
           return feedData;
         }
       }
@@ -754,7 +786,21 @@ export const api = {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/matches`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          return data.map((m: MatchItem) => ({
+            ...m,
+            otherUserPhoto: normalizeImageUrl(m.otherUserPhoto),
+            otherProfile: m.otherProfile
+              ? {
+                  ...m.otherProfile,
+                  photos: (m.otherProfile.photos || []).map(normalizeImageUrl).filter(Boolean),
+                }
+              : undefined,
+          }));
+        }
+      }
     } catch (e) {}
     return [];
   },
@@ -764,7 +810,19 @@ export const api = {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const m = await res.json();
+        return {
+          ...m,
+          otherUserPhoto: normalizeImageUrl(m.otherUserPhoto),
+          otherProfile: m.otherProfile
+            ? {
+                ...m.otherProfile,
+                photos: (m.otherProfile.photos || []).map(normalizeImageUrl).filter(Boolean),
+              }
+            : undefined,
+        };
+      }
     } catch (e) {}
     return null;
   },
@@ -929,6 +987,28 @@ export const api = {
   },
 
   // VibeStore & UPI Sachet Store
+  getActivePlan: async (): Promise<ActivePlanResponse> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/active-plan`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[api] Failed to fetch active plan:', e);
+    }
+    return {
+      activePlanName: cachedProfile.hasActivePass ? 'VIP Pass (Active)' : 'Free Plan',
+      planStatus: cachedProfile.hasActivePass ? 'ACTIVE' : 'FREE',
+      sparksBalance: cachedProfile.sparksBalance || 0,
+      boostsBalance: cachedProfile.boostsBalance || 0,
+      directDmsBalance: cachedProfile.directDmsBalance || 0,
+      hasActivePass: Boolean(cachedProfile.hasActivePass),
+      passExpiryDate: cachedProfile.hasActivePass ? 'Active' : 'No Active Pass',
+      recentTransactions: [],
+    };
+  },
+
   getCatalog: async (): Promise<SkuCatalogItem[]> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/store/catalog`);

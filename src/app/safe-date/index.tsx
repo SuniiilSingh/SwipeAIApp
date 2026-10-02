@@ -23,13 +23,18 @@ export default function SafeDateScreen() {
   const [emergencyContact, setEmergencyContact] = useState('+91 98765 00001 (Best Friend)');
   const [activeSosUrl, setActiveSosUrl] = useState<string | null>(null);
 
+  const [userCity, setUserCity] = useState<string>('');
+
   useEffect(() => {
     loadSpots();
   }, []);
 
   const loadSpots = async () => {
     setLoading(true);
-    const list = await api.getSafeDateSpots('Bengaluru');
+    const profile = await api.getMyProfile().catch(() => null);
+    const city = profile?.city || profile?.location || '';
+    if (city) setUserCity(city);
+    const list = await api.getSafeDateSpots(city || 'Bengaluru');
     setSpots(list);
     if (list.length > 0) setSelectedSpot(list[0]);
     setLoading(false);
@@ -88,7 +93,9 @@ export default function SafeDateScreen() {
         </View>
 
         {/* VERIFIED CAFE SPOTS */}
-        <Text style={styles.sectionHeading}>☕ Verified Partner Cafes in Bengaluru (15% Off)</Text>
+        <Text style={styles.sectionHeading}>
+          ☕ Verified Partner Cafes {userCity ? `in ${userCity}` : ''} (15% Off)
+        </Text>
 
         {loading ? (
           <ActivityIndicator color="#E94057" style={{ marginTop: 20 }} />

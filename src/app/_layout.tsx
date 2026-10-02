@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Alert, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as ScreenCapture from 'expo-screen-capture';
 import { usePreventScreenCapture } from 'expo-screen-capture';
@@ -45,23 +46,25 @@ export default function RootLayout() {
   }, [router]);
 
   return (
-    <CallProvider>
-      <StatusBar style="light" />
-      <Stack
-        initialRouteName="index"
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#0E0F13' },
-          animation: 'slide_from_right',
-        }}>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />
-        <Stack.Screen name="safe-date/index" options={{ headerShown: false }} />
-        <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
-      </Stack>
-    </CallProvider>
+    <SafeAreaProvider>
+      <CallProvider>
+        <StatusBar style="light" />
+        <Stack
+          initialRouteName="index"
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#0E0F13' },
+            animation: 'slide_from_right',
+          }}>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="auth/index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />
+          <Stack.Screen name="safe-date/index" options={{ headerShown: false }} />
+          <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
+        </Stack>
+      </CallProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1026,13 +1026,13 @@ export default function AuthScreen() {
                         By continuing, you agree to Blunderr's{' '}
                         <Text
                           style={styles.authLegalLink}
-                          onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}>
+                          onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => Linking.openURL('https://blunderr.in/terms').catch(() => {}))}>
                           Terms of Service
                         </Text>
                         {' '}and{' '}
                         <Text
                           style={styles.authLegalLink}
-                          onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}>
+                          onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => Linking.openURL('https://blunderr.in/privacy').catch(() => {}))}>
                           Privacy Policy
                         </Text>
                         . You must be at least 18 years old to join.
@@ -1283,6 +1283,7 @@ export default function AuthScreen() {
               onChangeText={setCorpDomain}
               placeholder="e.g. swiggy.in or infosys.com"
               placeholderTextColor="#888"
+              maxLength={100}
             />
 
             {/* Mutual Friends Privacy */}

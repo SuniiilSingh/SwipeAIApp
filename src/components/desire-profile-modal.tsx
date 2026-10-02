@@ -179,7 +179,12 @@ export default function DesireProfileModal({ visible, onClose, onSaved }: Desire
         if (data.communicationPace) setCommunicationPace(data.communicationPace);
         if (data.banterStyle) setBanterStyle(data.banterStyle);
         if (data.loveLanguage) setLoveLanguage(data.loveLanguage);
-        if (data.greenFlags && Array.isArray(data.greenFlags)) setSelectedGreenFlags(data.greenFlags);
+        if (data.greenFlags && Array.isArray(data.greenFlags)) {
+          const normalized = data.greenFlags.map((f) =>
+            f.includes('Orders dessert') ? 'Orders dessert for table 🍰' : f
+          );
+          setSelectedGreenFlags(normalized);
+        }
         if (data.naturalLanguagePrompt) setNaturalLanguagePrompt(data.naturalLanguagePrompt);
       }
     } catch (e) {
@@ -188,9 +193,19 @@ export default function DesireProfileModal({ visible, onClose, onSaved }: Desire
     }
   };
 
+  const isGreenFlagSelected = (flag: string) => {
+    return selectedGreenFlags.some(
+      (f) => f === flag || (f.includes('Orders dessert') && flag.includes('Orders dessert'))
+    );
+  };
+
   const toggleGreenFlag = (flag: string) => {
-    if (selectedGreenFlags.includes(flag)) {
-      setSelectedGreenFlags(selectedGreenFlags.filter((f) => f !== flag));
+    const existingIndex = selectedGreenFlags.findIndex(
+      (f) => f === flag || (f.includes('Orders dessert') && flag.includes('Orders dessert'))
+    );
+
+    if (existingIndex >= 0) {
+      setSelectedGreenFlags(selectedGreenFlags.filter((_, idx) => idx !== existingIndex));
     } else {
       if (selectedGreenFlags.length >= 4) {
         Alert.alert('Limit Reached', 'You can pick up to 4 secret green flags.');
@@ -633,7 +648,7 @@ export default function DesireProfileModal({ visible, onClose, onSaved }: Desire
                   <Text style={styles.cardSub}>Tap to toggle what instantly sparks respect & attraction in you.</Text>
                   <View style={styles.pillWrap}>
                     {GREEN_FLAG_PRESETS.map((flag) => {
-                      const isSelected = selectedGreenFlags.includes(flag);
+                      const isSelected = isGreenFlagSelected(flag);
                       return (
                         <TouchableOpacity
                           key={flag}

@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { api } from '@/services/api';
-import { SkuCatalogItem } from '@/types';
+import { ActivePlanResponse, SkuCatalogItem, TransactionHistoryItem } from '@/types';
 import {
   executePurchase,
   getActivePaymentRail,
@@ -177,6 +177,8 @@ export function getBenefitBreakdown(sku?: string): BenefitBreakdown {
 
 export default function StoreScreen() {
   const [catalog, setCatalog] = useState<SkuCatalogItem[]>([]);
+  const [activePlan, setActivePlan] = useState<ActivePlanResponse | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [checkoutItem, setCheckoutItem] = useState<SkuCatalogItem | null>(null);
@@ -189,9 +191,15 @@ export default function StoreScreen() {
 
   const loadCatalog = async () => {
     try {
-      const items = await api.getCatalog();
+      const [items, plan] = await Promise.all([
+        api.getCatalog().catch(() => []),
+        api.getActivePlan().catch(() => null),
+      ]);
       if (items && items.length > 0) {
         setCatalog(items);
+      }
+      if (plan) {
+        setActivePlan(plan);
       }
     } finally {
       setLoading(false);
@@ -325,6 +333,64 @@ export default function StoreScreen() {
           <ActivityIndicator size="large" color="#E94057" style={{ marginTop: 40 }} />
         ) : (
           <>
+            {/* MY ACTIVE PLAN & BALANCES CARD */}
+            <View style={styles.activePlanCard}>
+              <View style={styles.activePlanHeaderRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.activePlanTagText}>MY ACTIVE PLAN & BALANCES</Text>
+                  <Text style={styles.activePlanTitle}>
+                    {activePlan?.activePlanName || 'Free Plan'}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.activePlanStatusBadge,
+                    activePlan?.hasActivePass
+                      ? styles.activeStatusBadgeActive
+                      : styles.activeStatusBadgeFree,
+                  ]}>
+                  <Text style={styles.activeStatusBadgeText}>
+                    {activePlan?.hasActivePass ? '● ACTIVE' : 'FREE'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.activeBalancesGrid}>
+                <View style={styles.balanceItem}>
+                  <Text style={styles.balanceIcon}>☕</Text>
+                  <Text style={styles.balanceCount}>{activePlan?.sparksBalance ?? 0}</Text>
+                  <Text style={styles.balanceLabel}>Sparks</Text>
+                </View>
+                <View style={styles.balanceDivider} />
+                <View style={styles.balanceItem}>
+                  <Text style={styles.balanceIcon}>🚀</Text>
+                  <Text style={styles.balanceCount}>{activePlan?.boostsBalance ?? 0}</Text>
+                  <Text style={styles.balanceLabel}>Boosts</Text>
+                </View>
+                <View style={styles.balanceDivider} />
+                <View style={styles.balanceItem}>
+                  <Text style={styles.balanceIcon}>💬</Text>
+                  <Text style={styles.balanceCount}>{activePlan?.directDmsBalance ?? 0}</Text>
+                  <Text style={styles.balanceLabel}>Direct DMs</Text>
+                </View>
+              </View>
+
+              <View style={styles.activePlanFooterRow}>
+                <Text style={styles.activePlanExpiryText}>
+                  ⏳ {activePlan?.passExpiryDate || 'No Active Pass'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.historyBtn}
+                  onPress={() => {
+                    hapticFeedback.light();
+                    setShowHistoryModal(true);
+                  }}
+                  activeOpacity={0.8}>
+                  <Text style={styles.historyBtnText}>📜 History →</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* 1. HERO CARD: Weekend Dating Pass */}
             {weekendPass && (
               <View style={styles.heroPassCard}>
@@ -572,11 +638,11 @@ export default function StoreScreen() {
                 Payment will be charged to your Apple ID or Google Play account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours prior to the end of the current billing period. You may manage or cancel subscriptions anytime in your Account Settings.
               </Text>
               <View style={styles.legalLinksRow}>
-                <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}>
+                <TouchableOpacity onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => Linking.openURL('https://blunderr.in/terms').catch(() => {}))}>
                   <Text style={styles.legalLinkText}>Terms of Use (EULA)</Text>
                 </TouchableOpacity>
                 <Text style={styles.legalLinkSeparator}>•</Text>
-                <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}>
+                <TouchableOpacity onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => Linking.openURL('https://blunderr.in/privacy').catch(() => {}))}>
                   <Text style={styles.legalLinkText}>Privacy Policy</Text>
                 </TouchableOpacity>
               </View>
@@ -836,11 +902,11 @@ export default function StoreScreen() {
                   )}
 
                   <View style={styles.checkoutLegalRow}>
-                    <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/terms').catch(() => {})}>
+                    <TouchableOpacity onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => Linking.openURL('https://blunderr.in/terms').catch(() => {}))}>
                       <Text style={styles.checkoutLegalLink}>Terms of Use (EULA)</Text>
                     </TouchableOpacity>
                     <Text style={styles.checkoutLegalSep}>•</Text>
-                    <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/privacy').catch(() => {})}>
+                    <TouchableOpacity onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => Linking.openURL('https://blunderr.in/privacy').catch(() => {}))}>
                       <Text style={styles.checkoutLegalLink}>Privacy Policy</Text>
                     </TouchableOpacity>
                     <Text style={styles.checkoutLegalSep}>•</Text>
@@ -885,6 +951,55 @@ export default function StoreScreen() {
                 )}
               </View>
             )}
+          </SafeAreaView>
+        </Modal>
+
+        {/* TRANSACTION HISTORY MODAL */}
+        <Modal
+          visible={showHistoryModal}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowHistoryModal(false)}>
+          <SafeAreaView style={styles.fullScreenContainer}>
+            <View style={styles.fullScreenHeader}>
+              <TouchableOpacity
+                style={styles.fullScreenBackBtn}
+                activeOpacity={0.8}
+                onPress={() => setShowHistoryModal(false)}>
+                <Text style={styles.fullScreenBackText}>✕ Close</Text>
+              </TouchableOpacity>
+              <Text style={styles.fullScreenHeaderTitle}>Order & Purchase History</Text>
+              <View style={{ width: 60 }} />
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              {(!activePlan?.recentTransactions || activePlan.recentTransactions.length === 0) ? (
+                <View style={styles.emptyHistoryBox}>
+                  <Text style={{ fontSize: 36, marginBottom: 8, textAlign: 'center' }}>📜</Text>
+                  <Text style={styles.emptyHistoryTitle}>No Recent Transactions</Text>
+                  <Text style={styles.emptyHistorySubtitle}>
+                    Purchased passes, sachet top-ups, and Sparks balance additions will be listed here automatically.
+                  </Text>
+                </View>
+              ) : (
+                activePlan.recentTransactions.map((trx, idx) => (
+                  <View key={trx.orderId || idx} style={styles.historyItemCard}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.historyItemTitle}>{trx.title}</Text>
+                      <Text style={styles.historyItemSub}>Order #{trx.orderId} • {trx.date}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.historyItemAmount}>
+                        {trx.amountFormatted && trx.amountFormatted !== '₹0' ? trx.amountFormatted : '₹79'}
+                      </Text>
+                      <View style={styles.historyStatusBadge}>
+                        <Text style={styles.historyStatusText}>{trx.status || 'COMPLETED'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
           </SafeAreaView>
         </Modal>
 
@@ -1847,5 +1962,169 @@ const styles = StyleSheet.create({
   checkoutLegalSep: {
     color: '#4B5563',
     fontSize: 11,
+  },
+
+  // ACTIVE PLAN CARD STYLES
+  activePlanCard: {
+    backgroundColor: '#161922',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#2D3244',
+    marginBottom: 16,
+  },
+  activePlanHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  activePlanTagText: {
+    color: '#8E94A5',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  activePlanTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  activePlanStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  activeStatusBadgeActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderWidth: 1,
+  },
+  activeStatusBadgeFree: {
+    backgroundColor: 'rgba(142, 148, 165, 0.15)',
+    borderColor: 'rgba(142, 148, 165, 0.3)',
+    borderWidth: 1,
+  },
+  activeStatusBadgeText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  activeBalancesGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#1E2230',
+    borderRadius: 14,
+    paddingVertical: 12,
+    marginVertical: 4,
+  },
+  balanceItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  balanceIcon: {
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  balanceCount: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  balanceLabel: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  balanceDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  activePlanFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  activePlanExpiryText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  historyBtn: {
+    backgroundColor: '#262B3C',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  historyBtnText: {
+    color: '#38BDF8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // TRANSACTION HISTORY STYLES
+  emptyHistoryBox: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyHistoryTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  emptyHistorySubtitle: {
+    color: '#8E94A5',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  historyItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#181B26',
+    borderWidth: 1,
+    borderColor: '#282D3F',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+  },
+  historyItemTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  historyItemSub: {
+    color: '#8E94A5',
+    fontSize: 11,
+    marginTop: 3,
+  },
+  historyItemAmount: {
+    color: '#10B981',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  historyStatusBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  historyStatusText: {
+    color: '#10B981',
+    fontSize: 9,
+    fontWeight: '800',
   },
 });

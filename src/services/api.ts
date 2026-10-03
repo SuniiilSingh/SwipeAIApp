@@ -42,9 +42,14 @@ const getBaseUrl = () => {
 
 const BASE_URL = getBaseUrl();
 
-export const normalizeImageUrl = (url?: string | null): string => {
+export const normalizeImageUrl = (url?: string | null, isFromRemoteDb: boolean = false): string => {
   if (!url || typeof url !== 'string' || !url.trim()) return '';
   let trimmed = url.trim();
+
+  // If this comes from remote DB or saved profile response, local file/content URIs are invalid across sessions!
+  if (isFromRemoteDb && (trimmed.startsWith('file:') || trimmed.startsWith('content:'))) {
+    return '';
+  }
 
   // Return local file, content, data, or blob URIs as-is (e.g. from local camera/gallery picker)
   if (trimmed.startsWith('file:') || trimmed.startsWith('content:') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
@@ -80,30 +85,30 @@ export const normalizeImageUrl = (url?: string | null): string => {
 
 export const normalizeProfilePhotos = (p: UserProfile): UserProfile => {
   if (!p) return p;
-  const photo1 = normalizeImageUrl(p.photo1);
-  const photo2 = normalizeImageUrl(p.photo2);
-  const photo3 = normalizeImageUrl(p.photo3);
-  const photo4 = normalizeImageUrl(p.photo4);
-  const photo5 = normalizeImageUrl(p.photo5);
-  const photo6 = normalizeImageUrl(p.photo6);
+  const photo1 = normalizeImageUrl(p.photo1, true);
+  const photo2 = normalizeImageUrl(p.photo2, true);
+  const photo3 = normalizeImageUrl(p.photo3, true);
+  const photo4 = normalizeImageUrl(p.photo4, true);
+  const photo5 = normalizeImageUrl(p.photo5, true);
+  const photo6 = normalizeImageUrl(p.photo6, true);
   const rawPhotos = Array.isArray(p.photos) ? p.photos : [];
-  const photos = rawPhotos.map((url) => normalizeImageUrl(url)).filter(Boolean);
+  const photos = rawPhotos.map((url) => normalizeImageUrl(url, true)).filter(Boolean);
 
   const constructedPhotos = [photo1, photo2, photo3, photo4, photo5, photo6].filter(Boolean);
-  const finalPhotos = photos.length > 0 ? photos : constructedPhotos;
+  const combinedPhotos = Array.from(new Set([...photos, ...constructedPhotos]));
 
   return {
     ...p,
-    photo1: photo1 || finalPhotos[0] || '',
-    photo2: photo2 || finalPhotos[1] || '',
-    photo3: photo3 || finalPhotos[2] || '',
-    photo4: photo4 || finalPhotos[3] || '',
-    photo5: photo5 || finalPhotos[4] || '',
-    photo6: photo6 || finalPhotos[5] || '',
-    photos: finalPhotos,
-    selfieUrl: normalizeImageUrl(p.selfieUrl),
-    selectedMemeUrl: normalizeImageUrl(p.selectedMemeUrl),
-    voicePromptUrl: normalizeImageUrl(p.voicePromptUrl),
+    photo1: combinedPhotos[0] || '',
+    photo2: combinedPhotos[1] || '',
+    photo3: combinedPhotos[2] || '',
+    photo4: combinedPhotos[3] || '',
+    photo5: combinedPhotos[4] || '',
+    photo6: combinedPhotos[5] || '',
+    photos: combinedPhotos,
+    selfieUrl: normalizeImageUrl(p.selfieUrl, true),
+    selectedMemeUrl: normalizeImageUrl(p.selectedMemeUrl, false),
+    voicePromptUrl: normalizeImageUrl(p.voicePromptUrl, false),
   };
 };
 
@@ -694,6 +699,9 @@ export const api = {
       console.warn('Fallback base64 upload failed:', e);
     }
 
+    if (localUri.startsWith('file:') || localUri.startsWith('content:') || localUri.startsWith('data:') || localUri.startsWith('blob:')) {
+      return '';
+    }
     return normalizeImageUrl(localUri);
   },
 
@@ -791,11 +799,11 @@ export const api = {
         if (Array.isArray(data)) {
           return data.map((m: MatchItem) => ({
             ...m,
-            otherUserPhoto: normalizeImageUrl(m.otherUserPhoto),
+            otherUserPhoto: normalizeImageUrl(m.otherUserPhoto, true),
             otherProfile: m.otherProfile
               ? {
                   ...m.otherProfile,
-                  photos: (m.otherProfile.photos || []).map(normalizeImageUrl).filter(Boolean),
+                  photos: (m.otherProfile.photos || []).map((url: string) => normalizeImageUrl(url, true)).filter(Boolean),
                 }
               : undefined,
           }));
@@ -814,11 +822,11 @@ export const api = {
         const m = await res.json();
         return {
           ...m,
-          otherUserPhoto: normalizeImageUrl(m.otherUserPhoto),
+          otherUserPhoto: normalizeImageUrl(m.otherUserPhoto, true),
           otherProfile: m.otherProfile
             ? {
                 ...m.otherProfile,
-                photos: (m.otherProfile.photos || []).map(normalizeImageUrl).filter(Boolean),
+                photos: (m.otherProfile.photos || []).map((url: string) => normalizeImageUrl(url, true)).filter(Boolean),
               }
             : undefined,
         };

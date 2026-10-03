@@ -298,21 +298,30 @@ export default function ProfileScreen() {
     setSetupMemeUrl(p.selectedMemeUrl || '');
     setSetupMemeTitle(p.selectedMemeTitle || '');
 
-    const hasExplicitSlots = Boolean(p.photo1 || p.photo2 || p.photo3 || p.photo4 || p.photo5 || p.photo6);
+    const cleanRemote = (url?: string) => normalizeImageUrl(url, true);
+    const p1 = cleanRemote(p.photo1);
+    const p2 = cleanRemote(p.photo2);
+    const p3 = cleanRemote(p.photo3);
+    const p4 = cleanRemote(p.photo4);
+    const p5 = cleanRemote(p.photo5);
+    const p6 = cleanRemote(p.photo6);
+    const cleanedPhotos = (p.photos || []).map((url) => cleanRemote(url)).filter(Boolean);
+
+    const hasExplicitSlots = Boolean(p1 || p2 || p3 || p4 || p5 || p6);
     if (hasExplicitSlots) {
-      setSetupPhoto1(p.photo1 || '');
-      setSetupPhoto2(p.photo2 || '');
-      setSetupPhoto3(p.photo3 || '');
-      setSetupPhoto4(p.photo4 || '');
-      setSetupPhoto5(p.photo5 || '');
-      setSetupPhoto6(p.photo6 || '');
-    } else if (p.photos && p.photos.length > 0) {
-      setSetupPhoto1(p.photos[0] || '');
-      setSetupPhoto2(p.photos[1] || '');
-      setSetupPhoto3(p.photos[2] || '');
-      setSetupPhoto4(p.photos[3] || '');
-      setSetupPhoto5(p.photos[4] || '');
-      setSetupPhoto6(p.photos[5] || '');
+      setSetupPhoto1(p1);
+      setSetupPhoto2(p2);
+      setSetupPhoto3(p3);
+      setSetupPhoto4(p4);
+      setSetupPhoto5(p5);
+      setSetupPhoto6(p6);
+    } else if (cleanedPhotos.length > 0) {
+      setSetupPhoto1(cleanedPhotos[0] || '');
+      setSetupPhoto2(cleanedPhotos[1] || '');
+      setSetupPhoto3(cleanedPhotos[2] || '');
+      setSetupPhoto4(cleanedPhotos[3] || '');
+      setSetupPhoto5(cleanedPhotos[4] || '');
+      setSetupPhoto6(cleanedPhotos[5] || '');
     } else {
       setSetupPhoto1('');
       setSetupPhoto2('');
@@ -321,7 +330,7 @@ export default function ProfileScreen() {
       setSetupPhoto5('');
       setSetupPhoto6('');
     }
-    setSetupSelfie(p.selfieUrl || '');
+    setSetupSelfie(cleanRemote(p.selfieUrl));
   };
 
   const getDietaryLabel = (key?: DietaryPreference) => {
@@ -723,35 +732,21 @@ export default function ProfileScreen() {
         const localUri = asset.uri;
         const directBase64 = asset.base64;
         
+        let prevPhotoUrl = '';
+        if (slotIdx === 1) prevPhotoUrl = setupPhoto1;
+        else if (slotIdx === 2) prevPhotoUrl = setupPhoto2;
+        else if (slotIdx === 3) prevPhotoUrl = setupPhoto3;
+        else if (slotIdx === 4) prevPhotoUrl = setupPhoto4;
+        else if (slotIdx === 5) prevPhotoUrl = setupPhoto5;
+        else if (slotIdx === 6) prevPhotoUrl = setupPhoto6;
+
         // Instantly display local image in slot
         setter(localUri);
         setUploadingSlot(slotIdx);
 
-        // Instantly update the main profile view so it shows immediately inside profile!
-        setProfile(prev => {
-          if (!prev) return prev;
-          const updated = { ...prev };
-          if (slotIdx === 1) updated.photo1 = localUri;
-          else if (slotIdx === 2) updated.photo2 = localUri;
-          else if (slotIdx === 3) updated.photo3 = localUri;
-          else if (slotIdx === 4) updated.photo4 = localUri;
-          else if (slotIdx === 5) updated.photo5 = localUri;
-          else if (slotIdx === 6) updated.photo6 = localUri;
-          const photos = [
-            slotIdx === 1 ? localUri : setupPhoto1,
-            slotIdx === 2 ? localUri : setupPhoto2,
-            slotIdx === 3 ? localUri : setupPhoto3,
-            slotIdx === 4 ? localUri : setupPhoto4,
-            slotIdx === 5 ? localUri : setupPhoto5,
-            slotIdx === 6 ? localUri : setupPhoto6,
-          ].filter((p): p is string => !!p && p.trim() !== '');
-          updated.photos = photos;
-          return updated;
-        });
-
         try {
           const uploadedUrl = await api.uploadImage(localUri, directBase64);
-          if (uploadedUrl && uploadedUrl.trim() !== '') {
+          if (uploadedUrl && uploadedUrl.trim() !== '' && (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://'))) {
             setter(uploadedUrl);
             setProfile(prev => {
               if (!prev) return prev;
@@ -762,6 +757,7 @@ export default function ProfileScreen() {
               else if (slotIdx === 4) updated.photo4 = uploadedUrl;
               else if (slotIdx === 5) updated.photo5 = uploadedUrl;
               else if (slotIdx === 6) updated.photo6 = uploadedUrl;
+
               const photos = [
                 slotIdx === 1 ? uploadedUrl : setupPhoto1,
                 slotIdx === 2 ? uploadedUrl : setupPhoto2,
@@ -769,7 +765,7 @@ export default function ProfileScreen() {
                 slotIdx === 4 ? uploadedUrl : setupPhoto4,
                 slotIdx === 5 ? uploadedUrl : setupPhoto5,
                 slotIdx === 6 ? uploadedUrl : setupPhoto6,
-              ].filter((p): p is string => !!p && p.trim() !== '');
+              ].filter((p): p is string => !!p && p.trim() !== '' && !p.startsWith('file:') && !p.startsWith('content:'));
               updated.photos = photos;
               return updated;
             });
@@ -782,7 +778,7 @@ export default function ProfileScreen() {
               slotIdx === 4 ? uploadedUrl : setupPhoto4,
               slotIdx === 5 ? uploadedUrl : setupPhoto5,
               slotIdx === 6 ? uploadedUrl : setupPhoto6,
-            ].filter((p): p is string => !!p && p.trim() !== '');
+            ].filter((p): p is string => !!p && p.trim() !== '' && !p.startsWith('file:') && !p.startsWith('content:'));
 
             api.updateMyProfile({
               [`photo${slotIdx}`]: uploadedUrl,
@@ -790,9 +786,14 @@ export default function ProfileScreen() {
             } as any).catch(err => {
               console.warn('Profile sync warning:', err);
             });
+          } else {
+            Alert.alert('Upload Failed', 'Failed to upload photo to cloud storage. Please check your internet connection.');
+            setter(prevPhotoUrl);
           }
         } catch (err) {
           console.warn('Photo upload failed:', err);
+          Alert.alert('Upload Error', 'Failed to upload photo. Please try again.');
+          setter(prevPhotoUrl);
         } finally {
           setUploadingSlot(null);
         }
@@ -962,8 +963,37 @@ export default function ProfileScreen() {
 
   const handleSaveAllChanges = async () => {
     setLoading(true);
-    const photosList = [setupPhoto1, setupPhoto2, setupPhoto3, setupPhoto4, setupPhoto5, setupPhoto6]
-      .filter((p): p is string => !!p && p.trim() !== '');
+
+    const ensureRemoteUrl = async (uri: string, setter: (val: string) => void): Promise<string> => {
+      if (!uri || !uri.trim()) return '';
+      if (uri.startsWith('http://') || uri.startsWith('https://')) {
+        return normalizeImageUrl(uri);
+      }
+      if (uri.startsWith('file:') || uri.startsWith('content:')) {
+        try {
+          const uploaded = await api.uploadImage(uri);
+          if (uploaded && (uploaded.startsWith('http://') || uploaded.startsWith('https://'))) {
+            setter(uploaded);
+            return uploaded;
+          }
+        } catch (e) {}
+        setter('');
+        return '';
+      }
+      return uri;
+    };
+
+    const [p1, p2, p3, p4, p5, p6, selfie] = await Promise.all([
+      ensureRemoteUrl(setupPhoto1, setSetupPhoto1),
+      ensureRemoteUrl(setupPhoto2, setSetupPhoto2),
+      ensureRemoteUrl(setupPhoto3, setSetupPhoto3),
+      ensureRemoteUrl(setupPhoto4, setSetupPhoto4),
+      ensureRemoteUrl(setupPhoto5, setSetupPhoto5),
+      ensureRemoteUrl(setupPhoto6, setSetupPhoto6),
+      ensureRemoteUrl(setupSelfie, setSetupSelfie),
+    ]);
+
+    const photosList = [p1, p2, p3, p4, p5, p6].filter((p): p is string => !!p && p.trim() !== '');
 
     const updated = await api.updateMyProfile({
       displayName: setupFullname.split(' ')[0] || 'User',
@@ -1003,13 +1033,13 @@ export default function ProfileScreen() {
       relationshipIntent: setupIntent,
       profilePromptQuestion: setupPromptQuestion,
       profilePromptAnswer: setupPromptAnswer,
-      photo1: setupPhoto1 || '',
-      photo2: setupPhoto2 || '',
-      photo3: setupPhoto3 || '',
-      photo4: setupPhoto4 || '',
-      photo5: setupPhoto5 || '',
-      photo6: setupPhoto6 || '',
-      selfieUrl: setupSelfie || '',
+      photo1: p1 || '',
+      photo2: p2 || '',
+      photo3: p3 || '',
+      photo4: p4 || '',
+      photo5: p5 || '',
+      photo6: p6 || '',
+      selfieUrl: selfie || '',
       birthDate: setupDateOfBirth || undefined,
       photos: photosList,
       completionPercentage: calculateLocalPct(),
@@ -1222,7 +1252,7 @@ export default function ProfileScreen() {
                 profile.photo6,
                 ...(profile.photos || []),
               ]
-                .map((img) => normalizeImageUrl(img))
+                .map((img) => normalizeImageUrl(img, true))
                 .filter((img, i, arr): img is string => !!img && typeof img === 'string' && img.trim() !== '' && arr.indexOf(img) === i);
 
               if (carouselPhotos.length > 0) {

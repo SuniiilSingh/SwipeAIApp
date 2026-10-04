@@ -584,7 +584,7 @@ export const api = {
               base64Data: directBase64,
             }),
           },
-          30000
+          60000
         );
 
         if (res.ok) {
@@ -685,7 +685,7 @@ export const api = {
               base64Data,
             }),
           },
-          30000
+          60000
         );
 
         if (res.ok) {

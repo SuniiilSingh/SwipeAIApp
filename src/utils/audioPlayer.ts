@@ -1,7 +1,10 @@
 // src/utils/audioPlayer.ts
+import { Platform } from 'react-native';
+import { createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 
 let globalAudio: HTMLAudioElement | null = null;
 let globalAudioCtx: AudioContext | null = null;
+let globalNativePlayer: AudioPlayer | null = null;
 let globalUtteranceTimer: any = null;
 
 /**
@@ -119,6 +122,14 @@ export function stopAudibleVoiceNote(): void {
       globalAudioCtx.close();
     } catch (e) {}
     globalAudioCtx = null;
+  }
+
+  if (globalNativePlayer) {
+    try {
+      globalNativePlayer.pause();
+      globalNativePlayer.release();
+    } catch (e) {}
+    globalNativePlayer = null;
   }
 }
 
@@ -240,6 +251,42 @@ export function playAudibleVoiceNote({
     }
   };
 
+  // 1. Native iOS & Android Playback via expo-audio
+  if (Platform.OS !== 'web') {
+    (async () => {
+      try {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          interruptionMode: 'mixWithOthers',
+        });
+
+        if (audioUrl && (audioUrl.startsWith('http://') || audioUrl.startsWith('https://') || audioUrl.startsWith('file://'))) {
+          const player = createAudioPlayer(audioUrl);
+          globalNativePlayer = player;
+          player.play();
+
+          player.addListener('playbackStatusUpdate', (status: any) => {
+            if (status.didJustFinish) {
+              triggerEnd();
+            }
+          });
+
+          const totalDuration = Math.max((durationSec || 15) * 1000, 3000);
+          globalUtteranceTimer = setTimeout(triggerEnd, totalDuration);
+          return;
+        }
+      } catch (nativeErr) {
+        console.warn('[AudioPlayer] Native audio playback error:', nativeErr);
+      }
+
+      // Fallback timer if URL couldn't play
+      const totalDuration = Math.max((durationSec || 5) * 1000, 3200);
+      globalUtteranceTimer = setTimeout(triggerEnd, totalDuration);
+    })();
+    return;
+  }
+
+  // 2. Web HTML5 Audio & Chime Playback
   const isDirectAudio =
     audioUrl &&
     (audioUrl.startsWith('blob:') ||
@@ -279,6 +326,6 @@ export function playAudibleVoiceNote({
   }
 
   // Safety timer ensuring waveform state resets when playback completes
-  const totalDuration = Math.max(durationSec * 1000, 3200);
+  const totalDuration = Math.max((durationSec || 5) * 1000, 3200);
   globalUtteranceTimer = setTimeout(triggerEnd, totalDuration);
 }

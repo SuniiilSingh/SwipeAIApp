@@ -110,6 +110,11 @@ export interface CandidateCard {
     durationSec: number;
     promptText: string;
   };
+  voicePromptUrl?: string;
+  voicePromptDuration?: number;
+  voicePromptText?: string;
+  selectedMemeUrl?: string;
+  selectedMemeTitle?: string;
   memeMatch?: {
     matchPercent: number;
     memeTitle: string;

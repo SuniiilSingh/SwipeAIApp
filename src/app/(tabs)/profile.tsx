@@ -154,9 +154,11 @@ export default function ProfileScreen() {
   const [showIntentPickerModal, setShowIntentPickerModal] = useState(false);
   const [showPromptPickerModal, setShowPromptPickerModal] = useState(false);
 
-  // New Dietary & Living Picker Modals
+  // New Dietary, Living & Language Picker Modals
   const [showDietPickerModal, setShowDietPickerModal] = useState(false);
   const [showLivingPickerModal, setShowLivingPickerModal] = useState(false);
+  const [showLanguagePickerModal, setShowLanguagePickerModal] = useState(false);
+  const [languageSearchQuery, setLanguageSearchQuery] = useState('');
 
   // Lifestyle Picker Modals
   const [showSmokingPickerModal, setShowSmokingPickerModal] = useState(false);
@@ -489,7 +491,7 @@ export default function ProfileScreen() {
   };
 
   const handleSaveVoiceNote = async () => {
-    const url = recordedAudioUri || setupVoicePromptUrl || `voice_note_${Date.now()}`;
+    let url = recordedAudioUri || setupVoicePromptUrl || `voice_note_${Date.now()}`;
     const dur = voiceRecordSeconds > 0 ? voiceRecordSeconds : (setupVoicePromptDuration || 15);
     const txt = setupVoicePromptText || VOICE_PROMPT_TOPICS[0];
 
@@ -498,10 +500,23 @@ export default function ProfileScreen() {
     }
     stopAudibleVoiceNote();
     setIsPlayingVoice(false);
+    setShowVoiceRecorderModal(false);
+
+    // If local recording exists, upload to Cloudflare / server so other users can hear it!
+    if (recordedAudioUri && (recordedAudioUri.startsWith('file://') || !recordedAudioUri.startsWith('http'))) {
+      try {
+        const uploadedUrl = await api.uploadAudio(recordedAudioUri);
+        if (uploadedUrl && (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://'))) {
+          url = uploadedUrl;
+        }
+      } catch (err) {
+        console.warn('Voice upload error:', err);
+      }
+    }
+
     hapticFeedback.success();
     setSetupVoicePromptUrl(url);
     setSetupVoicePromptDuration(dur);
-    setShowVoiceRecorderModal(false);
 
     setProfile(prev => prev ? ({
       ...prev,
@@ -512,7 +527,7 @@ export default function ProfileScreen() {
 
     try {
       await api.uploadVoicePrompt(url, dur, txt);
-      Alert.alert('Voice Note Saved 🎙️', 'Your 30-second vernacular voice note has been added to your profile!');
+      Alert.alert('Voice Note Saved 🎙️', 'Your 15-second vernacular voice note has been uploaded and added to your profile!');
     } catch (e) {
       console.warn('Voice note save error:', e);
     }
@@ -1421,20 +1436,23 @@ export default function ProfileScreen() {
             <View style={styles.sectionCard}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={styles.sectionTitle}>🗣️ Languages Known</Text>
-                <TouchableOpacity onPress={() => setIsEditingProfile(true)}>
+                <TouchableOpacity onPress={() => setShowLanguagePickerModal(true)}>
                   <Text style={{ color: '#00E5FF', fontSize: 12, fontWeight: '700' }}>Edit ✎</Text>
                 </TouchableOpacity>
               </View>
               {(profile.languagesSpoken && profile.languagesSpoken.length > 0) || (setupLanguages && setupLanguages.length > 0) ? (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => setShowLanguagePickerModal(true)}
+                  style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {(profile.languagesSpoken && profile.languagesSpoken.length > 0 ? profile.languagesSpoken : setupLanguages).map((lang, idx) => (
                     <View key={idx} style={styles.languageDisplayBadge}>
                       <Text style={styles.languageDisplayBadgeText}>🗣️ {lang}</Text>
                     </View>
                   ))}
-                </View>
+                </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={[styles.traitChip, { width: '100%' }]} onPress={() => setIsEditingProfile(true)}>
+                <TouchableOpacity style={[styles.traitChip, { width: '100%' }]} onPress={() => setShowLanguagePickerModal(true)}>
                   <Text style={styles.traitLabel}>Languages Known</Text>
                   <Text style={styles.traitValue}>+ Add languages you speak</Text>
                 </TouchableOpacity>
@@ -2070,9 +2088,27 @@ export default function ProfileScreen() {
               <Text style={styles.sectionTitle}>🗣️ Languages Known</Text>
               <Text style={styles.sectionSub}>Select the languages you speak comfortably or add your own.</Text>
 
+              {/* Text Box Prompt: On click, opens all presets and custom fill modal */}
+              <TouchableOpacity
+                style={styles.pickerFieldBtn}
+                onPress={() => setShowLanguagePickerModal(true)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.pickerFieldText,
+                    setupLanguages.length === 0 && { color: '#7C8294' }
+                  ]}
+                  numberOfLines={2}
+                >
+                  {setupLanguages.length > 0 ? setupLanguages.join(', ') : 'Select or fill languages you speak...'}
+                </Text>
+                <Text style={{ color: '#00E5FF', fontSize: 13, fontWeight: '700' }}>Edit ✎</Text>
+              </TouchableOpacity>
+
               {/* Selected Languages Chips */}
               {setupLanguages.length > 0 && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                   {setupLanguages.map((lang) => (
                     <TouchableOpacity
                       key={lang}
@@ -2086,57 +2122,6 @@ export default function ProfileScreen() {
                   ))}
                 </View>
               )}
-
-              {/* Preset Language Options */}
-              <Text style={styles.inputLabel}>Choose from presets:</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-                {LANGUAGE_OPTIONS.map((item) => {
-                  const clean = item.split(' ')[0];
-                  const isSelected = setupLanguages.includes(clean);
-                  return (
-                    <TouchableOpacity
-                      key={item}
-                      style={[
-                        styles.presetLanguagePill,
-                        isSelected && styles.presetLanguagePillActive,
-                      ]}
-                      onPress={() => toggleLanguage(item)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.presetLanguagePillText,
-                          isSelected && styles.presetLanguagePillTextActive,
-                        ]}
-                      >
-                        {item}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {/* Custom Language Input */}
-              <Text style={styles.inputLabel}>Or add other language:</Text>
-              <View style={styles.addCustomLanguageRow}>
-                <TextInput
-                  style={styles.addCustomLanguageInput}
-                  placeholder="e.g. Bhojpuri, Telugu, Spanish..."
-                  placeholderTextColor="#666"
-                  value={customLanguageInput}
-                  onChangeText={setCustomLanguageInput}
-                  onSubmitEditing={handleAddCustomLanguage}
-                  returnKeyType="done"
-                  maxLength={30}
-                />
-                <TouchableOpacity
-                  style={styles.addCustomLanguageBtn}
-                  onPress={handleAddCustomLanguage}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.addCustomLanguageBtnText}>+ Add</Text>
-                </TouchableOpacity>
-              </View>
             </View>
 
             {/* Lifestyle Habits: Smoking, Drinking, Vacation Vibe */}
@@ -2681,6 +2666,143 @@ export default function ProfileScreen() {
               </ScrollView>
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLivingPickerModal(false)}>
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 3A. Languages Known Modal Picker */}
+      {showLanguagePickerModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowLanguagePickerModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '85%' }]}>
+              <Text style={styles.modalHeaderTitle}>Languages Known 🗣️</Text>
+              <Text style={styles.modalHeaderSub}>
+                Select the languages you speak comfortably or add your own.
+              </Text>
+
+              {/* Search Bar */}
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#1E2333',
+                borderRadius: 10,
+                paddingHorizontal: 12,
+                height: 42,
+                marginVertical: 10,
+                borderWidth: 1,
+                borderColor: '#2D3245',
+                width: '100%',
+              }}>
+                <Text style={{ fontSize: 14, marginRight: 8 }}>🔍</Text>
+                <TextInput
+                  style={{ flex: 1, color: '#FFFFFF', fontSize: 14 }}
+                  placeholder="Search preset languages..."
+                  placeholderTextColor="#7C8294"
+                  value={languageSearchQuery}
+                  onChangeText={setLanguageSearchQuery}
+                />
+                {languageSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setLanguageSearchQuery('')}>
+                    <Text style={{ color: '#7C8294', fontSize: 14, fontWeight: 'bold', padding: 4 }}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Selected Languages Chips at top */}
+              {setupLanguages.length > 0 && (
+                <View style={{ width: '100%', marginBottom: 10 }}>
+                  <Text style={[styles.inputLabel, { color: '#00E5FF', marginBottom: 6 }]}>
+                    Selected ({setupLanguages.length}):
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 38 }}>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      {setupLanguages.map((lang) => (
+                        <TouchableOpacity
+                          key={lang}
+                          style={styles.selectedLanguageTag}
+                          onPress={() => removeLanguage(lang)}
+                          activeOpacity={0.7}>
+                          <Text style={styles.selectedLanguageTagText}>{lang}</Text>
+                          <Text style={styles.removeLanguageTagIcon}>✕</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Preset Languages Pills */}
+              <Text style={[styles.inputLabel, { width: '100%', marginBottom: 6 }]}>
+                Choose from presets (Tap to select):
+              </Text>
+              <ScrollView style={{ maxHeight: 200, width: '100%', marginVertical: 4 }} showsVerticalScrollIndicator={true}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 6 }}>
+                  {LANGUAGE_OPTIONS
+                    .filter((item) => {
+                      if (!languageSearchQuery.trim()) return true;
+                      return item.toLowerCase().includes(languageSearchQuery.trim().toLowerCase());
+                    })
+                    .map((item) => {
+                      const clean = item.split(' ')[0];
+                      const isSelected = setupLanguages.includes(clean);
+                      return (
+                        <TouchableOpacity
+                          key={item}
+                          style={[
+                            styles.presetLanguagePill,
+                            isSelected && styles.presetLanguagePillActive,
+                          ]}
+                          onPress={() => toggleLanguage(item)}
+                          activeOpacity={0.7}>
+                          <Text
+                            style={[
+                              styles.presetLanguagePillText,
+                              isSelected && styles.presetLanguagePillTextActive,
+                            ]}>
+                            {item}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                </View>
+              </ScrollView>
+
+              {/* Custom Language Input */}
+              <Text style={[styles.inputLabel, { width: '100%', marginTop: 8, marginBottom: 4 }]}>
+                Or type custom language:
+              </Text>
+              <View style={[styles.addCustomLanguageRow, { width: '100%', marginBottom: 12 }]}>
+                <TextInput
+                  style={styles.addCustomLanguageInput}
+                  placeholder="e.g. Bhojpuri, French, Spanish..."
+                  placeholderTextColor="#666"
+                  value={customLanguageInput}
+                  onChangeText={setCustomLanguageInput}
+                  onSubmitEditing={handleAddCustomLanguage}
+                  returnKeyType="done"
+                  maxLength={30}
+                />
+                <TouchableOpacity
+                  style={styles.addCustomLanguageBtn}
+                  onPress={handleAddCustomLanguage}
+                  activeOpacity={0.7}>
+                  <Text style={styles.addCustomLanguageBtnText}>+ Add</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Primary Done Button */}
+              <TouchableOpacity
+                style={[styles.saveVoiceBtn, { width: '100%', backgroundColor: '#E94057' }]}
+                onPress={() => {
+                  setShowLanguagePickerModal(false);
+                  setLanguageSearchQuery('');
+                  hapticFeedback.selection();
+                }}>
+                <Text style={styles.saveVoiceBtnText}>
+                  Done ({setupLanguages.length} selected) ✓
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

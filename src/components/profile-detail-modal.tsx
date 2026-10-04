@@ -467,13 +467,13 @@ export default function ProfileDetailModal({
           </TouchableOpacity>
 
           {/* Vernacular Voice Note */}
-          {candidate.voicePrompt && (
+          {(candidate.voicePrompt || candidate.voicePromptUrl) && (
             <View style={styles.voicePromptCard}>
               <View style={styles.voiceHeader}>
                 <Text style={styles.voiceTitle}>🎙️ 15s Vernacular Voice Note</Text>
-                <Text style={styles.voiceDuration}>{candidate.voicePrompt.durationSec}s</Text>
+                <Text style={styles.voiceDuration}>{candidate.voicePrompt?.durationSec || 15}s</Text>
               </View>
-              <Text style={styles.voicePromptText}>"{candidate.voicePrompt.promptText}"</Text>
+              <Text style={styles.voicePromptText}>"{candidate.voicePrompt?.promptText || 'Vernacular voice intro'}"</Text>
 
               <TouchableOpacity
                 style={styles.audioWaveBtn}
@@ -483,7 +483,7 @@ export default function ProfileDetailModal({
                     setIsPlayingAudio(false);
                   } else {
                     playAudibleVoiceNote({
-                      audioUrl: candidate.voicePrompt?.audioUrl,
+                      audioUrl: candidate.voicePrompt?.audioUrl || candidate.voicePromptUrl,
                       promptText: candidate.voicePrompt?.promptText,
                       durationSec: candidate.voicePrompt?.durationSec || 15,
                       onStart: () => setIsPlayingAudio(true),
@@ -509,21 +509,23 @@ export default function ProfileDetailModal({
             </View>
           )}
 
-          {/* Meme DNA Compatibility */}
-          {candidate.memeMatch && (
+          {/* Profile Meme DNA */}
+          {(candidate.memeMatch || candidate.selectedMemeUrl) && (
             <View style={styles.memeCard}>
               <View style={styles.memeHeader}>
                 <Text style={styles.memeHeaderTitle}>
-                  🤣 Meme DNA Match ({candidate.memeMatch.matchPercent}%)
+                  🤣 Profile Meme DNA {candidate.memeMatch?.matchPercent ? `(${candidate.memeMatch.matchPercent}% Match)` : ''}
                 </Text>
               </View>
               <Image
-                source={{ uri: candidate.memeMatch.memeImageUrl }}
+                source={{ uri: candidate.selectedMemeUrl || candidate.memeMatch?.memeImageUrl }}
                 style={styles.memePhoto}
-                contentFit="cover"
+                contentFit="contain"
                 transition={200}
               />
-              <Text style={styles.memeCaption}>{candidate.memeMatch.memeTitle}</Text>
+              <Text style={styles.memeCaption}>
+                {candidate.selectedMemeTitle || candidate.memeMatch?.memeTitle || 'Profile Meme DNA'}
+              </Text>
             </View>
           )}
 

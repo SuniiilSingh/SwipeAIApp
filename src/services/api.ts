@@ -607,6 +607,75 @@ export const api = {
     return cachedProfile;
   },
 
+  uploadAudio: async (localUri: string): Promise<string> => {
+    if (!localUri) return '';
+    if (localUri.startsWith('http://') || localUri.startsWith('https://')) {
+      return normalizeImageUrl(localUri);
+    }
+
+    try {
+      let base64Data: string | null = null;
+      if (Platform.OS !== 'web' && FileSystemLegacy && typeof FileSystemLegacy.readAsStringAsync === 'function') {
+        try {
+          base64Data = await FileSystemLegacy.readAsStringAsync(localUri, {
+            encoding: FileSystemLegacy.EncodingType.Base64,
+          });
+        } catch (e) {
+          console.warn('Audio base64 read warning:', e);
+        }
+      }
+
+      if (base64Data) {
+        const token = authToken || (await AsyncStorage.getItem('auth_token'));
+        const res = await fetch(`${BASE_URL}/v1/images/upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            base64Data,
+            filename: `voice_${Date.now()}.m4a`,
+            contentType: 'audio/m4a',
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.publicUrl) {
+            return normalizeImageUrl(data.publicUrl);
+          }
+        }
+      }
+
+      // Fallback: multipart upload via FileSystemLegacy
+      if (Platform.OS !== 'web' && FileSystemLegacy && typeof FileSystemLegacy.uploadAsync === 'function') {
+        const token = authToken || (await AsyncStorage.getItem('auth_token'));
+        const uploadResult = await FileSystemLegacy.uploadAsync(
+          `${BASE_URL}/v1/images/upload`,
+          localUri,
+          {
+            httpMethod: 'POST',
+            uploadType: FileSystemLegacy.FileSystemUploadType.MULTIPART,
+            fieldName: 'file',
+            mimeType: 'audio/m4a',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          }
+        );
+        if (uploadResult.status >= 200 && uploadResult.status < 300) {
+          const data = JSON.parse(uploadResult.body);
+          if (data.publicUrl) {
+            return normalizeImageUrl(data.publicUrl);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Audio upload failed:', err);
+    }
+    return localUri;
+  },
+
   uploadImage: async (localUri: string, directBase64?: string | null): Promise<string> => {
     if (!localUri) return '';
     if (localUri.startsWith('http://') || localUri.startsWith('https://')) {
@@ -803,9 +872,19 @@ export const api = {
             })(),
             voicePrompt: c.voicePrompt
               ? { ...c.voicePrompt, audioUrl: normalizeImageUrl(c.voicePrompt.audioUrl) }
-              : undefined,
-            memeMatch: c.memeMatch
-              ? { ...c.memeMatch, memeImageUrl: normalizeImageUrl(c.memeMatch.memeImageUrl) }
+              : (c.voicePromptUrl ? {
+                  audioUrl: normalizeImageUrl(c.voicePromptUrl),
+                  durationSec: c.voicePromptDuration || 15,
+                  promptText: c.voicePromptText || 'My controversial chai opinion ☕',
+                } : undefined),
+            selectedMemeUrl: normalizeImageUrl(c.selectedMemeUrl || c.memeMatch?.memeImageUrl),
+            selectedMemeTitle: c.selectedMemeTitle || c.memeMatch?.memeTitle,
+            memeMatch: (c.memeMatch || c.selectedMemeUrl)
+              ? {
+                  matchPercent: c.memeMatch?.matchPercent || 92,
+                  memeTitle: c.selectedMemeTitle || c.memeMatch?.memeTitle || 'Profile Meme DNA 🤣',
+                  memeImageUrl: normalizeImageUrl(c.selectedMemeUrl || c.memeMatch?.memeImageUrl),
+                }
               : undefined,
           }));
           return feedData;

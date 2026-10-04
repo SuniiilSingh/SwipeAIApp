@@ -618,6 +618,16 @@ function SwipeableCandidateCard({
                   </Text>
                 </View>
               )}
+              {(item.voicePrompt || item.voicePromptUrl) ? (
+                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 107, 107, 0.2)', borderColor: '#FF6B6B' }]}>
+                  <Text style={[styles.lifestyleChipText, { color: '#FF6B6B' }]}>🎙️ Voice Note</Text>
+                </View>
+              ) : null}
+              {(item.selectedMemeUrl || item.memeMatch) ? (
+                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 215, 0, 0.2)', borderColor: '#FFD700' }]}>
+                  <Text style={[styles.lifestyleChipText, { color: '#FFD700' }]}>🤣 Meme Vibe</Text>
+                </View>
+              ) : null}
             </View>
 
             {/* Row 5: Profile Prompt Teaser */}

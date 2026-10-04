@@ -10,6 +10,12 @@ export const FEATURE_FLAGS = {
   ENABLE_DIGILOCKER: false,
 
   /**
+   * WhatsApp Authentication & OTP Verification.
+   * Disabled for current release build; will be pushed in next release.
+   */
+  ENABLE_WHATSAPP_AUTH: false,
+
+  /**
    * 3D Biometric Liveness Verification (Active with Camera Movement Recording).
    */
   ENABLE_LIVENESS: true,

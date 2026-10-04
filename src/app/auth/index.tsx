@@ -43,12 +43,16 @@ export default function AuthScreen() {
   const [otp, setOtp] = useState('');
   const [expectedOtpLength, setExpectedOtpLength] = useState<number>(6);
   const [loading, setLoading] = useState(false);
-  const [authChannel, setAuthChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [authChannel, setAuthChannel] = useState<'whatsapp' | 'sms'>(
+    FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? 'whatsapp' : 'sms'
+  );
   const [whatsappVerified, setWhatsappVerified] = useState(false);
 
   // WhatsApp Detection State
-  const [isWhatsAppDetected, setIsWhatsAppDetected] = useState<boolean | null>(null);
-  const [isCheckingWhatsApp, setIsCheckingWhatsApp] = useState(true);
+  const [isWhatsAppDetected, setIsWhatsAppDetected] = useState<boolean | null>(
+    FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? null : false
+  );
+  const [isCheckingWhatsApp, setIsCheckingWhatsApp] = useState(FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH);
 
   // OTP Auto-Detect State
   const [otpSent, setOtpSent] = useState(false);
@@ -214,6 +218,11 @@ export default function AuthScreen() {
   };
 
   const checkWhatsAppInstalled = async () => {
+    if (!FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH) {
+      setIsWhatsAppDetected(false);
+      setIsCheckingWhatsApp(false);
+      return;
+    }
     setIsCheckingWhatsApp(true);
     try {
       if (Platform.OS === 'web') {
@@ -444,19 +453,20 @@ export default function AuthScreen() {
       Alert.alert('Mobile Number Required', 'Please enter a valid 10-digit mobile number first.');
       return;
     }
+    const targetChannel = FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? channel : 'sms';
     setLoading(true);
-    setAuthChannel(channel);
+    setAuthChannel(targetChannel);
     setAutoDetectedSuccess(false);
     setOtpFeedbackMsg(null);
     setOtp('');
     try {
-      const res = await api.sendOtp(phone, channel);
+      const res = await api.sendOtp(phone, targetChannel);
       setLoading(false);
       setOtpSent(true);
       setResendTimer(30);
       const codeLen = (res && (res.otpLength === 4 || res.otpLength === 6)) ? res.otpLength : 6;
       setExpectedOtpLength(codeLen);
-      const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+      const channelLabel = targetChannel === 'whatsapp' ? 'WhatsApp' : 'SMS';
 
       const isMock = FEATURE_FLAGS.USE_MOCK_OTP || res?.isMockOtp;
       if (isMock) {
@@ -477,7 +487,7 @@ export default function AuthScreen() {
     } catch (e: any) {
       setLoading(false);
       setIsAutoDetectingOtp(false);
-      const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
+      const channelLabel = targetChannel === 'whatsapp' ? 'WhatsApp' : 'SMS';
       Alert.alert(`${channelLabel} Error`, e.message || `Could not send OTP.`);
     }
   };
@@ -654,7 +664,11 @@ export default function AuthScreen() {
   };
 
   const handleWhatsAppAuth = () => {
-    handleSendOtp('whatsapp');
+    if (FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH) {
+      handleSendOtp('whatsapp');
+    } else {
+      handleSendOtp('sms');
+    }
   };
 
   const handleDigiLockerConfirm = async () => {
@@ -922,27 +936,29 @@ export default function AuthScreen() {
 
                 {!otpSent ? (
                   <>
-                    {/* WhatsApp 1-Tap Hero Button with Neon Glow Rim */}
-                    <TouchableOpacity
-                      style={[
-                        styles.waKineticBtn,
-                        !isPhoneFilled && styles.waKineticBtnDisabled,
-                        isWhatsAppDetected && isPhoneFilled && styles.waKineticBtnGlow,
-                      ]}
-                      onPress={() => handleSendOtp('whatsapp')}
-                      disabled={!isPhoneFilled || loading || (resendTimer > 0 && authChannel === 'whatsapp')}
-                      activeOpacity={0.85}>
-                      {loading && authChannel === 'whatsapp' ? (
-                        <ActivityIndicator color="#ffffff" />
-                      ) : (
-                        <View style={styles.waKineticBtnInner}>
-                          <Text style={styles.waKineticIcon}>💬</Text>
-                          <Text style={[styles.waKineticText, !isPhoneFilled && styles.waKineticTextDisabled]}>
-                            WhatsApp
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
+                    {/* WhatsApp 1-Tap Hero Button with Neon Glow Rim (Feature Flag Controlled) */}
+                    {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && (
+                      <TouchableOpacity
+                        style={[
+                          styles.waKineticBtn,
+                          !isPhoneFilled && styles.waKineticBtnDisabled,
+                          isWhatsAppDetected && isPhoneFilled && styles.waKineticBtnGlow,
+                        ]}
+                        onPress={() => handleSendOtp('whatsapp')}
+                        disabled={!isPhoneFilled || loading || (resendTimer > 0 && authChannel === 'whatsapp')}
+                        activeOpacity={0.85}>
+                        {loading && authChannel === 'whatsapp' ? (
+                          <ActivityIndicator color="#ffffff" />
+                        ) : (
+                          <View style={styles.waKineticBtnInner}>
+                            <Text style={styles.waKineticIcon}>💬</Text>
+                            <Text style={[styles.waKineticText, !isPhoneFilled && styles.waKineticTextDisabled]}>
+                              WhatsApp
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    )}
 
                     {/* Sunken Dark Pill Phone Input */}
                     <View style={[styles.kineticPhoneBox, isPhoneFilled && styles.kineticPhoneBoxActive]}>
@@ -980,7 +996,9 @@ export default function AuthScreen() {
                           isPhoneFilled ? styles.kineticPhoneStatusSuccess : styles.kineticPhoneStatusHint,
                         ]}>
                         {isPhoneFilled
-                          ? '✓ 10-digit number ready • Tap WhatsApp or Next'
+                          ? FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH
+                            ? '✓ 10-digit number ready • Tap WhatsApp or Next'
+                            : '✓ 10-digit number ready • Tap Continue'
                           : cleanedPhoneDigits.length > 0
                           ? `Enter 10-digit mobile number (${cleanedPhoneDigits.length}/10 digits)`
                           : 'Enter your 10-digit mobile number above'}
@@ -1001,7 +1019,7 @@ export default function AuthScreen() {
                       ) : (
                         <View style={styles.kineticNextBtnInner}>
                           <Text style={[styles.kineticNextBtnText, !isPhoneFilled && styles.kineticNextBtnTextDisabled]}>
-                            Next
+                            {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? 'Next' : 'Continue with SMS OTP'}
                           </Text>
                           <Text style={styles.kineticNextArrow}>→</Text>
                         </View>
@@ -1009,16 +1027,18 @@ export default function AuthScreen() {
                     </TouchableOpacity>
 
                     {/* WhatsApp Detection Indicator Badge */}
-                    <View style={styles.detectionRow}>
-                      <View style={[styles.statusDot, isWhatsAppDetected ? styles.dotGreen : styles.dotGray]} />
-                      <Text style={styles.detectionText}>
-                        {isCheckingWhatsApp
-                          ? 'Detecting WhatsApp on this device...'
-                          : isWhatsAppDetected
-                          ? '⚡ WhatsApp Detected • 1-Tap OTP Enabled'
-                          : 'SMS OTP Fallback Ready'}
-                      </Text>
-                    </View>
+                    {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && (
+                      <View style={styles.detectionRow}>
+                        <View style={[styles.statusDot, isWhatsAppDetected ? styles.dotGreen : styles.dotGray]} />
+                        <Text style={styles.detectionText}>
+                          {isCheckingWhatsApp
+                            ? 'Detecting WhatsApp on this device...'
+                            : isWhatsAppDetected
+                            ? '⚡ WhatsApp Detected • 1-Tap OTP Enabled'
+                            : 'SMS OTP Fallback Ready'}
+                        </Text>
+                      </View>
+                    )}
 
                     {/* Apple & Google Mandatory Legal Terms & Privacy Policy */}
                     <View style={styles.authLegalBox}>
@@ -1144,16 +1164,22 @@ export default function AuthScreen() {
                         </Text>
                       ) : (
                         <View style={styles.resendLinksRow}>
-                          <TouchableOpacity
-                            onPress={() => handleSendOtp('whatsapp')}
-                            disabled={loading}>
-                            <Text style={styles.resendLinkText}>Resend WhatsApp Code</Text>
-                          </TouchableOpacity>
-                          <Text style={styles.resendDot}>•</Text>
+                          {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && (
+                            <>
+                              <TouchableOpacity
+                                onPress={() => handleSendOtp('whatsapp')}
+                                disabled={loading}>
+                                <Text style={styles.resendLinkText}>Resend WhatsApp Code</Text>
+                              </TouchableOpacity>
+                              <Text style={styles.resendDot}>•</Text>
+                            </>
+                          )}
                           <TouchableOpacity
                             onPress={() => handleSendOtp('sms')}
                             disabled={loading}>
-                            <Text style={styles.resendLinkText}>Send via SMS</Text>
+                            <Text style={styles.resendLinkText}>
+                              {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? 'Send via SMS' : 'Resend Code via SMS 📱'}
+                            </Text>
                           </TouchableOpacity>
                         </View>
                       )}
@@ -1198,7 +1224,7 @@ export default function AuthScreen() {
             </Text>
 
             {/* WhatsApp Verification Status */}
-            {whatsappVerified && (
+            {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && whatsappVerified && (
               <View style={styles.verificationRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.vTitle}>WhatsApp Real Identity</Text>

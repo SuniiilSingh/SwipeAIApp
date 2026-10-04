@@ -18,6 +18,7 @@ import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer'
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
 import { hapticFeedback } from '@/utils/haptics';
 import { api, normalizeImageUrl } from '@/services/api';
+import { formatHeight } from '@/utils/height';
 
 const { width } = Dimensions.get('window');
 
@@ -278,7 +279,7 @@ export default function ProfileDetailModal({
             )}
 
             {candidate.height && (
-              <Text style={styles.detailRowText}>📏 Height: {candidate.height} cm</Text>
+              <Text style={styles.detailRowText}>📏 Height: {formatHeight(candidate.height)}</Text>
             )}
 
             <Text style={styles.locText}>

@@ -23,6 +23,14 @@ import { DatingIntent, DesireProfile, DietaryPreference, LivingStatus, UserProfi
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, createAudioPlayer, AudioPlayer } from 'expo-audio';
 import { hapticFeedback } from '@/utils/haptics';
+import {
+  formatHeight,
+  isValidHumanHeight,
+  getHeightValidationError,
+  cmToFeetInches,
+  MIN_HUMAN_HEIGHT_CM,
+  MAX_HUMAN_HEIGHT_CM,
+} from '@/utils/height';
 import DesireProfileModal from '@/components/desire-profile-modal';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
 
@@ -694,7 +702,7 @@ export default function ProfileScreen() {
     // 5. Career, Education & Height (10%)
     if (setupJob && setupJob.trim()) pct += 4;
     if (setupEducation && setupEducation.trim()) pct += 3;
-    if (setupHeight && parseInt(setupHeight, 10) > 0) pct += 3;
+    if (setupHeight && isValidHumanHeight(parseInt(setupHeight, 10))) pct += 3;
 
     // 6. Lifestyle & Indian Context (10%)
     if (setupDiet) pct += 2;
@@ -992,6 +1000,19 @@ export default function ProfileScreen() {
       ensureRemoteUrl(setupPhoto6, setSetupPhoto6),
       ensureRemoteUrl(setupSelfie, setSetupSelfie),
     ]);
+
+    // Validate realistic human height bounds (100 - 240 cm)
+    if (setupHeight && setupHeight.trim()) {
+      const h = parseInt(setupHeight.trim(), 10);
+      if (!isValidHumanHeight(h)) {
+        setLoading(false);
+        Alert.alert(
+          'Realistic Height Required 📏',
+          `Human height cannot exceed ${MAX_HUMAN_HEIGHT_CM} cm (${cmToFeetInches(MAX_HUMAN_HEIGHT_CM)}). Please enter a realistic height between ${MIN_HUMAN_HEIGHT_CM} cm and ${MAX_HUMAN_HEIGHT_CM} cm.`
+        );
+        return;
+      }
+    }
 
     const photosList = [p1, p2, p3, p4, p5, p6].filter((p): p is string => !!p && p.trim() !== '');
 
@@ -1319,7 +1340,7 @@ export default function ProfileScreen() {
               ) : null}
 
               {profile.height ? (
-                <Text style={styles.subDetailText}>📏 Height: {profile.height} cm</Text>
+                <Text style={styles.subDetailText}>📏 Height: {formatHeight(profile.height)}</Text>
               ) : null}
 
               <Text style={styles.locText}>
@@ -1846,16 +1867,41 @@ export default function ProfileScreen() {
 
               <View style={styles.formGrid}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.inputLabel}>Height (cm)</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={styles.inputLabel}>Height (cm)</Text>
+                    {setupHeight && isValidHumanHeight(parseInt(setupHeight, 10)) ? (
+                      <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '700' }}>
+                        ✓ {cmToFeetInches(parseInt(setupHeight, 10))}
+                      </Text>
+                    ) : getHeightValidationError(setupHeight) ? (
+                      <Text style={{ color: '#FF385C', fontSize: 10, fontWeight: '700' }}>
+                        ⚠️ Invalid
+                      </Text>
+                    ) : (
+                      <Text style={{ color: '#6B7082', fontSize: 10 }}>100-240 cm</Text>
+                    )}
+                  </View>
                   <TextInput
-                    style={styles.textInput}
+                    style={[
+                      styles.textInput,
+                      Boolean(getHeightValidationError(setupHeight)) && { borderColor: '#FF385C', borderWidth: 1.5 },
+                      Boolean(setupHeight && isValidHumanHeight(parseInt(setupHeight, 10))) && { borderColor: '#10B981' },
+                    ]}
                     value={setupHeight}
-                    onChangeText={setSetupHeight}
-                    placeholder="e.g. 165"
+                    onChangeText={(text) => {
+                      const clean = text.replace(/[^0-9]/g, '');
+                      setSetupHeight(clean);
+                    }}
+                    placeholder="e.g. 175"
                     placeholderTextColor="#6B7082"
                     keyboardType="numeric"
                     maxLength={3}
                   />
+                  {getHeightValidationError(setupHeight) ? (
+                    <Text style={{ color: '#FF385C', fontSize: 10, marginTop: 4, fontWeight: '600' }}>
+                      {getHeightValidationError(setupHeight)}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={styles.inputLabel}>Location / City</Text>

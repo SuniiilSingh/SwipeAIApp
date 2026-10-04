@@ -2,7 +2,7 @@
   "expo": {
     "name": "Blunderr Dating",
     "slug": "blunderr-dating",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "blunderrdating",
@@ -20,6 +20,7 @@
     },
     "android": {
       "package": "com.blunderr.dating",
+      "versionCode": 2,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

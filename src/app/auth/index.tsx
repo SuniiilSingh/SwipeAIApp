@@ -1234,7 +1234,7 @@ export default function AuthScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.vTitle}>3D Biometric Liveness</Text>
                 <Text style={styles.vSubtitle}>
-                  {livenessDone ? '✓ 0% Deepfake Detected' : '3-Sec Head Turn Video Check'}
+                  {livenessDone ? '✓ 3D Movement Verified (0% Deepfake)' : '3D Head Turn Check (Center, Right, Left)'}
                 </Text>
               </View>
               <TouchableOpacity

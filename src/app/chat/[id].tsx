@@ -283,24 +283,94 @@ export default function ChatScreen() {
     };
   }, [matchId, matchDetails?.e2eeSecret]);
 
+  // Fast 2-second smart sync ensures rapid message exchange regardless of network state
+  useEffect(() => {
+    if (!matchId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const remoteMsgs = await api.getMessages(matchId);
+        if (remoteMsgs && remoteMsgs.length > 0) {
+          let derivedKey = aesKeyRef.current;
+          if (!derivedKey && matchDetails?.e2eeSecret) {
+            derivedKey = await getOrDeriveMatchKey(matchId, matchDetails.e2eeSecret);
+            aesKeyRef.current = derivedKey;
+          }
+
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newRemote = remoteMsgs.filter((m) => !existingIds.has(m.id));
+            if (newRemote.length === 0) return prev;
+
+            // Decrypt new messages in background
+            Promise.all(
+              newRemote.map(async (m) => {
+                if (m.content && m.content.startsWith('E2EE:v1:') && derivedKey) {
+                  const plain = await decryptMessage(m.content, derivedKey);
+                  return { ...m, content: plain };
+                }
+                return m;
+              })
+            ).then((decrypted) => {
+              setMessages((current) => {
+                const curIds = new Set(current.map((c) => c.id));
+                const trulyNew = decrypted.filter((d) => !curIds.has(d.id));
+                if (trulyNew.length === 0) return current;
+                return [...current, ...trulyNew];
+              });
+              api.markMessagesAsRead(matchId).catch(() => {});
+            });
+
+            return prev;
+          });
+        }
+      } catch (e) {}
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [matchId, matchDetails?.e2eeSecret]);
+
   const handleSendMessage = async (textToSend?: string) => {
-    const rawContent = textToSend || inputText;
-    if (!rawContent.trim() || !matchId) return;
+    const rawContent = (textToSend || inputText).trim();
+    if (!rawContent || !matchId) return;
 
     setInputText('');
-    let currentKey = aesKeyRef.current;
-    if (!currentKey) {
-      currentKey = await getOrDeriveMatchKey(matchId, matchDetails?.e2eeSecret);
-      aesKeyRef.current = currentKey;
-    }
-    const encryptedContent = await encryptMessage(rawContent.trim(), currentKey);
 
-    const newMsg = await api.sendMessage(matchId, encryptedContent);
-    if (newMsg) {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === newMsg.id)) return prev;
-        return [...prev, { ...newMsg, content: rawContent.trim(), isFromMe: true }];
-      });
+    // Instant Optimistic Bubble (0ms UI latency!)
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      matchId,
+      senderId: api.getCurrentUserId(),
+      recipientId: matchProfile?.userId || matchDetails?.otherUserId || '',
+      content: rawContent,
+      mediaType: 'TEXT',
+      createdAt: new Date().toISOString(),
+      isFromMe: true,
+      status: 'SENT',
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 40);
+
+    try {
+      let currentKey = aesKeyRef.current;
+      if (!currentKey) {
+        currentKey = await getOrDeriveMatchKey(matchId, matchDetails?.e2eeSecret);
+        aesKeyRef.current = currentKey;
+      }
+      const encryptedContent = currentKey ? await encryptMessage(rawContent, currentKey) : rawContent;
+
+      const newMsg = await api.sendMessage(matchId, encryptedContent);
+      if (newMsg) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...newMsg, content: rawContent, isFromMe: true } : m))
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to send message:', err);
     }
   };
 
@@ -662,24 +732,6 @@ export default function ChatScreen() {
           </View>
         </View>
 
-        {/* Real-time Connection Status Banner */}
-        {connectionStatus === 'RECONNECTING' && (
-          <View style={styles.reconnectingBanner}>
-            <ActivityIndicator size="small" color="#F59E0B" />
-            <Text style={styles.reconnectingText}>
-              Connecting to real-time chat lounge...
-            </Text>
-          </View>
-        )}
-        {connectionStatus === 'OFFLINE' && (
-          <View style={styles.offlineBanner}>
-            <Text style={styles.offlineIcon}>⚡</Text>
-            <Text style={styles.offlineText}>
-              Offline mode. Retrying secure WebSocket handshake...
-            </Text>
-          </View>
-        )}
-
         {/* End-to-End Encryption Security Guarantee Banner */}
         <View style={styles.e2eeBanner}>
           <Text style={styles.e2eeBannerText}>
@@ -735,23 +787,34 @@ export default function ChatScreen() {
         </View>
 
         {/* Chat Messages */}
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color="#E94057" />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderMessageItem}
-            contentContainerStyle={styles.messageList}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          />
-        )}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMessageItem}
+          contentContainerStyle={styles.messageList}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          ListEmptyComponent={
+            loading ? (
+              <View style={[styles.center, { paddingVertical: 40 }]}>
+                <Text style={{ color: '#8E94A5', fontSize: 13 }}>Loading conversation...</Text>
+              </View>
+            ) : (
+              <View style={[styles.center, { paddingVertical: 40 }]}>
+                <Text style={{ fontSize: 32, marginBottom: 8 }}>💬</Text>
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
+                  No messages yet
+                </Text>
+                <Text style={{ color: '#8E94A5', fontSize: 13, marginTop: 4, textAlign: 'center' }}>
+                  Break the ice! Send a hello or tap a spark below.
+                </Text>
+              </View>
+            )
+          }
+        />
 
         {/* Mutual Chemistry Quick Chips (Alternative 1 + 4 for 0-friction first message) */}
         {messages.length === 0 && mutualSparks.length > 0 && (

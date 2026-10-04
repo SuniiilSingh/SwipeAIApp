@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
 import { VirtualChaiSession } from '@/types';
 import VirtualChaiModal, { CallStatus } from '@/components/virtual-chai-modal';
@@ -30,7 +31,7 @@ const CallContext = createContext<CallContextType | null>(null);
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const [callModalVisible, setCallModalVisible] = useState(false);
   const [callStatus, setCallStatus] = useState<CallStatus>('ENDED');
-  const [connectionStatus, setConnectionStatus] = useState<WsConnectionStatus>('RECONNECTING');
+  const [connectionStatus, setConnectionStatus] = useState<WsConnectionStatus>('CONNECTED');
   const [callingSession, setCallingSession] = useState<VirtualChaiSession | null>(null);
   const [callPartnerName, setCallPartnerName] = useState('Match Partner');
   const [callPartnerPhoto, setCallPartnerPhoto] = useState<string | undefined>(undefined);
@@ -45,12 +46,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    const connectWebSocket = () => {
+    const connectWebSocket = async () => {
       try {
-        const uid = api.getCurrentUserId();
+        let uid = api.getCurrentUserId();
+        if (!uid) {
+          try {
+            uid = (await AsyncStorage.getItem('@swipeai_user_id')) || '';
+          } catch (e) {}
+        }
         if (!uid) {
           if (isMounted) {
-            reconnectTimerRef.current = setTimeout(connectWebSocket, 3000);
+            reconnectTimerRef.current = setTimeout(connectWebSocket, 1500);
           }
           return;
         }

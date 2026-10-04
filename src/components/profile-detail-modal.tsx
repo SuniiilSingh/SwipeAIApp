@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CandidateCard, DietaryPreference, LivingStatus } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
@@ -98,8 +98,15 @@ export default function ProfileDetailModal({
     : [];
 
   const photos = rawCandidatePhotos
-    .map((url) => normalizeImageUrl(url))
-    .filter((url): url is string => !!url && typeof url === 'string' && url.trim() !== '');
+    .map((url) => normalizeImageUrl(url, true))
+    .filter((url): url is string => !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('file:') && !url.startsWith('content:'));
+
+  if (photos.length === 0 && (candidate as any).photo1) {
+    const p1 = normalizeImageUrl((candidate as any).photo1, true);
+    if (p1 && !p1.startsWith('file:') && !p1.startsWith('content:')) {
+      photos.push(p1);
+    }
+  }
 
   if (photos.length === 0) {
     photos.push('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800');
@@ -217,7 +224,14 @@ export default function ProfileDetailModal({
               }}>
               {photos.map((photoUrl, idx) => (
                 <View key={idx} style={styles.photoSlide}>
-                  <Image source={{ uri: photoUrl }} style={styles.carouselImg} resizeMode="cover" />
+                  <Image
+                    source={{ uri: photoUrl }}
+                    style={styles.carouselImg}
+                    contentFit="cover"
+                    transition={200}
+                    cachePolicy="memory-disk"
+                    priority="high"
+                  />
                   <Text style={styles.watermarkOverlay}>
                     Blunderr Dating • ID {candidate.userId.substring(0, 6)} • Photo {idx + 1}/{photos.length}
                   </Text>
@@ -506,7 +520,8 @@ export default function ProfileDetailModal({
               <Image
                 source={{ uri: candidate.memeMatch.memeImageUrl }}
                 style={styles.memePhoto}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={200}
               />
               <Text style={styles.memeCaption}>{candidate.memeMatch.memeTitle}</Text>
             </View>
@@ -757,8 +772,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   carouselImg: {
-    width: '100%',
-    height: '100%',
+    width,
+    height: 380,
+    backgroundColor: '#16171E',
   },
   watermarkOverlay: {
     position: 'absolute',

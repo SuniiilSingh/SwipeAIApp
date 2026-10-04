@@ -997,6 +997,10 @@ export default function ProfileScreen() {
   };
 
   const handleSaveAllChanges = async () => {
+    if (uploadingSlot !== null) {
+      Alert.alert('Upload in Progress ⏳', 'Please wait until your photo finishes uploading before saving changes.');
+      return;
+    }
     setLoading(true);
 
     const ensureRemoteUrl = async (uri: string, setter: (val: string) => void): Promise<string> => {
@@ -1291,24 +1295,31 @@ export default function ProfileScreen() {
           <View style={{ width: '100%' }}>
             {/* Photos Carousel */}
             {(() => {
-              const carouselPhotos = [
-                profile.photo1,
-                profile.photo2,
-                profile.photo3,
-                profile.photo4,
-                profile.photo5,
-                profile.photo6,
-                ...(profile.photos || []),
-              ]
-                .map((img) => normalizeImageUrl(img, true))
-                .filter((img, i, arr): img is string => !!img && typeof img === 'string' && img.trim() !== '' && arr.indexOf(img) === i);
+              const rawPhotos = [
+                setupPhoto1 || profile?.photo1,
+                setupPhoto2 || profile?.photo2,
+                setupPhoto3 || profile?.photo3,
+                setupPhoto4 || profile?.photo4,
+                setupPhoto5 || profile?.photo5,
+                setupPhoto6 || profile?.photo6,
+                ...(profile?.photos || []),
+              ];
+              const carouselPhotos = rawPhotos
+                .map((img) => normalizeImageUrl(img, false))
+                .filter((img, i, arr): img is string => !!img && typeof img === 'string' && img.trim() !== '' && !img.startsWith('file:') && !img.startsWith('content:') && arr.indexOf(img) === i);
 
               if (carouselPhotos.length > 0) {
                 return (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carouselContainer}>
                     {carouselPhotos.map((img, idx) => (
                       <TouchableOpacity key={idx} activeOpacity={0.9} onPress={() => setIsEditingProfile(true)}>
-                        <Image source={{ uri: normalizeImageUrl(img) }} style={styles.carouselImage} contentFit="cover" transition={200} />
+                        <Image
+                          source={{ uri: normalizeImageUrl(img) }}
+                          style={styles.carouselImage}
+                          contentFit="cover"
+                          transition={200}
+                          cachePolicy="memory-disk"
+                        />
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -1771,7 +1782,8 @@ export default function ProfileScreen() {
                   { uri: setupPhoto5, setter: setSetupPhoto5, slotIdx: 5, label: 'Photo 5' },
                   { uri: setupPhoto6, setter: setSetupPhoto6, slotIdx: 6, label: 'Photo 6' },
                 ].map((item, idx) => {
-                  const hasPhoto = !!item.uri;
+                  const cleanUri = normalizeImageUrl(item.uri);
+                  const hasPhoto = Boolean(cleanUri && cleanUri.trim() !== '');
                   return (
                     <TouchableOpacity
                       key={idx}
@@ -1790,7 +1802,7 @@ export default function ProfileScreen() {
                       }}>
                       {hasPhoto ? (
                         <Image
-                          source={{ uri: normalizeImageUrl(item.uri) }}
+                          source={{ uri: cleanUri }}
                           style={styles.photoImg}
                           contentFit="cover"
                           transition={200}

@@ -523,10 +523,21 @@ export const api = {
 
   updateMyProfile: async (updates: Partial<UserProfile>): Promise<UserProfile> => {
     try {
+      const sanitizedUpdates = { ...updates };
+      (['photo1', 'photo2', 'photo3', 'photo4', 'photo5', 'photo6', 'selfieUrl'] as const).forEach((key) => {
+        const val = sanitizedUpdates[key];
+        if (typeof val === 'string' && (val.startsWith('file:') || val.startsWith('content:'))) {
+          sanitizedUpdates[key] = '';
+        }
+      });
+      if (Array.isArray(sanitizedUpdates.photos)) {
+        sanitizedUpdates.photos = sanitizedUpdates.photos.filter((p) => p && !p.startsWith('file:') && !p.startsWith('content:'));
+      }
+
       const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/me`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify(updates),
+        body: JSON.stringify(sanitizedUpdates),
       });
       if (res.ok) {
         const data = await res.json();
@@ -775,7 +786,21 @@ export const api = {
         if (feedData && Array.isArray(feedData.candidates)) {
           feedData.candidates = feedData.candidates.map((c: CandidateCard) => ({
             ...c,
-            photos: (c.photos || []).map((url) => normalizeImageUrl(url)).filter(Boolean),
+            photos: (() => {
+              const cleaned = (c.photos || [])
+                .map((url) => normalizeImageUrl(url, true))
+                .filter((url): url is string => !!url && typeof url === 'string' && url.trim() !== '' && !url.startsWith('file:') && !url.startsWith('content:'));
+              if (cleaned.length === 0 && (c as any).photo1) {
+                const p1 = normalizeImageUrl((c as any).photo1, true);
+                if (p1 && !p1.startsWith('file:') && !p1.startsWith('content:')) {
+                  cleaned.push(p1);
+                }
+              }
+              if (cleaned.length === 0) {
+                cleaned.push('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800');
+              }
+              return cleaned;
+            })(),
             voicePrompt: c.voicePrompt
               ? { ...c.voicePrompt, audioUrl: normalizeImageUrl(c.voicePrompt.audioUrl) }
               : undefined,

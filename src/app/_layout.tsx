@@ -6,7 +6,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as ScreenCapture from 'expo-screen-capture';
 import { usePreventScreenCapture } from 'expo-screen-capture';
-import { registerForPushNotificationsAsync, setupNotificationObserver } from '@/services/notifications';
+import {
+  ensureNotificationChannelsCreatedAsync,
+  registerForPushNotificationsAsync,
+  setupNotificationObserver,
+} from '@/services/notifications';
 import { CallProvider } from '@/context/call-context';
 
 export default function RootLayout() {
@@ -33,7 +37,8 @@ export default function RootLayout() {
     // Hide native splash screen on Android/iOS once layout mounts
     SplashScreen.hideAsync().catch(() => {});
 
-    // Register for Expo Push Notifications
+    // Ensure notification channels exist and register for Expo Push Notifications
+    ensureNotificationChannelsCreatedAsync().catch(() => {});
     registerForPushNotificationsAsync().catch(() => {});
 
     // Listen to push notification interactions / tap responses

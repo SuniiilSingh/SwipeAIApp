@@ -1,12 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { registerForPushNotificationsAsync } from '@/services/notifications';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 0);
   const calculatedHeight = 60 + bottomInset;
+
+  useEffect(() => {
+    // Re-verify push notification registration for authenticated user
+    registerForPushNotificationsAsync().catch(() => {});
+  }, []);
 
   return (
     <Tabs

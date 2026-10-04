@@ -38,6 +38,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { FEATURE_FLAGS } from '@/config/features';
 import { getOrDeriveMatchKey, encryptMessage, decryptMessage } from '@/services/e2ee';
 import { dismissNotificationsForMatch } from '@/services/notifications';
+import { playMessageReceivedSound } from '@/services/sound-service';
 import type { AESEncryptionKey } from 'expo-crypto';
 
 export default function ChatScreen() {
@@ -64,7 +65,7 @@ export default function ChatScreen() {
   const [mutualSparks, setMutualSparks] = useState<string[]>([]);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  const { startCall, subscribeToWebSocket, sendWsMessage, connectionStatus } = useCall();
+  const { startCall, subscribeToWebSocket, sendWsMessage, connectionStatus, setActiveChatMatchId } = useCall();
   const [unblurredImages, setUnblurredImages] = useState<Record<string, boolean>>({});
 
   // Voice Note Recording
@@ -216,6 +217,16 @@ export default function ChatScreen() {
     };
   }, [matchId]);
 
+  // Register active chat room in CallProvider so app knows user is on this screen
+  useEffect(() => {
+    if (matchId) {
+      setActiveChatMatchId?.(matchId);
+    }
+    return () => {
+      setActiveChatMatchId?.(null);
+    };
+  }, [matchId, setActiveChatMatchId]);
+
   // Subscribe to real-time messages and typing indicators from CallProvider
   useEffect(() => {
     if (!matchId) return;
@@ -241,6 +252,9 @@ export default function ChatScreen() {
         String(data.matchId).toLowerCase() === String(matchId).toLowerCase() &&
         !isFromCurrentMe
       ) {
+        // Audible chime and haptics on receiving device!
+        playMessageReceivedSound().catch(() => {});
+
         if (data.content && data.content.startsWith('E2EE:v1:')) {
           const getKey = aesKeyRef.current
             ? Promise.resolve(aesKeyRef.current)
@@ -316,6 +330,13 @@ export default function ChatScreen() {
                 const curIds = new Set(current.map((c) => c.id));
                 const trulyNew = decrypted.filter((d) => !curIds.has(d.id));
                 if (trulyNew.length === 0) return current;
+
+                // Play sound if incoming message is from the partner
+                const partnerIncoming = trulyNew.filter((m) => !m.isFromMe && m.senderId !== api.getCurrentUserId());
+                if (partnerIncoming.length > 0) {
+                  playMessageReceivedSound().catch(() => {});
+                }
+
                 return [...current, ...trulyNew];
               });
               api.markMessagesAsRead(matchId).catch(() => {});

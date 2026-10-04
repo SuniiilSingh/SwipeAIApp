@@ -1,18 +1,20 @@
 import { Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
+import { playMessageReceivedSound } from '@/services/sound-service';
 import type * as NotificationsType from 'expo-notifications';
 
 // Dynamically resolved reference to expo-notifications
 let notificationsModule: typeof NotificationsType | null = null;
 let notificationsHandlerConfigured = false;
+let channelsInitialized = false;
 
 /**
  * Checks whether the app is currently running inside Expo Go on Android.
  * In SDK 53+, remote push notification functionality was removed from Expo Go on Android.
- * Evaluating require('expo-notifications') inside Expo Go Android throws a fatal error.
- * Development builds and standalone production APKs/AABs are unaffected.
+ * Standalone APK/AAB builds and iOS are unaffected.
  */
 export function isExpoGoOnAndroid(): boolean {
   if (Platform.OS !== 'android') return false;
@@ -32,7 +34,7 @@ export function isExpoGoOnAndroid(): boolean {
 
 /**
  * Returns expo-notifications module dynamically.
- * Skips loading on web and on Android within Expo Go.
+ * Configures notification handler for sound, banner, and badge presentation.
  */
 export function getNotifications(): typeof NotificationsType | null {
   if (notificationsModule) {
@@ -49,10 +51,11 @@ export function getNotifications(): typeof NotificationsType | null {
       notificationsHandlerConfigured = true;
       notificationsModule.setNotificationHandler({
         handleNotification: async () => ({
-          shouldPlaySound: true,
-          shouldSetBadge: true,
+          shouldShowAlert: true,
           shouldShowBanner: true,
           shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
         }),
       });
     }
@@ -60,6 +63,45 @@ export function getNotifications(): typeof NotificationsType | null {
   } catch (err) {
     console.warn('[Notifications] Failed to load expo-notifications module:', err);
     return null;
+  }
+}
+
+/**
+ * Ensures high-priority sound and vibration notification channels exist on Android.
+ * This runs on app startup without waiting for notification permissions.
+ */
+export async function ensureNotificationChannelsCreatedAsync(): Promise<void> {
+  if (Platform.OS !== 'android' || channelsInitialized) return;
+
+  const notifications = getNotifications();
+  if (!notifications) return;
+
+  try {
+    const channelConfig: NotificationsType.NotificationChannelInput = {
+      name: 'Blunderr Messages & Alerts',
+      importance: notifications.AndroidImportance?.MAX ?? 5,
+      sound: 'default',
+      enableVibrate: true,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF2B66',
+      enableLights: true,
+      showBadge: true,
+      lockscreenVisibility: notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
+      audioAttributes: {
+        usage: notifications.AndroidAudioUsage?.NOTIFICATION ?? 5,
+        contentType: notifications.AndroidAudioContentType?.SONIFICATION ?? 4,
+      },
+    };
+
+    await notifications.setNotificationChannelAsync('blunderr-alerts', channelConfig);
+    await notifications.setNotificationChannelAsync('default', {
+      ...channelConfig,
+      name: 'General Alerts & Notifications',
+    });
+    channelsInitialized = true;
+    console.log('[Notifications] Android notification channels successfully configured');
+  } catch (err) {
+    console.warn('[Notifications] Failed to configure Android notification channels:', err);
   }
 }
 
@@ -127,11 +169,6 @@ export async function dismissAllSystemNotifications(): Promise<void> {
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   if (Platform.OS === 'web' || isExpoGoOnAndroid()) {
-    if (isExpoGoOnAndroid()) {
-      console.info(
-        '[Notifications] Remote push notifications are disabled in Expo Go on Android (SDK 53+). Push tokens require a development build or standalone build.'
-      );
-    }
     return null;
   }
 
@@ -141,29 +178,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   try {
-    // Configure high-priority, sound-enabled channels for Android
-    if (Platform.OS === 'android') {
-      const channelConfig: NotificationsType.NotificationChannelInput = {
-        name: 'Blunderr Messages & Alerts',
-        importance: notifications.AndroidImportance?.MAX ?? 7,
-        sound: 'default',
-        enableVibrate: true,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF2B66',
-        enableLights: true,
-        showBadge: true,
-        lockscreenVisibility: notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
-        audioAttributes: {
-          usage: notifications.AndroidAudioUsage?.NOTIFICATION ?? 5,
-          contentType: notifications.AndroidAudioContentType?.SONIFICATION ?? 4,
-        },
-      };
+    // 1. Ensure sound-enabled channels exist
+    await ensureNotificationChannelsCreatedAsync();
 
-      // Set both the dedicated 'blunderr-alerts' channel and 'default' channel
-      await notifications.setNotificationChannelAsync('blunderr-alerts', channelConfig);
-      await notifications.setNotificationChannelAsync('default', channelConfig);
-    }
-
+    // 2. Check and request notification permissions
     const { status: existingStatus } = await notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     if (existingStatus !== 'granted') {
@@ -176,7 +194,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    // Resolve EAS projectId if configured
+    // 3. Resolve EAS projectId if configured
     const projectId =
       Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
 
@@ -190,10 +208,13 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       console.info('[Notifications] Note: Remote push token unavailable in this environment:', tokenErr);
     }
 
-    // Sync token with backend if resolved
+    // 4. Cache and register token with backend
     if (token) {
+      await AsyncStorage.setItem('@swipeai_push_token', token);
+      console.log('[Notifications] Expo Push Token resolved and saved:', token);
+
+      // Register with backend if user session is active
       await api.registerPushToken(token, Platform.OS);
-      console.log('[Notifications] Expo Push Token registered:', token);
     }
 
     return token;
@@ -278,14 +299,16 @@ export function setupNotificationObserver(router: { push: (href: any) => void })
     console.warn('[Notifications] Failed adding response received listener:', err);
   }
 
-  // Handle foreground notification incoming event
+  // Handle foreground notification incoming event: play sound and vibrate!
   let receivedSubscription: any = null;
   try {
     receivedSubscription = notifications.addNotificationReceivedListener((notification) => {
       console.log(
-        '[Notifications] Received foreground notification with sound & banner:',
+        '[Notifications] Foreground notification received on device:',
         notification?.request?.content?.title
       );
+      // Play audible chime and tactile feedback
+      playMessageReceivedSound().catch(() => {});
     });
   } catch (err) {
     console.warn('[Notifications] Failed adding notification received listener:', err);

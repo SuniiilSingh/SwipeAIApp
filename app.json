@@ -29,6 +29,7 @@
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.VIBRATE",
         "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
@@ -72,6 +73,7 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#FF2B66",
+          "sounds": ["./assets/sounds/message_received.wav"],
           "defaultChannel": "default"
         }
       ],

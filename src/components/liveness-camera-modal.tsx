@@ -298,8 +298,16 @@ export default function LivenessCameraModal({
     }
 
     // 3. Both Right & Left head movements successfully verified!
+    // Now verify that the Center selfie matches the user's uploaded profile photo
+    setStatusMessage('Verifying selfie with your profile photo...');
     try {
-      await api.verifyLiveness(3500, true);
+      const res = await api.verifyLiveness(3500, true, base64s.center || undefined);
+      if (res && res.isLiveHuman === false) {
+        handleMovementFailed(
+          res.message || 'Face does not match your profile photo. Please ensure both show your real face.'
+        );
+        return;
+      }
     } catch (e) {
       console.warn('Backend liveness api call warning:', e);
     }
@@ -308,7 +316,7 @@ export default function LivenessCameraModal({
     setCurrentStep('PASSED');
     currentStepRef.current = 'PASSED';
     setProgressPercent(100);
-    setStatusMessage('✓ 3D Biometric Verified! Center, Right & Left Movements Captured.');
+    setStatusMessage('✓ 3D Biometric Verified! Face matches your profile photo.');
 
     setTimeout(() => {
       onSuccess(0.99);

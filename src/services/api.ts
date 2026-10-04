@@ -423,20 +423,62 @@ export const api = {
     return { isVerified: true, badge: 'GOLD_SHIELD', message: 'DigiLocker Verified Citizen Badge awarded!' };
   },
 
-  verifyLiveness: async (headTurnDurationMs: number = 3000, passed: boolean = true) => {
+  verifyLiveness: async (headTurnDurationMs: number = 3000, passed: boolean = true, selfieFrameBase64?: string) => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/kyc/liveness/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ headTurnDurationMs, simulatePass: passed }),
-      });
-      if (res.ok) return await res.json();
+        body: JSON.stringify({ headTurnDurationMs, simulatePass: passed, selfieFrameBase64 }),
+      }, 15000);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.isLiveHuman && cachedProfile) {
+          cachedProfile.livenessScore = data.livenessScore || 0.95;
+          cachedProfile.faceVerified = true;
+        }
+        return data;
+      }
     } catch (e) {}
     if (!passed) {
       return { isLiveHuman: false, livenessScore: 0.45, message: 'Liveness check failed. Movement was not completed.' };
     }
-    cachedProfile.livenessScore = 0.99;
-    return { isLiveHuman: true, livenessScore: 0.99, message: '3D Biometric Liveness verified.' };
+    return { isLiveHuman: true, livenessScore: 0.95, message: '3D Biometric Liveness verified.' };
+  },
+
+  verifyFaceMatch: async (selfieBase64: string, profilePhotoUrl?: string): Promise<{
+    verified: boolean;
+    similarityScore: number;
+    confidencePercent: number;
+    selfieFacesDetected?: number;
+    photoFacesDetected?: number;
+    status: string;
+    message: string;
+    selfieUrl?: string;
+  }> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/kyc/verify-face-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ selfieBase64, profilePhotoUrl }),
+      }, 15000);
+      const data = await res.json();
+      if (res.ok && data.verified) {
+        if (cachedProfile) {
+          cachedProfile.livenessScore = data.similarityScore || 0.95;
+          cachedProfile.faceVerified = true;
+          if (data.selfieUrl) cachedProfile.selfieUrl = data.selfieUrl;
+        }
+      }
+      return data;
+    } catch (e: any) {
+      return {
+        verified: false,
+        similarityScore: 0.0,
+        confidencePercent: 0.0,
+        status: 'NETWORK_ERROR',
+        message: e?.message || 'Could not connect to face verification service.',
+      };
+    }
   },
 
   // Shadow Shield

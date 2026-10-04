@@ -879,18 +879,45 @@ export default function ProfileScreen() {
 
   const handleSelfieCaptured = async (localUri: string, directBase64?: string) => {
     setShowSelfieModal(false);
-    setSetupSelfie(localUri);
+
+    // Validate that user has uploaded at least 1 profile photo first
+    const primaryPhoto = profile?.photo1 || setupPhoto1 || profile?.photos?.[0] || setupPhoto2;
+    if (!primaryPhoto) {
+      Alert.alert(
+        'Upload Profile Photo First 📷',
+        'Please upload at least one profile photo before taking your verification selfie so we can verify your identity.'
+      );
+      return;
+    }
+
     setUploadingSelfie(true);
-    setProfile(prev => prev ? ({ ...prev, selfieUrl: localUri }) : prev);
     try {
-      const uploadedUrl = await api.uploadImage(localUri, directBase64);
-      if (uploadedUrl && uploadedUrl.trim() !== '') {
-        setSetupSelfie(uploadedUrl);
-        setProfile(prev => prev ? ({ ...prev, selfieUrl: uploadedUrl }) : prev);
-        api.updateMyProfile({ selfieUrl: uploadedUrl }).catch(() => {});
+      const matchRes = await api.verifyFaceMatch(directBase64 || localUri, primaryPhoto);
+
+      if (matchRes.verified) {
+        const finalUrl = matchRes.selfieUrl || localUri;
+        setSetupSelfie(finalUrl);
+        setProfile(prev => prev ? ({
+          ...prev,
+          selfieUrl: finalUrl,
+          faceVerified: true,
+          livenessScore: matchRes.similarityScore || 0.95
+        }) : prev);
+        Alert.alert(
+          '100% Verified Real Human! 🛡️',
+          matchRes.message || `Biometric match confirmed (${matchRes.confidencePercent}% confidence)! Verified badge active.`
+        );
+      } else {
+        setSetupSelfie('');
+        setProfile(prev => prev ? ({ ...prev, selfieUrl: '', faceVerified: false, livenessScore: 0.0 }) : prev);
+        Alert.alert(
+          'Verification Failed ❌',
+          matchRes.message || 'Your selfie did not match the face in your profile photo. Please ensure both show your real face clearly.'
+        );
       }
-    } catch (err) {
-      console.warn('Selfie upload failed:', err);
+    } catch (err: any) {
+      console.warn('Selfie verification failed:', err);
+      Alert.alert('Verification Error', err.message || 'Could not verify selfie face. Please try again.');
     } finally {
       setUploadingSelfie(false);
     }

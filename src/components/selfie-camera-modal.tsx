@@ -254,15 +254,11 @@ export default function SelfieCameraModal({
                   )}
                 </TouchableOpacity>
 
-                {/* Pick from Gallery */}
-                <TouchableOpacity
-                  style={styles.controlCircleButton}
-                  activeOpacity={0.7}
-                  onPress={handlePickFromGallery}
-                  accessibilityLabel="Choose from Gallery">
-                  <Text style={styles.controlCircleIcon}>🖼️</Text>
-                  <Text style={styles.controlLabel}>Gallery</Text>
-                </TouchableOpacity>
+                {/* Live Camera Anti-Spoof Badge */}
+                <View style={styles.controlCircleButton}>
+                  <Text style={styles.controlCircleIcon}>🛡️</Text>
+                  <Text style={styles.controlLabel}>Live Only</Text>
+                </View>
               </View>
             )
           )}

@@ -36,6 +36,7 @@ export interface UserProfile {
   intent?: DatingIntent;
   digilockerVerified: boolean;
   whatsappVerified: boolean;
+  faceVerified?: boolean;
   livenessScore: number;
   karmaScore: number;
   dietaryPref?: DietaryPreference;

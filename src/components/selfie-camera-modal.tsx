@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
 const VIEWFINDER_SIZE = Math.min(width - 40, 380);
@@ -66,8 +67,20 @@ export default function SelfieCameraModal({
       });
 
       if (photo?.uri) {
+        let b64 = photo.base64;
+        if (!b64 && Platform.OS !== 'web') {
+          try {
+            if (FileSystemLegacy && typeof FileSystemLegacy.readAsStringAsync === 'function') {
+              b64 = await FileSystemLegacy.readAsStringAsync(photo.uri, {
+                encoding: FileSystemLegacy.EncodingType.Base64,
+              });
+            }
+          } catch (readErr) {
+            console.warn('Failed to read base64 in selfie capture:', readErr);
+          }
+        }
         setPreviewUri(photo.uri);
-        setPreviewBase64(photo.base64 || null);
+        setPreviewBase64(b64 || null);
       }
     } catch (err) {
       console.warn('Failed to take selfie photo:', err);
@@ -82,9 +95,21 @@ export default function SelfieCameraModal({
     setPreviewBase64(null);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (previewUri) {
-      onCapture(previewUri, previewBase64 || undefined);
+      let b64 = previewBase64;
+      if (!b64 && Platform.OS !== 'web') {
+        try {
+          if (FileSystemLegacy && typeof FileSystemLegacy.readAsStringAsync === 'function') {
+            b64 = await FileSystemLegacy.readAsStringAsync(previewUri, {
+              encoding: FileSystemLegacy.EncodingType.Base64,
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to read base64 on confirm:', e);
+        }
+      }
+      onCapture(previewUri, b64 || undefined);
       onClose();
     }
   };
@@ -105,8 +130,20 @@ export default function SelfieCameraModal({
 
       if (!result.canceled && result.assets[0]?.uri) {
         const asset = result.assets[0];
+        let b64 = asset.base64;
+        if (!b64 && Platform.OS !== 'web' && asset.uri) {
+          try {
+            if (FileSystemLegacy && typeof FileSystemLegacy.readAsStringAsync === 'function') {
+              b64 = await FileSystemLegacy.readAsStringAsync(asset.uri, {
+                encoding: FileSystemLegacy.EncodingType.Base64,
+              });
+            }
+          } catch (readErr) {
+            console.warn('Failed to read base64 from gallery asset:', readErr);
+          }
+        }
         setPreviewUri(asset.uri);
-        setPreviewBase64(asset.base64 || null);
+        setPreviewBase64(b64 || null);
       }
     } catch (err) {
       console.warn('Error selecting image from gallery:', err);

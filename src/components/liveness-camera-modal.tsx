@@ -64,6 +64,27 @@ export default function LivenessCameraModal({
   const [failureReason, setFailureReason] = useState<string | null>(null);
   const [progressPercent, setProgressPercent] = useState(0);
 
+  // Synchronous refs to prevent timer / interval closure staleness
+  const capturedPhotosRef = useRef<{
+    center: string | null;
+    right: string | null;
+    left: string | null;
+  }>({
+    center: null,
+    right: null,
+    left: null,
+  });
+
+  const capturedBase64sRef = useRef<{
+    center: string | null;
+    right: string | null;
+    left: string | null;
+  }>({
+    center: null,
+    right: null,
+    left: null,
+  });
+
   const cameraRef = useRef<any>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scanLineAnim = useRef(new Animated.Value(0)).current;
@@ -142,6 +163,8 @@ export default function LivenessCameraModal({
     setIsCapturing(false);
     setCurrentStep('READY');
     currentStepRef.current = 'READY';
+    capturedPhotosRef.current = { center: null, right: null, left: null };
+    capturedBase64sRef.current = { center: null, right: null, left: null };
     setCapturedPhotos({ center: null, right: null, left: null });
     setCapturedBase64s({ center: null, right: null, left: null });
     setStatusMessage('Position your face inside the oval');
@@ -213,10 +236,10 @@ export default function LivenessCameraModal({
       }
 
       if (step === 'CENTER') {
-        const newPhotos = { ...capturedPhotos, center: uri };
-        const newB64s = { ...capturedBase64s, center: b64 || uri };
-        setCapturedPhotos(newPhotos);
-        setCapturedBase64s(newB64s);
+        capturedPhotosRef.current.center = uri;
+        capturedBase64sRef.current.center = b64 || uri;
+        setCapturedPhotos({ ...capturedPhotosRef.current });
+        setCapturedBase64s({ ...capturedBase64sRef.current });
 
         hapticFeedback.success();
         setCurrentStep('RIGHT');
@@ -225,10 +248,10 @@ export default function LivenessCameraModal({
         setStatusMessage('Great! Now turn your head to the RIGHT ➡️');
         startCountdownForStep('RIGHT');
       } else if (step === 'RIGHT') {
-        const newPhotos = { ...capturedPhotos, right: uri };
-        const newB64s = { ...capturedBase64s, right: b64 || uri };
-        setCapturedPhotos(newPhotos);
-        setCapturedBase64s(newB64s);
+        capturedPhotosRef.current.right = uri;
+        capturedBase64sRef.current.right = b64 || uri;
+        setCapturedPhotos({ ...capturedPhotosRef.current });
+        setCapturedBase64s({ ...capturedBase64sRef.current });
 
         hapticFeedback.success();
         setCurrentStep('LEFT');
@@ -237,10 +260,10 @@ export default function LivenessCameraModal({
         setStatusMessage('Awesome! Now turn your head to the LEFT ⬅️');
         startCountdownForStep('LEFT');
       } else if (step === 'LEFT') {
-        const newPhotos = { ...capturedPhotos, left: uri };
-        const newB64s = { ...capturedBase64s, left: b64 || uri };
-        setCapturedPhotos(newPhotos);
-        setCapturedBase64s(newB64s);
+        capturedPhotosRef.current.left = uri;
+        capturedBase64sRef.current.left = b64 || uri;
+        setCapturedPhotos({ ...capturedPhotosRef.current });
+        setCapturedBase64s({ ...capturedBase64sRef.current });
 
         hapticFeedback.success();
         setCurrentStep('ANALYZING');
@@ -248,8 +271,11 @@ export default function LivenessCameraModal({
         setProgressPercent(95);
         setStatusMessage('Analyzing 3D Biometric Motion & Landmarks...');
 
-        // Trigger real movement validation with complete set of photos
-        validateMovementAndVerify(newPhotos, newB64s);
+        // Trigger real movement validation with complete set of photos from refs
+        validateMovementAndVerify(
+          { ...capturedPhotosRef.current },
+          { ...capturedBase64sRef.current }
+        );
       }
     } catch (err) {
       console.warn(`Capture error during ${step}:`, err);
@@ -311,7 +337,9 @@ export default function LivenessCameraModal({
     // Register verified 3D liveness with the backend
     setStatusMessage('Verifying 3D liveness biometrics...');
     try {
-      const payloadBase64 = (base64s.center && base64s.center.length > 200) ? base64s.center : undefined;
+      const payloadBase64 = (base64s.center && base64s.center.length > 200 && !base64s.center.startsWith('file:'))
+        ? base64s.center
+        : undefined;
       const res = await api.verifyLiveness(3500, true, payloadBase64);
       if (res && res.isLiveHuman === false && res.message && !res.message.includes('unavailable') && !res.message.includes('Simulated')) {
         handleMovementFailed(
@@ -545,7 +573,9 @@ export default function LivenessCameraModal({
                   )}
                   {currentStep === 'FAILED' && (
                     <View style={[styles.directionBadge, styles.badgeFailed]}>
-                      <Text style={styles.directionText}>❌ NO MOVEMENT</Text>
+                      <Text style={styles.directionText} numberOfLines={1}>
+                        {failureReason ? `❌ ${failureReason}` : '❌ VERIFICATION FAILED'}
+                      </Text>
                     </View>
                   )}
 

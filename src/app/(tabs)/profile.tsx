@@ -33,6 +33,7 @@ import {
 } from '@/utils/height';
 import DesireProfileModal from '@/components/desire-profile-modal';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
 
@@ -907,7 +908,25 @@ export default function ProfileScreen() {
 
     setUploadingSelfie(true);
     try {
-      const matchRes = await api.verifyFaceMatch(directBase64 || localUri, primaryPhoto);
+      let selfieData = directBase64;
+      if (!selfieData && Platform.OS !== 'web' && localUri) {
+        try {
+          if (FileSystemLegacy && typeof FileSystemLegacy.readAsStringAsync === 'function') {
+            selfieData = await FileSystemLegacy.readAsStringAsync(localUri, {
+              encoding: FileSystemLegacy.EncodingType.Base64,
+            });
+          }
+        } catch (readErr) {
+          console.warn('Could not read base64 in handleSelfieCaptured:', readErr);
+        }
+      }
+
+      if (!selfieData) {
+        Alert.alert('Image Error', 'Could not read selfie data. Please try taking the selfie again.');
+        return;
+      }
+
+      const matchRes = await api.verifyFaceMatch(selfieData, primaryPhoto);
 
       if (matchRes.verified) {
         const finalUrl = matchRes.selfieUrl || localUri;

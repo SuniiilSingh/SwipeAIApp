@@ -444,9 +444,13 @@ export default function ProfileDetailModal({
               setShowKundaliModal(true);
             }}
             activeOpacity={0.85}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <Text style={styles.cardSectionTitle}>✨ Cosmic Chemistry & Astrological Synergy</Text>
-              <Text style={{ color: '#FFD700', fontSize: 11, fontWeight: '700' }}>View Kundali →</Text>
+            <View style={styles.cosmicHeaderRow}>
+              <Text style={styles.cosmicSectionTitle} numberOfLines={1}>
+                ✨ Cosmic Chemistry & Synergy
+              </Text>
+              <View style={styles.viewKundaliBadge}>
+                <Text style={styles.viewKundaliBadgeText}>View Kundali ↗</Text>
+              </View>
             </View>
             <View style={styles.astroRow}>
               <View style={styles.astroPill}>
@@ -896,6 +900,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     marginBottom: 8,
+  },
+  cosmicHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
+    width: '100%',
+  },
+  cosmicSectionTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    flex: 1,
+  },
+  viewKundaliBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  viewKundaliBadgeText: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '800',
   },
   traitsWrap: {
     flexDirection: 'row',

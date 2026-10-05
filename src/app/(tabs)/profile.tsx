@@ -164,7 +164,15 @@ export default function ProfileScreen() {
   const [showDietPickerModal, setShowDietPickerModal] = useState(false);
   const [showLivingPickerModal, setShowLivingPickerModal] = useState(false);
   const [showLanguagePickerModal, setShowLanguagePickerModal] = useState(false);
+  const [initialLanguagesSnapshot, setInitialLanguagesSnapshot] = useState<string[]>([]);
   const [languageSearchQuery, setLanguageSearchQuery] = useState('');
+
+  const openLanguagePicker = () => {
+    setInitialLanguagesSnapshot([...setupLanguages]);
+    setLanguageSearchQuery('');
+    setCustomLanguageInput('');
+    setShowLanguagePickerModal(true);
+  };
 
   // Lifestyle Picker Modals
   const [showSmokingPickerModal, setShowSmokingPickerModal] = useState(false);
@@ -1462,14 +1470,14 @@ export default function ProfileScreen() {
             <View style={styles.sectionCard}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={styles.sectionTitle}>🗣️ Languages Known</Text>
-                <TouchableOpacity onPress={() => setShowLanguagePickerModal(true)}>
+                <TouchableOpacity onPress={openLanguagePicker}>
                   <Text style={{ color: '#00E5FF', fontSize: 12, fontWeight: '700' }}>Edit ✎</Text>
                 </TouchableOpacity>
               </View>
               {(profile.languagesSpoken && profile.languagesSpoken.length > 0) || (setupLanguages && setupLanguages.length > 0) ? (
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => setShowLanguagePickerModal(true)}
+                  onPress={openLanguagePicker}
                   style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {(profile.languagesSpoken && profile.languagesSpoken.length > 0 ? profile.languagesSpoken : setupLanguages).map((lang, idx) => (
                     <View key={idx} style={styles.languageDisplayBadge}>
@@ -1478,7 +1486,7 @@ export default function ProfileScreen() {
                   ))}
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={[styles.traitChip, { width: '100%' }]} onPress={() => setShowLanguagePickerModal(true)}>
+                <TouchableOpacity style={[styles.traitChip, { width: '100%' }]} onPress={openLanguagePicker}>
                   <Text style={styles.traitLabel}>Languages Known</Text>
                   <Text style={styles.traitValue}>+ Add languages you speak</Text>
                 </TouchableOpacity>
@@ -2137,7 +2145,7 @@ export default function ProfileScreen() {
               {/* Text Box Prompt: On click, opens all presets and custom fill modal */}
               <TouchableOpacity
                 style={styles.pickerFieldBtn}
-                onPress={() => setShowLanguagePickerModal(true)}
+                onPress={openLanguagePicker}
                 activeOpacity={0.7}
               >
                 <Text
@@ -2720,10 +2728,32 @@ export default function ProfileScreen() {
 
       {/* 3A. Languages Known Modal Picker */}
       {showLanguagePickerModal && (
-        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowLanguagePickerModal(false)}>
+        <Modal
+          visible={true}
+          transparent
+          animationType="slide"
+          onRequestClose={() => {
+            setSetupLanguages(initialLanguagesSnapshot);
+            setShowLanguagePickerModal(false);
+            setLanguageSearchQuery('');
+            setCustomLanguageInput('');
+          }}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '85%' }]}>
-              <Text style={styles.modalHeaderTitle}>Languages Known 🗣️</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 4 }}>
+                <Text style={styles.modalHeaderTitle}>Languages Known 🗣️</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSetupLanguages(initialLanguagesSnapshot);
+                    setShowLanguagePickerModal(false);
+                    setLanguageSearchQuery('');
+                    setCustomLanguageInput('');
+                  }}
+                  style={{ padding: 6 }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={{ color: '#8E94A5', fontSize: 16, fontWeight: '800' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
               <Text style={styles.modalHeaderSub}>
                 Select the languages you speak comfortably or add your own.
               </Text>
@@ -2838,18 +2868,35 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Primary Done Button */}
-              <TouchableOpacity
-                style={[styles.saveVoiceBtn, { width: '100%', backgroundColor: '#E94057' }]}
-                onPress={() => {
-                  setShowLanguagePickerModal(false);
-                  setLanguageSearchQuery('');
-                  hapticFeedback.selection();
-                }}>
-                <Text style={styles.saveVoiceBtnText}>
-                  Done ({setupLanguages.length} selected) ✓
-                </Text>
-              </TouchableOpacity>
+              {/* Modal Action Buttons: Cancel and Done */}
+              <View style={styles.langModalActionRow}>
+                <TouchableOpacity
+                  style={styles.langModalCancelBtn}
+                  onPress={() => {
+                    setSetupLanguages(initialLanguagesSnapshot);
+                    setShowLanguagePickerModal(false);
+                    setLanguageSearchQuery('');
+                    setCustomLanguageInput('');
+                    hapticFeedback.light();
+                  }}
+                  activeOpacity={0.75}>
+                  <Text style={styles.langModalCancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.langModalDoneBtn}
+                  onPress={() => {
+                    setShowLanguagePickerModal(false);
+                    setLanguageSearchQuery('');
+                    setCustomLanguageInput('');
+                    hapticFeedback.selection();
+                  }}
+                  activeOpacity={0.85}>
+                  <Text style={styles.langModalDoneBtnText}>
+                    Done ({setupLanguages.length}) ✓
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -5195,6 +5242,47 @@ const styles = StyleSheet.create({
   saveVoiceBtnText: {
     color: '#ffffff',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  langModalActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+    marginTop: 8,
+  },
+  langModalCancelBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langModalCancelBtnText: {
+    color: '#CACDD8',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  langModalDoneBtn: {
+    flex: 1.5,
+    backgroundColor: '#FF385C',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  langModalDoneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '800',
   },
 

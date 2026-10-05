@@ -306,6 +306,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     borderWidth: 1,
     borderColor: 'rgba(255, 215, 0, 0.25)',
+    overflow: 'hidden',
   },
   header: {
     paddingHorizontal: 20,

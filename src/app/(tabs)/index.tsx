@@ -749,6 +749,44 @@ function SwipeableCandidateCard({
             </TouchableOpacity>
           )}
 
+          {/* My Desire Button */}
+          <TouchableOpacity
+            style={styles.desireHeaderButton}
+            onPress={() => setShowDesireModal(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="My Desire Preferences">
+            <Text style={styles.desireHeaderIcon}>🎯</Text>
+            <Text style={styles.desireHeaderText}>Desire</Text>
+          </TouchableOpacity>
+
+          {/* Micro-Community Circles Button */}
+          <TouchableOpacity
+            style={[styles.communityHeaderButton, selectedCommunityFilter && styles.communityHeaderButtonActive]}
+            onPress={() => setShowCommunityModal(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Micro-Community Circles">
+            <Text style={styles.communityHeaderIcon}>
+              {selectedCommunityFilter?.badgeIcon || '🏙️'}
+            </Text>
+            <Text
+              style={[styles.communityHeaderText, selectedCommunityFilter && styles.communityHeaderTextActive]}
+              numberOfLines={1}>
+              {selectedCommunityFilter ? selectedCommunityFilter.name.split(' ')[0] : 'Circles'}
+            </Text>
+            {selectedCommunityFilter && (
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  handleSelectCommunityFilter(null);
+                }}
+                style={styles.clearCircleBtnHeader}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={{ color: '#08080E', fontSize: 9, fontWeight: '900' }}>✕</Text>
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+
+          {/* Boost Button */}
           <TouchableOpacity
             style={styles.boostButton}
             activeOpacity={0.8}
@@ -774,41 +812,8 @@ function SwipeableCandidateCard({
         </View>
       </View>
 
-      {/* Horizontal Filter Bar with My Desire & Community Circles Button */}
+      {/* Horizontal Filter Bar with Full-Width ScrollView */}
       <View style={styles.filterBarContainer}>
-        <TouchableOpacity
-          style={styles.desireFilterButton}
-          onPress={() => setShowDesireModal(true)}
-          activeOpacity={0.8}>
-          <Text style={styles.desireFilterIcon}>🎯</Text>
-          <Text style={styles.desireFilterText}>My Desire</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.communityFilterButton, selectedCommunityFilter && styles.communityFilterButtonActive]}
-          onPress={() => setShowCommunityModal(true)}
-          activeOpacity={0.8}>
-          <Text style={styles.communityFilterIcon}>
-            {selectedCommunityFilter?.badgeIcon || '🏙️'}
-          </Text>
-          <Text
-            style={[styles.communityFilterText, selectedCommunityFilter && styles.communityFilterTextActive]}
-            numberOfLines={1}>
-            {selectedCommunityFilter ? selectedCommunityFilter.name.split(' ')[0] : 'Circles'}
-          </Text>
-          {selectedCommunityFilter && (
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                handleSelectCommunityFilter(null);
-              }}
-              style={styles.clearCircleBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={{ color: '#08080E', fontSize: 10, fontWeight: '800' }}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </TouchableOpacity>
-
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -1280,49 +1285,62 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     gap: 6,
   },
-  desireFilterIcon: {
-    fontSize: 13,
+  desireHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.4)',
+    paddingHorizontal: 9,
+    height: 34,
+    borderRadius: 17,
+    gap: 4,
+    flexShrink: 0,
   },
-  desireFilterText: {
-    color: '#FF385C',
+  desireHeaderIcon: {
     fontSize: 12,
+  },
+  desireHeaderText: {
+    color: '#FF385C',
+    fontSize: 11,
     fontWeight: '800',
   },
-  communityFilterButton: {
+  communityHeaderButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 229, 255, 0.1)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 229, 255, 0.5)',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 14,
-    gap: 5,
-    maxWidth: 120,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.4)',
+    paddingHorizontal: 8,
+    height: 34,
+    borderRadius: 17,
+    gap: 4,
+    maxWidth: 100,
+    flexShrink: 0,
   },
-  communityFilterButtonActive: {
+  communityHeaderButtonActive: {
     backgroundColor: '#00E5FF',
     borderColor: '#00E5FF',
   },
-  communityFilterIcon: {
-    fontSize: 13,
-  },
-  communityFilterText: {
-    color: '#00E5FF',
+  communityHeaderIcon: {
     fontSize: 12,
+  },
+  communityHeaderText: {
+    color: '#00E5FF',
+    fontSize: 11,
     fontWeight: '800',
   },
-  communityFilterTextActive: {
+  communityHeaderTextActive: {
     color: '#08080E',
   },
-  clearCircleBtn: {
+  clearCircleBtnHeader: {
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 3,
+    marginLeft: 2,
   },
   filterScrollView: {
     flex: 1,

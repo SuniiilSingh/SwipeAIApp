@@ -25,6 +25,9 @@ import {
   FaqItem,
   ActivePlanResponse,
   TransactionHistoryItem,
+  UserAstrology,
+  AstroMatchResult,
+  UpdateBirthDetailsPayload,
 } from '@/types';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -1917,5 +1920,90 @@ export const api = {
     );
     await AsyncStorage.setItem('cached_support_tickets', JSON.stringify(updated));
     return updated.find((t) => t.id === id) || existing[0];
+  },
+
+  // Vedic Astrology & Ashtakoot Guna Match
+  getMyAstrology: async (): Promise<UserAstrology | null> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/astrology/my-chart`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[api] Failed to fetch my astrology chart:', e);
+    }
+    return {
+      userId: currentUserId || 'me',
+      isExactTimeProvided: false,
+      nakshatraId: 4,
+      nakshatraName: 'Rohini',
+      nakshatraPada: 2,
+      chandraRashi: 'Taurus (Vrishabha)',
+      chandraRashiLord: 'Venus (Shukra)',
+      sunSign: 'Taurus',
+      varna: 'Vaishya',
+      vashya: 'Chatushpada',
+      yoniAnimal: 'Serpent',
+      gana: 'Manushya',
+      nadi: 'Antya',
+      numerologyNumber: 6,
+      isManglik: false,
+    };
+  },
+
+  updateMyBirthDetails: async (payload: UpdateBirthDetailsPayload): Promise<UserAstrology | null> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/astrology/birth-details`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[api] Failed to update birth details:', e);
+    }
+    return null;
+  },
+
+  getAstroMatch: async (targetUserId: string): Promise<AstroMatchResult | null> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/astrology/match/${targetUserId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[api] Failed to fetch astrology match:', e);
+    }
+    return {
+      totalScore: 29,
+      maxScore: 36,
+      percentage: 81,
+      vibeTitle: 'High Vibe Cosmic Match 🌟',
+      vibeSummary: 'Strong cosmic alignment! You share deep intellectual resonance, natural warmth, and great day-to-day lifestyle compatibility.',
+      varnaScore: 1,
+      varnaDescription: 'Harmonious ego & spiritual alignment',
+      vashyaScore: 2,
+      vashyaDescription: 'Balanced power dynamic & mutual attraction',
+      taraScore: 3,
+      taraDescription: 'Mutual prosperity, health & luck',
+      yoniScore: 3,
+      yoniDescription: 'Great physical intimacy & warmth',
+      grahaMaitriScore: 4,
+      grahaMaitriDescription: 'Intellectual wavelength match & effortless conversation',
+      ganaScore: 5,
+      ganaDescription: 'Harmonious daily temperament & lifestyle rhythm',
+      bhakootScore: 7,
+      bhakootDescription: 'Emotional resonance & mutual empathy',
+      nadiScore: 8,
+      nadiDescription: 'Genetic, psychological & vitality harmony',
+      isManglikCompatible: true,
+      manglikSummary: 'Harmonious Mars placement: Serene, balanced dynamic',
+    };
   },
 };

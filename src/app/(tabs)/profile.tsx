@@ -34,6 +34,7 @@ import {
 import DesireProfileModal from '@/components/desire-profile-modal';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
 import MicroCommunityModal from '@/components/micro-community-modal';
+import KundaliProfileModal from '@/components/kundali-profile-modal';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
@@ -82,6 +83,7 @@ export default function ProfileScreen() {
   const [setupLocation, setSetupLocation] = useState('');
   const [setupMicroCircle, setSetupMicroCircle] = useState('');
   const [showCommunityModal, setShowCommunityModal] = useState(false);
+  const [showKundaliModal, setShowKundaliModal] = useState(false);
   const [setupMaxDistanceKm, setSetupMaxDistanceKm] = useState('');
   const [setupLatitude, setSetupLatitude] = useState<number | undefined>(undefined);
   const [setupLongitude, setSetupLongitude] = useState<number | undefined>(undefined);
@@ -2040,6 +2042,16 @@ export default function ProfileScreen() {
                 </Text>
               </TouchableOpacity>
 
+              {/* Vedic Kundali & Cosmic Blueprint */}
+              <Text style={styles.inputLabel}>Vedic Cosmic Blueprint 🌌</Text>
+              <TouchableOpacity
+                style={styles.pickerFieldBtn}
+                onPress={() => setShowKundaliModal(true)}>
+                <Text style={styles.pickerFieldText}>
+                  ✨ View Nakshatra, Moon Sign & Kundali ▾
+                </Text>
+              </TouchableOpacity>
+
               {/* Date of Birth Picker Button */}
               <Text style={styles.inputLabel}>Date of Birth 📅</Text>
               <TouchableOpacity
@@ -3654,6 +3666,15 @@ export default function ProfileScreen() {
           onSelect={(comm) => setSetupMicroCircle(comm ? comm.name : '')}
           selectedName={setupMicroCircle}
           initialCity={setupLocation || undefined}
+        />
+      )}
+
+      {/* VEDIC KUNDALI PROFILE MODAL */}
+      {showKundaliModal && (
+        <KundaliProfileModal
+          visible={true}
+          onClose={() => setShowKundaliModal(false)}
+          userDob={setupDateOfBirth}
         />
       )}
     </SafeAreaView>

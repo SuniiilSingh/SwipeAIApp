@@ -408,3 +408,74 @@ export interface MicroCommunity {
   isPopular?: boolean;
 }
 
+export interface UserAstrology {
+  userId: string;
+  birthTime?: string | null;
+  birthCity?: string | null;
+  isExactTimeProvided: boolean;
+  nakshatraId: number;
+  nakshatraName: string;
+  nakshatraPada: number;
+  chandraRashi: string;
+  chandraRashiLord?: string;
+  sunSign: string;
+  lagnaSign?: string | null;
+  varna?: string;
+  vashya?: string;
+  yoniAnimal?: string;
+  gana?: string;
+  nadi?: string;
+  numerologyNumber: number;
+  isManglik: boolean;
+}
+
+export interface AstroSummary {
+  displayName: string;
+  sunSign: string;
+  chandraRashi: string;
+  nakshatraName: string;
+  nakshatraPada: number;
+  yoniAnimal?: string;
+  gana?: string;
+  nadi?: string;
+  numerologyNumber?: number;
+  isManglik: boolean;
+  isExactTime?: boolean;
+}
+
+export interface AstroMatchResult {
+  totalScore: number;
+  maxScore: number;
+  percentage: number;
+  vibeTitle: string;
+  vibeSummary: string;
+  varnaScore: number;
+  varnaDescription?: string;
+  vashyaScore: number;
+  vashyaDescription?: string;
+  taraScore: number;
+  taraDescription?: string;
+  yoniScore: number;
+  yoniDescription?: string;
+  grahaMaitriScore: number;
+  grahaMaitriDescription?: string;
+  ganaScore: number;
+  ganaDescription?: string;
+  bhakootScore: number;
+  bhakootDescription?: string;
+  nadiScore: number;
+  nadiDescription?: string;
+  isManglikCompatible: boolean;
+  manglikSummary?: string;
+  viewer?: AstroSummary;
+  candidate?: AstroSummary;
+}
+
+export interface UpdateBirthDetailsPayload {
+  birthTime?: string;
+  birthCity?: string;
+  birthLat?: number;
+  birthLng?: number;
+}
+
+

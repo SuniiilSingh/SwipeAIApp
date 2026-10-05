@@ -73,24 +73,23 @@ export default function CosmicKundaliModal({
     const cleanCandSign = candSign.split(' ')[0].replace(/[^a-zA-Z]/g, '') || 'Leo';
 
     try {
-      const remote = await api.getCosmicChemistry(candidate.userId);
-      if (remote && remote.headline) {
-        const guna = Math.round((remote.overallSynergyScore / 100) * 36);
+      const astroMatch = await api.getAstroMatch(candidate.userId);
+      if (astroMatch && astroMatch.totalScore != null) {
         setCosmicData({
-          viewerSign: remote.viewerSign || viewerSign,
-          candidateSign: remote.candidateSign || cleanCandSign,
-          overallSynergyScore: remote.overallSynergyScore || 88,
-          gunaScore: Math.max(26, Math.min(36, guna)),
-          headline: remote.headline,
-          vibeReport: remote.vibeReport,
-          sharedStrengths: remote.sharedStrengths || [
-            'Effortless banter rhythm — 0 awkward pauses',
-            'Shared taste in aesthetic cafes & late-night drives',
-            'High mutual respect for career drive & independence',
+          viewerSign: astroMatch.viewer?.sunSign || viewerSign,
+          candidateSign: astroMatch.candidate?.sunSign || cleanCandSign,
+          overallSynergyScore: astroMatch.percentage,
+          gunaScore: astroMatch.totalScore,
+          headline: `${astroMatch.totalScore}/36 Gunas — ${astroMatch.vibeTitle}`,
+          vibeReport: astroMatch.vibeSummary,
+          sharedStrengths: [
+            `🧬 Vitality & Genetic Harmony (Nadi): ${astroMatch.nadiScore}/8`,
+            `💖 Emotional Resonance (Bhakoot): ${astroMatch.bhakootScore}/7`,
+            `⚡ Daily Temperament (Gana): ${astroMatch.ganaScore}/6`,
+            `🧠 Conversational Frequency (Maitri): ${astroMatch.grahaMaitriScore}/5`,
+            `🔥 Sensory Synergy (Yoni): ${astroMatch.yoniScore}/4`,
           ],
-          conversationalSpark:
-            remote.conversationalSpark ||
-            `Ask ${candidate.displayName} if they believe in mercury retrograde or if they just use it as an excuse for slow replies!`,
+          conversationalSpark: `Ask ${candidate.displayName} about their Nakshatra (${astroMatch.candidate?.nakshatraName || 'Birth Star'}) and if their stars align on the best weekend chai spot!`,
         });
         setLoading(false);
         return;

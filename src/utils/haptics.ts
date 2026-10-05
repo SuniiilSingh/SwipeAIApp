@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 
 /**
- * Safe, cross-platform haptic feedback helper for Blunderr Dating.
+ * Safe, cross-platform haptic feedback helper for BlunderR.
  * Wraps calls in try-catch so it safely degrades on simulators / devices without haptic motors.
  */
 export const hapticFeedback = {

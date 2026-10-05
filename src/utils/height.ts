@@ -1,5 +1,5 @@
 /**
- * Height utilities and human biological range validation for Blunderr Dating.
+ * Height utilities and human biological range validation for BlunderR.
  * Real-world adult human heights range from ~100 cm (3'3") to ~240 cm (7'10").
  */
 

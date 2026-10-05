@@ -185,7 +185,7 @@ export default function SelfieCameraModal({
               </View>
               <Text style={styles.permissionTitle}>Front Camera Permission Needed</Text>
               <Text style={styles.permissionMessage}>
-                To earn the Gold Trust Shield badge and guarantee a safe community, Blunderr Dating
+                To earn the Gold Trust Shield badge and guarantee a safe community, BlunderR
                 needs access to your front-facing camera.
               </Text>
               <TouchableOpacity

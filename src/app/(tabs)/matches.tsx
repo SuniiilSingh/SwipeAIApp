@@ -116,7 +116,7 @@ export default function MatchesScreen() {
         zodiac: 'Aries',
       },
       compatibilityScore: 92,
-      bio: 'High-intent match on Blunderr Dating. Unlocked 48h ephemeral chat lounge.',
+      bio: 'High-intent match on BlunderR. Unlocked 48h ephemeral chat lounge.',
       occupation: 'Professional',
       company: 'Bengaluru Tech',
       education: 'Bachelors Degree',

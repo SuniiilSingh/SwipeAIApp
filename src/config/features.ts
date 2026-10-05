@@ -1,5 +1,5 @@
 /**
- * Blunderr Dating Application Feature Flags
+ * BlunderR Application Feature Flags
  * Controls feature rollouts across production and development builds.
  */
 export const FEATURE_FLAGS = {

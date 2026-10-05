@@ -27,6 +27,7 @@ import { api } from '@/services/api';
 import { DatingIntent } from '@/types';
 import LivenessCameraModal from '@/components/liveness-camera-modal';
 import { FEATURE_FLAGS } from '@/config/features';
+import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 
 const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
@@ -749,8 +750,7 @@ export default function AuthScreen() {
           {step > 1 && (
             <View style={styles.headerStepAbove}>
               <View style={styles.brandLogoRow}>
-                <Text style={styles.brandTitleWhite}>Blunderr </Text>
-                <Text style={styles.brandTitleAccent}>Dating</Text>
+                <BlunderRWordmark size="sm" slant={true} />
               </View>
               <View style={styles.stepIndicatorPill}>
                 <Text style={styles.stepIndicatorText}>Step {step} of 4</Text>
@@ -767,8 +767,7 @@ export default function AuthScreen() {
                   <View style={[styles.brandLogoIconGlow, isKeyboardVisible && styles.brandLogoIconGlowCompact]}>
                     <Text style={[styles.brandLogoIconText, isKeyboardVisible && { fontSize: 13 }]}>🔥</Text>
                   </View>
-                  <Text style={[styles.brandTitleWhite, isKeyboardVisible && { fontSize: 20 }]}>Blunderr </Text>
-                  <Text style={[styles.brandTitleAccent, isKeyboardVisible && { fontSize: 20 }]}>Dating</Text>
+                  <BlunderRWordmark size={isKeyboardVisible ? 'md' : 'lg'} slant={true} />
                 </View>
                 {!isKeyboardVisible && (
                   <View style={styles.kineticVipTagPill}>
@@ -1469,7 +1468,7 @@ export default function AuthScreen() {
             </View>
             <Text style={styles.modalTitle}>Enable Location Access</Text>
             <Text style={styles.modalDesc}>
-              Blunderr Dating uses your location to show verified singles nearby and calculate real-time distance.
+              BlunderR uses your location to show verified singles nearby and calculate real-time distance.
             </Text>
 
             <View style={styles.locFeatureList}>

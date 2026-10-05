@@ -29,7 +29,7 @@ export default function RootLayout() {
       captureSubscription = ScreenCapture.addScreenshotListener(() => {
         Alert.alert(
           'Privacy Protection Active 🛡️',
-          'Screenshots and screen recordings are strictly disabled across Blunderr Dating to eliminate catfishing, protect verified profiles, and guarantee message privacy.'
+          'Screenshots and screen recordings are strictly disabled across BlunderR to eliminate catfishing, protect verified profiles, and guarantee message privacy.'
         );
       });
     } catch (e) {}

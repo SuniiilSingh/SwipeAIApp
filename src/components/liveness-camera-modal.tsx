@@ -430,7 +430,7 @@ export default function LivenessCameraModal({
               </View>
               <Text style={styles.permissionHeading}>Camera Access Required</Text>
               <Text style={styles.permissionDesc}>
-                Blunderr Dating requires front camera access to verify your live face motion (Center,
+                BlunderR requires front camera access to verify your live face motion (Center,
                 Right, and Left turns). This ensures everyone you meet is a 100% verified real human.
               </Text>
               <View style={styles.securityBullet}>

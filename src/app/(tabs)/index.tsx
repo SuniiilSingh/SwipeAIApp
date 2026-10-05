@@ -32,6 +32,7 @@ import { MicroCircle } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
 import { Image as ExpoImage } from 'expo-image';
 import { hapticFeedback } from '@/utils/haptics';
+import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
@@ -734,9 +735,7 @@ function SwipeableCandidateCard({
       {/* Top App Bar */}
       <View style={styles.brandBar}>
         <View style={styles.brandTitleWrap}>
-          <Text style={styles.brandLogo} numberOfLines={1}>
-            Blunderr Dating
-          </Text>
+          <BlunderRWordmark size="md" slant={true} />
         </View>
 
         <View style={styles.brandActionsRow}>

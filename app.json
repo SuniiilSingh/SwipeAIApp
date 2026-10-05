@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Blunderr Dating",
+    "name": "BlunderR",
     "slug": "blunderr-dating",
     "version": "1.0.3",
     "orientation": "portrait",
@@ -11,11 +11,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.blunderr.dating",
       "infoPlist": {
-        "NSCameraUsageDescription": "Blunderr Dating requires camera access for 3D Biometric Liveness verification to eliminate catfish profiles and deepfakes.",
-        "NSPhotoLibraryUsageDescription": "Blunderr Dating requires photo library access to upload authentic pictures to your dating profile.",
-        "NSMicrophoneUsageDescription": "Blunderr Dating uses your microphone for encrypted Virtual Chai calling and in-chat voice notes.",
-        "NSLocationWhenInUseUsageDescription": "Blunderr Dating uses your location to discover matches nearby and show real-time distance.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Blunderr Dating uses your location to discover matches nearby and show real-time distance."
+        "NSCameraUsageDescription": "BlunderR requires camera access for 3D Biometric Liveness verification to eliminate catfish profiles and deepfakes.",
+        "NSPhotoLibraryUsageDescription": "BlunderR requires photo library access to upload authentic pictures to your profile.",
+        "NSMicrophoneUsageDescription": "BlunderR uses your microphone for encrypted Virtual Chai calling and in-chat voice notes.",
+        "NSLocationWhenInUseUsageDescription": "BlunderR uses your location to discover matches nearby and show real-time distance.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "BlunderR uses your location to discover matches nearby and show real-time distance."
       }
     },
     "android": {

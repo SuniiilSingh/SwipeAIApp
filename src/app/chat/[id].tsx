@@ -186,7 +186,7 @@ export default function ChatScreen() {
                 zodiac: 'Aries',
               },
               compatibilityScore: 90,
-              bio: 'High-intent match on Blunderr Dating.',
+              bio: 'High-intent match on BlunderR.',
               occupation: 'Professional',
               company: 'Bengaluru Tech',
               education: 'Graduate',

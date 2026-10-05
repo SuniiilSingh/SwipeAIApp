@@ -233,7 +233,7 @@ export default function ProfileDetailModal({
                     priority="high"
                   />
                   <Text style={styles.watermarkOverlay}>
-                    Blunderr Dating • ID {candidate.userId.substring(0, 6)} • Photo {idx + 1}/{photos.length}
+                    BlunderR • ID {candidate.userId.substring(0, 6)} • Photo {idx + 1}/{photos.length}
                   </Text>
                 </View>
               ))}

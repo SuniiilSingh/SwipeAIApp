@@ -12,9 +12,25 @@ export interface BlunderRWordmarkProps {
 }
 
 /**
- * BlunderR Official Brand Wordmark (Option A: Full Flow Slant ⚡)
- * Features crisp diamond white for 'Blunder' + kinetic forward slant +
- * commanding, slightly taller capital 'R' in glowing Electric Coral (#FF385C).
+ * Letter-by-letter calibrated gradient stops across the full word 'BlunderR'.
+ * Flows seamlessly from Electric Coral Flame (#FF385C) -> Sunset Rose (#FF6584) -> Sunburst Amber (#F59E0B).
+ * Guarantees 100% native smooth gradient rendering across iOS, Android, and Web without white text.
+ */
+const FULL_FLOW_LETTERS: Array<{ char: string; color: string; isAccent?: boolean }> = [
+  { char: 'B', color: '#FF385C' },
+  { char: 'l', color: '#FF4767' },
+  { char: 'u', color: '#FF5773' },
+  { char: 'n', color: '#FF687F' },
+  { char: 'd', color: '#FF798C' },
+  { char: 'e', color: '#FF8A98' },
+  { char: 'r', color: '#FE9A74' },
+  { char: 'R', color: '#F59E0B', isAccent: true },
+];
+
+/**
+ * BlunderR Official Brand Wordmark (Option A: Full Flow Slant ⚡ - Full Word Gradient Edition)
+ * Every letter flows through the signature Sunset/Coral palette (NO WHITE).
+ * Features uniform kinetic forward slant and a prominent, taller capital 'R' with a glowing finish.
  */
 export const BlunderRWordmark: React.FC<BlunderRWordmarkProps> = ({
   size = 'md',
@@ -44,23 +60,29 @@ export const BlunderRWordmark: React.FC<BlunderRWordmarkProps> = ({
       <View style={[styles.wordmarkRow, slant && styles.slantedLockup]}>
         <Text
           style={[
-            styles.rootText,
-            { fontSize: rootSize },
+            styles.baseText,
             slant && styles.italicText,
-            textStyle,
+            Platform.select({
+              web: styles.webGradientWordmark,
+            }),
           ]}
           numberOfLines={1}>
-          Blunder
-        </Text>
-        <Text
-          style={[
-            styles.accentR,
-            { fontSize: accentSize },
-            slant && styles.italicText,
-            rStyle,
-          ]}
-          numberOfLines={1}>
-          R
+          {FULL_FLOW_LETTERS.map((item, idx) => (
+            <Text
+              key={`${item.char}-${idx}`}
+              style={[
+                styles.charText,
+                {
+                  fontSize: item.isAccent ? accentSize : rootSize,
+                  color: item.color,
+                },
+                item.isAccent && styles.accentR,
+                item.isAccent && rStyle,
+                !item.isAccent && textStyle,
+              ]}>
+              {item.char}
+            </Text>
+          ))}
         </Text>
       </View>
 
@@ -86,41 +108,50 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   slantedLockup: {
-    transform: [{ skewX: '-4deg' }],
+    transform: [{ skewX: '-5deg' }],
   },
   italicText: {
     fontStyle: 'italic',
   },
-  rootText: {
+  baseText: {
     fontWeight: '900',
-    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  charText: {
+    fontWeight: '900',
     letterSpacing: -0.5,
     ...Platform.select({
       web: {
-        textShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+        textShadow: '0 0 16px rgba(255, 56, 92, 0.45), 0 2px 8px rgba(0, 0, 0, 0.5)',
       },
       default: {
-        textShadowColor: 'rgba(0, 0, 0, 0.6)',
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 6,
+        textShadowColor: 'rgba(255, 56, 92, 0.55)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 8,
       },
     }),
   },
   accentR: {
-    fontWeight: '900',
-    color: '#FF385C',
     marginLeft: 1,
     letterSpacing: -0.5,
-    lineHeight: Platform.OS === 'ios' ? undefined : undefined,
     ...Platform.select({
       web: {
-        textShadow: '0 0 16px rgba(255, 56, 92, 0.65), 0 2px 8px rgba(0, 0, 0, 0.6)',
+        textShadow: '0 0 20px rgba(245, 158, 11, 0.55), 0 0 12px rgba(255, 56, 92, 0.6)',
       },
       default: {
-        textShadowColor: 'rgba(255, 56, 92, 0.75)',
+        textShadowColor: 'rgba(245, 158, 11, 0.65)',
         textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 8,
+        textShadowRadius: 10,
       },
+    }),
+  },
+  webGradientWordmark: {
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #FF385C 0%, #FF6584 55%, #F59E0B 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+      } as any,
     }),
   },
   communityPill: {

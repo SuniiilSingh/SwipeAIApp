@@ -331,8 +331,19 @@ export default function DiscoveryScreen() {
   const filteredCandidates = candidates.filter((c) => {
     if (selectedCommunityFilter) {
       const commName = selectedCommunityFilter.name.toLowerCase();
+      const commSlug = (selectedCommunityFilter.slug || '').toLowerCase();
+      const commCity = (selectedCommunityFilter.city || '').toLowerCase();
       const candidateComm = (c.microCircle || '').toLowerCase();
-      if (!candidateComm.includes(commName) && !commName.includes(candidateComm)) {
+      const candidateCity = (c.city || '').toLowerCase();
+
+      const matchesCircle =
+        !candidateComm ||
+        candidateComm.includes(commName) ||
+        commName.includes(candidateComm) ||
+        (commSlug && (candidateComm.includes(commSlug) || commSlug.includes(candidateComm))) ||
+        (candidateCity && commCity && (candidateCity.includes(commCity) || commCity.includes(candidateCity)));
+
+      if (!matchesCircle) {
         return false;
       }
     }
@@ -1111,7 +1122,7 @@ function SwipeableCandidateCard({
           selectedName={selectedCommunityFilter?.name}
           title="Filter by Community Circle 🏙️"
           subtitle="Discover matches in specific neighborhood tribes & scenes"
-          initialCity={userProfile?.city || userProfile?.location || undefined}
+          initialCity={selectedCommunityFilter?.city || userProfile?.city || userProfile?.location || undefined}
         />
       )}
     </SafeAreaView>

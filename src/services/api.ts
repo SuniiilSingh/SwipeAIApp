@@ -926,14 +926,15 @@ export const api = {
 
   getMicroCircles: async (city?: string): Promise<MicroCircle[]> => {
     try {
-      const url = city ? `${BASE_URL}/v1/discovery/circles?city=${encodeURIComponent(city)}` : `${BASE_URL}/v1/discovery/circles`;
+      const isFiltered = city && city !== 'All Cities';
+      const url = isFiltered ? `${BASE_URL}/v1/discovery/circles?city=${encodeURIComponent(city)}` : `${BASE_URL}/v1/discovery/circles`;
       const res = await fetchWithTimeout(url);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) return data;
       }
     } catch (e) {}
-    return [
+    const defaultCircles: MicroCircle[] = [
       { id: 'blr-koramangala', city: 'Bengaluru', name: 'Koramangala Tech Founders', slug: 'blr-koramangala', tagline: 'Early-stage founders, product designers & VC analysts', vibeCategory: 'STARTUP', badgeIcon: '🚀', description: 'Early-stage builders & VC analysts', activeMembers: 1420, icon: 'laptop-outline', isPopular: true },
       { id: 'blr-indiranagar', city: 'Bengaluru', name: 'Indiranagar Cafe Hoppers', slug: 'blr-indiranagar', tagline: 'Aesthetic cafes, craft microbreweries, designers & indie gigs', vibeCategory: 'CREATIVE', badgeIcon: '🎨', description: 'Aesthetic cafes, craft microbreweries & indie gigs', activeMembers: 1850, icon: 'color-palette-outline', isPopular: true },
       { id: 'blr-hsr-layout', city: 'Bengaluru', name: 'HSR Unicorn Coders', slug: 'blr-hsr-layout', tagline: 'Unicorn engineers, Cult.fit regulars & AI builders', vibeCategory: 'TECH', badgeIcon: '⚡', description: 'Unicorn engineers & AI builders', activeMembers: 1260, icon: 'flash-outline', isPopular: true },
@@ -956,6 +957,18 @@ export const api = {
       { id: 'hyd-jubilee-hills', city: 'Hyderabad', name: 'Jubilee Hills Luxury & Lounges', slug: 'hyd-jubilee-hills', tagline: 'Tollywood creatives, entrepreneurs, luxury lounges & scenic hill drives', vibeCategory: 'LUXURY', badgeIcon: '👑', description: 'Tollywood creatives & luxury lounges', activeMembers: 1590, icon: 'diamond-outline', isPopular: true },
       { id: 'goa-anjuna-assagao', city: 'Goa', name: 'Anjuna & Assagao Nomads', slug: 'goa-anjuna-assagao', tagline: 'Digital nomads, wellness instructors, sunset acoustic dates & slow living', vibeCategory: 'NOMAD', badgeIcon: '🧘', description: 'Digital nomads & sunset acoustic dates', activeMembers: 980, icon: 'flower-outline', isPopular: true },
     ];
+    if (city && city !== 'All Cities') {
+      const c = city.toLowerCase();
+      return defaultCircles.filter((item) =>
+        item.city && (
+          item.city.toLowerCase() === c ||
+          (c === 'gurgaon' && item.city.toLowerCase().includes('gur')) ||
+          (c === 'delhi ncr' && (item.city.toLowerCase().includes('delhi') || item.city.toLowerCase().includes('ncr'))) ||
+          (c === 'noida' && item.city.toLowerCase().includes('noida'))
+        )
+      );
+    }
+    return defaultCircles;
   },
 
   // Matches & Icebreakers

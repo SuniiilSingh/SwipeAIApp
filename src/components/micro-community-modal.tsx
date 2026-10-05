@@ -59,12 +59,24 @@ export default function MicroCommunityModal({
 
   useEffect(() => {
     if (visible) {
-      if (initialCity && INDIAN_CITIES.includes(initialCity)) {
-        setSelectedCity(initialCity);
+      let startCity = 'All Cities';
+      if (initialCity) {
+        const found = INDIAN_CITIES.find(
+          (c) =>
+            c.toLowerCase() === initialCity.toLowerCase() ||
+            (c === 'Delhi NCR' && (initialCity.toLowerCase().includes('delhi') || initialCity.toLowerCase().includes('ncr'))) ||
+            (c === 'Gurgaon' && initialCity.toLowerCase().includes('gur')) ||
+            (c === 'Noida' && initialCity.toLowerCase().includes('noid'))
+        );
+        if (found) {
+          startCity = found;
+        }
       }
-      loadCommunities(selectedCity === 'All Cities' ? undefined : selectedCity);
+      setSelectedCity(startCity);
+      setSearchQuery('');
+      loadCommunities(startCity === 'All Cities' ? undefined : startCity);
     }
-  }, [visible, selectedCity]);
+  }, [visible, initialCity]);
 
   const loadCommunities = async (city?: string) => {
     setLoading(true);
@@ -81,12 +93,22 @@ export default function MicroCommunityModal({
   const handleCityChange = (city: string) => {
     hapticFeedback.selection();
     setSelectedCity(city);
+    loadCommunities(city === 'All Cities' ? undefined : city);
   };
 
   const filteredCommunities = communities.filter((item) => {
-    const matchesCity =
-      selectedCity === 'All Cities' ||
-      (item.city && item.city.toLowerCase() === selectedCity.toLowerCase());
+    const matchesCity = (() => {
+      if (selectedCity === 'All Cities') return true;
+      if (!item.city) return true;
+      const c1 = item.city.trim().toLowerCase();
+      const c2 = selectedCity.trim().toLowerCase();
+      return (
+        c1 === c2 ||
+        (c2 === 'gurgaon' && (c1.includes('gurgaon') || c1.includes('gurugram'))) ||
+        (c2 === 'delhi ncr' && (c1.includes('delhi') || c1.includes('ncr'))) ||
+        (c2 === 'noida' && (c1.includes('noida') || c1.includes('greater noida')))
+      );
+    })();
 
     if (!matchesCity) return false;
 

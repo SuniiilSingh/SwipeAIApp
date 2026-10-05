@@ -21,6 +21,7 @@ import { api, normalizeImageUrl } from '@/services/api';
 import { formatHeight } from '@/utils/height';
 
 const { width } = Dimensions.get('window');
+const PHOTO_HEIGHT = Math.min(Math.round(width * 1.25), 480);
 
 interface ProfileDetailModalProps {
   visible: boolean;
@@ -228,6 +229,7 @@ export default function ProfileDetailModal({
                     source={{ uri: photoUrl }}
                     style={styles.carouselImg}
                     contentFit="cover"
+                    contentPosition="top center"
                     transition={200}
                     cachePolicy="memory-disk"
                     priority="high"
@@ -768,18 +770,18 @@ const styles = StyleSheet.create({
   },
   carouselWrapper: {
     width: '100%',
-    height: 380,
+    height: PHOTO_HEIGHT,
     position: 'relative',
     backgroundColor: '#16171E',
   },
   photoSlide: {
     width,
-    height: 380,
+    height: PHOTO_HEIGHT,
     position: 'relative',
   },
   carouselImg: {
     width,
-    height: 380,
+    height: PHOTO_HEIGHT,
     backgroundColor: '#16171E',
   },
   watermarkOverlay: {

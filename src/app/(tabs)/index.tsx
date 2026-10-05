@@ -556,6 +556,7 @@ function SwipeableCandidateCard({
             }}
             style={styles.heroImage}
             contentFit="cover"
+            contentPosition="top center"
             cachePolicy="memory-disk"
           />
 

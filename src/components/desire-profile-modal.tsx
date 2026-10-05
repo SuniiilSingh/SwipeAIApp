@@ -133,9 +133,7 @@ export default function DesireProfileModal({ visible, onClose, onSaved }: Desire
     'Emotionally articulate 🧠',
     'Orders dessert for table 🍰',
   ]);
-  const [naturalLanguagePrompt, setNaturalLanguagePrompt] = useState(
-    'A creative, authentic soul in Bangalore who loves indie music, weekend road trips, and cozy chai conversations.'
-  );
+  const [naturalLanguagePrompt, setNaturalLanguagePrompt] = useState('');
 
   const toggleProfession = (prof: string) => {
     if (selectedProfessions.includes(prof)) {
@@ -185,7 +183,20 @@ export default function DesireProfileModal({ visible, onClose, onSaved }: Desire
           );
           setSelectedGreenFlags(normalized);
         }
-        if (data.naturalLanguagePrompt) setNaturalLanguagePrompt(data.naturalLanguagePrompt);
+        if (data.naturalLanguagePrompt) {
+          const prompt = data.naturalLanguagePrompt.trim();
+          if (
+            prompt &&
+            !prompt.includes('A creative, authentic soul') &&
+            !prompt.includes('Someone authentic and creative')
+          ) {
+            setNaturalLanguagePrompt(prompt);
+          } else {
+            setNaturalLanguagePrompt('');
+          }
+        } else {
+          setNaturalLanguagePrompt('');
+        }
       }
     } catch (e) {
     } finally {
@@ -673,7 +684,7 @@ export default function DesireProfileModal({ visible, onClose, onSaved }: Desire
                     style={styles.aiPromptInput}
                     multiline
                     numberOfLines={4}
-                    placeholder="e.g. Someone creative and curious who loves road trips to Coorg, reads books, appreciates filter coffee, and doesn't take themselves too seriously..."
+                    placeholder="Describe your dream match (e.g. Someone creative and curious who loves road trips, reads books, appreciates good conversations, and shares your wavelength...)"
                     placeholderTextColor="#666"
                     value={naturalLanguagePrompt}
                     onChangeText={setNaturalLanguagePrompt}

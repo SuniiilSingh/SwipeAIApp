@@ -23,6 +23,7 @@ const INDIAN_CITIES = [
   'Mumbai',
   'Delhi NCR',
   'Gurgaon',
+  'Noida',
   'Pune',
   'Hyderabad',
   'Goa',

@@ -59,14 +59,14 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Blunderr Dating requires camera access for 3D Biometric Liveness verification to eliminate catfish profiles and deepfakes.",
+          "cameraPermission": "BlunderR requires camera access for 3D Biometric Liveness verification to eliminate catfish profiles and deepfakes.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Blunderr Dating uses your location to discover matches nearby and show real-time distance."
+          "locationAlwaysAndWhenInUsePermission": "BlunderR uses your location to discover matches nearby and show real-time distance."
         }
       ],
       [
@@ -81,14 +81,14 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Blunderr Dating uses your microphone for encrypted Virtual Chai calling and in-chat voice notes.",
+          "microphonePermission": "BlunderR uses your microphone for encrypted Virtual Chai calling and in-chat voice notes.",
           "recordAudioAndroid": true
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Blunderr Dating requires photo library access to upload authentic pictures to your dating profile."
+          "photosPermission": "BlunderR requires photo library access to upload authentic pictures to your profile."
         }
       ]
     ],

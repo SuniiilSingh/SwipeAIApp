@@ -26,7 +26,9 @@ import ProfileDetailModal from '@/components/profile-detail-modal';
 import DesireProfileModal from '@/components/desire-profile-modal';
 import MatchCelebrationModal from '@/components/match-celebration-modal';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
+import MicroCommunityModal from '@/components/micro-community-modal';
 import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscription-gating-modal';
+import { MicroCircle } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
 import { Image as ExpoImage } from 'expo-image';
 import { hapticFeedback } from '@/utils/haptics';
@@ -88,6 +90,8 @@ export default function DiscoveryScreen() {
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateCard | null>(null);
   const [showFullProfileModal, setShowFullProfileModal] = useState(false);
   const [showDesireModal, setShowDesireModal] = useState(false);
+  const [selectedCommunityFilter, setSelectedCommunityFilter] = useState<MicroCircle | null>(null);
+  const [showCommunityModal, setShowCommunityModal] = useState(false);
 
   // Match celebration state
   const [matchedCandidate, setMatchedCandidate] = useState<CandidateCard | null>(null);
@@ -128,7 +132,7 @@ export default function DiscoveryScreen() {
     }, [])
   );
 
-  const loadFeed = async () => {
+  const loadFeed = async (communityOverride?: MicroCircle | null) => {
     try {
       // 1. Discovery Gating Check: Name, Gender, Sexual Orientation and >= 30% completion required
       const myProfile = await api.getMyProfile();
@@ -161,10 +165,12 @@ export default function DiscoveryScreen() {
         }
       } catch (e) {}
 
+      const effectiveCommunity = communityOverride !== undefined ? communityOverride : selectedCommunityFilter;
       const feed = await api.getFeed({
         maxDistanceKm: myProfile.maxDistanceKm,
         latitude: lat,
         longitude: lon,
+        microCircle: effectiveCommunity ? effectiveCommunity.name : undefined,
       });
       const list = feed?.candidates && Array.isArray(feed.candidates) ? feed.candidates : [];
       setCandidates(list);
@@ -176,6 +182,12 @@ export default function DiscoveryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const handleSelectCommunityFilter = (comm: MicroCircle | null) => {
+    setSelectedCommunityFilter(comm);
+    setLoading(true);
+    loadFeed(comm);
   };
 
   const handleRefresh = () => {
@@ -316,6 +328,14 @@ export default function DiscoveryScreen() {
 
   // Filter candidates based on selected tag
   const filteredCandidates = candidates.filter((c) => {
+    if (selectedCommunityFilter) {
+      const commName = selectedCommunityFilter.name.toLowerCase();
+      const candidateComm = (c.microCircle || '').toLowerCase();
+      if (!candidateComm.includes(commName) && !commName.includes(candidateComm)) {
+        return false;
+      }
+    }
+
     if (selectedFilter === 'ALL') return true;
 
     const rawDiet = (c.culturalBadges?.diet || (c as any).dietaryPref || '').toString().toUpperCase();
@@ -628,6 +648,13 @@ function SwipeableCandidateCard({
                   <Text style={[styles.lifestyleChipText, { color: '#FFD700' }]}>🤣 Meme Vibe</Text>
                 </View>
               ) : null}
+              {item.microCircle ? (
+                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(0, 229, 255, 0.15)', borderColor: '#00E5FF' }]}>
+                  <Text style={[styles.lifestyleChipText, { color: '#00E5FF', fontWeight: '700' }]}>
+                    🏙️ {item.microCircle}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             {/* Row 5: Profile Prompt Teaser */}
@@ -748,7 +775,7 @@ function SwipeableCandidateCard({
         </View>
       </View>
 
-      {/* Horizontal Filter Bar with My Desire Button */}
+      {/* Horizontal Filter Bar with My Desire & Community Circles Button */}
       <View style={styles.filterBarContainer}>
         <TouchableOpacity
           style={styles.desireFilterButton}
@@ -756,6 +783,31 @@ function SwipeableCandidateCard({
           activeOpacity={0.8}>
           <Text style={styles.desireFilterIcon}>🎯</Text>
           <Text style={styles.desireFilterText}>My Desire</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.communityFilterButton, selectedCommunityFilter && styles.communityFilterButtonActive]}
+          onPress={() => setShowCommunityModal(true)}
+          activeOpacity={0.8}>
+          <Text style={styles.communityFilterIcon}>
+            {selectedCommunityFilter?.badgeIcon || '🏙️'}
+          </Text>
+          <Text
+            style={[styles.communityFilterText, selectedCommunityFilter && styles.communityFilterTextActive]}
+            numberOfLines={1}>
+            {selectedCommunityFilter ? selectedCommunityFilter.name.split(' ')[0] : 'Circles'}
+          </Text>
+          {selectedCommunityFilter && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleSelectCommunityFilter(null);
+              }}
+              style={styles.clearCircleBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={{ color: '#08080E', fontSize: 10, fontWeight: '800' }}>✕</Text>
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
 
         <ScrollView
@@ -1045,6 +1097,19 @@ function SwipeableCandidateCard({
           router.push('/(tabs)/store');
         }}
       />
+
+      {/* MICRO-COMMUNITY CIRCLES FILTER MODAL */}
+      {showCommunityModal && (
+        <MicroCommunityModal
+          visible={true}
+          onClose={() => setShowCommunityModal(false)}
+          onSelect={handleSelectCommunityFilter}
+          selectedName={selectedCommunityFilter?.name}
+          title="Filter by Community Circle 🏙️"
+          subtitle="Discover matches in specific neighborhood tribes & scenes"
+          initialCity={userProfile?.city || userProfile?.location || undefined}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1223,6 +1288,42 @@ const styles = StyleSheet.create({
     color: '#FF385C',
     fontSize: 12,
     fontWeight: '800',
+  },
+  communityFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 229, 255, 0.5)',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 14,
+    gap: 5,
+    maxWidth: 120,
+  },
+  communityFilterButtonActive: {
+    backgroundColor: '#00E5FF',
+    borderColor: '#00E5FF',
+  },
+  communityFilterIcon: {
+    fontSize: 13,
+  },
+  communityFilterText: {
+    color: '#00E5FF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  communityFilterTextActive: {
+    color: '#08080E',
+  },
+  clearCircleBtn: {
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 3,
   },
   filterScrollView: {
     flex: 1,

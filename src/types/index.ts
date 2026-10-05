@@ -259,10 +259,16 @@ export interface SkuCatalogItem {
 
 export interface MicroCircle {
   id: string;
+  city?: string;
   name: string;
+  slug?: string;
+  tagline?: string;
+  vibeCategory?: string;
+  badgeIcon?: string;
   description: string;
   activeMembers: number;
   icon: string;
+  isPopular?: boolean;
 }
 
 export interface VirtualChaiSession {
@@ -386,5 +392,19 @@ export interface FaqItem {
   category: string;
   question: string;
   answer: string;
+}
+
+export interface MicroCommunity {
+  id: string;
+  city: string;
+  name: string;
+  slug: string;
+  tagline?: string;
+  vibeCategory?: string;
+  badgeIcon?: string;
+  description?: string;
+  activeMembers?: number;
+  icon?: string;
+  isPopular?: boolean;
 }
 

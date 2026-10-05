@@ -921,16 +921,28 @@ export const api = {
     };
   },
 
-  getMicroCircles: async (): Promise<MicroCircle[]> => {
+  getMicroCircles: async (city?: string): Promise<MicroCircle[]> => {
     try {
-      const res = await fetchWithTimeout(`${BASE_URL}/v1/discovery/circles`);
-      if (res.ok) return await res.json();
+      const url = city ? `${BASE_URL}/v1/discovery/circles?city=${encodeURIComponent(city)}` : `${BASE_URL}/v1/discovery/circles`;
+      const res = await fetchWithTimeout(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
     } catch (e) {}
     return [
-      { id: 'koramangala-tech', name: 'Koramangala Tech Founders', description: 'Product designers & VC builders', activeMembers: 1420, icon: 'laptop-outline' },
-      { id: 'dmrc-yellow-line', name: 'DMRC Yellow Line Commuters', description: 'Gurgaon to Hauz Khas daily listeners', activeMembers: 2890, icon: 'subway-outline' },
-      { id: 'indie-music', name: 'Indie Music & Festival Goers', description: 'Prateek Kuhad, Peter Cat & NH7', activeMembers: 1850, icon: 'musical-notes-outline' },
-      { id: 'dog-parents', name: 'Dog Parents & Pet Lovers', description: 'Cubbon Park Sunday meetups', activeMembers: 980, icon: 'paw-outline' },
+      { id: 'blr-koramangala', city: 'Bengaluru', name: 'Koramangala Tech Founders', slug: 'blr-koramangala', tagline: 'Early-stage founders, product designers & VC analysts', vibeCategory: 'STARTUP', badgeIcon: '🚀', description: 'Early-stage builders & VC analysts', activeMembers: 1420, icon: 'laptop-outline', isPopular: true },
+      { id: 'blr-indiranagar', city: 'Bengaluru', name: 'Indiranagar Cafe Hoppers', slug: 'blr-indiranagar', tagline: 'Aesthetic cafes, craft microbreweries, designers & indie gigs', vibeCategory: 'CREATIVE', badgeIcon: '🎨', description: 'Aesthetic cafes, craft microbreweries & indie gigs', activeMembers: 1850, icon: 'color-palette-outline', isPopular: true },
+      { id: 'blr-hsr-layout', city: 'Bengaluru', name: 'HSR Unicorn Coders', slug: 'blr-hsr-layout', tagline: 'Unicorn engineers, Cult.fit regulars & AI builders', vibeCategory: 'TECH', badgeIcon: '⚡', description: 'Unicorn engineers & AI builders', activeMembers: 1260, icon: 'flash-outline', isPopular: true },
+      { id: 'blr-whitefield', city: 'Bengaluru', name: 'Whitefield Corporate Tech', slug: 'blr-whitefield', tagline: 'Suburban tech corridor, corporate leaders & expats', vibeCategory: 'CORPORATE', badgeIcon: '💼', description: 'Suburban tech corridor & corporate leaders', activeMembers: 940, icon: 'briefcase-outline', isPopular: true },
+      { id: 'mum-bandra-west', city: 'Mumbai', name: 'Bandra West Creatives', slug: 'mum-bandra-west', tagline: 'Pali Hill creatives, seaside runners, third-wave coffee & Bollywood media', vibeCategory: 'CREATIVE', badgeIcon: '🎬', description: 'Pali Hill creatives & Bollywood media', activeMembers: 2350, icon: 'videocam-outline', isPopular: true },
+      { id: 'mum-lower-parel', city: 'Mumbai', name: 'Lower Parel High-Finance', slug: 'mum-lower-parel', tagline: 'Investment bankers, corporate lawyers, luxury rooftop nightlife & Kamala Mills', vibeCategory: 'CORPORATE', badgeIcon: '🍸', description: 'Investment bankers & rooftop nightlife', activeMembers: 1680, icon: 'wine-outline', isPopular: true },
+      { id: 'del-hauz-khas', city: 'Delhi NCR', name: 'Hauz Khas Bohemian Artists', slug: 'del-hauz-khas', tagline: 'Bohemian artists, indie musicians & heritage lake ruins cafes', vibeCategory: 'CREATIVE', badgeIcon: '🎸', description: 'Bohemian artists & heritage lake ruins', activeMembers: 2140, icon: 'musical-notes-outline', isPopular: true },
+      { id: 'del-cyber-city', city: 'Delhi NCR', name: 'Cyber City & Golf Course Leaders', slug: 'del-cyber-city', tagline: 'Consultants (McKinsey/BCG), Fortune 500 execs & microbrewery culture', vibeCategory: 'CORPORATE', badgeIcon: '🏙️', description: 'Consultants & Fortune 500 execs', activeMembers: 1890, icon: 'business-outline', isPopular: true },
+      { id: 'del-north-campus', city: 'Delhi NCR', name: 'North Campus DU Adda', slug: 'del-north-campus', tagline: 'Delhi University collegiate pulse, street food, debates & Hudson Lane', vibeCategory: 'COLLEGIATE', badgeIcon: '🎓', description: 'DU collegiate pulse & Hudson Lane', activeMembers: 3100, icon: 'school-outline', isPopular: true },
+      { id: 'pun-koregaon-park', city: 'Pune', name: 'Koregaon Park (KP) Bohemians', slug: 'pun-koregaon-park', tagline: 'Osho heritage, European cafes, international students & nightlife', vibeCategory: 'BOHEMIAN', badgeIcon: '🌿', description: 'European cafes & nightlife', activeMembers: 1650, icon: 'leaf-outline', isPopular: true },
+      { id: 'hyd-jubilee-hills', city: 'Hyderabad', name: 'Jubilee Hills Luxury & Lounges', slug: 'hyd-jubilee-hills', tagline: 'Tollywood creatives, entrepreneurs, luxury lounges & scenic hill drives', vibeCategory: 'LUXURY', badgeIcon: '👑', description: 'Tollywood creatives & luxury lounges', activeMembers: 1590, icon: 'diamond-outline', isPopular: true },
+      { id: 'goa-anjuna-assagao', city: 'Goa', name: 'Anjuna & Assagao Nomads', slug: 'goa-anjuna-assagao', tagline: 'Digital nomads, wellness instructors, sunset acoustic dates & slow living', vibeCategory: 'NOMAD', badgeIcon: '🧘', description: 'Digital nomads & sunset acoustic dates', activeMembers: 980, icon: 'flower-outline', isPopular: true },
     ];
   },
 

@@ -33,6 +33,7 @@ import {
 } from '@/utils/height';
 import DesireProfileModal from '@/components/desire-profile-modal';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
+import MicroCommunityModal from '@/components/micro-community-modal';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
@@ -79,6 +80,8 @@ export default function ProfileScreen() {
   const [setupDateOfBirth, setSetupDateOfBirth] = useState('');
   const [setupHeight, setSetupHeight] = useState('');
   const [setupLocation, setSetupLocation] = useState('');
+  const [setupMicroCircle, setSetupMicroCircle] = useState('');
+  const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [setupMaxDistanceKm, setSetupMaxDistanceKm] = useState('');
   const [setupLatitude, setSetupLatitude] = useState<number | undefined>(undefined);
   const [setupLongitude, setSetupLongitude] = useState<number | undefined>(undefined);
@@ -276,6 +279,7 @@ export default function ProfileScreen() {
     }
     setSetupHeight(p.height ? String(p.height) : '');
     setSetupLocation(p.location || p.city || '');
+    setSetupMicroCircle(p.microCircle || '');
     setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '');
     setSetupLatitude(p.latitude);
     setSetupLongitude(p.longitude);
@@ -1107,6 +1111,7 @@ export default function ProfileScreen() {
       selectedMemeTitle: setupMemeTitle,
       height: setupHeight ? parseInt(setupHeight) : 165,
       location: setupLocation,
+      microCircle: setupMicroCircle || undefined,
       maxDistanceKm: setupMaxDistanceKm && setupMaxDistanceKm.trim() ? parseInt(setupMaxDistanceKm.trim(), 10) : undefined,
       latitude: setupLatitude,
       longitude: setupLongitude,
@@ -2024,6 +2029,16 @@ export default function ProfileScreen() {
                   )}
                 </TouchableOpacity>
               </View>
+
+              {/* Micro-Community Circle Picker */}
+              <Text style={styles.inputLabel}>Micro-Community Circle 🏙️</Text>
+              <TouchableOpacity
+                style={styles.pickerFieldBtn}
+                onPress={() => setShowCommunityModal(true)}>
+                <Text style={[styles.pickerFieldText, !setupMicroCircle && { color: '#8E94A5' }]}>
+                  {setupMicroCircle ? `📍 ${setupMicroCircle}` : 'Select your Local Neighborhood Tribe ▾'}
+                </Text>
+              </TouchableOpacity>
 
               {/* Date of Birth Picker Button */}
               <Text style={styles.inputLabel}>Date of Birth 📅</Text>
@@ -3628,6 +3643,17 @@ export default function ProfileScreen() {
           visible={true}
           onClose={() => setShowSelfieModal(false)}
           onCapture={handleSelfieCaptured}
+        />
+      )}
+
+      {/* MICRO-COMMUNITY CIRCLE MODAL */}
+      {showCommunityModal && (
+        <MicroCommunityModal
+          visible={true}
+          onClose={() => setShowCommunityModal(false)}
+          onSelect={(comm) => setSetupMicroCircle(comm ? comm.name : '')}
+          selectedName={setupMicroCircle}
+          initialCity={setupLocation || undefined}
         />
       )}
     </SafeAreaView>

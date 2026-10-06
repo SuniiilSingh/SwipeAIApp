@@ -21,7 +21,7 @@ import * as Location from 'expo-location';
 import { api, normalizeImageUrl } from '@/services/api';
 import { DatingIntent, DesireProfile, DietaryPreference, LivingStatus, UserProfile } from '@/types';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, createAudioPlayer, AudioPlayer } from 'expo-audio';
+import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync, createAudioPlayer, setAudioModeAsync, AudioPlayer } from 'expo-audio';
 import { hapticFeedback } from '@/utils/haptics';
 import {
   formatHeight,
@@ -195,6 +195,7 @@ export default function ProfileScreen() {
   const [voiceRecordSeconds, setVoiceRecordSeconds] = useState(0);
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [recordedAudioUri, setRecordedAudioUri] = useState('');
+  const [isSavingVoice, setIsSavingVoice] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Profile Meme state
@@ -454,7 +455,7 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleTogglePlayVoice = (audioUrl?: string) => {
+  const handleTogglePlayVoice = async (audioUrl?: string) => {
     const targetUrl = audioUrl || setupVoicePromptUrl || recordedAudioUri;
     if (!targetUrl) return;
 
@@ -468,6 +469,19 @@ export default function ProfileScreen() {
     }
 
     hapticFeedback.selection();
+
+    // 1. On iOS & Android, configure audio mode so playback plays clearly even in silent mode
+    if (Platform.OS !== 'web') {
+      try {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          interruptionMode: 'mixWithOthers',
+        });
+      } catch (e) {
+        console.warn('Could not set audio session mode:', e);
+      }
+    }
+
     if (Platform.OS !== 'web' && (targetUrl.startsWith('file:') || targetUrl.startsWith('content:') || targetUrl.startsWith('http'))) {
       try {
         if (nativeAudioPlayerRef.current) {
@@ -506,6 +520,9 @@ export default function ProfileScreen() {
   };
 
   const handleSaveVoiceNote = async () => {
+    if (isSavingVoice) return;
+    setIsSavingVoice(true);
+
     let url = recordedAudioUri || setupVoicePromptUrl || `voice_note_${Date.now()}`;
     const dur = voiceRecordSeconds > 0 ? voiceRecordSeconds : (setupVoicePromptDuration || 15);
     const txt = setupVoicePromptText || VOICE_PROMPT_TOPICS[0];
@@ -515,36 +532,48 @@ export default function ProfileScreen() {
     }
     stopAudibleVoiceNote();
     setIsPlayingVoice(false);
-    setShowVoiceRecorderModal(false);
-
-    // If local recording exists, upload to Cloudflare / server so other users can hear it!
-    if (recordedAudioUri && (recordedAudioUri.startsWith('file://') || !recordedAudioUri.startsWith('http'))) {
-      try {
-        const uploadedUrl = await api.uploadAudio(recordedAudioUri);
-        if (uploadedUrl && (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://'))) {
-          url = uploadedUrl;
-        }
-      } catch (err) {
-        console.warn('Voice upload error:', err);
-      }
-    }
-
-    hapticFeedback.success();
-    setSetupVoicePromptUrl(url);
-    setSetupVoicePromptDuration(dur);
-
-    setProfile(prev => prev ? ({
-      ...prev,
-      voicePromptUrl: url,
-      voicePromptDuration: dur,
-      voicePromptText: txt,
-    }) : prev);
 
     try {
-      await api.uploadVoicePrompt(url, dur, txt);
-      Alert.alert('Voice Note Saved 🎙️', 'Your 15-second vernacular voice note has been uploaded and added to your profile!');
+      // 1. If local recording exists on device, upload to backend R2/CDN
+      if (recordedAudioUri && (recordedAudioUri.startsWith('file://') || recordedAudioUri.startsWith('content://') || !recordedAudioUri.startsWith('http'))) {
+        try {
+          const uploadedUrl = await api.uploadAudio(recordedAudioUri);
+          if (uploadedUrl && (uploadedUrl.startsWith('http://') || uploadedUrl.startsWith('https://'))) {
+            url = uploadedUrl;
+          }
+        } catch (err) {
+          console.warn('Voice upload error:', err);
+        }
+      }
+
+      hapticFeedback.success();
+      setSetupVoicePromptUrl(url);
+      setSetupVoicePromptDuration(dur);
+
+      setProfile(prev => prev ? ({
+        ...prev,
+        voicePromptUrl: url,
+        voicePromptDuration: dur,
+        voicePromptText: txt,
+      }) : prev);
+
+      // 2. Persist voice note both to dedicated endpoint and general profile update
+      await Promise.all([
+        api.uploadVoicePrompt(url, dur, txt).catch(e => console.warn('uploadVoicePrompt error:', e)),
+        api.updateMyProfile({
+          voicePromptUrl: url,
+          voicePromptDuration: dur,
+          voicePromptText: txt,
+        }).catch(e => console.warn('updateMyProfile voice error:', e)),
+      ]);
+
+      setShowVoiceRecorderModal(false);
+      Alert.alert('Voice Note Saved 🎙️', 'Your 15-second vernacular voice note has been saved and added to your profile!');
     } catch (e) {
-      console.warn('Voice note save error:', e);
+      console.warn('Voice note save general error:', e);
+      setShowVoiceRecorderModal(false);
+    } finally {
+      setIsSavingVoice(false);
     }
   };
 
@@ -1607,29 +1636,36 @@ export default function ProfileScreen() {
             {/* Modern Cosmic Chemistry & Vedic Rashis */}
             <View style={styles.sectionCard}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Text style={styles.sectionTitle}>✨ Vedic Cosmic Chemistry (Jyotish)</Text>
+                <Text style={styles.sectionTitle}>🌌 Vedic Cosmic Blueprint (Janampatri)</Text>
                 <TouchableOpacity
                   onPress={() => {
-                    setIsEditingProfile(true);
-                    setShowZodiacPickerModal(true);
+                    hapticFeedback.light();
+                    setShowKundaliModal(true);
                   }}>
-                  <Text style={styles.editCardActionText}>Change 🪐</Text>
+                  <Text style={styles.editCardActionText}>View Kundali 🔮</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.astroRow}>
-                <View style={[styles.astroPill, { flex: 1.4 }]}>
-                  <Text style={styles.astroLabel}>Vedic Rashi (Moon)</Text>
-                  <Text style={styles.astroValue} numberOfLines={1}>{profile.zodiacSign || profile.moonSign || setupZodiacSign || 'Select Rashi'}</Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  hapticFeedback.light();
+                  setShowKundaliModal(true);
+                }}>
+                <View style={styles.astroRow}>
+                  <View style={[styles.astroPill, { flex: 1.4 }]}>
+                    <Text style={styles.astroLabel}>Vedic Rashi (Moon)</Text>
+                    <Text style={styles.astroValue} numberOfLines={1}>{profile.zodiacSign || profile.moonSign || setupZodiacSign || 'Tap to View'}</Text>
+                  </View>
+                  <View style={styles.astroPill}>
+                    <Text style={styles.astroLabel}>Sun Sign</Text>
+                    <Text style={styles.astroValue}>{profile.sunSign || 'Taurus ♉'}</Text>
+                  </View>
+                  <View style={styles.astroPill}>
+                    <Text style={styles.astroLabel}>Kundali Chart</Text>
+                    <Text style={[styles.astroValue, { color: '#818CF8' }]}>D1 Chart 🪐</Text>
+                  </View>
                 </View>
-                <View style={styles.astroPill}>
-                  <Text style={styles.astroLabel}>Sun Sign</Text>
-                  <Text style={styles.astroValue}>{profile.sunSign || 'Leo ♌'}</Text>
-                </View>
-                <View style={styles.astroPill}>
-                  <Text style={styles.astroLabel}>Vibe</Text>
-                  <Text style={styles.astroValue}>{profile.zodiacSign || setupZodiacSign ? 'Harmonic ⚡' : 'Calculating'}</Text>
-                </View>
-              </View>
+              </TouchableOpacity>
             </View>
 
             {/* Vernacular 15s Voice Note */}
@@ -3434,9 +3470,14 @@ export default function ProfileScreen() {
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.saveVoiceBtn}
-                    onPress={handleSaveVoiceNote}>
-                    <Text style={styles.saveVoiceBtnText}>Save Voice Note ✓</Text>
+                    style={[styles.saveVoiceBtn, isSavingVoice && { opacity: 0.7 }]}
+                    onPress={handleSaveVoiceNote}
+                    disabled={isSavingVoice}>
+                    {isSavingVoice ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.saveVoiceBtnText}>Save Voice Note ✓</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               ) : null}

@@ -15,6 +15,7 @@ import {
 import { api } from '@/services/api';
 import { UserAstrology } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
+import KundaliChartDiamond from './kundali-chart-diamond';
 
 const { width } = Dimensions.get('window');
 
@@ -138,6 +139,15 @@ export default function KundaliProfileModal({
                   </Text>
                 </View>
 
+                {/* 1. Real Visual Vedic Diamond Chart (लग्न कुंडली) */}
+                <KundaliChartDiamond
+                  lagnaSign={astrology?.lagnaSign}
+                  chandraRashi={astrology?.chandraRashi}
+                  sunSign={astrology?.sunSign}
+                  nakshatraName={astrology?.nakshatraName}
+                  isManglik={astrology?.isManglik}
+                />
+
                 {/* Primary Chart Attributes Grid */}
                 <Text style={styles.sectionHeader}>Your Astrological Core 🪐</Text>
                 <View style={styles.attrGrid}>
@@ -145,60 +155,77 @@ export default function KundaliProfileModal({
                   <View style={styles.attrCard}>
                     <Text style={styles.attrLabel}>✨ Birth Star (Nakshatra)</Text>
                     <Text style={styles.attrValue}>{astrology?.nakshatraName || 'Rohini'}</Text>
-                    <Text style={styles.attrSub}>Pada {astrology?.nakshatraPada || 1}</Text>
+                    <Text style={styles.attrSub}>Pada {astrology?.nakshatraPada || 1} • Star {astrology?.nakshatraId || 4}/27</Text>
                   </View>
 
                   {/* Moon Sign */}
                   <View style={styles.attrCard}>
                     <Text style={styles.attrLabel}>🌙 Moon Sign (Rashi)</Text>
                     <Text style={styles.attrValue}>{astrology?.chandraRashi || 'Taurus'}</Text>
-                    <Text style={styles.attrSub}>{astrology?.chandraRashiLord || 'Venus'}</Text>
+                    <Text style={styles.attrSub}>Lord: {astrology?.chandraRashiLord || 'Venus'}</Text>
                   </View>
 
                   {/* Sun Sign */}
                   <View style={styles.attrCard}>
                     <Text style={styles.attrLabel}>☀️ Western Sun Sign</Text>
                     <Text style={styles.attrValue}>{astrology?.sunSign || 'Taurus'}</Text>
-                    <Text style={styles.attrSub}>Ecliptic Sun</Text>
+                    <Text style={styles.attrSub}>Solar Soul Identity</Text>
                   </View>
 
                   {/* Numerology */}
                   <View style={styles.attrCard}>
                     <Text style={styles.attrLabel}>🔢 Life Path Number</Text>
                     <Text style={styles.attrValue}>{astrology?.numerologyNumber || 6}</Text>
-                    <Text style={styles.attrSub}>Destiny Root</Text>
+                    <Text style={styles.attrSub}>Destiny Vibration</Text>
                   </View>
                 </View>
 
-                {/* 8 Compatibility Archetypes */}
-                <Text style={styles.sectionHeader}>Compatibility Archetypes 🧬</Text>
+                {/* 8 Complete Vedic Ashtakoot Archetypes */}
+                <Text style={styles.sectionHeader}>Ashtakoot Compatibility Archetypes 🧬</Text>
                 <View style={styles.archetypeContainer}>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🐾 Animal Totem (Yoni):</Text>
+                    <Text style={styles.archetypeLabel}>🐾 Animal Totem (Yoni - Physical Chemistry):</Text>
                     <Text style={styles.archetypeValue}>{astrology?.yoniAnimal || 'Serpent'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>⚡ Temperament (Gana):</Text>
+                    <Text style={styles.archetypeLabel}>⚡ Temperament (Gana - Mental Synergy):</Text>
                     <Text style={styles.archetypeValue}>{astrology?.gana || 'Manushya'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🧬 Vitality (Nadi):</Text>
+                    <Text style={styles.archetypeLabel}>🧬 Vitality & Genetic Lineage (Nadi):</Text>
                     <Text style={styles.archetypeValue}>{astrology?.nadi || 'Antya'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🕊️ Work Spirit (Varna):</Text>
+                    <Text style={styles.archetypeLabel}>🕊️ Spiritual & Work Ego (Varna):</Text>
                     <Text style={styles.archetypeValue}>{astrology?.varna || 'Vaishya'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>💫 Power Alignment (Vashya):</Text>
+                    <Text style={styles.archetypeLabel}>💫 Natural Dominance & Allure (Vashya):</Text>
                     <Text style={styles.archetypeValue}>{astrology?.vashya || 'Chatushpada'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🔥 Manglik Status:</Text>
-                    <Text style={[styles.archetypeValue, astrology?.isManglik && { color: '#F59E0B' }]}>
-                      {astrology?.isManglik ? 'Manglik (High Passion)' : 'Non-Manglik (Balanced Mars)'}
+                    <Text style={styles.archetypeLabel}>🪐 Planetary Lord (Graha Maitri):</Text>
+                    <Text style={styles.archetypeValue}>{astrology?.chandraRashiLord || 'Venus'}</Text>
+                  </View>
+                  <View style={styles.archetypeRow}>
+                    <Text style={styles.archetypeLabel}>🔥 Manglik & Mars Intensity (Kuja Dosha):</Text>
+                    <Text style={[styles.archetypeValue, astrology?.isManglik ? { color: '#F59E0B' } : { color: '#10B981' }]}>
+                      {astrology?.isManglik ? '⚡ Manglik (High Passion)' : '✓ Non-Manglik (Balanced)'}
                     </Text>
                   </View>
+                </View>
+
+                {/* Cosmic Match Chemistry Explanation */}
+                <View style={styles.infoInsightCard}>
+                  <Text style={styles.infoInsightTitle}>🔮 How 36-Point Guna Milan Works in BlunderR</Text>
+                  <Text style={styles.infoInsightBody}>
+                    Your Vedic Cosmic Blueprint calculates deep compatibility beyond surface swipes across 8 dimensions:
+                    {'\n'}• <Text style={{ color: '#E0E7FF', fontWeight: '700' }}>Nadi (8 pts):</Text> Physiological & genetic resonance
+                    {'\n'}• <Text style={{ color: '#E0E7FF', fontWeight: '700' }}>Bhakoot (7 pts):</Text> Emotional joy & family harmony
+                    {'\n'}• <Text style={{ color: '#E0E7FF', fontWeight: '700' }}>Gana (6 pts):</Text> Temperament & lifestyle alignment
+                    {'\n'}• <Text style={{ color: '#E0E7FF', fontWeight: '700' }}>Graha Maitri (5 pts):</Text> Intellectual connection & mental wavelength
+                    {'\n'}• <Text style={{ color: '#E0E7FF', fontWeight: '700' }}>Yoni (4 pts):</Text> Instinctual animal magnetism & attraction
+                  </Text>
                 </View>
 
                 {/* Optional Calibration Card */}
@@ -454,5 +481,24 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  infoInsightCard: {
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    marginBottom: 20,
+  },
+  infoInsightTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#A5B4FC',
+    marginBottom: 8,
+  },
+  infoInsightBody: {
+    fontSize: 12,
+    color: '#94A3B8',
+    lineHeight: 18,
   },
 });

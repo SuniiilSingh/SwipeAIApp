@@ -41,12 +41,55 @@ export default function RootLayout() {
     ensureNotificationChannelsCreatedAsync().catch(() => {});
     registerForPushNotificationsAsync().catch(() => {});
 
-    // Listen to push notification interactions / tap responses
-    const cleanupNotifications = setupNotificationObserver(router);
+    // Disable right-click inspect and DevTools shortcuts on Web
+    let removeWebInspectBlock: (() => void) | null = null;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        return false;
+      };
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // F12
+        if (e.key === 'F12') {
+          e.preventDefault();
+          return false;
+        }
+        // Ctrl+Shift+I / J / C / K
+        if (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c', 'K', 'k'].includes(e.key)) {
+          e.preventDefault();
+          return false;
+        }
+        // Mac: Cmd+Option+I / J / C / U
+        if (e.metaKey && e.altKey && ['I', 'i', 'J', 'j', 'C', 'c', 'U', 'u'].includes(e.key)) {
+          e.preventDefault();
+          return false;
+        }
+        // Ctrl+U / Cmd+U (View source)
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u')) {
+          e.preventDefault();
+          return false;
+        }
+        // Ctrl+S / Cmd+S (Save page)
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'S' || e.key === 's')) {
+          e.preventDefault();
+          return false;
+        }
+      };
+
+      window.addEventListener('contextmenu', handleContextMenu);
+      window.addEventListener('keydown', handleKeyDown);
+
+      removeWebInspectBlock = () => {
+        window.removeEventListener('contextmenu', handleContextMenu);
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
 
     return () => {
       cleanupNotifications?.();
       captureSubscription?.remove?.();
+      removeWebInspectBlock?.();
     };
   }, [router]);
 

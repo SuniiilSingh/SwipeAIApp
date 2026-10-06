@@ -15,6 +15,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -69,6 +70,9 @@ const FILTER_TAGS = [
 
 export default function DiscoveryScreen() {
   const router = useRouter();
+  const { width: windowWidth } = useWindowDimensions();
+  const isCompactScreen = windowWidth < 390;
+  const isTinyScreen = windowWidth < 355;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [candidates, setCandidates] = useState<CandidateCard[]>([]);
@@ -743,48 +747,52 @@ function SwipeableCandidateCard({
   };
 
   const renderFeedHeader = () => (
-    <View style={styles.feedHeaderContainer}>
+    <View style={[styles.feedHeaderContainer, isCompactScreen && { paddingHorizontal: 10 }]}>
       {/* Top App Bar */}
       <View style={styles.brandBar}>
         <View style={styles.brandTitleWrap}>
-          <BlunderRWordmark size="md" slant={true} />
+          <BlunderRWordmark size={isCompactScreen ? 'sm' : 'md'} slant={true} />
         </View>
 
-        <View style={styles.brandActionsRow}>
-          {swipedHistory.length > 0 && (
-            <TouchableOpacity
-              style={styles.headerRewindBtn}
-              onPress={handleRewind}
-              activeOpacity={0.8}
-              accessibilityLabel="Rewind Last Profile">
-              <Text style={styles.headerRewindText}>↺</Text>
-            </TouchableOpacity>
-          )}
-
+        <View style={[styles.brandActionsRow, { gap: isTinyScreen ? 3 : isCompactScreen ? 4 : 6 }]}>
           {/* My Desire Button */}
           <TouchableOpacity
-            style={styles.desireHeaderButton}
+            style={[styles.desireHeaderButton, isCompactScreen && styles.compactHeaderBtn]}
             onPress={() => setShowDesireModal(true)}
             activeOpacity={0.8}
             accessibilityLabel="My Desire Preferences">
-            <Text style={styles.desireHeaderIcon}>🎯</Text>
-            <Text style={styles.desireHeaderText}>Desire</Text>
+            <Text style={[styles.desireHeaderIcon, isCompactScreen && { fontSize: 10 }]}>🎯</Text>
+            {!isTinyScreen && (
+              <Text style={[styles.desireHeaderText, isCompactScreen && { fontSize: 10 }]}>
+                Desire
+              </Text>
+            )}
           </TouchableOpacity>
 
           {/* Micro-Community Circles Button */}
           <TouchableOpacity
-            style={[styles.communityHeaderButton, selectedCommunityFilter && styles.communityHeaderButtonActive]}
+            style={[
+              styles.communityHeaderButton,
+              selectedCommunityFilter && styles.communityHeaderButtonActive,
+              isCompactScreen && styles.compactCommunityBtn,
+            ]}
             onPress={() => setShowCommunityModal(true)}
             activeOpacity={0.8}
             accessibilityLabel="Micro-Community Circles">
-            <Text style={styles.communityHeaderIcon}>
+            <Text style={[styles.communityHeaderIcon, isCompactScreen && { fontSize: 10 }]}>
               {selectedCommunityFilter?.badgeIcon || '🏙️'}
             </Text>
-            <Text
-              style={[styles.communityHeaderText, selectedCommunityFilter && styles.communityHeaderTextActive]}
-              numberOfLines={1}>
-              {selectedCommunityFilter ? selectedCommunityFilter.name.split(' ')[0] : 'Circles'}
-            </Text>
+            {!isTinyScreen && (
+              <Text
+                style={[
+                  styles.communityHeaderText,
+                  selectedCommunityFilter && styles.communityHeaderTextActive,
+                  isCompactScreen && { fontSize: 10 },
+                ]}
+                numberOfLines={1}>
+                {selectedCommunityFilter ? selectedCommunityFilter.name.split(' ')[0] : 'Circles'}
+              </Text>
+            )}
             {selectedCommunityFilter && (
               <TouchableOpacity
                 onPress={(e) => {
@@ -800,19 +808,22 @@ function SwipeableCandidateCard({
 
           {/* Boost Button */}
           <TouchableOpacity
-            style={styles.boostButton}
+            style={[styles.boostButton, isCompactScreen && styles.compactHeaderBtn]}
             activeOpacity={0.8}
             onPress={() => router.push('/(tabs)/store')}
             accessibilityLabel="Boost Profile">
-            <Text style={styles.boostButtonText}>⚡ Boost</Text>
+            <Text style={[styles.boostButtonText, isCompactScreen && { fontSize: 10 }]}>
+              {isTinyScreen ? '⚡' : '⚡ Boost'}
+            </Text>
           </TouchableOpacity>
 
+          {/* Notification Bell Button */}
           <TouchableOpacity
-            style={styles.notificationBellButton}
+            style={[styles.notificationBellButton, isCompactScreen && styles.compactBellBtn]}
             onPress={() => router.push('/notifications' as any)}
             activeOpacity={0.8}
             accessibilityLabel="Notifications">
-            <Text style={styles.bellIconText}>🔔</Text>
+            <Text style={[styles.bellIconText, isCompactScreen && { fontSize: 14 }]}>🔔</Text>
             {unreadNotificationCount > 0 && (
               <View style={styles.bellBadge}>
                 <Text style={styles.bellBadgeText}>
@@ -1152,25 +1163,24 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   feedHeaderContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#1A1C24',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   brandBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   brandTitleWrap: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4,
-    flexShrink: 1,
-    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+    marginRight: 6,
   },
   brandLogo: {
     fontSize: 22,
@@ -1204,13 +1214,13 @@ const styles = StyleSheet.create({
   brandActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
+    flexShrink: 1,
+    justifyContent: 'flex-end',
   },
   headerRewindBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(245, 158, 11, 0.15)',
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.4)',
@@ -1220,13 +1230,13 @@ const styles = StyleSheet.create({
   },
   headerRewindText: {
     color: '#F59E0B',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
   notificationBellButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#161822',
     borderWidth: 1,
     borderColor: '#262936',
@@ -1236,7 +1246,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   bellIconText: {
-    fontSize: 16,
+    fontSize: 15,
   },
   bellBadge: {
     position: 'absolute',
@@ -1261,18 +1271,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(233, 64, 87, 0.15)',
     borderWidth: 1,
     borderColor: '#E94057',
-    paddingHorizontal: 12,
-    height: 34,
-    borderRadius: 17,
+    paddingHorizontal: 9,
+    height: 32,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3.5,
     flexShrink: 0,
   },
   boostButtonText: {
     color: '#E94057',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
   },
   feedTagline: {
@@ -1303,14 +1313,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 56, 92, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255, 56, 92, 0.4)',
-    paddingHorizontal: 9,
-    height: 34,
-    borderRadius: 17,
-    gap: 4,
+    paddingHorizontal: 8,
+    height: 32,
+    borderRadius: 16,
+    gap: 3.5,
     flexShrink: 0,
   },
   desireHeaderIcon: {
-    fontSize: 12,
+    fontSize: 11,
   },
   desireHeaderText: {
     color: '#FF385C',
@@ -1323,19 +1333,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 229, 255, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.4)',
-    paddingHorizontal: 8,
-    height: 34,
-    borderRadius: 17,
-    gap: 4,
-    maxWidth: 100,
+    paddingHorizontal: 7,
+    height: 32,
+    borderRadius: 16,
+    gap: 3.5,
+    maxWidth: 82,
     flexShrink: 0,
   },
   communityHeaderButtonActive: {
     backgroundColor: '#00E5FF',
     borderColor: '#00E5FF',
   },
+  compactHeaderBtn: {
+    paddingHorizontal: 6,
+    height: 30,
+    borderRadius: 15,
+  },
+  compactCommunityBtn: {
+    paddingHorizontal: 6,
+    height: 30,
+    borderRadius: 15,
+    maxWidth: 68,
+  },
+  compactBellBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
   communityHeaderIcon: {
-    fontSize: 12,
+    fontSize: 11,
   },
   communityHeaderText: {
     color: '#00E5FF',

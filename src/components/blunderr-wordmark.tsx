@@ -102,10 +102,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 0,
   },
   wordmarkRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    flexShrink: 0,
   },
   slantedLockup: {
     transform: [{ skewX: '-5deg' }],

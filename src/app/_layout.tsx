@@ -57,7 +57,7 @@ export default function RootLayout() {
         <View style={webStyles.outerContainer}>
           {Platform.OS === 'web' && (
             <View style={webStyles.webHeader}>
-              <Text style={webStyles.webHeaderTitle}>⚡ BlunderR Web Client</Text>
+              <Text style={webStyles.webHeaderTitle}>⚡ BlunderR Web View</Text>
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://expo.dev/artifacts/eas/1VbdICRgtwwG-knj2ouL9qq7aWufivcxiNRdc75npCM.apk')}
                 style={webStyles.webApkBtn}

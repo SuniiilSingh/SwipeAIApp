@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -54,22 +54,87 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <CallProvider>
         <StatusBar style="light" />
-        <Stack
-          initialRouteName="index"
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: '#0E0F13' },
-            animation: 'slide_from_right',
-          }}>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="auth/index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />
-          <Stack.Screen name="safe-date/index" options={{ headerShown: false }} />
-          <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
-        </Stack>
+        <View style={webStyles.outerContainer}>
+          {Platform.OS === 'web' && (
+            <View style={webStyles.webHeader}>
+              <Text style={webStyles.webHeaderTitle}>⚡ BlunderR Web Client</Text>
+              <TouchableOpacity
+                onPress={() => Linking.openURL('https://expo.dev/artifacts/eas/1VbdICRgtwwG-knj2ouL9qq7aWufivcxiNRdc75npCM.apk')}
+                style={webStyles.webApkBtn}
+                activeOpacity={0.8}>
+                <Text style={webStyles.webApkBtnText}>📱 Download Android APK</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={webStyles.appFrame}>
+            <Stack
+              initialRouteName="index"
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#0E0F13' },
+                animation: 'slide_from_right',
+              }}>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="auth/index" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />
+              <Stack.Screen name="safe-date/index" options={{ headerShown: false }} />
+              <Stack.Screen name="notifications/index" options={{ headerShown: false }} />
+            </Stack>
+          </View>
+        </View>
       </CallProvider>
     </SafeAreaProvider>
   );
 }
+
+const webStyles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: '#08080E',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  webHeader: {
+    width: '100%',
+    maxWidth: 580,
+    backgroundColor: '#12141F',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E212E',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 9999,
+  },
+  webHeaderTitle: {
+    color: '#F1F5F9',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  webApkBtn: {
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  webApkBtnText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  appFrame: {
+    flex: 1,
+    width: '100%',
+    maxWidth: Platform.OS === 'web' ? 580 : undefined,
+    height: '100%',
+    backgroundColor: '#0E0F13',
+    overflow: 'hidden',
+    borderLeftWidth: Platform.OS === 'web' ? 1 : 0,
+    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
+    borderColor: '#1E212E',
+  },
+});

@@ -394,14 +394,15 @@ export default function DiscoveryScreen() {
     return true;
   });
 
-  // Pre-fetch top 4 candidate photos into memory-disk cache for 60/120fps instantaneous swiping
+  // Proactive pre-fetch top candidate photos into memory-disk cache for instantaneous 60/120fps swiping
   useEffect(() => {
     if (filteredCandidates.length > 0) {
-      const topUrls = filteredCandidates
-        .slice(0, 4)
-        .flatMap((c) => (c.photos && c.photos.length > 0 ? [c.photos[0]] : []));
-      if (topUrls.length > 0) {
-        ExpoImage.prefetch(topUrls).catch(() => {});
+      const urlsToPrefetch = filteredCandidates
+        .slice(0, 8)
+        .flatMap((c) => (c.photos && c.photos.length > 0 ? c.photos.slice(0, 2) : []))
+        .filter(Boolean);
+      if (urlsToPrefetch.length > 0) {
+        ExpoImage.prefetch(urlsToPrefetch).catch(() => {});
       }
     }
   }, [filteredCandidates]);
@@ -556,12 +557,15 @@ function SwipeableCandidateCard({
           style={styles.heroTouchWrap}>
           <ExpoImage
             source={{
-              uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800',
+              uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
             }}
+            priority="high"
             style={styles.heroImage}
             contentFit="cover"
             contentPosition="top center"
             cachePolicy="memory-disk"
+            transition={150}
+            recyclingKey={item.userId}
           />
 
           {/* Top Badges Overlaid on Photo */}

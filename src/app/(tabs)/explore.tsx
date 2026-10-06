@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image as ExpoImage } from 'expo-image';
 import { api } from '@/services/api';
 import { MicroCircle } from '@/types';
 
@@ -102,7 +103,13 @@ export default function ExploreScreen() {
 
           {!memeDone ? (
             <View style={styles.memeContainer}>
-              <Image source={{ uri: currentMeme.url }} style={styles.memeImage} resizeMode="cover" />
+              <ExpoImage
+                source={{ uri: currentMeme.url }}
+                style={styles.memeImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
               <View style={styles.memeMeta}>
                 <Text style={styles.memeTag}>{currentMeme.tag}</Text>
                 <Text style={styles.memeTitle}>{currentMeme.title}</Text>

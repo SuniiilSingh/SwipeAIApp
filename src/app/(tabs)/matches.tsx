@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Image as ExpoImage } from 'expo-image';
 import { api } from '@/services/api';
 import { CandidateCard, MatchItem, UserProfile } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
@@ -155,7 +156,13 @@ export default function MatchesScreen() {
         <TouchableOpacity
           style={styles.avatarContainer}
           onPress={() => setSelectedMatch(item)}>
-          <Image source={{ uri: item.otherUserPhoto }} style={styles.avatar} />
+          <ExpoImage
+            source={{ uri: item.otherUserPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75' }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+          />
           {item.isDigilockerVerified && (
             <View style={styles.goldBadgeDot}>
               <Text style={styles.goldBadgeDotText}>🛡️</Text>

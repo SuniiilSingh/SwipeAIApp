@@ -528,6 +528,7 @@ export default function ProfileDetailModal({
                 style={styles.memePhoto}
                 contentFit="contain"
                 transition={200}
+                cachePolicy="memory-disk"
               />
               <Text style={styles.memeCaption}>
                 {candidate.selectedMemeTitle || candidate.memeMatch?.memeTitle || 'Profile Meme DNA'}

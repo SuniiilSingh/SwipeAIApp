@@ -83,6 +83,16 @@ export const normalizeImageUrl = (url?: string | null, isFromRemoteDb: boolean =
     return `${BASE_URL}/uploads/${trimmed}`;
   }
 
+  // Optimize Unsplash images for instant loading, WebP compression, and mobile responsive dimensions
+  if (trimmed.includes('images.unsplash.com')) {
+    if (!trimmed.includes('auto=format')) {
+      trimmed += (trimmed.includes('?') ? '&' : '?') + 'auto=format&fit=crop&q=75';
+    }
+    if (trimmed.includes('w=800')) {
+      trimmed = trimmed.replace('w=800', 'w=500');
+    }
+  }
+
   return trimmed;
 };
 

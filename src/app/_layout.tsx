@@ -101,12 +101,24 @@ export default function RootLayout() {
           {Platform.OS === 'web' && (
             <View style={webStyles.webHeader}>
               <Text style={webStyles.webHeaderTitle}>⚡ BlunderR Web View</Text>
-              <TouchableOpacity
-                onPress={() => Linking.openURL('https://expo.dev/artifacts/eas/1VbdICRgtwwG-knj2ouL9qq7aWufivcxiNRdc75npCM.apk')}
-                style={webStyles.webApkBtn}
-                activeOpacity={0.8}>
-                <Text style={webStyles.webApkBtnText}>📱 Download Android APK</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => Linking.openURL('https://expo.dev/artifacts/eas/1VbdICRgtwwG-knj2ouL9qq7aWufivcxiNRdc75npCM.apk')}
+                  style={webStyles.webApkBtn}
+                  activeOpacity={0.8}>
+                  <Text style={webStyles.webApkBtnText}>🤖 Android APK</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/#download-apple';
+                    }
+                  }}
+                  style={webStyles.webIosBtn}
+                  activeOpacity={0.8}>
+                  <Text style={webStyles.webIosBtnText}> Apple iOS</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
           <View style={webStyles.appFrame}>
@@ -160,11 +172,24 @@ const webStyles = StyleSheet.create({
   },
   webApkBtn: {
     backgroundColor: '#FF385C',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   webApkBtnText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  webIosBtn: {
+    backgroundColor: '#1E212E',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  webIosBtnText: {
     color: '#FFF',
     fontWeight: '800',
     fontSize: 12,

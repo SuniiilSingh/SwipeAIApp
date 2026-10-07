@@ -23,13 +23,112 @@ import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 
 const { width, height } = Dimensions.get('window');
 
-const WITTY_BIOS = [
-  'Building things by day, debugging life choices by night. Filter coffee over Americano every single time.',
-  'Golden retriever energy. Always down for 2 AM street food runs, spontaneous road trips, and hyping you up.',
-  'Old soul. Vintage ghazals, bookstore corners, handwritten letters, and quiet candlelit monsoon chai.',
-  'Will judge you solely on your biryani choice. Can calculate optimal dosa crispiness in 0.5 seconds flat.',
-  'Equal parts hyper-ambitious builder and weekend couch philosopher. Biryani purist with zero small talk.',
-  'Fluent in Hindi, English, and subtle sarcasm. Looking for someone authentic to explore rooftop spots.'
+export interface BioArchetype {
+  id: string;
+  category: string;
+  emoji: string;
+  title: string;
+  tagline: string;
+  bioText: string;
+}
+
+const WITTY_BIOS: BioArchetype[] = [
+  {
+    id: 'filter-coffee-tech',
+    category: 'Work & Ambition',
+    emoji: '☕',
+    title: 'Filter Coffee Tech',
+    tagline: 'Founders & late night debugging',
+    bioText: 'Building things by day, debugging life choices by night. Filter coffee over Americano every single time.',
+  },
+  {
+    id: 'golden-retriever',
+    category: 'Wholesome & Chaos',
+    emoji: '🐕',
+    title: 'Golden Retriever Energy',
+    tagline: 'Spontaneous food runs & hyping you up',
+    bioText: 'Golden retriever energy. Always down for 2 AM street food runs, spontaneous road trips, and hyping you up.',
+  },
+  {
+    id: 'old-soul',
+    category: 'Art & Deep Talks',
+    emoji: '🕯️',
+    title: 'Old Soul Romantic',
+    tagline: 'Vintage ghazals & monsoon chai',
+    bioText: 'Old soul. Vintage ghazals, bookstore corners, handwritten letters, and quiet candlelit monsoon chai.',
+  },
+  {
+    id: 'biryani-purist',
+    category: 'Foodie Purist',
+    emoji: '🍛',
+    title: 'Biryani Purist',
+    tagline: 'Zero small talk, maximum flavor',
+    bioText: 'Will judge you solely on your biryani choice. Can calculate optimal dosa crispiness in 0.5 seconds flat.',
+  },
+  {
+    id: 'couch-philosopher',
+    category: 'Work & Ambition',
+    emoji: '⚡',
+    title: 'Ambitious Yet Chill',
+    tagline: 'Work hard, weekend couch philosopher',
+    bioText: 'Equal parts hyper-ambitious builder and weekend couch philosopher. Biryani purist with zero small talk.',
+  },
+  {
+    id: 'sarcasm-connoisseur',
+    category: 'Witty & Playful',
+    emoji: '🍸',
+    title: 'Fluent in Sarcasm',
+    tagline: 'Rooftops, live indie & playful banter',
+    bioText: 'Fluent in Hindi, English, and subtle sarcasm. Looking for someone authentic to explore rooftop spots.',
+  },
+  {
+    id: 'mountain-escapist',
+    category: 'Travel & Outdoors',
+    emoji: '🏔️',
+    title: 'Himachal Hiker',
+    tagline: 'Pahadi cafes, pine air & stargazing',
+    bioText: 'Mentally sitting at a riverside cafe in Kasol. Big on quiet hikes, spontaneous weekend getaways, and bonfire playlists.',
+  },
+  {
+    id: 'standup-comedy-fan',
+    category: 'Witty & Playful',
+    emoji: '🎤',
+    title: 'Open-Mic Addict',
+    tagline: 'Dark humor & front row giggles',
+    bioText: 'My therapist says I deflect emotional vulnerability with stand-up comedy and witty comebacks. Prove her right.',
+  },
+  {
+    id: 'indie-music-audiophile',
+    category: 'Art & Deep Talks',
+    emoji: '🎧',
+    title: 'Spotify Snob',
+    tagline: 'Curated playlists & Vinyl hunting',
+    bioText: 'Will share Spotify playlists instead of feelings. If you like Prateek Kuhad, Cigarettes After Sex, or classic RD Burman, say hi.',
+  },
+  {
+    id: 'fitness-foodie-balance',
+    category: 'Wholesome & Chaos',
+    emoji: '🥑',
+    title: 'Fit But Loves Chole Bhature',
+    tagline: 'Deadlifts in the morning, dessert at night',
+    bioText: 'Deadlifting my body weight by morning, shamelessly demolishing sweet lassi and hot street momos by sundown.',
+  },
+  {
+    id: 'pet-parent',
+    category: 'Wholesome & Chaos',
+    emoji: '🐾',
+    title: 'Full-Time Pet Parent',
+    tagline: 'My dog has to approve of you first',
+    bioText: 'I only swipe right on people my dog would enthusiastically wag its tail at. Prepare for unlimited puppy photos.',
+  },
+  {
+    id: 'thoughtful-introvert',
+    category: 'Art & Deep Talks',
+    emoji: '📚',
+    title: 'Quiet Observer',
+    tagline: 'Board games, deep 1-on-1s & comfort food',
+    bioText: 'Low social battery for loud clubs, unlimited energy for meaningful 1-on-1 conversations over steaming ramen.',
+  },
 ];
 
 const MICRO_CIRCLES = [
@@ -73,8 +172,9 @@ export default function OnboardingDecksScreen() {
   const [institute, setInstitute] = useState<string>('BITS Pilani');
 
   // Deck 4: Bio Archetype
-  const [bio, setBio] = useState<string>(WITTY_BIOS[0]);
+  const [bio, setBio] = useState<string>(WITTY_BIOS[0].bioText);
   const [bioIdx, setBioIdx] = useState<number>(0);
+  const [selectedBioCategory, setSelectedBioCategory] = useState<string>('All');
 
   // Deck 5: Lifestyle & Height
   const [heightCm, setHeightCm] = useState<number>(178);
@@ -168,9 +268,13 @@ export default function OnboardingDecksScreen() {
 
   const handleRerollBio = () => {
     hapticFeedback.light();
-    const nextIdx = (bioIdx + 1) % WITTY_BIOS.length;
+    const candidatePool = selectedBioCategory === 'All'
+      ? WITTY_BIOS
+      : WITTY_BIOS.filter((b) => b.category === selectedBioCategory);
+    const pool = candidatePool.length > 0 ? candidatePool : WITTY_BIOS;
+    const nextIdx = (bioIdx + 1) % pool.length;
     setBioIdx(nextIdx);
-    setBio(WITTY_BIOS[nextIdx]);
+    setBio(pool[nextIdx].bioText);
   };
 
   const handleSelfieCaptured = async (uri: string) => {
@@ -671,38 +775,70 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckBody}>
-                  <Text style={styles.fieldLabel}>POPULAR ARCHETYPES</Text>
-                  <View style={{ gap: 8 }}>
-                    <TouchableOpacity
-                      style={[styles.personaCard, bio === WITTY_BIOS[0] && styles.personaCardSelected]}
-                      onPress={() => {
-                        hapticFeedback.light();
-                        setBio(WITTY_BIOS[0]);
-                      }}>
-                      <Text style={styles.personaTitle}>☕ Filter Coffee Tech</Text>
-                      <Text style={styles.personaDesc} numberOfLines={2}>{WITTY_BIOS[0]}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.personaCard, bio === WITTY_BIOS[1] && styles.personaCardSelected]}
-                      onPress={() => {
-                        hapticFeedback.light();
-                        setBio(WITTY_BIOS[1]);
-                      }}>
-                      <Text style={styles.personaTitle}>🐕 Golden Retriever Energy</Text>
-                      <Text style={styles.personaDesc} numberOfLines={2}>{WITTY_BIOS[1]}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.personaCard, bio === WITTY_BIOS[2] && styles.personaCardSelected]}
-                      onPress={() => {
-                        hapticFeedback.light();
-                        setBio(WITTY_BIOS[2]);
-                      }}>
-                      <Text style={styles.personaTitle}>🕯️ Old Soul Romantic</Text>
-                      <Text style={styles.personaDesc} numberOfLines={2}>{WITTY_BIOS[2]}</Text>
-                    </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.fieldLabel}>CURATED ARCHETYPES (TAP TO SELECT)</Text>
+                    <Text style={{ fontSize: 10, color: '#FCD34D', fontWeight: '800' }}>
+                      {WITTY_BIOS.length} ENERGIES
+                    </Text>
                   </View>
+
+                  {/* Category Filter Pills */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.categoryFilterScroll}
+                    contentContainerStyle={styles.categoryFilterRow}>
+                    {['All', 'Work & Ambition', 'Wholesome & Chaos', 'Art & Deep Talks', 'Witty & Playful', 'Foodie Purist', 'Travel & Outdoors'].map((cat) => {
+                      const isCatSel = selectedBioCategory === cat;
+                      return (
+                        <TouchableOpacity
+                          key={cat}
+                          style={[styles.categoryFilterPill, isCatSel && styles.categoryFilterPillActive]}
+                          onPress={() => {
+                            hapticFeedback.light();
+                            setSelectedBioCategory(cat);
+                          }}>
+                          <Text style={[styles.categoryFilterText, isCatSel && styles.categoryFilterTextActive]}>
+                            {cat}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Scrollable Archetypes Card Deck */}
+                  <ScrollView
+                    style={styles.bioArchetypeScroller}
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}>
+                    {WITTY_BIOS
+                      .filter((item) => selectedBioCategory === 'All' || item.category === selectedBioCategory)
+                      .map((item) => {
+                        const isSelected = bio === item.bioText;
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[styles.personaCard, isSelected && styles.personaCardSelected]}
+                            activeOpacity={0.8}
+                            onPress={() => {
+                              hapticFeedback.light();
+                              setBio(item.bioText);
+                            }}>
+                            <View style={styles.personaHeaderRow}>
+                              <Text style={styles.personaTitle}>
+                                {item.emoji} {item.title}
+                              </Text>
+                              <View style={styles.personaTagBadge}>
+                                <Text style={styles.personaTagBadgeText}>{item.category}</Text>
+                              </View>
+                            </View>
+                            <Text style={styles.personaDesc} numberOfLines={2}>
+                              {item.bioText}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </ScrollView>
 
                   {/* Bio Editor with Reroll */}
                   <View style={styles.bioEditorBox}>
@@ -1248,26 +1384,78 @@ const styles = StyleSheet.create({
   microPillTextSelected: {
     color: '#FFF',
   },
+  categoryFilterScroll: {
+    marginVertical: 4,
+    maxHeight: 36,
+  },
+  categoryFilterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 2,
+  },
+  categoryFilterPill: {
+    backgroundColor: '#0A0D1B',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  categoryFilterPillActive: {
+    backgroundColor: 'rgba(255, 209, 102, 0.2)',
+    borderColor: '#FCD34D',
+  },
+  categoryFilterText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  categoryFilterTextActive: {
+    color: '#FCD34D',
+    fontWeight: '800',
+  },
+  bioArchetypeScroller: {
+    maxHeight: 215,
+    marginVertical: 4,
+  },
   personaCard: {
     backgroundColor: '#080B17',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 18,
-    padding: 12,
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 8,
   },
   personaCardSelected: {
     backgroundColor: 'rgba(255, 209, 102, 0.15)',
     borderColor: '#FCD34D',
   },
+  personaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  personaTagBadge: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  personaTagBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#CBD5E1',
+    letterSpacing: 0.3,
+  },
   personaTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#FFF',
-    marginBottom: 4,
   },
   personaDesc: {
     fontSize: 12,
-    color: '#8E95AA',
+    color: '#94A3B8',
     lineHeight: 16,
   },
   bioEditorBox: {

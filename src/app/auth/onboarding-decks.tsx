@@ -5,6 +5,7 @@ import {
   Animated,
   Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,10 @@ import { DietaryPreference, Gender } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
+import {
+  GENDER_PRESETS,
+  GENDER_PREFERENCE_PRESETS,
+} from '@/constants/profile-presets';
 
 const { width, height } = Dimensions.get('window');
 
@@ -162,9 +167,8 @@ export default function OnboardingDecksScreen() {
   const [genderDisplay, setGenderDisplay] = useState<string>('Man');
   const [lookingFor, setLookingFor] = useState<string>('Women');
   const [orientation, setOrientation] = useState<string>('Straight');
-  const [showMoreGenders, setShowMoreGenders] = useState<boolean>(false);
-  const [showMorePreferences, setShowMorePreferences] = useState<boolean>(false);
-  const [customGenderInput, setCustomGenderInput] = useState<string>('');
+  const [showGenderModal, setShowGenderModal] = useState<boolean>(false);
+  const [showPreferenceModal, setShowPreferenceModal] = useState<boolean>(false);
 
   // Deck 3: Neighborhood & Career
   const [microCircle, setMicroCircle] = useState<string>('🚀 Koramangala Tech');
@@ -494,7 +498,23 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckBody}>
-                  <Text style={styles.fieldLabel}>I IDENTIFY AS</Text>
+                  {/* Field 1: I IDENTIFY AS with Edit Pen */}
+                  <View style={styles.fieldHeaderWithEdit}>
+                    <Text style={styles.fieldLabel}>I IDENTIFY AS</Text>
+                    <TouchableOpacity
+                      style={styles.fieldEditPenBtn}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowGenderModal(true);
+                      }}>
+                      <Text style={styles.fieldEditPenIcon}>✏️</Text>
+                      <Text style={styles.fieldEditPenLabel}>
+                        {genderDisplay !== 'Man' && genderDisplay !== 'Woman' ? genderDisplay : 'More Options'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
                   <View style={styles.rapidRow}>
                     <TouchableOpacity
                       style={[styles.rapidCard, genderDisplay === 'Man' && styles.rapidCardSelected]}
@@ -521,78 +541,34 @@ export default function OnboardingDecksScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Expandable Gender Pill */}
-                  <TouchableOpacity
-                    style={[
-                      styles.expandableTogglePill,
-                      genderDisplay !== 'Man' && genderDisplay !== 'Woman' && styles.expandableTogglePillActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      hapticFeedback.light();
-                      setShowMoreGenders(!showMoreGenders);
-                    }}>
-                    <Text
-                      style={[
-                        styles.expandableTogglePillText,
-                        genderDisplay !== 'Man' && genderDisplay !== 'Woman' && styles.expandableTogglePillTextActive,
-                      ]}>
-                      {genderDisplay !== 'Man' && genderDisplay !== 'Woman'
-                        ? `🌈 Identity: ${genderDisplay}`
-                        : '🌈 Non-binary, Queer or More Identities...'}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: '#A855F7' }}>
-                      {showMoreGenders ? '▲' : '▼'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {showMoreGenders && (
-                    <View style={styles.expandableAccordionBox}>
-                      <View style={styles.inclusiveChipCluster}>
-                        {['Non-binary', 'Transgender', 'Agender', 'Bigender', 'Genderfluid', 'Queer'].map((gName) => {
-                          const isSel = genderDisplay === gName;
-                          return (
-                            <TouchableOpacity
-                              key={gName}
-                              style={[styles.inclusiveChip, isSel && styles.inclusiveChipSelected]}
-                              onPress={() => {
-                                hapticFeedback.light();
-                                setGender('NON_BINARY');
-                                setGenderDisplay(gName);
-                              }}>
-                              <Text style={[styles.inclusiveChipText, isSel && styles.inclusiveChipTextSelected]}>
-                                {gName} {isSel ? '✓' : ''}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-
-                      {/* Custom Identity Typing */}
-                      <View style={styles.customInputRow}>
-                        <TextInput
-                          style={styles.customInputField}
-                          placeholder="Or type custom identity..."
-                          placeholderTextColor="#64748B"
-                          value={customGenderInput}
-                          onChangeText={setCustomGenderInput}
-                        />
-                        <TouchableOpacity
-                          style={styles.customInputApplyBtn}
-                          onPress={() => {
-                            if (customGenderInput.trim()) {
-                              hapticFeedback.success();
-                              setGender('NON_BINARY');
-                              setGenderDisplay(customGenderInput.trim());
-                            }
-                          }}>
-                          <Text style={styles.customInputApplyBtnText}>Apply</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+                  {/* If custom or non-binary gender selected via modal, show quick active badge */}
+                  {genderDisplay !== 'Man' && genderDisplay !== 'Woman' && (
+                    <TouchableOpacity
+                      style={styles.activeCustomIdentityPill}
+                      onPress={() => setShowGenderModal(true)}>
+                      <Text style={styles.activeCustomIdentityText}>
+                        🌈 Selected: <Text style={{ fontWeight: '900', color: '#FFF' }}>{genderDisplay}</Text> (Tap to change)
+                      </Text>
+                    </TouchableOpacity>
                   )}
 
-                  <Text style={[styles.fieldLabel, { marginTop: 14 }]}>LOOKING TO MEET</Text>
+                  {/* Field 2: LOOKING TO MEET with Edit Pen */}
+                  <View style={[styles.fieldHeaderWithEdit, { marginTop: 14 }]}>
+                    <Text style={styles.fieldLabel}>LOOKING TO MEET</Text>
+                    <TouchableOpacity
+                      style={styles.fieldEditPenBtn}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowPreferenceModal(true);
+                      }}>
+                      <Text style={styles.fieldEditPenIcon}>✏️</Text>
+                      <Text style={styles.fieldEditPenLabel}>
+                        {lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone' ? lookingFor : 'All Choices'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
                   <View style={styles.rapidRow}>
                     <TouchableOpacity
                       style={[styles.rapidCard, lookingFor === 'Women' && styles.rapidCardSelected]}
@@ -631,53 +607,15 @@ export default function OnboardingDecksScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Expandable Looking For Spectrum */}
-                  <TouchableOpacity
-                    style={[
-                      styles.expandableTogglePill,
-                      lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone' && styles.expandableTogglePillActive,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      hapticFeedback.light();
-                      setShowMorePreferences(!showMorePreferences);
-                    }}>
-                    <Text
-                      style={[
-                        styles.expandableTogglePillText,
-                        lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone' && styles.expandableTogglePillTextActive,
-                      ]}>
-                      {lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone'
-                        ? `💫 Target: ${lookingFor}`
-                        : '💫 Specific gender spectrum & identities...'}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: '#A855F7' }}>
-                      {showMorePreferences ? '▲' : '▼'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {showMorePreferences && (
-                    <View style={styles.expandableAccordionBox}>
-                      <View style={styles.inclusiveChipCluster}>
-                        {['Non-binary & Expansive', 'Transgender folks', 'Open to All', 'Other'].map((pref) => {
-                          const isSel = lookingFor === pref;
-                          return (
-                            <TouchableOpacity
-                              key={pref}
-                              style={[styles.inclusiveChip, isSel && styles.inclusiveChipSelected]}
-                              onPress={() => {
-                                hapticFeedback.light();
-                                setLookingFor(pref);
-                                if (turboMode) advanceToDeck(3);
-                              }}>
-                              <Text style={[styles.inclusiveChipText, isSel && styles.inclusiveChipTextSelected]}>
-                                {pref} {isSel ? '✓' : ''}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    </View>
+                  {/* If custom preference selected via modal, show quick active badge */}
+                  {lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone' && (
+                    <TouchableOpacity
+                      style={styles.activeCustomIdentityPill}
+                      onPress={() => setShowPreferenceModal(true)}>
+                      <Text style={styles.activeCustomIdentityText}>
+                        💫 Target: <Text style={{ fontWeight: '900', color: '#FFF' }}>{lookingFor}</Text> (Tap to change)
+                      </Text>
+                    </TouchableOpacity>
                   )}
                 </View>
 
@@ -1092,6 +1030,95 @@ export default function OnboardingDecksScreen() {
           onClose={() => setShowSelfieModal(false)}
           onCapture={handleSelfieCaptured}
         />
+      )}
+
+      {/* Gender Selection Modal (Triggered by ✏️ Edit Pen) */}
+      {showGenderModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderEmoji}>👤</Text>
+              <Text style={styles.modalHeaderTitle}>Select Gender Identity</Text>
+              <Text style={styles.modalHeaderSub}>
+                All authentic identities and spectrums are welcome.
+              </Text>
+
+              <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 8 }}>
+                {GENDER_PRESETS.map((item) => {
+                  const isSel = genderDisplay === item;
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[styles.pickerOptionItem, isSel && styles.pickerOptionActive]}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        if (item === 'Man') {
+                          setGender('MALE');
+                        } else if (item === 'Woman') {
+                          setGender('FEMALE');
+                        } else {
+                          setGender('NON_BINARY');
+                        }
+                        setGenderDisplay(item);
+                        setShowGenderModal(false);
+                      }}>
+                      <Text style={[styles.pickerOptionText, isSel && styles.pickerOptionTextActive]}>
+                        {item} {isSel ? '✓' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowGenderModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Done / Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Preference Selection Modal (Triggered by ✏️ Edit Pen) */}
+      {showPreferenceModal && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalHeaderEmoji}>👥</Text>
+              <Text style={styles.modalHeaderTitle}>Looking To Meet</Text>
+              <Text style={styles.modalHeaderSub}>
+                Calibrate who you want to discover in your deck.
+              </Text>
+
+              <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 8 }}>
+                {[...GENDER_PREFERENCE_PRESETS, 'Non-binary & Expansive', 'Transgender folks'].map((item) => {
+                  const isSel = lookingFor === item;
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[styles.pickerOptionItem, isSel && styles.pickerOptionActive]}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setLookingFor(item);
+                        setShowPreferenceModal(false);
+                      }}>
+                      <Text style={[styles.pickerOptionText, isSel && styles.pickerOptionTextActive]}>
+                        {item} {isSel ? '✓' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setShowPreferenceModal(false)}>
+                <Text style={styles.modalCancelBtnText}>Done / Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -1730,5 +1757,118 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: '#FFF',
+  },
+  fieldHeaderWithEdit: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  fieldEditPenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  fieldEditPenIcon: {
+    fontSize: 11,
+  },
+  fieldEditPenLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FF6B8B',
+    letterSpacing: 0.3,
+  },
+  activeCustomIdentityPill: {
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderWidth: 1,
+    borderColor: '#A855F7',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    marginTop: 6,
+    alignItems: 'center',
+  },
+  activeCustomIdentityText: {
+    fontSize: 12,
+    color: '#D8B4FE',
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#0F1326',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.4)',
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.7,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeaderEmoji: {
+    fontSize: 32,
+    marginBottom: 6,
+  },
+  modalHeaderTitle: {
+    color: '#FFF',
+    fontSize: 17,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  modalHeaderSub: {
+    color: '#8E95AA',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  pickerOptionItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 12,
+    marginVertical: 2,
+  },
+  pickerOptionActive: {
+    backgroundColor: 'rgba(255, 56, 92, 0.18)',
+  },
+  pickerOptionText: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  pickerOptionTextActive: {
+    color: '#FF385C',
+    fontWeight: '900',
+  },
+  modalCancelBtn: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  modalCancelBtnText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '800',
   },
 });

@@ -436,13 +436,25 @@ export const api = {
     return { isVerified: true, badge: 'GOLD_SHIELD', message: 'DigiLocker Verified Citizen Badge awarded!' };
   },
 
-  verifyLiveness: async (headTurnDurationMs: number = 3000, passed: boolean = true, selfieFrameBase64?: string) => {
+  verifyLiveness: async (
+    headTurnDurationMs: number = 3000,
+    passed: boolean = true,
+    selfieFrameBase64?: string,
+    rightFrameBase64?: string,
+    leftFrameBase64?: string
+  ) => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/kyc/liveness/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ headTurnDurationMs, simulatePass: passed, selfieFrameBase64 }),
-      }, 15000);
+        body: JSON.stringify({
+          headTurnDurationMs,
+          simulatePass: passed,
+          selfieFrameBase64,
+          rightFrameBase64,
+          leftFrameBase64,
+        }),
+      }, 20000);
       if (res.ok) {
         const data = await res.json();
         if (data?.isLiveHuman && cachedProfile) {
@@ -453,7 +465,11 @@ export const api = {
       }
     } catch (e) {}
     if (!passed) {
-      return { isLiveHuman: false, livenessScore: 0.45, message: 'Liveness check failed. Movement was not completed.' };
+      return {
+        isLiveHuman: false,
+        livenessScore: 0.35,
+        message: '3D Liveness verification could not confirm head movement. Please try again.',
+      };
     }
     return { isLiveHuman: true, livenessScore: 0.95, message: '3D Biometric Liveness verified.' };
   },

@@ -19,7 +19,7 @@ import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { DietaryPreference, Gender } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
-import SelfieCameraModal from '@/components/selfie-camera-modal';
+import LivenessCameraModal from '@/components/liveness-camera-modal';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 import {
   GENDER_PRESETS,
@@ -281,11 +281,13 @@ export default function OnboardingDecksScreen() {
     setBio(pool[nextIdx].bioText);
   };
 
-  const handleSelfieCaptured = async (uri: string) => {
+  const handleSelfieCaptured = async (score: number, centerPhotoUri?: string) => {
     setShowSelfieModal(false);
     hapticFeedback.success();
     setIsLivenessVerified(true);
-    setSelfieUrl(uri);
+    if (centerPhotoUri) {
+      setSelfieUrl(centerPhotoUri);
+    }
   };
 
   const handleCompileAndLaunch = async () => {
@@ -1023,12 +1025,12 @@ export default function OnboardingDecksScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Selfie Camera Modal */}
+      {/* 3D Biometric Liveness Camera Modal */}
       {showSelfieModal && (
-        <SelfieCameraModal
+        <LivenessCameraModal
           visible={showSelfieModal}
           onClose={() => setShowSelfieModal(false)}
-          onCapture={handleSelfieCaptured}
+          onSuccess={handleSelfieCaptured}
         />
       )}
 

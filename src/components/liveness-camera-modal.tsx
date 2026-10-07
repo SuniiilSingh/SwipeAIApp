@@ -21,7 +21,7 @@ const { width } = Dimensions.get('window');
 interface LivenessCameraModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess: (score: number) => void;
+  onSuccess: (score: number, centerPhotoUri?: string) => void;
 }
 
 type LivenessStep = 'READY' | 'CENTER' | 'RIGHT' | 'LEFT' | 'ANALYZING' | 'PASSED' | 'FAILED';
@@ -333,34 +333,46 @@ export default function LivenessCameraModal({
       return;
     }
 
-    // 3. Both Right & Left head movements successfully verified!
-    // Register verified 3D liveness with the backend
-    setStatusMessage('Verifying 3D liveness biometrics...');
+    // 3. Send all 3 captured poses (Center, Right, Left) to the backend 3D YuNet landmark engine
+    setStatusMessage('Verifying 3D head movement & facial landmarks...');
+    const cleanB64 = (val: string | null) =>
+      val && val.length > 200 && !val.startsWith('file:') ? val : undefined;
+
+    const payloadCenter = cleanB64(base64s.center);
+    const payloadRight = cleanB64(base64s.right);
+    const payloadLeft = cleanB64(base64s.left);
+
+    if (!payloadCenter || !payloadRight || !payloadLeft) {
+      handleMovementFailed(
+        'Could not process all 3 camera frames (Center, Right, Left). Please hold steady and try again.'
+      );
+      return;
+    }
+
     try {
-      const payloadBase64 = (base64s.center && base64s.center.length > 200 && !base64s.center.startsWith('file:'))
-        ? base64s.center
-        : undefined;
-      const res = await api.verifyLiveness(3500, true, payloadBase64);
-      if (res && res.isLiveHuman === false && res.message && !res.message.includes('unavailable') && !res.message.includes('Simulated')) {
+      const res = await api.verifyLiveness(3500, false, payloadCenter, payloadRight, payloadLeft);
+      if (!res || res.isLiveHuman !== true) {
         handleMovementFailed(
-          res.message || '3D biometric scan was unable to verify live movement.'
+          res?.message ||
+            'No 3D head movement detected! Please turn your head clearly to the Right and Left when prompted.'
         );
         return;
       }
+
+      hapticFeedback.success();
+      setCurrentStep('PASSED');
+      currentStepRef.current = 'PASSED';
+      setProgressPercent(100);
+      setStatusMessage('✓ 3D Biometric Verified! Live human movement confirmed.');
+
+      setTimeout(() => {
+        onSuccess(res.livenessScore || 0.99, photos.center || undefined);
+        onClose();
+      }, 1200);
     } catch (e) {
-      console.warn('Backend liveness api call warning:', e);
+      console.warn('Backend liveness api call failed:', e);
+      handleMovementFailed('Could not verify 3D head movement. Please check your connection and retry.');
     }
-
-    hapticFeedback.success();
-    setCurrentStep('PASSED');
-    currentStepRef.current = 'PASSED';
-    setProgressPercent(100);
-    setStatusMessage('✓ 3D Biometric Verified! Live human movement confirmed.');
-
-    setTimeout(() => {
-      onSuccess(0.99);
-      onClose();
-    }, 1200);
   };
 
   const handleMovementFailed = (reason: string) => {
@@ -405,12 +417,14 @@ export default function LivenessCameraModal({
             <View style={{ flex: 1 }}>
               <View style={styles.titleWithBadge}>
                 <Text style={styles.modalTitle}>3D Biometric Liveness</Text>
-                <TouchableOpacity
-                  style={styles.headerQuickPill}
-                  onPress={handleQuickVerify}
-                  activeOpacity={0.7}>
-                  <Text style={styles.headerQuickPillText}>⚡ Quick Pass</Text>
-                </TouchableOpacity>
+                {__DEV__ && (
+                  <TouchableOpacity
+                    style={styles.headerQuickPill}
+                    onPress={handleQuickVerify}
+                    activeOpacity={0.7}>
+                    <Text style={styles.headerQuickPillText}>⚡ Quick Pass</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <Text style={styles.modalSubtitle}>Anti-Catfish & Deepfake Verification</Text>
             </View>
@@ -693,12 +707,14 @@ export default function LivenessCameraModal({
                     activeOpacity={0.85}>
                     <Text style={styles.primaryBtnText}>Start 3D Head Turn Scan 🎥</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.quickVerifyBtn}
-                    onPress={handleQuickVerify}
-                    activeOpacity={0.85}>
-                    <Text style={styles.quickVerifyBtnText}>⚡ Quick Verify (Dev / Test Mode)</Text>
-                  </TouchableOpacity>
+                  {__DEV__ && (
+                    <TouchableOpacity
+                      style={styles.quickVerifyBtn}
+                      onPress={handleQuickVerify}
+                      activeOpacity={0.85}>
+                      <Text style={styles.quickVerifyBtnText}>⚡ Quick Verify (Dev / Test Mode)</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               )}
 

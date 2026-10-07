@@ -172,8 +172,8 @@ export default function OnboardingDecksScreen() {
 
   // Deck 3: Neighborhood & Career
   const [microCircle, setMicroCircle] = useState<string>('🚀 Koramangala Tech');
-  const [job, setJob] = useState<string>('Software Engineer');
-  const [institute, setInstitute] = useState<string>('BITS Pilani');
+  const [job, setJob] = useState<string>('');
+  const [institute, setInstitute] = useState<string>('');
 
   // Deck 4: Bio Archetype
   const [bio, setBio] = useState<string>(WITTY_BIOS[0].bioText);

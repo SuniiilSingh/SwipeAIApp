@@ -289,8 +289,8 @@ export default function OnboardingDecksScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
           
-          {/* Card Stack Illusion Underneath */}
-          <View style={styles.stackShadowCard} />
+          {/* Card Stack Illusion Underneath (Native Only) */}
+          {Platform.OS !== 'web' && <View style={styles.stackShadowCard} />}
 
           <Animated.View style={[styles.deckCard, { transform: [{ scale: deckAnim }] }]}>
             
@@ -832,8 +832,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#05060A',
   },
   topHud: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.08)',
     backgroundColor: '#070912',
@@ -842,7 +842,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   brandRow: {
     flexDirection: 'row',
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   brandText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     color: '#FFF',
     letterSpacing: -0.5,
@@ -871,20 +871,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(245, 158, 11, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.4)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: 20,
   },
   magnetismEmoji: {
     fontSize: 12,
   },
   magnetismPct: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: '#FCD34D',
   },
   magnetismLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     color: '#F59E0B',
     letterSpacing: 0.5,
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     width: '100%',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   stepperBar: {
     flex: 1,
@@ -918,12 +918,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
   ribbonItem: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#8E95AA',
   },
   ribbonBold: {
@@ -932,23 +932,23 @@ const styles = StyleSheet.create({
   },
   scrollArena: {
     flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   stackShadowCard: {
     position: 'absolute',
-    top: 26,
-    left: 24,
-    right: 24,
-    bottom: 12,
-    borderRadius: 36,
+    top: 20,
+    left: 20,
+    right: 20,
+    bottom: 10,
+    borderRadius: 28,
     backgroundColor: '#0A0D1A',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
-    transform: [{ scale: 0.94 }, { rotate: '-1.5deg' }],
+    transform: [{ scale: 0.95 }, { rotate: '-1.5deg' }],
     zIndex: 1,
   },
   deckCard: {
@@ -957,13 +957,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F1326',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 36,
-    padding: 22,
+    borderRadius: 28,
+    padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.8,
-    shadowRadius: 30,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 8,
     zIndex: 10,
   },
   deckInner: {

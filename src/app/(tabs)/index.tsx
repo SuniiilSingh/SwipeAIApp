@@ -633,29 +633,58 @@ function SwipeableCandidateCard({
               {(item.education || item.institute) ? ` • 🎓 ${item.education || 'Degree'}${item.institute ? ` @ ${item.institute}` : ''}` : ''}
             </Text>
 
-            {/* Row 4: Clean Curated Highlights (Max 1 Line - Never Overrides Photo) */}
+            {/* Row 4: Lifestyle Indicators Row */}
             <View style={styles.lifestyleRow}>
-              {item.culturalBadges?.diet && (
+              <View style={styles.lifestyleChip}>
+                <Text style={styles.lifestyleChipText}>{item.smokingHabit || '🚭 Non-Smoker'}</Text>
+              </View>
+              <View style={styles.lifestyleChip}>
+                <Text style={styles.lifestyleChipText}>{item.drinkingHabit || '🍷 Social'}</Text>
+              </View>
+              <View style={styles.lifestyleChip}>
+                <Text style={styles.lifestyleChipText}>
+                  {item.vacationPreference || '🏔️ Mountains'}
+                </Text>
+              </View>
+              <View style={styles.lifestyleChip}>
+                <Text style={styles.lifestyleChipText}>{getDietBadge(item.culturalBadges?.diet)}</Text>
+              </View>
+              {((item.culturalBadges?.languages && item.culturalBadges.languages.length > 0) || (item.languagesSpoken && item.languagesSpoken.length > 0)) && (
                 <View style={styles.lifestyleChip}>
-                  <Text style={styles.lifestyleChipText}>{getDietBadge(item.culturalBadges.diet)}</Text>
+                  <Text style={styles.lifestyleChipText}>
+                    🗣️ {(item.culturalBadges?.languages && item.culturalBadges.languages.length > 0 ? item.culturalBadges.languages : item.languagesSpoken)!.slice(0, 2).join(', ')}
+                  </Text>
                 </View>
               )}
+              {(item.voicePrompt || item.voicePromptUrl) ? (
+                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 107, 107, 0.2)', borderColor: '#FF6B6B' }]}>
+                  <Text style={[styles.lifestyleChipText, { color: '#FF6B6B' }]}>🎙️ Voice Note</Text>
+                </View>
+              ) : null}
+              {(item.selectedMemeUrl || item.memeMatch) ? (
+                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 215, 0, 0.2)', borderColor: '#FFD700' }]}>
+                  <Text style={[styles.lifestyleChipText, { color: '#FFD700' }]}>🤣 Meme Vibe</Text>
+                </View>
+              ) : null}
               {item.microCircle ? (
                 <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(0, 229, 255, 0.15)', borderColor: '#00E5FF' }]}>
                   <Text style={[styles.lifestyleChipText, { color: '#00E5FF', fontWeight: '700' }]}>
-                    {item.microCircle}
+                    🏙️ {item.microCircle}
                   </Text>
                 </View>
               ) : null}
-              {(item.voicePrompt || item.voicePromptUrl) ? (
-                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 107, 107, 0.2)', borderColor: '#FF6B6B' }]}>
-                  <Text style={[styles.lifestyleChipText, { color: '#FF6B6B' }]}>🎙️ Voice</Text>
-                </View>
-              ) : null}
-              <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 255, 255, 0.08)', borderColor: 'rgba(255, 255, 255, 0.15)' }]}>
-                <Text style={[styles.lifestyleChipText, { color: '#CBD5E1' }]}>Tap for details ➔</Text>
-              </View>
             </View>
+
+            {/* Row 5: Profile Prompt Teaser */}
+            {item.profilePromptQuestion && item.profilePromptAnswer ? (
+              <Text style={styles.promptTeaserText} numberOfLines={1}>
+                💬 "{item.profilePromptAnswer}"
+              </Text>
+            ) : item.bio ? (
+              <Text style={styles.promptTeaserText} numberOfLines={1}>
+                "{item.bio}"
+              </Text>
+            ) : null}
           </View>
         </TouchableOpacity>
 
@@ -1454,14 +1483,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: '44%',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 8,
-    backgroundColor: 'rgba(8, 10, 16, 0.90)',
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 10,
+    backgroundColor: 'rgba(10, 12, 18, 0.88)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    justifyContent: 'flex-end',
   },
   scrimPillsRow: {
     flexDirection: 'row',
@@ -1561,17 +1588,15 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   actionButtonsRow: {
-    height: 52,
-    flexShrink: 0,
+    height: 58,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    backgroundColor: '#141622',
+    paddingVertical: 8,
+    backgroundColor: '#161821',
     borderTopWidth: 1,
-    borderTopColor: '#222534',
+    borderTopColor: '#242736',
     gap: 8,
-    zIndex: 20,
   },
   rewindBtn: {
     width: 42,

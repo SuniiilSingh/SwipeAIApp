@@ -29,9 +29,9 @@ export default function RootIndex() {
           const completionPct = profile?.completionPercentage || 0;
           const isProfileComplete = hasName && hasGender && hasOrientation && completionPct >= 30;
 
-          // If profile is incomplete, directly redirect to fill profile details
+          // If profile is incomplete, directly redirect to deck-by-deck onboarding
           if (!isProfileComplete) {
-            router.replace({ pathname: '/(tabs)/profile', params: { edit: 'true', reason: 'incomplete' } });
+            router.replace('/auth/onboarding-decks' as any);
             return;
           }
 

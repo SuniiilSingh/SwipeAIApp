@@ -201,6 +201,7 @@ export default function RootLayout() {
                     }}>
                     <Stack.Screen name="index" options={{ headerShown: false }} />
                     <Stack.Screen name="auth/index" options={{ headerShown: false }} />
+                    <Stack.Screen name="auth/onboarding-decks" options={{ headerShown: false }} />
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                     <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
                     <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />
@@ -247,6 +248,7 @@ export default function RootLayout() {
                 }}>
                 <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen name="auth/index" options={{ headerShown: false }} />
+                <Stack.Screen name="auth/onboarding-decks" options={{ headerShown: false }} />
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
                 <Stack.Screen name="matches/icebreaker" options={{ headerShown: false }} />

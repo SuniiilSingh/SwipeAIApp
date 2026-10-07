@@ -150,10 +150,7 @@ export default function DiscoveryScreen() {
       if (!hasName || !hasGender || !hasOrientation || completionPct < 30) {
         setLoading(false);
         setRefreshing(false);
-        router.replace({
-          pathname: '/(tabs)/profile',
-          params: { edit: 'true', reason: 'incomplete' },
-        });
+        router.replace('/auth/onboarding-decks' as any);
         return;
       }
 

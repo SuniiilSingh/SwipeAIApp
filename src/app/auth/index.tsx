@@ -156,7 +156,7 @@ export default function AuthScreen() {
     const hasOrientation = Boolean(prof?.sexualOrientation);
     const completionPct = prof?.completionPercentage || 0;
     if (!hasName || !hasGender || !hasOrientation || completionPct < 30) {
-      router.replace({ pathname: '/(tabs)/profile', params: { edit: 'true', reason: 'incomplete' } });
+      router.replace('/auth/onboarding-decks' as any);
     } else {
       router.replace('/(tabs)');
     }

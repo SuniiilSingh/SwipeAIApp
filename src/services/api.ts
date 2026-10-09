@@ -105,20 +105,26 @@ export const normalizeProfilePhotos = (p: UserProfile): UserProfile => {
   const photo5 = normalizeImageUrl(p.photo5, true);
   const photo6 = normalizeImageUrl(p.photo6, true);
   const rawPhotos = Array.isArray(p.photos) ? p.photos : [];
-  const photos = rawPhotos.map((url) => normalizeImageUrl(url, true)).filter(Boolean);
+  const photosFromArr = rawPhotos.map((url) => normalizeImageUrl(url, true)).filter(Boolean);
 
-  const constructedPhotos = [photo1, photo2, photo3, photo4, photo5, photo6].filter(Boolean);
-  const combinedPhotos = Array.from(new Set([...photos, ...constructedPhotos]));
+  const slotPhotos = [photo1, photo2, photo3, photo4, photo5, photo6].filter(Boolean);
+  const hasAnyExplicitSlot = slotPhotos.length > 0;
+  const mergedPhotos = [...slotPhotos];
+  for (const url of photosFromArr) {
+    if (!mergedPhotos.includes(url) && mergedPhotos.length < 6) {
+      mergedPhotos.push(url);
+    }
+  }
 
   return {
     ...p,
-    photo1: combinedPhotos[0] || '',
-    photo2: combinedPhotos[1] || '',
-    photo3: combinedPhotos[2] || '',
-    photo4: combinedPhotos[3] || '',
-    photo5: combinedPhotos[4] || '',
-    photo6: combinedPhotos[5] || '',
-    photos: combinedPhotos,
+    photo1: hasAnyExplicitSlot ? photo1 : (mergedPhotos[0] || ''),
+    photo2: hasAnyExplicitSlot ? photo2 : (mergedPhotos[1] || ''),
+    photo3: hasAnyExplicitSlot ? photo3 : (mergedPhotos[2] || ''),
+    photo4: hasAnyExplicitSlot ? photo4 : (mergedPhotos[3] || ''),
+    photo5: hasAnyExplicitSlot ? photo5 : (mergedPhotos[4] || ''),
+    photo6: hasAnyExplicitSlot ? photo6 : (mergedPhotos[5] || ''),
+    photos: mergedPhotos,
     selfieUrl: normalizeImageUrl(p.selfieUrl, true),
     selectedMemeUrl: normalizeImageUrl(p.selectedMemeUrl, false),
     voicePromptUrl: normalizeImageUrl(p.voicePromptUrl, false),
@@ -587,15 +593,18 @@ export const api = {
 
   updateMyProfile: async (updates: Partial<UserProfile>): Promise<UserProfile> => {
     try {
+      if (!authToken) await initAuth();
       const sanitizedUpdates = { ...updates };
       (['photo1', 'photo2', 'photo3', 'photo4', 'photo5', 'photo6', 'selfieUrl'] as const).forEach((key) => {
         const val = sanitizedUpdates[key];
-        if (typeof val === 'string' && (val.startsWith('file:') || val.startsWith('content:'))) {
-          sanitizedUpdates[key] = '';
+        if (typeof val === 'string' && (val.startsWith('file:') || val.startsWith('content:') || val.startsWith('data:') || val.startsWith('blob:'))) {
+          delete sanitizedUpdates[key];
         }
       });
       if (Array.isArray(sanitizedUpdates.photos)) {
-        sanitizedUpdates.photos = sanitizedUpdates.photos.filter((p) => p && !p.startsWith('file:') && !p.startsWith('content:'));
+        sanitizedUpdates.photos = sanitizedUpdates.photos.filter(
+          (p) => p && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
+        );
       }
 
       const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/me`, {
@@ -745,11 +754,24 @@ export const api = {
     if (localUri.startsWith('http://') || localUri.startsWith('https://')) {
       return normalizeImageUrl(localUri);
     }
+    if (!authToken) await initAuth();
 
-    // 1. Direct Base64 from ImagePicker (instant, skips local file reading, completely reliable)
-    if (directBase64) {
+    let resolvedBase64 = directBase64 || null;
+    if (!resolvedBase64 && localUri.startsWith('data:')) {
+      const commaIdx = localUri.indexOf(',');
+      if (commaIdx !== -1) {
+        resolvedBase64 = localUri.substring(commaIdx + 1);
+      }
+    }
+
+    // 1. Direct Base64 from ImagePicker or data URI (instant, skips local file reading, completely reliable)
+    if (resolvedBase64) {
       try {
-        const filename = localUri.split('/').pop() || `photo_${Date.now()}.jpg`;
+        const isDataOrBlob = localUri.startsWith('data:') || localUri.startsWith('blob:');
+        const rawTail = isDataOrBlob ? '' : (localUri.split('/').pop() || '');
+        const filename = (rawTail && rawTail.length <= 80 && /\.(jpe?g|png|webp)$/i.test(rawTail))
+          ? rawTail
+          : `photo_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
         const match = /\.(\w+)$/.exec(filename);
         const ext = match ? match[1].toLowerCase() : 'jpg';
         let mimeType = 'image/jpeg';
@@ -767,7 +789,7 @@ export const api = {
             body: JSON.stringify({
               filename,
               contentType: mimeType,
-              base64Data: directBase64,
+              base64Data: resolvedBase64,
             }),
           },
           60000

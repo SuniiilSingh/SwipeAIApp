@@ -1360,14 +1360,25 @@ export default function AuthScreen() {
               ))}
             </View>
 
-            {/* Languages Known Section (Clickable Text Box -> Opens Pop-up Modal) */}
+            {/* Languages Known Section (Clickable Text Box with Pen Edit -> Opens Pop-up Modal) */}
             <View style={styles.languageSectionWrap}>
               <View style={styles.langHeaderRow}>
                 <Text style={styles.langSectionTitle}>🗣️ Languages Known</Text>
-                <Text style={styles.langCountBadge}>{selectedLanguages.length} selected</Text>
+                <TouchableOpacity
+                  style={styles.langCountBadge}
+                  activeOpacity={0.75}
+                  onPress={() => {
+                    setTempSelectedLanguages([...selectedLanguages]);
+                    setCustomLangInput('');
+                    setShowLanguageModal(true);
+                  }}>
+                  <Text style={styles.langCountBadgeText}>
+                    ✏️ {selectedLanguages.length} selected
+                  </Text>
+                </TouchableOpacity>
               </View>
               <Text style={styles.langSectionSub}>
-                Tap the box below to select languages you speak or add your mother tongue.
+                Tap the text box or pen icon below to edit languages you speak or add your mother tongue.
               </Text>
 
               <TouchableOpacity
@@ -1386,10 +1397,10 @@ export default function AuthScreen() {
                   numberOfLines={2}>
                   {selectedLanguages.length > 0
                     ? selectedLanguages.join(', ')
-                    : 'Tap to select languages known...'}
+                    : 'Tap to edit languages known...'}
                 </Text>
                 <View style={styles.langTextBoxRightBadge}>
-                  <Text style={styles.langTextBoxRightText}>Select ▾</Text>
+                  <Text style={styles.langTextBoxRightText}>✏️ Edit</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -3293,13 +3304,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   langCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  langCountBadgeText: {
     color: '#00E5FF',
     fontSize: 11,
-    fontWeight: '700',
-    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    fontWeight: '800',
   },
   langSectionSub: {
     color: '#8E8E93',

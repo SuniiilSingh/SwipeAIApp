@@ -19,16 +19,31 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
-import { DietaryPreference, Gender } from '@/types';
+import { DietaryPreference, Gender, MicroCircle } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
+import MicroCommunityModal from '@/components/micro-community-modal';
 import {
   GENDER_PRESETS,
   GENDER_PREFERENCE_PRESETS,
 } from '@/constants/profile-presets';
 
 const { width, height } = Dimensions.get('window');
+
+const TRIBE_CITIES = [
+  'All Cities',
+  'Bengaluru',
+  'Mumbai',
+  'Delhi NCR',
+  'Gurgaon',
+  'Noida',
+  'Pune',
+  'Hyderabad',
+  'Goa',
+  'Kolkata',
+  'Chennai',
+];
 
 export interface BioArchetype {
   id: string;
@@ -138,15 +153,6 @@ const WITTY_BIOS: BioArchetype[] = [
   },
 ];
 
-const MICRO_CIRCLES = [
-  '🚀 Koramangala Tech',
-  '🎨 Indiranagar Indie',
-  '☕ Whitefield Coffee',
-  '🍸 Church Street Foodies',
-  '💻 HSR Founders',
-  '🌿 Jayanagar Heritage'
-];
-
 export default function OnboardingDecksScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -175,8 +181,13 @@ export default function OnboardingDecksScreen() {
   const [showGenderModal, setShowGenderModal] = useState<boolean>(false);
   const [showPreferenceModal, setShowPreferenceModal] = useState<boolean>(false);
 
-  // Deck 3: Neighborhood & Career
-  const [microCircle, setMicroCircle] = useState<string>('🚀 Koramangala Tech');
+  // Deck 3: Neighborhood Tribe (Search + City-Wise Filter + Micro-Circles)
+  const [microCircle, setMicroCircle] = useState<string>('🚀 Koramangala Tech Founders');
+  const [tribeCircles, setTribeCircles] = useState<MicroCircle[]>([]);
+  const [tribeCityFilter, setTribeCityFilter] = useState<string>('All Cities');
+  const [tribeSearchQuery, setTribeSearchQuery] = useState<string>('');
+  const [loadingTribes, setLoadingTribes] = useState<boolean>(false);
+  const [showTribeModal, setShowTribeModal] = useState<boolean>(false);
   const [job, setJob] = useState<string>('');
   const [institute, setInstitute] = useState<string>('');
 
@@ -196,15 +207,61 @@ export default function OnboardingDecksScreen() {
 
   // Deck 7: 6-Slot Photo Showcase (Minimum 2 required, up to 6 optional)
   const [photoSlots, setPhotoSlots] = useState<string[]>(['', '', '', '', '', '']);
-  const [uploadingSlotIdx, setUploadingSlotIdx] = useState<number | null>(null);
+  const photoSlotsRef = useRef<string[]>(['', '', '', '', '', '']);
+  const [uploadingSlots, setUploadingSlots] = useState<Record<number, boolean>>({});
   const [activePhotoSlotModal, setActivePhotoSlotModal] = useState<number | null>(null);
 
   // Animations
   const deckAnim = useRef(new Animated.Value(1)).current;
   const pulseScale = useRef(new Animated.Value(1)).current;
 
-  // Load existing user profile if available
+  const loadTribeCircles = async (city?: string) => {
+    setLoadingTribes(true);
+    try {
+      const list = await api.getMicroCircles(city && city !== 'All Cities' ? city : undefined);
+      setTribeCircles(list);
+    } catch (e) {
+      console.warn('Failed to load tribe circles:', e);
+    } finally {
+      setLoadingTribes(false);
+    }
+  };
+
+  const handleTribeCityChange = (city: string) => {
+    hapticFeedback.light();
+    setTribeCityFilter(city);
+    loadTribeCircles(city);
+  };
+
+  const filteredTribeCircles = tribeCircles.filter((item) => {
+    const matchesCity = (() => {
+      if (tribeCityFilter === 'All Cities') return true;
+      if (!item.city) return true;
+      const c1 = item.city.trim().toLowerCase();
+      const c2 = tribeCityFilter.trim().toLowerCase();
+      return (
+        c1 === c2 ||
+        (c2 === 'gurgaon' && (c1.includes('gurgaon') || c1.includes('gurugram'))) ||
+        (c2 === 'delhi ncr' && (c1.includes('delhi') || c1.includes('ncr'))) ||
+        (c2 === 'noida' && (c1.includes('noida') || c1.includes('greater noida')))
+      );
+    })();
+    if (!matchesCity) return false;
+
+    if (!tribeSearchQuery.trim()) return true;
+    const q = tribeSearchQuery.trim().toLowerCase();
+    return (
+      item.name.toLowerCase().includes(q) ||
+      Boolean(item.tagline?.toLowerCase().includes(q)) ||
+      Boolean(item.description?.toLowerCase().includes(q)) ||
+      Boolean(item.city?.toLowerCase().includes(q)) ||
+      Boolean(item.vibeCategory?.toLowerCase().includes(q))
+    );
+  });
+
+  // Load existing user profile & micro-circles if available
   useEffect(() => {
+    loadTribeCircles();
     (async () => {
       try {
         const prof = await api.getMyProfile();
@@ -229,6 +286,9 @@ export default function OnboardingDecksScreen() {
           setTempLookingFor(prof.genderPreferenceDisplay);
         }
         if (prof?.microCircle) setMicroCircle(prof.microCircle);
+        if (prof?.city || prof?.location) {
+          setBirthCity(prof.city || prof.location || 'Bengaluru');
+        }
         if (prof?.job || prof?.occupation) setJob(prof.job || prof.occupation || '');
         if (prof?.institute || prof?.education) setInstitute(prof.institute || prof.education || '');
         if (prof?.bio) setBio(prof.bio);
@@ -244,6 +304,7 @@ export default function OnboardingDecksScreen() {
           prof?.photo5 || prof?.photos?.[4] || '',
           prof?.photo6 || prof?.photos?.[5] || '',
         ].map((u) => (u && !u.includes('unsplash.com/photo-1534528741775') ? u : ''));
+        photoSlotsRef.current = initialSlots;
         setPhotoSlots(initialSlots);
 
         if (prof?.selfieUrl) {
@@ -362,8 +423,50 @@ export default function OnboardingDecksScreen() {
   };
 
   const uploadedPhotosList = photoSlots.filter((u) => u && u.trim().length > 0);
+  const isAnySlotUploading = Object.values(uploadingSlots).some(Boolean);
 
-  const handlePickPhotoSlot = async (slotIndex: number, source: 'gallery' | 'camera' = 'gallery') => {
+  const uploadSingleAssetToSlot = async (slotIndex: number, localUri: string, directBase64?: string | null) => {
+    setUploadingSlots((prev) => ({ ...prev, [slotIndex]: true }));
+    // Optimistically show selected photo in slot using functional state update so concurrent picks never overwrite
+    setPhotoSlots((prev) => {
+      const next = [...prev];
+      next[slotIndex] = localUri;
+      photoSlotsRef.current = next;
+      return next;
+    });
+
+    try {
+      const remoteUrl = await api.uploadImage(localUri, directBase64);
+      const finalUrl = remoteUrl || localUri;
+
+      setPhotoSlots((prev) => {
+        const next = [...prev];
+        next[slotIndex] = finalUrl;
+        photoSlotsRef.current = next;
+        const cleanList = next.filter(
+          (p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
+        );
+        if (selfieUrl) {
+          setVerificationStatus('PENDING');
+        }
+        if (remoteUrl) {
+          api.updateMyProfile({
+            [`photo${slotIndex + 1}`]: remoteUrl,
+            photos: cleanList,
+          } as any).catch(() => {});
+        }
+        return next;
+      });
+    } finally {
+      setUploadingSlots((prev) => {
+        const copy = { ...prev };
+        delete copy[slotIndex];
+        return copy;
+      });
+    }
+  };
+
+  const handlePickPhotoSlot = async (slotIndex: number, source: 'gallery' | 'camera' | 'multi' = 'gallery') => {
     try {
       setActivePhotoSlotModal(null);
       hapticFeedback.light();
@@ -382,6 +485,19 @@ export default function OnboardingDecksScreen() {
           quality: 0.75,
           base64: true,
         });
+      } else if (source === 'multi') {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Needed', 'Please allow photo library access to upload your profile photos.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsMultipleSelection: true,
+          selectionLimit: 6,
+          quality: 0.75,
+          base64: true,
+        });
       } else {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
@@ -397,46 +513,42 @@ export default function OnboardingDecksScreen() {
         });
       }
 
-      if (result.canceled || !result.assets?.[0]?.uri) return;
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
 
-      const asset = result.assets[0];
-      const localUri = asset.uri;
-      const directBase64 = asset.base64;
+      // If multiple assets were picked (or if user selected multiple photos at once), assign each to a slot
+      if (result.assets.length > 1) {
+        const currentSlots = [...photoSlotsRef.current];
+        const tasks: Promise<void>[] = [];
+        let cursor = slotIndex;
 
-      setUploadingSlotIdx(slotIndex);
-      // Optimistically show selected photo in slot
-      const optimisticSlots = [...photoSlots];
-      optimisticSlots[slotIndex] = localUri;
-      setPhotoSlots(optimisticSlots);
-
-      const remoteUrl = await api.uploadImage(localUri, directBase64);
-      const finalUrl = remoteUrl || localUri;
-
-      setPhotoSlots((prev) => {
-        const next = [...prev];
-        next[slotIndex] = finalUrl;
-        const cleanList = next.filter((p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:'));
-        // Persist in background & trigger async selfie verification if selfie already uploaded
-        if (selfieUrl) {
-          setVerificationStatus('PENDING');
+        for (const asset of result.assets) {
+          if (!asset?.uri) continue;
+          // Find next empty slot if cursor already filled (except the starting slotIndex for the first asset)
+          let targetSlot = cursor;
+          if (targetSlot >= 6) {
+            const emptyIdx = currentSlots.findIndex((s) => !s || !s.trim());
+            if (emptyIdx === -1) break;
+            targetSlot = emptyIdx;
+          }
+          currentSlots[targetSlot] = asset.uri;
+          tasks.push(uploadSingleAssetToSlot(targetSlot, asset.uri, asset.base64));
+          // Advance cursor to next empty slot or next index
+          const nextEmpty = currentSlots.findIndex((s, i) => i > targetSlot && (!s || !s.trim()));
+          cursor = nextEmpty !== -1 ? nextEmpty : targetSlot + 1;
         }
-        api.updateMyProfile({
-          photo1: next[0] || '',
-          photo2: next[1] || '',
-          photo3: next[2] || '',
-          photo4: next[3] || '',
-          photo5: next[4] || '',
-          photo6: next[5] || '',
-          photos: cleanList,
-        }).catch(() => {});
-        return next;
-      });
+        await Promise.all(tasks);
+        hapticFeedback.success();
+        return;
+      }
+
+      // Single asset selected: if the tapped slot already has a photo AND user only has 1 photo so far,
+      // check if they meant to fill the next required slot or replace this slot
+      const asset = result.assets[0];
+      await uploadSingleAssetToSlot(slotIndex, asset.uri, asset.base64);
       hapticFeedback.success();
     } catch (err) {
       console.warn('Photo slot upload error:', err);
       Alert.alert('Upload Error', 'Could not upload photo. Please try again.');
-    } finally {
-      setUploadingSlotIdx(null);
     }
   };
 
@@ -445,22 +557,21 @@ export default function OnboardingDecksScreen() {
     setPhotoSlots((prev) => {
       const next = [...prev];
       next[slotIndex] = '';
-      const cleanList = next.filter((p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:'));
+      photoSlotsRef.current = next;
+      const cleanList = next.filter(
+        (p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
+      );
       api.updateMyProfile({
-        photo1: next[0] || '',
-        photo2: next[1] || '',
-        photo3: next[2] || '',
-        photo4: next[3] || '',
-        photo5: next[4] || '',
-        photo6: next[5] || '',
+        [`photo${slotIndex + 1}`]: '',
         photos: cleanList,
-      }).catch(() => {});
+      } as any).catch(() => {});
       return next;
     });
   };
 
   const handleCompileAndLaunch = async () => {
-    if (uploadedPhotosList.length < 2) {
+    const currentList = photoSlotsRef.current.filter((u) => u && u.trim().length > 0);
+    if (currentList.length < 2) {
       hapticFeedback.warning();
       Alert.alert(
         'Upload At Least 2 Photos 📸',
@@ -475,9 +586,26 @@ export default function OnboardingDecksScreen() {
 
     const formattedDob = `${dobYear}-${dobMonth.padStart(2, '0')}-${dobDay.padStart(2, '0')}`;
     const cleanName = fullName.trim() || 'BlunderR Star';
-    const remotePhotos = photoSlots.filter((p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:'));
 
     try {
+      // Ensure any remaining local/data URIs in photoSlots are uploaded first
+      const resolvedSlots = [...photoSlotsRef.current];
+      for (let i = 0; i < 6; i++) {
+        const uri = resolvedSlots[i];
+        if (uri && (uri.startsWith('file:') || uri.startsWith('content:') || uri.startsWith('data:') || uri.startsWith('blob:'))) {
+          const uploaded = await api.uploadImage(uri);
+          if (uploaded) {
+            resolvedSlots[i] = uploaded;
+          }
+        }
+      }
+      photoSlotsRef.current = resolvedSlots;
+      setPhotoSlots(resolvedSlots);
+
+      const remotePhotos = resolvedSlots.filter(
+        (p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
+      );
+
       // 1. Update Core Profile (triggers backend async selfie verification against uploaded photos)
       await api.updateMyProfile({
         displayName: cleanName,
@@ -496,12 +624,12 @@ export default function OnboardingDecksScreen() {
         height: heightCm,
         dietaryPref,
         drinkingHabit,
-        photo1: photoSlots[0] || undefined,
-        photo2: photoSlots[1] || undefined,
-        photo3: photoSlots[2] || undefined,
-        photo4: photoSlots[3] || undefined,
-        photo5: photoSlots[4] || undefined,
-        photo6: photoSlots[5] || undefined,
+        photo1: resolvedSlots[0] || '',
+        photo2: resolvedSlots[1] || '',
+        photo3: resolvedSlots[2] || '',
+        photo4: resolvedSlots[3] || '',
+        photo5: resolvedSlots[4] || '',
+        photo6: resolvedSlots[5] || '',
         photos: remotePhotos,
         selfieUrl: selfieUrl && !selfieUrl.startsWith('file:') ? selfieUrl : undefined,
         verificationStatus: selfieUrl ? (verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING') : undefined,
@@ -892,28 +1020,172 @@ export default function OnboardingDecksScreen() {
                     <Text style={styles.deckBadgeText}>🏙️ DECK 3 OF 7 • NEIGHBORHOOD TRIBE</Text>
                   </View>
                   <Text style={styles.deckTitle}>Your everyday stomping ground</Text>
-                  <Text style={styles.deckSub}>Never match someone living 2 hours away in traffic.</Text>
+                  <Text style={styles.deckSub}>
+                    Search & filter tribes city-wise — never match someone 2 hours away in traffic.
+                  </Text>
                 </View>
 
                 <View style={styles.deckBody}>
-                  <Text style={styles.fieldLabel}>📍 NEIGHBORHOOD MICRO-CIRCLES</Text>
-                  <View style={styles.pillCluster}>
-                    {MICRO_CIRCLES.map((c) => (
-                      <TouchableOpacity
-                        key={c}
-                        style={[styles.microPill, microCircle === c && styles.microPillSelected]}
-                        onPress={() => {
-                          hapticFeedback.light();
-                          setMicroCircle(c);
-                        }}>
-                        <Text style={[styles.microPillText, microCircle === c && styles.microPillTextSelected]}>
-                          {c}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                  <View style={styles.tribeHeaderRow}>
+                    <Text style={styles.fieldLabel}>📍 NEIGHBORHOOD MICRO-CIRCLES</Text>
+                    <TouchableOpacity
+                      style={styles.tribeBrowseModalBtn}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowTribeModal(true);
+                      }}>
+                      <Text style={styles.tribeBrowseModalBtnText}>✏️ Browse Full Directory</Text>
+                    </TouchableOpacity>
                   </View>
 
-                  <View style={[styles.fieldBox, { marginTop: 12 }]}>
+                  {/* Selected Tribe Pill Box (Pen Edit Trigger) */}
+                  <TouchableOpacity
+                    style={styles.selectedTribeBanner}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      setShowTribeModal(true);
+                    }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.selectedTribeLabel}>ACTIVE TRIBE / CIRCLE</Text>
+                      <Text style={styles.selectedTribeValue} numberOfLines={1}>
+                        📍 {microCircle || 'Select your neighborhood tribe'}
+                      </Text>
+                    </View>
+                    <View style={styles.selectedTribeEditBadge}>
+                      <Text style={styles.selectedTribeEditText}>✏️ Edit</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Search Input for Tribes */}
+                  <View style={styles.tribeSearchRow}>
+                    <Text style={styles.tribeSearchIcon}>🔍</Text>
+                    <TextInput
+                      style={styles.tribeSearchInput}
+                      placeholder="Search tribe, area, tech hub, or vibe..."
+                      placeholderTextColor="#64748B"
+                      value={tribeSearchQuery}
+                      onChangeText={setTribeSearchQuery}
+                    />
+                    {tribeSearchQuery.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.tribeSearchClearBtn}
+                        onPress={() => setTribeSearchQuery('')}>
+                        <Text style={styles.tribeSearchClearText}>✕</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* City-Wise Filter Pills */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.categoryFilterScroll}
+                    contentContainerStyle={styles.categoryFilterRow}>
+                    {TRIBE_CITIES.map((city) => {
+                      const isCityActive = tribeCityFilter === city;
+                      return (
+                        <TouchableOpacity
+                          key={city}
+                          style={[
+                            styles.categoryFilterPill,
+                            isCityActive && styles.categoryFilterPillActive,
+                          ]}
+                          onPress={() => handleTribeCityChange(city)}>
+                          <Text
+                            style={[
+                              styles.categoryFilterText,
+                              isCityActive && styles.categoryFilterTextActive,
+                            ]}>
+                            {city === 'All Cities' ? '🇮🇳 All Cities' : `🏙️ ${city}`}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+
+                  {/* Filtered City-Wise Tribe Cards List */}
+                  {loadingTribes ? (
+                    <View style={styles.tribeLoadingBox}>
+                      <ActivityIndicator size="small" color="#FF385C" />
+                      <Text style={styles.tribeLoadingText}>Loading city micro-circles...</Text>
+                    </View>
+                  ) : (
+                    <ScrollView
+                      style={styles.tribeListScroller}
+                      showsVerticalScrollIndicator={true}
+                      nestedScrollEnabled={true}>
+                      {filteredTribeCircles.length === 0 ? (
+                        <View style={styles.tribeEmptyBox}>
+                          <Text style={styles.tribeEmptyText}>
+                            No circles matched &quot;{tribeSearchQuery}&quot; in {tribeCityFilter}.
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.tribeResetFilterBtn}
+                            onPress={() => {
+                              setTribeSearchQuery('');
+                              handleTribeCityChange('All Cities');
+                            }}>
+                            <Text style={styles.tribeResetFilterText}>Reset City & Search</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        filteredTribeCircles.map((circle) => {
+                          const isSel = microCircle === circle.name;
+                          return (
+                            <TouchableOpacity
+                              key={circle.id}
+                              style={[styles.tribeCardItem, isSel && styles.tribeCardItemSelected]}
+                              activeOpacity={0.85}
+                              onPress={() => {
+                                hapticFeedback.light();
+                                setMicroCircle(circle.name);
+                              }}>
+                              <View style={{ flex: 1 }}>
+                                <View style={styles.tribeCardTitleRow}>
+                                  <Text
+                                    style={[
+                                      styles.tribeCardName,
+                                      isSel && styles.tribeCardNameSelected,
+                                    ]}
+                                    numberOfLines={1}>
+                                    {circle.name}
+                                  </Text>
+                                  {!!circle.city && (
+                                    <View style={styles.tribeCityTag}>
+                                      <Text style={styles.tribeCityTagText}>{circle.city}</Text>
+                                    </View>
+                                  )}
+                                </View>
+                                <Text style={styles.tribeCardDesc} numberOfLines={1}>
+                                  {circle.description}
+                                </Text>
+                                <Text style={styles.tribeCardMembers}>
+                                  👥 {(circle.activeMembers || 120).toLocaleString()} active members
+                                </Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.tribeSelectIndicator,
+                                  isSel && styles.tribeSelectIndicatorActive,
+                                ]}>
+                                <Text
+                                  style={[
+                                    styles.tribeSelectIndicatorText,
+                                    isSel && styles.tribeSelectIndicatorTextActive,
+                                  ]}>
+                                  {isSel ? '✓ Joined' : 'Join'}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })
+                      )}
+                    </ScrollView>
+                  )}
+
+                  <View style={[styles.fieldBox, { marginTop: 10 }]}>
                     <Text style={styles.fieldLabel}>CAREER / WHAT PAYS THE BILLS?</Text>
                     <TextInput
                       style={styles.glowInput}
@@ -1225,7 +1497,7 @@ export default function OnboardingDecksScreen() {
                 <View style={styles.deckBody}>
                   {/* Photo Counter & Requirement Banner */}
                   <View style={styles.photoCounterBanner}>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={styles.photoCounterTitle}>
                         {uploadedPhotosList.length >= 2
                           ? `✅ ${uploadedPhotosList.length} of 6 Photos Ready`
@@ -1246,12 +1518,25 @@ export default function OnboardingDecksScreen() {
                     </View>
                   </View>
 
+                  {/* Quick Multi-Photo Upload Button */}
+                  <TouchableOpacity
+                    style={styles.multiPhotoQuickBtn}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      const firstEmpty = photoSlots.findIndex((s) => !s || !s.trim());
+                      handlePickPhotoSlot(firstEmpty >= 0 ? firstEmpty : 0, 'multi');
+                    }}>
+                    <Text style={styles.multiPhotoQuickBtnText}>
+                      📚 Select Multiple Photos at Once (2–6 Photos)
+                    </Text>
+                  </TouchableOpacity>
+
                   {/* 6-Slot Interactive Grid (2 Required + 4 Optional) */}
                   <View style={styles.photoGrid6}>
                     {[0, 1, 2, 3, 4, 5].map((idx) => {
                       const uri = photoSlots[idx];
                       const isRequired = idx < 2;
-                      const isUploadingThis = uploadingSlotIdx === idx;
+                      const isUploadingThis = Boolean(uploadingSlots[idx]);
                       return (
                         <TouchableOpacity
                           key={idx}
@@ -1419,6 +1704,31 @@ export default function OnboardingDecksScreen() {
                         </Text>
                       </View>
                     </View>
+
+                    {/* Uploaded Photos Strip Preview so all 2..6 uploaded photos show clearly */}
+                    {uploadedPhotosList.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.miniPhotosStripScroll}
+                        contentContainerStyle={styles.miniPhotosStripRow}>
+                        {uploadedPhotosList.map((uri, pIdx) => (
+                          <View key={`${uri}-${pIdx}`} style={styles.miniPhotoThumbWrap}>
+                            <Image
+                              source={{ uri }}
+                              style={styles.miniPhotoThumb}
+                              contentFit="cover"
+                            />
+                            <View style={styles.miniPhotoThumbBadge}>
+                              <Text style={styles.miniPhotoThumbBadgeText}>
+                                {pIdx === 0 ? '★ 1' : `#${pIdx + 1}`}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </ScrollView>
+                    )}
+
                     <Text style={styles.miniPreviewBio} numberOfLines={2}>
                       {bio}
                     </Text>
@@ -1472,6 +1782,27 @@ export default function OnboardingDecksScreen() {
           visible={showSelfieModal}
           onClose={() => setShowSelfieModal(false)}
           onCapture={handleSelfieCaptured}
+        />
+      )}
+
+      {/* Full-Screen Micro-Community Directory Modal (Search + City-Wise Filter) */}
+      {showTribeModal && (
+        <MicroCommunityModal
+          visible={showTribeModal}
+          onClose={() => setShowTribeModal(false)}
+          selectedName={microCircle}
+          initialCity={tribeCityFilter !== 'All Cities' ? tribeCityFilter : undefined}
+          title="Select Your Neighborhood Tribe"
+          subtitle="Search & filter hyper-local micro-communities across Indian cities"
+          onSelect={(circle) => {
+            if (circle) {
+              hapticFeedback.success();
+              setMicroCircle(circle.name);
+              if (circle.city) {
+                setTribeCityFilter(circle.city);
+              }
+            }
+          }}
         />
       )}
 
@@ -1624,7 +1955,16 @@ export default function OnboardingDecksScreen() {
                   activeOpacity={0.85}
                   onPress={() => handlePickPhotoSlot(activePhotoSlotModal, 'gallery')}>
                   <Text style={styles.photoPickerActionBtnPrimaryText}>
-                    🖼️ Choose from Photo Gallery
+                    🖼️ Choose Photo for Slot #{activePhotoSlotModal + 1}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.photoPickerActionBtnMulti}
+                  activeOpacity={0.85}
+                  onPress={() => handlePickPhotoSlot(activePhotoSlotModal, 'multi')}>
+                  <Text style={styles.photoPickerActionBtnMultiText}>
+                    📚 Select Multiple Photos (Fill Slots #{activePhotoSlotModal + 1}–6)
                   </Text>
                 </TouchableOpacity>
 
@@ -2669,5 +3009,267 @@ const styles = StyleSheet.create({
     color: '#CBD5E1',
     marginTop: 2,
     lineHeight: 14,
+  },
+  tribeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tribeBrowseModalBtn: {
+    backgroundColor: 'rgba(255, 56, 92, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.45)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  tribeBrowseModalBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF6B8B',
+  },
+  selectedTribeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1.5,
+    borderColor: '#FF385C',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  selectedTribeLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FDA4AF',
+    letterSpacing: 0.8,
+  },
+  selectedTribeValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFF',
+    marginTop: 2,
+  },
+  selectedTribeEditBadge: {
+    backgroundColor: 'rgba(5, 6, 10, 0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  selectedTribeEditText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FCD34D',
+  },
+  tribeSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#080B17',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  tribeSearchIcon: {
+    fontSize: 14,
+  },
+  tribeSearchInput: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+    paddingVertical: 2,
+  },
+  tribeSearchClearBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tribeSearchClearText: {
+    color: '#CBD5E1',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  tribeLoadingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+  },
+  tribeLoadingText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  tribeListScroller: {
+    maxHeight: 185,
+  },
+  tribeEmptyBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  tribeEmptyText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  tribeResetFilterBtn: {
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  tribeResetFilterText: {
+    color: '#FF6B8B',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  tribeCardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#080B17',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    gap: 10,
+  },
+  tribeCardItemSelected: {
+    backgroundColor: 'rgba(255, 56, 92, 0.14)',
+    borderColor: '#FF385C',
+  },
+  tribeCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tribeCardName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F1F5F9',
+    flexShrink: 1,
+  },
+  tribeCardNameSelected: {
+    color: '#FF6B8B',
+  },
+  tribeCityTag: {
+    backgroundColor: 'rgba(124, 58, 237, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  tribeCityTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#C4B5FD',
+  },
+  tribeCardDesc: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  tribeCardMembers: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '700',
+    marginTop: 3,
+  },
+  tribeSelectIndicator: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  tribeSelectIndicatorActive: {
+    backgroundColor: '#FF385C',
+  },
+  tribeSelectIndicatorText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#CBD5E1',
+  },
+  tribeSelectIndicatorTextActive: {
+    color: '#FFF',
+  },
+  multiPhotoQuickBtn: {
+    backgroundColor: 'rgba(124, 58, 237, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.45)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  multiPhotoQuickBtnText: {
+    color: '#DDD6FE',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  photoPickerActionBtnMulti: {
+    width: '100%',
+    backgroundColor: 'rgba(124, 58, 237, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.5)',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  photoPickerActionBtnMultiText: {
+    color: '#E9D5FF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  miniPhotosStripScroll: {
+    marginVertical: 10,
+    maxHeight: 82,
+  },
+  miniPhotosStripRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  miniPhotoThumbWrap: {
+    width: 64,
+    height: 76,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+    position: 'relative',
+  },
+  miniPhotoThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  miniPhotoThumbBadge: {
+    position: 'absolute',
+    bottom: 3,
+    left: 3,
+    backgroundColor: 'rgba(5, 6, 10, 0.8)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 5,
+  },
+  miniPhotoThumbBadgeText: {
+    color: '#FCD34D',
+    fontSize: 8,
+    fontWeight: '800',
   },
 });

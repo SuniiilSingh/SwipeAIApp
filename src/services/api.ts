@@ -459,7 +459,8 @@ export const api = {
         const data = await res.json();
         if (data?.isLiveHuman && cachedProfile) {
           cachedProfile.livenessScore = data.livenessScore || 0.95;
-          cachedProfile.faceVerified = true;
+          cachedProfile.verificationStatus = 'PENDING';
+          cachedProfile.faceVerified = false;
         }
         return data;
       }
@@ -471,7 +472,40 @@ export const api = {
         message: '3D Liveness verification could not confirm head movement. Please try again.',
       };
     }
-    return { isLiveHuman: true, livenessScore: 0.95, message: '3D Biometric Liveness verified.' };
+    return { isLiveHuman: true, livenessScore: 0.95, message: '3D Biometric Liveness submitted (Verification Pending).' };
+  },
+
+  submitSelfieAsync: async (selfieBase64OrUrl: string): Promise<{
+    verified: boolean;
+    status: string;
+    message: string;
+    selfieUrl?: string;
+  }> => {
+    if (cachedProfile) {
+      cachedProfile.verificationStatus = 'PENDING';
+      cachedProfile.faceVerified = false;
+    }
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/kyc/selfie/submit-async`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ selfieBase64: selfieBase64OrUrl }),
+      }, 15000);
+      if (res.ok) {
+        const data = await res.json();
+        if (cachedProfile) {
+          cachedProfile.verificationStatus = data.status || 'PENDING';
+          if (data.selfieUrl) cachedProfile.selfieUrl = normalizeImageUrl(data.selfieUrl);
+        }
+        return data;
+      }
+    } catch (e) {}
+    return {
+      verified: false,
+      status: 'PENDING',
+      message: 'Verification Pending — verifying your selfie in the background.',
+      selfieUrl: selfieBase64OrUrl.startsWith('http') ? selfieBase64OrUrl : undefined,
+    };
   },
 
   verifyFaceMatch: async (selfieBase64: string, profilePhotoUrl?: string): Promise<{
@@ -495,6 +529,7 @@ export const api = {
         if (cachedProfile) {
           cachedProfile.livenessScore = data.similarityScore || 0.95;
           cachedProfile.faceVerified = true;
+          cachedProfile.verificationStatus = 'VERIFIED';
           if (data.selfieUrl) cachedProfile.selfieUrl = data.selfieUrl;
         }
       }

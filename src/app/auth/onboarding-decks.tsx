@@ -15,6 +15,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { DietaryPreference, Gender } from '@/types';
@@ -161,6 +163,7 @@ export default function OnboardingDecksScreen() {
   const [selfieUrl, setSelfieUrl] = useState<string>('');
   const [showSelfieModal, setShowSelfieModal] = useState<boolean>(false);
   const [isLivenessVerified, setIsLivenessVerified] = useState<boolean>(false);
+  const [verificationStatus, setVerificationStatus] = useState<'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('UNVERIFIED');
 
   // Deck 2: Frequency
   const [gender, setGender] = useState<Gender>('MALE');
@@ -188,6 +191,10 @@ export default function OnboardingDecksScreen() {
   // Deck 6: Vedic Birth Details
   const [birthTime, setBirthTime] = useState<string>('14:30');
   const [birthCity, setBirthCity] = useState<string>('Bengaluru');
+
+  // Deck 7: 6-Slot Photo Showcase (Minimum 2 required, up to 6 optional)
+  const [photoSlots, setPhotoSlots] = useState<string[]>(['', '', '', '', '', '']);
+  const [uploadingSlotIdx, setUploadingSlotIdx] = useState<number | null>(null);
 
   // Animations
   const deckAnim = useRef(new Animated.Value(1)).current;
@@ -219,24 +226,64 @@ export default function OnboardingDecksScreen() {
         if (prof?.height) setHeightCm(prof.height);
         if (prof?.dietaryPref) setDietaryPref(prof.dietaryPref);
         if (prof?.drinkingHabit) setDrinkingHabit(prof.drinkingHabit);
+
+        const initialSlots = [
+          prof?.photo1 || prof?.photos?.[0] || '',
+          prof?.photo2 || prof?.photos?.[1] || '',
+          prof?.photo3 || prof?.photos?.[2] || '',
+          prof?.photo4 || prof?.photos?.[3] || '',
+          prof?.photo5 || prof?.photos?.[4] || '',
+          prof?.photo6 || prof?.photos?.[5] || '',
+        ].map((u) => (u && !u.includes('unsplash.com/photo-1534528741775') ? u : ''));
+        setPhotoSlots(initialSlots);
+
         if (prof?.selfieUrl) {
           setSelfieUrl(prof.selfieUrl);
+        }
+        if (prof?.verificationStatus === 'VERIFIED' || prof?.faceVerified) {
+          setVerificationStatus('VERIFIED');
           setIsLivenessVerified(true);
+        } else if (prof?.verificationStatus === 'PENDING' || prof?.selfieUrl) {
+          setVerificationStatus('PENDING');
+          setIsLivenessVerified(false);
+        } else if (prof?.verificationStatus === 'REJECTED') {
+          setVerificationStatus('REJECTED');
+          setIsLivenessVerified(false);
         }
       } catch (e) {}
     })();
   }, []);
 
+  // Poll backend verification status in background while PENDING
+  useEffect(() => {
+    if (verificationStatus !== 'PENDING') return;
+    const interval = setInterval(async () => {
+      try {
+        const prof = await api.getMyProfile();
+        if (prof?.verificationStatus === 'VERIFIED' || prof?.faceVerified) {
+          setVerificationStatus('VERIFIED');
+          setIsLivenessVerified(true);
+          hapticFeedback.success();
+        } else if (prof?.verificationStatus === 'REJECTED') {
+          setVerificationStatus('REJECTED');
+          setIsLivenessVerified(false);
+        }
+      } catch (e) {}
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [verificationStatus]);
+
   const getMagnetismScore = (deck: number) => {
     switch (deck) {
-      case 1: return 20;
-      case 2: return 38;
-      case 3: return 55;
-      case 4: return 72;
-      case 5: return 88;
-      case 6: return 100;
+      case 1: return 16;
+      case 2: return 32;
+      case 3: return 48;
+      case 4: return 64;
+      case 5: return 78;
+      case 6: return 90;
       case 7: return 100;
-      default: return 20;
+      case 8: return 100;
+      default: return 16;
     }
   };
 
@@ -284,22 +331,128 @@ export default function OnboardingDecksScreen() {
   const handleSelfieCaptured = async (score: number, centerPhotoUri?: string) => {
     setShowSelfieModal(false);
     hapticFeedback.success();
-    setIsLivenessVerified(true);
+    // Immediately mark verification as PENDING while backend verifies in background
+    setVerificationStatus('PENDING');
+    setIsLivenessVerified(false);
     if (centerPhotoUri) {
       setSelfieUrl(centerPhotoUri);
+      // Upload & submit asynchronously in background without blocking user
+      (async () => {
+        try {
+          const uploadedUrl = await api.uploadImage(centerPhotoUri);
+          const finalSelfie = uploadedUrl || centerPhotoUri;
+          if (uploadedUrl) {
+            setSelfieUrl(uploadedUrl);
+          }
+          await api.submitSelfieAsync(finalSelfie);
+        } catch (e) {
+          console.warn('Async selfie background upload warning:', e);
+        }
+      })();
     }
   };
 
+  const uploadedPhotosList = photoSlots.filter((u) => u && u.trim().length > 0);
+
+  const handlePickPhotoSlot = async (slotIndex: number) => {
+    try {
+      hapticFeedback.light();
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission Needed', 'Please allow photo library access to upload your profile photos.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 5],
+        quality: 0.75,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) return;
+
+      const asset = result.assets[0];
+      const localUri = asset.uri;
+      const directBase64 = asset.base64;
+
+      setUploadingSlotIdx(slotIndex);
+      // Optimistically show selected photo in slot
+      const optimisticSlots = [...photoSlots];
+      optimisticSlots[slotIndex] = localUri;
+      setPhotoSlots(optimisticSlots);
+
+      const remoteUrl = await api.uploadImage(localUri, directBase64);
+      const finalUrl = remoteUrl || localUri;
+
+      setPhotoSlots((prev) => {
+        const next = [...prev];
+        next[slotIndex] = finalUrl;
+        const cleanList = next.filter((p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:'));
+        // Persist in background & trigger async selfie verification if selfie already uploaded
+        if (selfieUrl) {
+          setVerificationStatus('PENDING');
+        }
+        api.updateMyProfile({
+          photo1: next[0] || '',
+          photo2: next[1] || '',
+          photo3: next[2] || '',
+          photo4: next[3] || '',
+          photo5: next[4] || '',
+          photo6: next[5] || '',
+          photos: cleanList,
+        }).catch(() => {});
+        return next;
+      });
+      hapticFeedback.success();
+    } catch (err) {
+      console.warn('Photo slot upload error:', err);
+      Alert.alert('Upload Error', 'Could not upload photo. Please try again.');
+    } finally {
+      setUploadingSlotIdx(null);
+    }
+  };
+
+  const handleRemovePhotoSlot = (slotIndex: number) => {
+    hapticFeedback.light();
+    setPhotoSlots((prev) => {
+      const next = [...prev];
+      next[slotIndex] = '';
+      const cleanList = next.filter((p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:'));
+      api.updateMyProfile({
+        photo1: next[0] || '',
+        photo2: next[1] || '',
+        photo3: next[2] || '',
+        photo4: next[3] || '',
+        photo5: next[4] || '',
+        photo6: next[5] || '',
+        photos: cleanList,
+      }).catch(() => {});
+      return next;
+    });
+  };
+
   const handleCompileAndLaunch = async () => {
+    if (uploadedPhotosList.length < 2) {
+      hapticFeedback.warning();
+      Alert.alert(
+        'Upload At Least 2 Photos 📸',
+        'Please upload at least 2 profile photos on Deck 7 before launching your profile. You can also upload all 6 photos!'
+      );
+      advanceToDeck(7);
+      return;
+    }
     if (isSubmitting) return;
     setIsSubmitting(true);
     hapticFeedback.success();
 
     const formattedDob = `${dobYear}-${dobMonth.padStart(2, '0')}-${dobDay.padStart(2, '0')}`;
     const cleanName = fullName.trim() || 'BlunderR Star';
+    const remotePhotos = photoSlots.filter((p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:'));
 
     try {
-      // 1. Update Core Profile
+      // 1. Update Core Profile (triggers backend async selfie verification against uploaded photos)
       await api.updateMyProfile({
         displayName: cleanName,
         fullName: cleanName,
@@ -317,8 +470,15 @@ export default function OnboardingDecksScreen() {
         height: heightCm,
         dietaryPref,
         drinkingHabit,
-        selfieUrl: selfieUrl || undefined,
-        faceVerified: isLivenessVerified,
+        photo1: photoSlots[0] || undefined,
+        photo2: photoSlots[1] || undefined,
+        photo3: photoSlots[2] || undefined,
+        photo4: photoSlots[3] || undefined,
+        photo5: photoSlots[4] || undefined,
+        photo6: photoSlots[5] || undefined,
+        photos: remotePhotos,
+        selfieUrl: selfieUrl && !selfieUrl.startsWith('file:') ? selfieUrl : undefined,
+        verificationStatus: selfieUrl ? (verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING') : undefined,
       });
 
       // 2. Update Vedic Janampatri
@@ -359,11 +519,11 @@ export default function OnboardingDecksScreen() {
           </View>
         </View>
 
-        {/* 6-Deck Segmented Stepper */}
+        {/* 7-Deck Segmented Stepper */}
         <View style={styles.stepperTrack}>
-          {[1, 2, 3, 4, 5, 6].map((i) => {
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => {
             const isPassed = activeDeck > i;
-            const isActive = activeDeck === i || (activeDeck === 7 && i === 6);
+            const isActive = activeDeck === i || (activeDeck === 8 && i === 7);
             return (
               <View
                 key={i}
@@ -383,10 +543,32 @@ export default function OnboardingDecksScreen() {
             User: <Text style={styles.ribbonBold}>{fullName.trim() || 'Aryan'}, {getEstimatedAge()}</Text>
           </Text>
           <Text style={styles.ribbonItem}>
-            Circle: <Text style={styles.ribbonBold}>{microCircle.split(' ')[1] || 'Koramangala'}</Text>
+            Photos: <Text style={styles.ribbonBold}>{uploadedPhotosList.length}/6</Text>
           </Text>
-          <Text style={[styles.ribbonItem, { color: '#6EE7B7' }]}>
-            Kundli: <Text style={styles.ribbonBold}>Taurus ♉</Text>
+          <Text
+            style={[
+              styles.ribbonItem,
+              {
+                color:
+                  verificationStatus === 'VERIFIED'
+                    ? '#6EE7B7'
+                    : verificationStatus === 'PENDING'
+                    ? '#FCD34D'
+                    : verificationStatus === 'REJECTED'
+                    ? '#FCA5A5'
+                    : '#94A3B8',
+              },
+            ]}>
+            KYC:{' '}
+            <Text style={styles.ribbonBold}>
+              {verificationStatus === 'VERIFIED'
+                ? 'Verified ✓'
+                : verificationStatus === 'PENDING'
+                ? 'Pending ⏳'
+                : verificationStatus === 'REJECTED'
+                ? 'Retake ⚠️'
+                : 'Unverified'}
+            </Text>
           </Text>
         </View>
       </View>
@@ -412,7 +594,7 @@ export default function OnboardingDecksScreen() {
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>✨ DECK 1 OF 6 • IDENTITY SPARK</Text>
+                    <Text style={styles.deckBadgeText}>✨ DECK 1 OF 7 • IDENTITY SPARK</Text>
                   </View>
                   <Text style={styles.deckTitle}>Who is making waves today?</Text>
                   <Text style={styles.deckSub}>Enter your genuine self. Verified humans only.</Text>
@@ -457,27 +639,59 @@ export default function OnboardingDecksScreen() {
                     </View>
                   </View>
 
-                  {/* 3D Selfie Scan Button */}
+                  {/* 3D Selfie Scan Button with Async Pending Status */}
                   <TouchableOpacity
-                    style={[styles.selfieScanCard, isLivenessVerified && styles.selfieScanCardDone]}
+                    style={[
+                      styles.selfieScanCard,
+                      verificationStatus === 'VERIFIED' && styles.selfieScanCardDone,
+                      verificationStatus === 'PENDING' && styles.selfieScanCardPending,
+                    ]}
                     activeOpacity={0.8}
                     onPress={() => setShowSelfieModal(true)}>
-                    <Text style={styles.selfieScanIcon}>{isLivenessVerified ? '✅' : '📸'}</Text>
+                    <Text style={styles.selfieScanIcon}>
+                      {verificationStatus === 'VERIFIED'
+                        ? '✅'
+                        : verificationStatus === 'PENDING'
+                        ? '⏳'
+                        : verificationStatus === 'REJECTED'
+                        ? '⚠️'
+                        : '📸'}
+                    </Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.selfieScanTitle}>
-                        {isLivenessVerified ? '3D Face Verified' : '3D Liveness Selfie Scan'}
+                      <Text
+                        style={[
+                          styles.selfieScanTitle,
+                          verificationStatus === 'PENDING' && { color: '#FCD34D' },
+                          verificationStatus === 'REJECTED' && { color: '#FCA5A5' },
+                        ]}>
+                        {verificationStatus === 'VERIFIED'
+                          ? '3D Face Verified'
+                          : verificationStatus === 'PENDING'
+                          ? 'Verification Pending'
+                          : verificationStatus === 'REJECTED'
+                          ? 'Verification Failed • Tap to Retake'
+                          : '3D Liveness Selfie Scan'}
                       </Text>
-                      <Text style={styles.selfieScanDesc}>
-                        {isLivenessVerified
-                          ? 'Instant authenticity badge attached'
-                          : 'Tap to scan • Instant shield against bots'}
+                      <Text
+                        style={[
+                          styles.selfieScanDesc,
+                          verificationStatus === 'PENDING' && { color: '#FDE68A' },
+                          verificationStatus === 'REJECTED' && { color: '#FECACA' },
+                        ]}>
+                        {verificationStatus === 'VERIFIED'
+                          ? 'Verified by backend AI • Authenticity badge active'
+                          : verificationStatus === 'PENDING'
+                          ? 'Selfie uploaded! Backend AI is verifying in the background...'
+                          : verificationStatus === 'REJECTED'
+                          ? 'Face did not match or was unclear. Tap to scan again.'
+                          : 'Tap to scan • We verify in background while you continue'}
                       </Text>
                     </View>
                   </TouchableOpacity>
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>⚡ +20% Match Magnetism Unlocked</Text>
+                  <Text style={styles.paceCue}>⚡ +16% Match Magnetism Unlocked</Text>
                   <TouchableOpacity
                     style={styles.btnPrimary}
                     activeOpacity={0.85}
@@ -493,7 +707,7 @@ export default function OnboardingDecksScreen() {
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>💫 DECK 2 OF 6 • MUTUAL FREQUENCY</Text>
+                    <Text style={styles.deckBadgeText}>💫 DECK 2 OF 7 • MUTUAL FREQUENCY</Text>
                   </View>
                   <Text style={styles.deckTitle}>Who are you looking to meet?</Text>
                   <Text style={styles.deckSub}>Calibrates discovery radar instantaneously.</Text>
@@ -622,7 +836,7 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>🎯 Frequency tuned! 4 rapid cards left</Text>
+                  <Text style={styles.paceCue}>🎯 Frequency tuned! 5 rapid cards left</Text>
                   <TouchableOpacity
                     style={styles.btnPrimary}
                     activeOpacity={0.85}
@@ -641,7 +855,7 @@ export default function OnboardingDecksScreen() {
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>🏙️ DECK 3 OF 6 • NEIGHBORHOOD TRIBE</Text>
+                    <Text style={styles.deckBadgeText}>🏙️ DECK 3 OF 7 • NEIGHBORHOOD TRIBE</Text>
                   </View>
                   <Text style={styles.deckTitle}>Your everyday stomping ground</Text>
                   <Text style={styles.deckSub}>Never match someone living 2 hours away in traffic.</Text>
@@ -689,7 +903,7 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>🔥 55% Magnetism! Halfway milestone unlocked</Text>
+                  <Text style={styles.paceCue}>🔥 48% Magnetism! Halfway milestone unlocked</Text>
                   <TouchableOpacity
                     style={styles.btnPrimary}
                     activeOpacity={0.85}
@@ -708,7 +922,7 @@ export default function OnboardingDecksScreen() {
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>🎭 DECK 4 OF 6 • 1-TAP BIO SPARK</Text>
+                    <Text style={styles.deckBadgeText}>🎭 DECK 4 OF 7 • 1-TAP BIO SPARK</Text>
                   </View>
                   <Text style={styles.deckTitle}>Pick your energy persona</Text>
                   <Text style={styles.deckSub}>Zero typing dread. Tap an archetype to generate!</Text>
@@ -799,7 +1013,7 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>✨ 72% Magnetism! 2 quick final cards</Text>
+                  <Text style={styles.paceCue}>✨ 64% Magnetism! 3 quick final cards</Text>
                   <TouchableOpacity
                     style={styles.btnPrimary}
                     activeOpacity={0.85}
@@ -818,7 +1032,7 @@ export default function OnboardingDecksScreen() {
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>☕ DECK 5 OF 6 • LIFESTYLE RHYTHM</Text>
+                    <Text style={styles.deckBadgeText}>☕ DECK 5 OF 7 • LIFESTYLE RHYTHM</Text>
                   </View>
                   <Text style={styles.deckTitle}>Your height & everyday vibe</Text>
                   <Text style={styles.deckSub}>Clear mutual honesty from Day 1.</Text>
@@ -890,7 +1104,7 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>🚀 88% Magnetism! Final cosmic deck ahead</Text>
+                  <Text style={styles.paceCue}>🚀 78% Magnetism! Cosmic & Photo decks ahead</Text>
                   <TouchableOpacity
                     style={styles.btnPrimary}
                     activeOpacity={0.85}
@@ -909,7 +1123,7 @@ export default function OnboardingDecksScreen() {
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>🪐 DECK 6 OF 6 • VEDIC JANAMPATRI</Text>
+                    <Text style={styles.deckBadgeText}>🪐 DECK 6 OF 7 • VEDIC JANAMPATRI</Text>
                   </View>
                   <Text style={styles.deckTitle}>Calibrate your birth chart</Text>
                   <Text style={styles.deckSub}>Sidereal Swiss Ephemeris for 36-point Guna Milan.</Text>
@@ -946,13 +1160,13 @@ export default function OnboardingDecksScreen() {
 
                 <View style={styles.deckFooter}>
                   <Text style={[styles.paceCue, { color: '#FCD34D' }]}>
-                    👑 100% Top-Tier Profile Magnetism!
+                    🌟 90% Magnetism! Final Photo Showcase deck ahead
                   </Text>
                   <TouchableOpacity
-                    style={[styles.btnPrimary, styles.btnLaunch]}
+                    style={styles.btnPrimary}
                     activeOpacity={0.85}
                     onPress={() => advanceToDeck(7)}>
-                    <Text style={styles.btnPrimaryText}>Review Synthesized Profile ➔</Text>
+                    <Text style={styles.btnPrimaryText}>Next: Photo Showcase (Min 2) ➔</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(5)}>
                     <Text style={styles.btnBackText}>← Back</Text>
@@ -961,14 +1175,184 @@ export default function OnboardingDecksScreen() {
               </View>
             )}
 
-            {/* ==================== FINAL REVEAL CARD ==================== */}
+            {/* ==================== DECK 7: 6-SLOT PHOTO SHOWCASE ==================== */}
             {activeDeck === 7 && (
+              <View style={styles.deckInner}>
+                <View style={styles.deckHeader}>
+                  <View style={styles.deckBadge}>
+                    <Text style={styles.deckBadgeText}>📸 DECK 7 OF 7 • PHOTO SHOWCASE</Text>
+                  </View>
+                  <Text style={styles.deckTitle}>Upload at least 2 photos</Text>
+                  <Text style={styles.deckSub}>
+                    Please upload at least 2 photos to continue — or upload all 6 photos for 3x more matches!
+                  </Text>
+                </View>
+
+                <View style={styles.deckBody}>
+                  {/* Photo Counter & Requirement Banner */}
+                  <View style={styles.photoCounterBanner}>
+                    <View>
+                      <Text style={styles.photoCounterTitle}>
+                        {uploadedPhotosList.length >= 2
+                          ? `✅ ${uploadedPhotosList.length} of 6 Photos Ready`
+                          : `📸 ${uploadedPhotosList.length} of 2 Required Photos Uploaded`}
+                      </Text>
+                      <Text style={styles.photoCounterSub}>
+                        {uploadedPhotosList.length < 2
+                          ? `Upload ${2 - uploadedPhotosList.length} more photo${2 - uploadedPhotosList.length === 1 ? '' : 's'} (or fill all 6 slots)`
+                          : 'Minimum 2 met! Add up to 6 photos anytime'}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.photoCountBadge,
+                        uploadedPhotosList.length >= 2 && styles.photoCountBadgeSuccess,
+                      ]}>
+                      <Text style={styles.photoCountBadgeText}>{uploadedPhotosList.length} / 6</Text>
+                    </View>
+                  </View>
+
+                  {/* 6-Slot Interactive Grid (2 Required + 4 Optional) */}
+                  <View style={styles.photoGrid6}>
+                    {[0, 1, 2, 3, 4, 5].map((idx) => {
+                      const uri = photoSlots[idx];
+                      const isRequired = idx < 2;
+                      const isUploadingThis = uploadingSlotIdx === idx;
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[
+                            styles.photoSlotCard,
+                            isRequired && !uri && styles.photoSlotCardRequired,
+                            !!uri && styles.photoSlotCardFilled,
+                          ]}
+                          activeOpacity={0.85}
+                          onPress={() => handlePickPhotoSlot(idx)}>
+                          {uri ? (
+                            <>
+                              <Image
+                                source={{ uri }}
+                                style={styles.photoSlotImage}
+                                contentFit="cover"
+                              />
+                              <View style={styles.photoSlotTopTag}>
+                                <Text style={styles.photoSlotTopTagText}>
+                                  {idx === 0 ? '★ MAIN' : `#${idx + 1}`}
+                                </Text>
+                              </View>
+                              <TouchableOpacity
+                                style={styles.photoSlotRemoveBtn}
+                                onPress={() => handleRemovePhotoSlot(idx)}>
+                                <Text style={styles.photoSlotRemoveText}>✕</Text>
+                              </TouchableOpacity>
+                            </>
+                          ) : (
+                            <View style={styles.photoSlotEmptyInner}>
+                              <Text style={styles.photoSlotPlusIcon}>{isRequired ? '📸' : '＋'}</Text>
+                              <Text
+                                style={[
+                                  styles.photoSlotLabel,
+                                  isRequired && { color: '#FF6B8B', fontWeight: '900' },
+                                ]}>
+                                {isRequired ? `Photo ${idx + 1} *` : `Photo ${idx + 1}`}
+                              </Text>
+                              <Text style={styles.photoSlotReqSub}>
+                                {isRequired ? 'REQUIRED' : 'OPTIONAL'}
+                              </Text>
+                            </View>
+                          )}
+
+                          {isUploadingThis && (
+                            <View style={styles.photoSlotLoadingOverlay}>
+                              <ActivityIndicator color="#FF385C" size="small" />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Live Background Selfie Verification Status Pill */}
+                  <TouchableOpacity
+                    style={[
+                      styles.asyncVerifyBanner,
+                      verificationStatus === 'VERIFIED' && styles.asyncVerifyBannerDone,
+                      verificationStatus === 'PENDING' && styles.asyncVerifyBannerPending,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => setShowSelfieModal(true)}>
+                    <Text style={{ fontSize: 18 }}>
+                      {verificationStatus === 'VERIFIED'
+                        ? '✅'
+                        : verificationStatus === 'PENDING'
+                        ? '⏳'
+                        : verificationStatus === 'REJECTED'
+                        ? '⚠️'
+                        : '🛡️'}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.asyncVerifyTitle}>
+                        {verificationStatus === 'VERIFIED'
+                          ? 'Selfie Verified by Backend AI'
+                          : verificationStatus === 'PENDING'
+                          ? 'Selfie Verification Pending (Backend AI Verifying...)'
+                          : verificationStatus === 'REJECTED'
+                          ? 'Selfie Verification Needs Retake • Tap Here'
+                          : 'haven’t scanned your selfie yet? Tap to scan'}
+                      </Text>
+                      <Text style={styles.asyncVerifySub}>
+                        {verificationStatus === 'PENDING'
+                          ? 'We automatically verify your selfie against your uploaded photos in the background.'
+                          : verificationStatus === 'VERIFIED'
+                          ? 'Your 3D selfie and profile photos are verified!'
+                          : 'As soon as you upload a selfie, we mark it pending & verify in the backend.'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.deckFooter}>
+                  <Text style={[styles.paceCue, { color: '#FCD34D' }]}>
+                    👑 {uploadedPhotosList.length >= 2 ? '100% Top-Tier Profile Magnetism!' : 'Upload at least 2 photos to unlock final launch'}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.btnPrimary,
+                      uploadedPhotosList.length >= 2 ? styles.btnLaunch : { opacity: 0.65 },
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      if (uploadedPhotosList.length < 2) {
+                        hapticFeedback.warning();
+                        Alert.alert(
+                          'Please Upload At Least 2 Photos 📸',
+                          'Please upload at least 2 photos in the required slots (you can also upload all 6 photos) before continuing.'
+                        );
+                        return;
+                      }
+                      advanceToDeck(8);
+                    }}>
+                    <Text style={styles.btnPrimaryText}>
+                      {uploadedPhotosList.length >= 2
+                        ? 'Review Synthesized Profile ➔'
+                        : `Upload ${2 - uploadedPhotosList.length} More Photo${2 - uploadedPhotosList.length === 1 ? '' : 's'} to Continue`}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(6)}>
+                    <Text style={styles.btnBackText}>← Back to Janampatri</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* ==================== FINAL REVEAL CARD (DECK 8) ==================== */}
+            {activeDeck === 8 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <Text style={styles.trophyIcon}>💎</Text>
                   <Text style={styles.deckTitle}>Profile Synthesized!</Text>
                   <Text style={styles.deckSub}>
-                    All 6 decks compiled with 100% precision. You are in the top 5% most attractive candidate tier.
+                    All 7 decks compiled with {uploadedPhotosList.length} photo{uploadedPhotosList.length === 1 ? '' : 's'}. You are ready for Discovery!
                   </Text>
                 </View>
 
@@ -977,8 +1361,25 @@ export default function OnboardingDecksScreen() {
                   <View style={styles.miniPreviewCard}>
                     <View style={styles.miniPreviewHeader}>
                       <Text style={styles.miniPreviewName}>{fullName.trim() || 'Aryan'}, {getEstimatedAge()}</Text>
-                      <View style={styles.verifiedBadge}>
-                        <Text style={styles.verifiedBadgeText}>✓ 3D Face Verified</Text>
+                      <View
+                        style={[
+                          styles.verifiedBadge,
+                          verificationStatus === 'PENDING' && {
+                            backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                            borderColor: 'rgba(245, 158, 11, 0.5)',
+                          },
+                        ]}>
+                        <Text
+                          style={[
+                            styles.verifiedBadgeText,
+                            verificationStatus === 'PENDING' && { color: '#FCD34D' },
+                          ]}>
+                          {verificationStatus === 'VERIFIED'
+                            ? '✓ 3D Face Verified'
+                            : verificationStatus === 'PENDING'
+                            ? '⏳ Verification Pending'
+                            : '📸 Unverified'}
+                        </Text>
                       </View>
                     </View>
                     <Text style={styles.miniPreviewBio} numberOfLines={2}>
@@ -990,6 +1391,9 @@ export default function OnboardingDecksScreen() {
                       </View>
                       <View style={styles.miniTag}>
                         <Text style={styles.miniTagText}>{heightCm} cm • {dietaryPref}</Text>
+                      </View>
+                      <View style={styles.miniTag}>
+                        <Text style={styles.miniTagText}>📸 {uploadedPhotosList.length}/6 Photos</Text>
                       </View>
                       <View style={[styles.miniTag, { backgroundColor: 'rgba(16,185,129,0.2)' }]}>
                         <Text style={[styles.miniTagText, { color: '#6EE7B7' }]}>Taurus • Rohini</Text>
@@ -1014,8 +1418,8 @@ export default function OnboardingDecksScreen() {
                       <Text style={styles.btnPrimaryText}>🚀 Compile & Launch Discovery Deck</Text>
                     )}
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(6)}>
-                    <Text style={styles.btnBackText}>← Back to Janampatri</Text>
+                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(7)}>
+                    <Text style={styles.btnBackText}>← Back to Photo Showcase</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1872,5 +2276,172 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 12,
     fontWeight: '800',
+  },
+  selfieScanCardPending: {
+    borderStyle: 'solid',
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderColor: '#F59E0B',
+  },
+  photoCounterBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#080B17',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  photoCounterTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  photoCounterSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  photoCountBadge: {
+    backgroundColor: 'rgba(255, 56, 92, 0.18)',
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  photoCountBadgeSuccess: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: '#10B981',
+  },
+  photoCountBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#FFF',
+  },
+  photoGrid6: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 10,
+    marginTop: 4,
+  },
+  photoSlotCard: {
+    width: '31.5%',
+    aspectRatio: 0.78,
+    backgroundColor: '#080B17',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  photoSlotCardRequired: {
+    borderColor: 'rgba(255, 56, 92, 0.55)',
+    backgroundColor: 'rgba(255, 56, 92, 0.06)',
+  },
+  photoSlotCardFilled: {
+    borderStyle: 'solid',
+    borderColor: '#10B981',
+  },
+  photoSlotImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoSlotTopTag: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(5, 6, 10, 0.75)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  photoSlotTopTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FCD34D',
+  },
+  photoSlotRemoveBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoSlotRemoveText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  photoSlotEmptyInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 6,
+    gap: 3,
+  },
+  photoSlotPlusIcon: {
+    fontSize: 20,
+    color: '#CBD5E1',
+  },
+  photoSlotLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#CBD5E1',
+  },
+  photoSlotReqSub: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.4,
+  },
+  photoSlotLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(5, 6, 10, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  asyncVerifyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 2,
+  },
+  asyncVerifyBannerDone: {
+    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    borderColor: '#10B981',
+  },
+  asyncVerifyBannerPending: {
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderColor: '#F59E0B',
+  },
+  asyncVerifyTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  asyncVerifySub: {
+    fontSize: 10,
+    color: '#CBD5E1',
+    marginTop: 2,
+    lineHeight: 14,
   },
 });

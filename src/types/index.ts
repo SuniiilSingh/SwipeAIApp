@@ -37,6 +37,7 @@ export interface UserProfile {
   digilockerVerified: boolean;
   whatsappVerified: boolean;
   faceVerified?: boolean;
+  verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | string;
   livenessScore: number;
   karmaScore: number;
   dietaryPref?: DietaryPreference;

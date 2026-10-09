@@ -110,16 +110,18 @@ export default function AuthScreen() {
 
   // Languages state for onboarding
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['English', 'Hindi']);
+  const [tempSelectedLanguages, setTempSelectedLanguages] = useState<string[]>(['English', 'Hindi']);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [customLangInput, setCustomLangInput] = useState('');
 
   const toggleLanguage = (lang: string) => {
     const cleanLang = lang.split(' ')[0];
-    if (selectedLanguages.includes(cleanLang)) {
-      if (selectedLanguages.length > 1) {
-        setSelectedLanguages(selectedLanguages.filter((l) => l !== cleanLang));
+    if (tempSelectedLanguages.includes(cleanLang)) {
+      if (tempSelectedLanguages.length > 1) {
+        setTempSelectedLanguages(tempSelectedLanguages.filter((l) => l !== cleanLang));
       }
     } else {
-      setSelectedLanguages([...selectedLanguages, cleanLang]);
+      setTempSelectedLanguages([...tempSelectedLanguages, cleanLang]);
     }
   };
 
@@ -127,8 +129,8 @@ export default function AuthScreen() {
     const trimmed = customLangInput.trim();
     if (!trimmed) return;
     const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-    if (!selectedLanguages.includes(capitalized)) {
-      setSelectedLanguages([...selectedLanguages, capitalized]);
+    if (!tempSelectedLanguages.includes(capitalized)) {
+      setTempSelectedLanguages([...tempSelectedLanguages, capitalized]);
     }
     setCustomLangInput('');
   };
@@ -1358,19 +1360,82 @@ export default function AuthScreen() {
               ))}
             </View>
 
-            {/* Languages Known Section */}
+            {/* Languages Known Section (Clickable Text Box -> Opens Pop-up Modal) */}
             <View style={styles.languageSectionWrap}>
               <View style={styles.langHeaderRow}>
                 <Text style={styles.langSectionTitle}>🗣️ Languages Known</Text>
                 <Text style={styles.langCountBadge}>{selectedLanguages.length} selected</Text>
               </View>
               <Text style={styles.langSectionSub}>
-                Select languages you speak or add your mother tongue to connect on authentic cultural vibes.
+                Tap the box below to select languages you speak or add your mother tongue.
               </Text>
 
+              <TouchableOpacity
+                style={styles.langTextBoxTrigger}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setTempSelectedLanguages([...selectedLanguages]);
+                  setCustomLangInput('');
+                  setShowLanguageModal(true);
+                }}>
+                <Text
+                  style={[
+                    styles.langTextBoxValue,
+                    selectedLanguages.length === 0 && { color: '#6B7280' },
+                  ]}
+                  numberOfLines={2}>
+                  {selectedLanguages.length > 0
+                    ? selectedLanguages.join(', ')
+                    : 'Tap to select languages known...'}
+                </Text>
+                <View style={styles.langTextBoxRightBadge}>
+                  <Text style={styles.langTextBoxRightText}>Select ▾</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.primaryButton} onPress={handleSaveShieldAndIntent} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Enter Match Lounge 🚀</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
+
+      {/* Languages Known Pop-up Modal (Cancel Top-Right, Done at Bottom) */}
+      <Modal
+        visible={showLanguageModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLanguageModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.langModalContent}>
+            <View style={styles.langModalTopHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.langModalTitle}>🗣️ Languages Known</Text>
+                <Text style={styles.langModalSub}>
+                  {tempSelectedLanguages.length} language{tempSelectedLanguages.length === 1 ? '' : 's'} selected
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.langModalCancelTopBtn}
+                activeOpacity={0.8}
+                onPress={() => setShowLanguageModal(false)}>
+                <Text style={styles.langModalCancelTopText}>✕ Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={{ maxHeight: 340, width: '100%' }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
               {/* Active Selected Chips */}
               <View style={styles.selectedLangRow}>
-                {selectedLanguages.map((lang) => (
+                {tempSelectedLanguages.map((lang) => (
                   <TouchableOpacity
                     key={lang}
                     style={styles.selectedLangChip}
@@ -1386,7 +1451,7 @@ export default function AuthScreen() {
               <View style={styles.presetLangRow}>
                 {ONBOARDING_LANGUAGES.map((item) => {
                   const clean = item.split(' ')[0];
-                  const isSel = selectedLanguages.includes(clean);
+                  const isSel = tempSelectedLanguages.includes(clean);
                   return (
                     <TouchableOpacity
                       key={item}
@@ -1394,7 +1459,7 @@ export default function AuthScreen() {
                       onPress={() => toggleLanguage(item)}
                       activeOpacity={0.75}>
                       <Text style={[styles.presetLangPillText, isSel && styles.presetLangPillTextSelected]}>
-                        {item}
+                        {item} {isSel ? '✓' : ''}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -1419,19 +1484,20 @@ export default function AuthScreen() {
                   <Text style={styles.customLangAddBtnText}>+ Add</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </ScrollView>
 
-            <TouchableOpacity style={styles.primaryButton} onPress={handleSaveShieldAndIntent} disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Enter Match Lounge 🚀</Text>
-              )}
+            <TouchableOpacity
+              style={[styles.primaryButton, { marginTop: 16, width: '100%' }]}
+              activeOpacity={0.85}
+              onPress={() => {
+                setSelectedLanguages([...tempSelectedLanguages]);
+                setShowLanguageModal(false);
+              }}>
+              <Text style={styles.primaryButtonText}>✓ Done</Text>
             </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       {/* DigiLocker ZK Modal (Feature Flag Controlled) */}
       {FEATURE_FLAGS.ENABLE_DIGILOCKER && (
@@ -3323,6 +3389,81 @@ const styles = StyleSheet.create({
   customLangAddBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
+    fontWeight: '800',
+  },
+  langTextBoxTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#13141E',
+    borderWidth: 1.5,
+    borderColor: '#2E3245',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 10,
+  },
+  langTextBoxValue: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  langTextBoxRightBadge: {
+    backgroundColor: 'rgba(233, 64, 87, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(233, 64, 87, 0.45)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  langTextBoxRightText: {
+    color: '#FF6B8B',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  langModalContent: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#151621',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: 'rgba(233, 64, 87, 0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.7,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  langModalTopHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 10,
+  },
+  langModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  langModalSub: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  langModalCancelTopBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  langModalCancelTopText: {
+    color: '#E5E7EB',
+    fontSize: 12,
     fontWeight: '800',
   },
   authLegalBox: {

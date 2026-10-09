@@ -21,7 +21,7 @@ import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { DietaryPreference, Gender } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
-import LivenessCameraModal from '@/components/liveness-camera-modal';
+import SelfieCameraModal from '@/components/selfie-camera-modal';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 import {
   GENDER_PRESETS,
@@ -168,7 +168,9 @@ export default function OnboardingDecksScreen() {
   // Deck 2: Frequency
   const [gender, setGender] = useState<Gender>('MALE');
   const [genderDisplay, setGenderDisplay] = useState<string>('Man');
+  const [tempGenderDisplay, setTempGenderDisplay] = useState<string>('Man');
   const [lookingFor, setLookingFor] = useState<string>('Women');
+  const [tempLookingFor, setTempLookingFor] = useState<string>('Women');
   const [orientation, setOrientation] = useState<string>('Straight');
   const [showGenderModal, setShowGenderModal] = useState<boolean>(false);
   const [showPreferenceModal, setShowPreferenceModal] = useState<boolean>(false);
@@ -195,6 +197,7 @@ export default function OnboardingDecksScreen() {
   // Deck 7: 6-Slot Photo Showcase (Minimum 2 required, up to 6 optional)
   const [photoSlots, setPhotoSlots] = useState<string[]>(['', '', '', '', '', '']);
   const [uploadingSlotIdx, setUploadingSlotIdx] = useState<number | null>(null);
+  const [activePhotoSlotModal, setActivePhotoSlotModal] = useState<number | null>(null);
 
   // Animations
   const deckAnim = useRef(new Animated.Value(1)).current;
@@ -217,8 +220,14 @@ export default function OnboardingDecksScreen() {
           }
         }
         if (prof?.gender) setGender(prof.gender);
-        if (prof?.genderDisplay) setGenderDisplay(prof.genderDisplay);
-        if (prof?.genderPreferenceDisplay) setLookingFor(prof.genderPreferenceDisplay);
+        if (prof?.genderDisplay) {
+          setGenderDisplay(prof.genderDisplay);
+          setTempGenderDisplay(prof.genderDisplay);
+        }
+        if (prof?.genderPreferenceDisplay) {
+          setLookingFor(prof.genderPreferenceDisplay);
+          setTempLookingFor(prof.genderPreferenceDisplay);
+        }
         if (prof?.microCircle) setMicroCircle(prof.microCircle);
         if (prof?.job || prof?.occupation) setJob(prof.job || prof.occupation || '');
         if (prof?.institute || prof?.education) setInstitute(prof.institute || prof.education || '');
@@ -328,19 +337,19 @@ export default function OnboardingDecksScreen() {
     setBio(pool[nextIdx].bioText);
   };
 
-  const handleSelfieCaptured = async (score: number, centerPhotoUri?: string) => {
+  const handleSelfieCaptured = async (capturedUri: string, capturedBase64?: string) => {
     setShowSelfieModal(false);
     hapticFeedback.success();
     // Immediately mark verification as PENDING while backend verifies in background
     setVerificationStatus('PENDING');
     setIsLivenessVerified(false);
-    if (centerPhotoUri) {
-      setSelfieUrl(centerPhotoUri);
+    if (capturedUri) {
+      setSelfieUrl(capturedUri);
       // Upload & submit asynchronously in background without blocking user
       (async () => {
         try {
-          const uploadedUrl = await api.uploadImage(centerPhotoUri);
-          const finalSelfie = uploadedUrl || centerPhotoUri;
+          const uploadedUrl = await api.uploadImage(capturedUri, capturedBase64);
+          const finalSelfie = uploadedUrl || capturedUri;
           if (uploadedUrl) {
             setSelfieUrl(uploadedUrl);
           }
@@ -354,22 +363,39 @@ export default function OnboardingDecksScreen() {
 
   const uploadedPhotosList = photoSlots.filter((u) => u && u.trim().length > 0);
 
-  const handlePickPhotoSlot = async (slotIndex: number) => {
+  const handlePickPhotoSlot = async (slotIndex: number, source: 'gallery' | 'camera' = 'gallery') => {
     try {
+      setActivePhotoSlotModal(null);
       hapticFeedback.light();
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission Needed', 'Please allow photo library access to upload your profile photos.');
-        return;
-      }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 5],
-        quality: 0.75,
-        base64: true,
-      });
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Needed', 'Please allow camera access to take a profile photo.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 5],
+          quality: 0.75,
+          base64: true,
+        });
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission Needed', 'Please allow photo library access to upload your profile photos.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [4, 5],
+          quality: 0.75,
+          base64: true,
+        });
+      }
 
       if (result.canceled || !result.assets?.[0]?.uri) return;
 
@@ -639,7 +665,7 @@ export default function OnboardingDecksScreen() {
                     </View>
                   </View>
 
-                  {/* 3D Selfie Scan Button with Async Pending Status */}
+                  {/* Selfie Upload / Capture Button with Async Pending Status */}
                   <TouchableOpacity
                     style={[
                       styles.selfieScanCard,
@@ -665,12 +691,12 @@ export default function OnboardingDecksScreen() {
                           verificationStatus === 'REJECTED' && { color: '#FCA5A5' },
                         ]}>
                         {verificationStatus === 'VERIFIED'
-                          ? '3D Face Verified'
+                          ? 'Selfie Verified'
                           : verificationStatus === 'PENDING'
-                          ? 'Verification Pending'
+                          ? 'Selfie Verification Pending'
                           : verificationStatus === 'REJECTED'
                           ? 'Verification Failed • Tap to Retake'
-                          : '3D Liveness Selfie Scan'}
+                          : 'Take / Upload Your Selfie'}
                       </Text>
                       <Text
                         style={[
@@ -683,8 +709,8 @@ export default function OnboardingDecksScreen() {
                           : verificationStatus === 'PENDING'
                           ? 'Selfie uploaded! Backend AI is verifying in the background...'
                           : verificationStatus === 'REJECTED'
-                          ? 'Face did not match or was unclear. Tap to scan again.'
-                          : 'Tap to scan • We verify in background while you continue'}
+                          ? 'Face did not match or was unclear. Tap to take selfie again.'
+                          : 'Tap to take or upload selfie • Verified in background'}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -722,6 +748,7 @@ export default function OnboardingDecksScreen() {
                       activeOpacity={0.7}
                       onPress={() => {
                         hapticFeedback.light();
+                        setTempGenderDisplay(genderDisplay);
                         setShowGenderModal(true);
                       }}>
                       <Text style={styles.fieldEditPenIcon}>✏️</Text>
@@ -761,7 +788,10 @@ export default function OnboardingDecksScreen() {
                   {genderDisplay !== 'Man' && genderDisplay !== 'Woman' && (
                     <TouchableOpacity
                       style={styles.activeCustomIdentityPill}
-                      onPress={() => setShowGenderModal(true)}>
+                      onPress={() => {
+                        setTempGenderDisplay(genderDisplay);
+                        setShowGenderModal(true);
+                      }}>
                       <Text style={styles.activeCustomIdentityText}>
                         🌈 Selected: <Text style={{ fontWeight: '900', color: '#FFF' }}>{genderDisplay}</Text> (Tap to change)
                       </Text>
@@ -776,6 +806,7 @@ export default function OnboardingDecksScreen() {
                       activeOpacity={0.7}
                       onPress={() => {
                         hapticFeedback.light();
+                        setTempLookingFor(lookingFor);
                         setShowPreferenceModal(true);
                       }}>
                       <Text style={styles.fieldEditPenIcon}>✏️</Text>
@@ -827,7 +858,10 @@ export default function OnboardingDecksScreen() {
                   {lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone' && (
                     <TouchableOpacity
                       style={styles.activeCustomIdentityPill}
-                      onPress={() => setShowPreferenceModal(true)}>
+                      onPress={() => {
+                        setTempLookingFor(lookingFor);
+                        setShowPreferenceModal(true);
+                      }}>
                       <Text style={styles.activeCustomIdentityText}>
                         💫 Target: <Text style={{ fontWeight: '900', color: '#FFF' }}>{lookingFor}</Text> (Tap to change)
                       </Text>
@@ -1227,7 +1261,10 @@ export default function OnboardingDecksScreen() {
                             !!uri && styles.photoSlotCardFilled,
                           ]}
                           activeOpacity={0.85}
-                          onPress={() => handlePickPhotoSlot(idx)}>
+                          onPress={() => {
+                            hapticFeedback.light();
+                            setActivePhotoSlotModal(idx);
+                          }}>
                           {uri ? (
                             <>
                               <Image
@@ -1288,7 +1325,7 @@ export default function OnboardingDecksScreen() {
                         ? '⏳'
                         : verificationStatus === 'REJECTED'
                         ? '⚠️'
-                        : '🛡️'}
+                        : '📸'}
                     </Text>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.asyncVerifyTitle}>
@@ -1298,13 +1335,13 @@ export default function OnboardingDecksScreen() {
                           ? 'Selfie Verification Pending (Backend AI Verifying...)'
                           : verificationStatus === 'REJECTED'
                           ? 'Selfie Verification Needs Retake • Tap Here'
-                          : 'haven’t scanned your selfie yet? Tap to scan'}
+                          : 'Haven’t uploaded your selfie yet? Tap to take selfie'}
                       </Text>
                       <Text style={styles.asyncVerifySub}>
                         {verificationStatus === 'PENDING'
                           ? 'We automatically verify your selfie against your uploaded photos in the background.'
                           : verificationStatus === 'VERIFIED'
-                          ? 'Your 3D selfie and profile photos are verified!'
+                          ? 'Your selfie and profile photos are verified!'
                           : 'As soon as you upload a selfie, we mark it pending & verify in the backend.'}
                       </Text>
                     </View>
@@ -1375,7 +1412,7 @@ export default function OnboardingDecksScreen() {
                             verificationStatus === 'PENDING' && { color: '#FCD34D' },
                           ]}>
                           {verificationStatus === 'VERIFIED'
-                            ? '✓ 3D Face Verified'
+                            ? '✓ Selfie Verified'
                             : verificationStatus === 'PENDING'
                             ? '⏳ Verification Pending'
                             : '📸 Unverified'}
@@ -1429,44 +1466,45 @@ export default function OnboardingDecksScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* 3D Biometric Liveness Camera Modal */}
+      {/* Selfie Camera / Upload Modal (Standard Selfie, NOT 3D Biometric) */}
       {showSelfieModal && (
-        <LivenessCameraModal
+        <SelfieCameraModal
           visible={showSelfieModal}
           onClose={() => setShowSelfieModal(false)}
-          onSuccess={handleSelfieCaptured}
+          onCapture={handleSelfieCaptured}
         />
       )}
 
-      {/* Gender Selection Modal (Triggered by ✏️ Edit Pen) */}
+      {/* Gender Selection Modal (Cancel on Top-Right, Done at Bottom) */}
       {showGenderModal && (
-        <Modal visible={true} transparent animationType="slide">
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowGenderModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
-              <Text style={styles.modalHeaderEmoji}>👤</Text>
-              <Text style={styles.modalHeaderTitle}>Select Gender Identity</Text>
-              <Text style={styles.modalHeaderSub}>
-                All authentic identities and spectrums are welcome.
-              </Text>
+              <View style={styles.modalTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalHeaderTitleLeft}>👤 Select Gender</Text>
+                  <Text style={styles.modalHeaderSubLeft}>
+                    All authentic identities and spectrums are welcome.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalTopRightCancelBtn}
+                  activeOpacity={0.8}
+                  onPress={() => setShowGenderModal(false)}>
+                  <Text style={styles.modalTopRightCancelText}>✕ Cancel</Text>
+                </TouchableOpacity>
+              </View>
 
               <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 8 }}>
                 {GENDER_PRESETS.map((item) => {
-                  const isSel = genderDisplay === item;
+                  const isSel = tempGenderDisplay === item;
                   return (
                     <TouchableOpacity
                       key={item}
                       style={[styles.pickerOptionItem, isSel && styles.pickerOptionActive]}
                       onPress={() => {
                         hapticFeedback.light();
-                        if (item === 'Man') {
-                          setGender('MALE');
-                        } else if (item === 'Woman') {
-                          setGender('FEMALE');
-                        } else {
-                          setGender('NON_BINARY');
-                        }
-                        setGenderDisplay(item);
-                        setShowGenderModal(false);
+                        setTempGenderDisplay(item);
                       }}>
                       <Text style={[styles.pickerOptionText, isSel && styles.pickerOptionTextActive]}>
                         {item} {isSel ? '✓' : ''}
@@ -1477,37 +1515,57 @@ export default function OnboardingDecksScreen() {
               </ScrollView>
 
               <TouchableOpacity
-                style={styles.modalCancelBtn}
-                onPress={() => setShowGenderModal(false)}>
-                <Text style={styles.modalCancelBtnText}>Done / Cancel</Text>
+                style={styles.modalDoneBottomBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  hapticFeedback.success();
+                  if (tempGenderDisplay === 'Man') {
+                    setGender('MALE');
+                  } else if (tempGenderDisplay === 'Woman') {
+                    setGender('FEMALE');
+                  } else {
+                    setGender('NON_BINARY');
+                  }
+                  setGenderDisplay(tempGenderDisplay);
+                  setShowGenderModal(false);
+                }}>
+                <Text style={styles.modalDoneBottomBtnText}>✓ Done</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
       )}
 
-      {/* Preference Selection Modal (Triggered by ✏️ Edit Pen) */}
+      {/* Looking To Meet Modal (Cancel on Top-Right, Done at Bottom) */}
       {showPreferenceModal && (
-        <Modal visible={true} transparent animationType="slide">
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowPreferenceModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
-              <Text style={styles.modalHeaderEmoji}>👥</Text>
-              <Text style={styles.modalHeaderTitle}>Looking To Meet</Text>
-              <Text style={styles.modalHeaderSub}>
-                Calibrate who you want to discover in your deck.
-              </Text>
+              <View style={styles.modalTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalHeaderTitleLeft}>👥 Looking To Meet</Text>
+                  <Text style={styles.modalHeaderSubLeft}>
+                    Calibrate who you want to discover in your deck.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalTopRightCancelBtn}
+                  activeOpacity={0.8}
+                  onPress={() => setShowPreferenceModal(false)}>
+                  <Text style={styles.modalTopRightCancelText}>✕ Cancel</Text>
+                </TouchableOpacity>
+              </View>
 
               <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 8 }}>
                 {[...GENDER_PREFERENCE_PRESETS, 'Non-binary & Expansive', 'Transgender folks'].map((item) => {
-                  const isSel = lookingFor === item;
+                  const isSel = tempLookingFor === item;
                   return (
                     <TouchableOpacity
                       key={item}
                       style={[styles.pickerOptionItem, isSel && styles.pickerOptionActive]}
                       onPress={() => {
                         hapticFeedback.light();
-                        setLookingFor(item);
-                        setShowPreferenceModal(false);
+                        setTempLookingFor(item);
                       }}>
                       <Text style={[styles.pickerOptionText, isSel && styles.pickerOptionTextActive]}>
                         {item} {isSel ? '✓' : ''}
@@ -1518,9 +1576,88 @@ export default function OnboardingDecksScreen() {
               </ScrollView>
 
               <TouchableOpacity
+                style={styles.modalDoneBottomBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  hapticFeedback.success();
+                  setLookingFor(tempLookingFor);
+                  setShowPreferenceModal(false);
+                }}>
+                <Text style={styles.modalDoneBottomBtnText}>✓ Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Upload Photo Slot Modal (with Cancel button on Top-Right and Bottom) */}
+      {activePhotoSlotModal !== null && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setActivePhotoSlotModal(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalHeaderTitleLeft}>
+                    📸 Upload Photo #{activePhotoSlotModal + 1}
+                  </Text>
+                  <Text style={styles.modalHeaderSubLeft}>
+                    {activePhotoSlotModal < 2
+                      ? 'Required profile photo (at least 2 photos needed)'
+                      : 'Optional showcase photo'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalTopRightCancelBtn}
+                  activeOpacity={0.8}
+                  onPress={() => setActivePhotoSlotModal(null)}>
+                  <Text style={styles.modalTopRightCancelText}>✕ Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ width: '100%', gap: 10, marginVertical: 10 }}>
+                <TouchableOpacity
+                  style={styles.photoPickerActionBtnPrimary}
+                  activeOpacity={0.85}
+                  onPress={() => handlePickPhotoSlot(activePhotoSlotModal, 'gallery')}>
+                  <Text style={styles.photoPickerActionBtnPrimaryText}>
+                    🖼️ Choose from Photo Gallery
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.photoPickerActionBtnSecondary}
+                  activeOpacity={0.85}
+                  onPress={() => handlePickPhotoSlot(activePhotoSlotModal, 'camera')}>
+                  <Text style={styles.photoPickerActionBtnSecondaryText}>
+                    📷 Take Photo with Camera
+                  </Text>
+                </TouchableOpacity>
+
+                {!!photoSlots[activePhotoSlotModal] && (
+                  <TouchableOpacity
+                    style={styles.photoPickerActionBtnDanger}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      const idxToRemove = activePhotoSlotModal;
+                      setActivePhotoSlotModal(null);
+                      handleRemovePhotoSlot(idxToRemove);
+                    }}>
+                    <Text style={styles.photoPickerActionBtnDangerText}>
+                      🗑️ Remove Current Photo
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
                 style={styles.modalCancelBtn}
-                onPress={() => setShowPreferenceModal(false)}>
-                <Text style={styles.modalCancelBtnText}>Done / Cancel</Text>
+                activeOpacity={0.85}
+                onPress={() => setActivePhotoSlotModal(null)}>
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2275,6 +2412,95 @@ const styles = StyleSheet.create({
   modalCancelBtnText: {
     color: '#94A3B8',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  modalTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    width: '100%',
+    marginBottom: 8,
+    gap: 10,
+  },
+  modalHeaderTitleLeft: {
+    color: '#FFF',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  modalHeaderSubLeft: {
+    color: '#8E95AA',
+    fontSize: 11,
+    marginTop: 3,
+  },
+  modalTopRightCancelBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  modalTopRightCancelText: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  modalDoneBottomBtn: {
+    backgroundColor: '#FF385C',
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginTop: 10,
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalDoneBottomBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  photoPickerActionBtnPrimary: {
+    backgroundColor: '#FF385C',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  photoPickerActionBtnPrimaryText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  photoPickerActionBtnSecondary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  photoPickerActionBtnSecondaryText: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  photoPickerActionBtnDanger: {
+    backgroundColor: 'rgba(239, 68, 68, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  photoPickerActionBtnDangerText: {
+    color: '#FCA5A5',
+    fontSize: 13,
     fontWeight: '800',
   },
   selfieScanCardPending: {

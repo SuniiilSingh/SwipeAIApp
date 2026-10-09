@@ -159,20 +159,20 @@ export default function SelfieCameraModal({
         <View style={styles.header}>
           <View style={styles.headerTitleGroup}>
             <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>🛡️ GOLD SHIELD</Text>
+              <Text style={styles.headerBadgeText}>📸 PROFILE SELFIE</Text>
             </View>
-            <Text style={styles.title}>Biometric Selfie</Text>
+            <Text style={styles.title}>Take Your Selfie</Text>
             <Text style={styles.subtitle}>
               {previewUri
                 ? 'Review your selfie before uploading'
-                : 'Front camera verification for real human badge'}
+                : 'Take a clear selfie for instant background verification'}
             </Text>
           </View>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={onClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Text style={styles.closeButtonText}>✕</Text>
+            <Text style={styles.closeButtonText}>✕ Cancel</Text>
           </TouchableOpacity>
         </View>
 
@@ -291,18 +291,22 @@ export default function SelfieCameraModal({
                   )}
                 </TouchableOpacity>
 
-                {/* Live Camera Anti-Spoof Badge */}
-                <View style={styles.controlCircleButton}>
-                  <Text style={styles.controlCircleIcon}>🛡️</Text>
-                  <Text style={styles.controlLabel}>Live Only</Text>
-                </View>
+                {/* Choose from Gallery */}
+                <TouchableOpacity
+                  style={styles.controlCircleButton}
+                  activeOpacity={0.7}
+                  onPress={handlePickFromGallery}
+                  accessibilityLabel="Choose from Gallery">
+                  <Text style={styles.controlCircleIcon}>🖼️</Text>
+                  <Text style={styles.controlLabel}>Gallery</Text>
+                </TouchableOpacity>
               </View>
             )
           )}
 
           {/* Privacy Footnote */}
           <Text style={styles.footerNote}>
-            🔒 Verified selfies are encrypted and used solely to earn your trust badge.
+            🔒 Selfies are encrypted and verified against your profile photos in the background.
           </Text>
         </View>
       </SafeAreaView>
@@ -355,18 +359,20 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 12,
   },
   closeButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
   },
   body: {
     flex: 1,

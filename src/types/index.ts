@@ -283,7 +283,7 @@ export interface VirtualChaiSession {
   isSimulated?: boolean;
 }
 
-export type NotificationType = 'MATCH' | 'CHAT' | 'CHAT_UNLOCKED' | 'SYSTEM';
+export type NotificationType = 'MATCH' | 'LIKE' | 'CHAT' | 'CHAT_UNLOCKED' | 'SYSTEM';
 
 export interface AppNotification {
   id: string;

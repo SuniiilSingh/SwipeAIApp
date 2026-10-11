@@ -12,9 +12,12 @@ type WsMessageListener = (data: any) => void;
 export type WsConnectionStatus = 'CONNECTED' | 'RECONNECTING' | 'OFFLINE';
 
 interface InAppMessageBanner {
-  matchId: string;
+  matchId?: string;
   senderName: string;
   preview: string;
+  url?: string;
+  badgeText?: string;
+  icon?: string;
 }
 
 interface CallContextType {
@@ -143,8 +146,28 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
               setCurrentCallMatchId(null);
             }
 
-            // Handle In-App Incoming Message Sound & Banner when user is outside that chat room
-            if (
+            // Handle Global Match Announcement
+            if (data.type === 'MATCH' && !isFromCurrentMe) {
+              playMessageReceivedSound().catch(() => {});
+              showBanner({
+                matchId: data.matchId,
+                senderName: data.partnerName ? `${data.partnerName} ✨` : "It's a Match! ✨",
+                preview: data.body || 'You liked each other! Answer the quiz to unlock chat.',
+                url: '/(tabs)/matches',
+                badgeText: 'Match!',
+                icon: '❤️',
+              });
+            } else if (data.type === 'LIKE' && !isFromCurrentMe) {
+              playMessageReceivedSound().catch(() => {});
+              showBanner({
+                matchId: '',
+                senderName: data.actorName ? `${data.actorName} ✨` : 'New Spark! ✨',
+                preview: data.body || 'Liked your profile! Open BlunderR to discover them.',
+                url: '/(tabs)/matches',
+                badgeText: 'View',
+                icon: '💖',
+              });
+            } else if (
               data.matchId &&
               !isFromCurrentMe &&
               data.type !== 'TYPING' &&
@@ -161,6 +184,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                   matchId: data.matchId,
                   senderName: data.senderName || 'New Message',
                   preview: data.mediaType === 'IMAGE' ? '📷 Sent a photo' : '💬 Sent a message',
+                  badgeText: 'Reply',
+                  icon: '💬',
                 });
               }
             }
@@ -322,12 +347,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             style={styles.bannerTouchable}
             activeOpacity={0.88}
             onPress={() => {
+              const url = inAppBanner.url;
               const targetMatch = inAppBanner.matchId;
               dismissBanner();
-              router.push(`/chat/${targetMatch}`);
+              if (url) {
+                router.push(url as any);
+              } else if (targetMatch) {
+                router.push(`/chat/${targetMatch}`);
+              } else {
+                router.push('/(tabs)/matches');
+              }
             }}>
             <View style={styles.bannerIconBox}>
-              <Text style={{ fontSize: 18 }}>💬</Text>
+              <Text style={{ fontSize: 18 }}>{inAppBanner.icon || '💬'}</Text>
             </View>
             <View style={styles.bannerContent}>
               <Text style={styles.bannerTitle} numberOfLines={1}>
@@ -338,7 +370,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
               </Text>
             </View>
             <View style={styles.bannerBadge}>
-              <Text style={styles.bannerBadgeText}>Reply</Text>
+              <Text style={styles.bannerBadgeText}>{inAppBanner.badgeText || 'Reply'}</Text>
             </View>
           </TouchableOpacity>
         </Animated.View>

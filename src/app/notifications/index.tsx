@@ -82,6 +82,8 @@ export default function NotificationsScreen() {
 
     if (item.type === 'MATCH' || data?.type === 'MATCH') {
       router.push('/(tabs)/matches');
+    } else if (item.type === 'LIKE' || data?.type === 'LIKE') {
+      router.push('/(tabs)/matches');
     } else if (
       item.type === 'CHAT' ||
       item.type === 'CHAT_UNLOCKED' ||
@@ -130,6 +132,8 @@ export default function NotificationsScreen() {
     switch (type) {
       case 'MATCH':
         return { icon: '❤️', bg: 'rgba(233, 64, 87, 0.15)', border: '#E94057' };
+      case 'LIKE':
+        return { icon: '💖', bg: 'rgba(244, 63, 94, 0.15)', border: '#F43F5E' };
       case 'CHAT':
         return { icon: '💬', bg: 'rgba(124, 58, 237, 0.15)', border: '#7C3AED' };
       case 'CHAT_UNLOCKED':

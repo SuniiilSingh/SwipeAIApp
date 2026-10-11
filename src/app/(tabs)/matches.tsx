@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,19 +13,23 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
 import { api } from '@/services/api';
 import { CandidateCard, MatchItem, UserProfile } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscription-gating-modal';
 import { hapticFeedback } from '@/utils/haptics';
+import { useCall } from '@/context/call-context';
 
 export type MatchFilterType = 'ALL' | 'QUIZ' | 'EXPIRING' | 'ACTIVE';
 
 export default function MatchesScreen() {
   const router = useRouter();
+  const { subscribeToWebSocket } = useCall();
   const [matches, setMatches] = useState<MatchItem[]>([]);
+  const [likesReceived, setLikesReceived] = useState<CandidateCard[]>([]);
+  const [selectedLikeCandidate, setSelectedLikeCandidate] = useState<CandidateCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<MatchItem | null>(null);
@@ -35,30 +39,80 @@ export default function MatchesScreen() {
   const [gatingModalVisible, setGatingModalVisible] = useState(false);
   const [gatingFeature, setGatingFeature] = useState<GatingFeatureType>('REVIVE');
 
-  useEffect(() => {
-    loadMatches();
+  const loadMatches = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const [list, profile, likes] = await Promise.all([
+        api.getMatches(),
+        api.getMyProfile().catch(() => null),
+        api.getLikesReceived().catch(() => []),
+      ]);
+      setMatches(list);
+      if (profile) setUserProfile(profile);
+      if (Array.isArray(likes)) setLikesReceived(likes);
+    } catch (err) {
+      console.warn('[MatchesScreen] Failed to load matches:', err);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   }, []);
 
-  const loadMatches = async () => {
-    setLoading(true);
-    const [list, profile] = await Promise.all([
-      api.getMatches(),
-      api.getMyProfile().catch(() => null),
-    ]);
-    setMatches(list);
-    if (profile) setUserProfile(profile);
-    setLoading(false);
-  };
+  // Instant refresh on tab focus so matches appear immediately without pull-to-refresh
+  useFocusEffect(
+    useCallback(() => {
+      loadMatches(matches.length > 0);
+    }, [loadMatches, matches.length])
+  );
+
+  // Instant real-time UI refresh over WebSocket when matches or likes occur
+  useEffect(() => {
+    const unsubscribe = subscribeToWebSocket((data) => {
+      if (
+        data.type === 'MATCH' ||
+        data.type === 'LIKE' ||
+        data.type === 'ICEBREAKER_ANSWERED' ||
+        data.type === 'CHAT_UNLOCKED' ||
+        data.type === 'CHAT'
+      ) {
+        loadMatches(true);
+      }
+    });
+    return unsubscribe;
+  }, [subscribeToWebSocket, loadMatches]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    const [list, profile] = await Promise.all([
-      api.getMatches(),
-      api.getMyProfile().catch(() => null),
-    ]);
-    setMatches(list);
-    if (profile) setUserProfile(profile);
+    await loadMatches(true);
     setIsRefreshing(false);
+  };
+
+  const handleLikeCandidate = async (candidate: CandidateCard) => {
+    try {
+      hapticFeedback.success();
+      const res = await api.interact(candidate.userId, 'LIKE');
+      setSelectedLikeCandidate(null);
+      setLikesReceived((prev) => prev.filter((c) => c.userId !== candidate.userId));
+      await loadMatches(true);
+      if (res?.isMatch && res?.matchId) {
+        router.push({
+          pathname: '/matches/icebreaker',
+          params: { matchId: res.matchId },
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to like candidate:', err);
+    }
+  };
+
+  const handlePassCandidate = async (candidate: CandidateCard) => {
+    try {
+      hapticFeedback.selection();
+      await api.interact(candidate.userId, 'PASS');
+      setSelectedLikeCandidate(null);
+      setLikesReceived((prev) => prev.filter((c) => c.userId !== candidate.userId));
+    } catch (err) {
+      console.warn('Failed to pass candidate:', err);
+    }
   };
 
   const counts = useMemo(() => ({
@@ -245,6 +299,40 @@ export default function MatchesScreen() {
         </View>
       </View>
 
+      {/* Received Likes / Sparks Carousel */}
+      {likesReceived.length > 0 && (
+        <View style={styles.sparksSection}>
+          <View style={styles.sparksHeader}>
+            <Text style={styles.sparksTitle}>💖 New Sparks • Liked You ({likesReceived.length})</Text>
+            <Text style={styles.sparksSub}>Tap to view profile & match back</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sparksScroll}>
+            {likesReceived.map((item) => (
+              <TouchableOpacity
+                key={item.userId}
+                style={styles.sparkCard}
+                activeOpacity={0.85}
+                onPress={() => setSelectedLikeCandidate(item)}>
+                <View style={styles.sparkAvatarWrap}>
+                  <ExpoImage
+                    source={{ uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500' }}
+                    style={styles.sparkAvatar}
+                    contentFit="cover"
+                  />
+                  <View style={styles.sparkBadge}>
+                    <Text style={{ fontSize: 10 }}>❤️</Text>
+                  </View>
+                </View>
+                <Text style={styles.sparkName} numberOfLines={1}>
+                  {item.displayName || 'Someone'}
+                </Text>
+                <Text style={styles.sparkHint}>Liked you</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
@@ -393,6 +481,19 @@ export default function MatchesScreen() {
         onUpgrade={() => {
           setGatingModalVisible(false);
           router.push('/(tabs)/store');
+        }}
+      />
+
+      {/* Profile Detail Modal for Incoming Sparks / Likes */}
+      <ProfileDetailModal
+        visible={Boolean(selectedLikeCandidate)}
+        candidate={selectedLikeCandidate}
+        onClose={() => setSelectedLikeCandidate(null)}
+        onLike={() => {
+          if (selectedLikeCandidate) handleLikeCandidate(selectedLikeCandidate);
+        }}
+        onPass={() => {
+          if (selectedLikeCandidate) handlePassCandidate(selectedLikeCandidate);
         }}
       />
     </SafeAreaView>
@@ -666,5 +767,73 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  sparksSection: {
+    marginVertical: 10,
+    paddingHorizontal: 16,
+  },
+  sparksHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sparksTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FF6584',
+  },
+  sparksSub: {
+    fontSize: 11,
+    color: '#8A8D98',
+  },
+  sparksScroll: {
+    gap: 12,
+    paddingRight: 16,
+  },
+  sparkCard: {
+    alignItems: 'center',
+    width: 68,
+  },
+  sparkAvatarWrap: {
+    position: 'relative',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 2,
+    borderColor: '#E94057',
+    padding: 2,
+    backgroundColor: '#1E2028',
+  },
+  sparkAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 26,
+  },
+  sparkBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#E94057',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#0E0F13',
+  },
+  sparkName: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  sparkHint: {
+    color: '#FF6584',
+    fontSize: 9,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

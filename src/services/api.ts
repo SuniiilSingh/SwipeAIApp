@@ -1079,6 +1079,24 @@ export const api = {
     return [];
   },
 
+  getLikesReceived: async (): Promise<CandidateCard[]> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/discovery/likes-received`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          return data.map((c: any) => ({
+            ...c,
+            photos: (c.photos || []).map((p: string) => normalizeImageUrl(p, true)).filter(Boolean),
+          }));
+        }
+      }
+    } catch (e) {}
+    return [];
+  },
+
   getMatchDetails: async (matchId: string): Promise<MatchItem | null> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}`, {

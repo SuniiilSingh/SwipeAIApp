@@ -64,6 +64,9 @@ export default function ChatScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [mutualSparks, setMutualSparks] = useState<string[]>([]);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [showIcebreakerRecap, setShowIcebreakerRecap] = useState(true);
+  const [isQuizExpanded, setIsQuizExpanded] = useState(false);
+  const [showSafeSpot, setShowSafeSpot] = useState(false);
 
   const { startCall, subscribeToWebSocket, sendWsMessage, connectionStatus, setActiveChatMatchId } = useCall();
   const [unblurredImages, setUnblurredImages] = useState<Record<string, boolean>>({});
@@ -682,7 +685,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         {/* Dynamic User Watermark Overlay (Anti-Screenshot Protection) */}
         <View style={styles.watermarkCanvas}>
@@ -698,7 +701,7 @@ export default function ChatScreen() {
           <TouchableOpacity onPress={() => setShowProfileModal(true)} style={styles.headerTitleBox}>
             <Text style={styles.headerTitle}>{matchProfile?.displayName || matchDetails?.otherUserName || candidateName || 'Match'} 👤</Text>
             <Text style={styles.headerSubtitle}>
-              {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • 🔒 End-to-End Encrypted' : '👤 3D Liveness Verified • 🔒 End-to-End Encrypted'}
+              {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • 🔒 E2EE • AES-256' : '👤 3D Liveness Verified • 🔒 E2EE • AES-256'}
             </Text>
           </TouchableOpacity>
 
@@ -753,14 +756,7 @@ export default function ChatScreen() {
           </View>
         </View>
 
-        {/* End-to-End Encryption Security Guarantee Banner */}
-        <View style={styles.e2eeBanner}>
-          <Text style={styles.e2eeBannerText}>
-            🔒 End-to-End Encrypted • Only you and {matchProfile?.displayName || candidateName || 'your match'} can read these messages.
-          </Text>
-        </View>
-
-        {/* Match Ephemeral Expiry Alert Banner */}
+        {/* Match Ephemeral Expiry Alert Banner (Slim 1-line urgency if < 24h) */}
         {remainingHours !== null && remainingHours < 24 && (
           <View style={[styles.expiryBanner, remainingHours < 12 ? styles.expiryUrgent : styles.expiryWarning]}>
             <Text style={styles.expiryIcon}>⏳</Text>
@@ -772,40 +768,49 @@ export default function ChatScreen() {
           </View>
         )}
 
-        {/* Safe Date Spot Recommendation Banner */}
-        <TouchableOpacity
-          style={styles.safeSpotBanner}
-          onPress={() => router.push('/safe-date')}>
-          <Text style={styles.safeSpotIcon}>📍</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.safeSpotTitle}>Plan a Safe Spot Date</Text>
-            <Text style={styles.safeSpotDesc}>Blue Tokai Indiranagar (15% Off + SOS Friend Sharing)</Text>
+        {/* Compact 10s Icebreaker Quiz Pill (Collapsible, space-efficient) */}
+        {matchDetails?.icebreakerQuiz?.isCompleted && showIcebreakerRecap && (
+          <View style={styles.compactQuizPill}>
+            <TouchableOpacity
+              style={styles.compactQuizTouchable}
+              onPress={() => setIsQuizExpanded(!isQuizExpanded)}
+              activeOpacity={0.8}>
+              <Text style={styles.compactQuizIcon}>⚡</Text>
+              <Text style={styles.compactQuizText} numberOfLines={isQuizExpanded ? undefined : 1}>
+                {isQuizExpanded
+                  ? `10s Quiz: "${matchDetails.icebreakerQuiz.question || 'Mutual Prompt'}"\n✓ ${matchDetails.icebreakerQuiz.isMutualAgreement ? 'Mutual Agreement Spark!' : 'Completed • Chat Unlocked'}`
+                  : `10s Quiz: "${matchDetails.icebreakerQuiz.question || 'Mutual Prompt'}" • ${matchDetails.icebreakerQuiz.isMutualAgreement ? 'Mutual Spark ✨' : 'Unlocked'}`}
+              </Text>
+              <Text style={styles.compactQuizArrow}>{isQuizExpanded ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.compactQuizCloseBtn}
+              onPress={() => setShowIcebreakerRecap(false)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={styles.compactQuizCloseText}>✕</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.safeSpotArrow}>→</Text>
-        </TouchableOpacity>
+        )}
 
-        {/* Pre-Chat Icebreaker Recap Card */}
-        {matchDetails?.icebreakerQuiz?.isCompleted ? (
-          <View style={styles.icebreakerRecapCard}>
-            <Text style={styles.recapHeading}>✦ YOU BOTH ANSWERED THE ICEBREAKER QUIZ:</Text>
-            <Text style={styles.recapQuestion}>
-              "{matchDetails.icebreakerQuiz.question || 'Mutual Compatibility Prompt'}"
-            </Text>
-            <Text style={styles.recapAnswer}>
-              ✓ {matchDetails.icebreakerQuiz.isMutualAgreement
-                ? 'Mutual Agreement Spark! You both picked the same answer.'
-                : '10s Quiz Completed • Chat Lounge Unlocked!'}
-            </Text>
+        {/* Compact Safe Date Spot Strip (Only when conversation hasn't started) */}
+        {showSafeSpot && messages.length === 0 && (
+          <View style={styles.compactSafeSpotStrip}>
+            <TouchableOpacity
+              style={styles.compactSafeSpotTouch}
+              onPress={() => router.push('/safe-date')}>
+              <Text style={{ fontSize: 13 }}>📍</Text>
+              <Text style={styles.compactSafeSpotText} numberOfLines={1}>
+                Blue Tokai Indiranagar (15% Off Safe Date)
+              </Text>
+              <Text style={styles.compactSafeSpotArrow}>→</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowSafeSpot(false)}
+              style={styles.compactSafeSpotClose}>
+              <Text style={styles.compactQuizCloseText}>✕</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
-
-        {/* AES-256-GCM Encrypted Lounge Notice Banner */}
-        <View style={styles.encryptedNoticeBanner}>
-          <Text style={styles.encryptedNoticeLock}>🔒</Text>
-          <Text style={styles.encryptedNoticeText}>
-            AES-256-GCM Encrypted at Rest • Decrypted only for this active profile session
-          </Text>
-        </View>
+        )}
 
         {/* Chat Messages */}
         <FlatList
@@ -875,7 +880,7 @@ export default function ChatScreen() {
               styles.recordingBar,
               {
                 paddingBottom: isKeyboardVisible
-                  ? 10
+                  ? (Platform.OS === 'ios' ? 8 : 8)
                   : Math.max(insets.bottom, 12),
               },
             ]}>
@@ -905,7 +910,7 @@ export default function ChatScreen() {
               styles.inputBar,
               {
                 paddingBottom: isKeyboardVisible
-                  ? 10
+                  ? (Platform.OS === 'ios' ? 8 : 8)
                   : Math.max(insets.bottom, 12),
               },
             ]}>
@@ -931,6 +936,12 @@ export default function ChatScreen() {
               placeholderTextColor="#6B7280"
               value={inputText}
               onChangeText={handleTyping}
+              onFocus={() => {
+                setIsKeyboardVisible(true);
+                setTimeout(() => {
+                  flatListRef.current?.scrollToEnd({ animated: true });
+                }, 150);
+              }}
               multiline={false}
               returnKeyType="send"
               onSubmitEditing={() => handleSendMessage()}
@@ -1256,54 +1267,82 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  icebreakerRecapCard: {
-    backgroundColor: 'rgba(233, 64, 87, 0.08)',
+  compactQuizPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(233, 64, 87, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(233, 64, 87, 0.25)',
     marginHorizontal: 16,
-    marginTop: 12,
-    borderRadius: 14,
-    padding: 12,
+    marginTop: 6,
+    marginBottom: 4,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  recapHeading: {
-    color: '#E94057',
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  recapQuestion: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  recapAnswer: {
-    color: '#F27121',
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  encryptedNoticeBanner: {
+  compactQuizTouchable: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.22)',
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
     gap: 6,
   },
-  encryptedNoticeLock: {
-    fontSize: 11,
+  compactQuizIcon: {
+    fontSize: 12,
   },
-  encryptedNoticeText: {
-    color: '#34D399',
+  compactQuizText: {
+    flex: 1,
+    color: '#FF6584',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  compactQuizArrow: {
+    color: '#FF6584',
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.2,
+    paddingHorizontal: 4,
+  },
+  compactQuizCloseBtn: {
+    paddingLeft: 6,
+    paddingVertical: 2,
+  },
+  compactQuizCloseText: {
+    color: '#8A8D98',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  compactSafeSpotStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.25)',
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 4,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  compactSafeSpotTouch: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compactSafeSpotText: {
+    flex: 1,
+    color: '#4CAF50',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  compactSafeSpotArrow: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  compactSafeSpotClose: {
+    paddingLeft: 6,
+    paddingVertical: 2,
   },
   messageList: {
     padding: 16,

@@ -32,7 +32,9 @@ export default function NotificationsScreen() {
         api.getNotifications(unreadOnly, 0, 50),
         api.getUnreadNotificationCount(),
       ]);
-      setNotifications(list);
+      // Never show chat message history in notification feed once read
+      const cleanList = (list || []).filter((n) => n.type !== 'CHAT' || !n.isRead);
+      setNotifications(cleanList);
       setUnreadCount(count);
     } catch (err) {
       console.warn('[NotificationsScreen] Error loading notifications:', err);

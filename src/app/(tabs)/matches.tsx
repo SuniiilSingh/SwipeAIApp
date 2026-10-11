@@ -21,6 +21,7 @@ import ProfileDetailModal from '@/components/profile-detail-modal';
 import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscription-gating-modal';
 import { hapticFeedback } from '@/utils/haptics';
 import { useCall } from '@/context/call-context';
+import { FEATURE_FLAGS } from '@/config/features';
 
 export type MatchFilterType = 'ALL' | 'QUIZ' | 'EXPIRING' | 'ACTIVE';
 
@@ -189,7 +190,7 @@ export default function MatchesScreen() {
       <TouchableOpacity
         style={styles.matchCard}
         onPress={() => {
-          if (item.remainingHours <= 0 && !userProfile?.hasActivePass) {
+          if (FEATURE_FLAGS.ENABLE_STORE && item.remainingHours <= 0 && !userProfile?.hasActivePass) {
             hapticFeedback.warning();
             setGatingFeature('REVIVE');
             setGatingModalVisible(true);
@@ -444,7 +445,7 @@ export default function MatchesScreen() {
           if (!selectedMatch) return;
           const target = selectedMatch;
           setSelectedMatch(null);
-          if (target.remainingHours <= 0 && !userProfile?.hasActivePass) {
+          if (FEATURE_FLAGS.ENABLE_STORE && target.remainingHours <= 0 && !userProfile?.hasActivePass) {
             hapticFeedback.warning();
             setGatingFeature('REVIVE');
             setGatingModalVisible(true);

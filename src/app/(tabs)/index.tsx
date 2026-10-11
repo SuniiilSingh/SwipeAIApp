@@ -209,25 +209,27 @@ export default function DiscoveryScreen() {
   ) => {
     if (!targetCandidate) return;
 
-    // 1. PLAN GATING CHECKS:
-    if (actionType === 'LIKE') {
-      const isVip = Boolean(userProfile?.hasActivePass);
-      if (!isVip && remainingSwipes <= 0) {
-        hapticFeedback.warning();
-        setGatingFeature('SWIPE');
-        setGatingModalVisible(true);
-        return;
+    // 1. PLAN GATING CHECKS (Skipped in 100% Free Launch mode):
+    if (FEATURE_FLAGS.ENABLE_STORE) {
+      if (actionType === 'LIKE') {
+        const isVip = Boolean(userProfile?.hasActivePass);
+        if (!isVip && remainingSwipes <= 0) {
+          hapticFeedback.warning();
+          setGatingFeature('SWIPE');
+          setGatingModalVisible(true);
+          return;
+        }
       }
-    }
 
-    if (actionType === 'SUPER_SPARK') {
-      const isVip = Boolean(userProfile?.hasActivePass);
-      const sparks = userProfile?.sparksBalance || 0;
-      if (!isVip && sparks <= 0) {
-        hapticFeedback.warning();
-        setGatingFeature('SUPER_LIKE');
-        setGatingModalVisible(true);
-        return;
+      if (actionType === 'SUPER_SPARK') {
+        const isVip = Boolean(userProfile?.hasActivePass);
+        const sparks = userProfile?.sparksBalance || 0;
+        if (!isVip && sparks <= 0) {
+          hapticFeedback.warning();
+          setGatingFeature('SUPER_LIKE');
+          setGatingModalVisible(true);
+          return;
+        }
       }
     }
 
@@ -324,7 +326,9 @@ export default function DiscoveryScreen() {
     if (userProfile && userProfile.sparksBalance > 0) {
       setUserProfile((prev) => prev ? { ...prev, sparksBalance: Math.max(0, prev.sparksBalance - 1) } : null);
     }
-    await api.createUpiOrder('SUPER_SPARK_19');
+    if (FEATURE_FLAGS.ENABLE_STORE) {
+      await api.createUpiOrder('SUPER_SPARK_19');
+    }
     handleAction(target, 'SUPER_SPARK');
   };
 
@@ -713,7 +717,9 @@ function SwipeableCandidateCard({
             activeOpacity={0.8}
             onPress={() => onSendChai(item)}>
             <Text style={styles.chaiBtnIcon}>⚡</Text>
-            <Text style={styles.chaiBtnText}>Super Spark (₹19)</Text>
+            <Text style={styles.chaiBtnText}>
+              {FEATURE_FLAGS.ENABLE_STORE ? 'Super Spark (₹19)' : 'Super Spark'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -1007,7 +1013,9 @@ function SwipeableCandidateCard({
         onRequestClose={() => setChaiModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalHeading}>⚡ Send Super Spark (₹19)</Text>
+            <Text style={styles.modalHeading}>
+              {FEATURE_FLAGS.ENABLE_STORE ? '⚡ Send Super Spark (₹19)' : '⚡ Send Super Spark'}
+            </Text>
             <Text style={styles.modalTarget}>
               Highlight your profile to {chaiTargetCandidate?.displayName}
             </Text>
@@ -1018,7 +1026,9 @@ function SwipeableCandidateCard({
             <TouchableOpacity
               style={styles.modalSubmitBtn}
               onPress={confirmSendCuttingChai}>
-              <Text style={styles.modalSubmitBtnText}>Pay ₹19 via UPI & Send Spark ⚡</Text>
+              <Text style={styles.modalSubmitBtnText}>
+                {FEATURE_FLAGS.ENABLE_STORE ? 'Pay ₹19 via UPI & Send Spark ⚡' : 'Send Super Spark ⚡'}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity

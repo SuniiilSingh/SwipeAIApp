@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { StyleSheet, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { registerForPushNotificationsAsync } from '@/services/notifications';
+import { FEATURE_FLAGS } from '@/config/features';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -65,6 +66,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="store"
         options={{
+          href: FEATURE_FLAGS.ENABLE_STORE ? '/(tabs)/store' : null,
           title: 'VibeStore',
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.iconBox}>

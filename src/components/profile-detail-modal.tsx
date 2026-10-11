@@ -571,7 +571,9 @@ export default function ProfileDetailModal({
           {onSendSuperSpark && (
             <TouchableOpacity style={styles.actionChaiBtn} onPress={onSendSuperSpark}>
               <Text style={styles.actionChaiEmoji}>⚡</Text>
-              <Text style={styles.actionChaiText}>Super Spark (₹19)</Text>
+              <Text style={styles.actionChaiText}>
+                {FEATURE_FLAGS.ENABLE_STORE ? 'Super Spark (₹19)' : 'Super Spark'}
+              </Text>
             </TouchableOpacity>
           )}
 

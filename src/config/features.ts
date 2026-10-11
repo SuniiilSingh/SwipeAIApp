@@ -27,8 +27,16 @@ export const FEATURE_FLAGS = {
 
   /**
    * UPI Micro-Sachet Store & Instant Orders.
+   * Disabled for 100% Free Play Store V1.0 launch review.
    */
-  ENABLE_UPI_PAYMENTS: true,
+  ENABLE_UPI_PAYMENTS: false,
+
+  /**
+   * VibeStore Tab & Payment Paywalls.
+   * Disabled for 100% Free Play Store V1.0 launch review.
+   * Set to true once Google Play Billing is connected in V1.1.
+   */
+  ENABLE_STORE: false,
 
   /**
    * Virtual Chai Audio/Video Masked Calling.

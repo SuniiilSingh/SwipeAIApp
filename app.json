@@ -96,7 +96,7 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true,
-      "baseUrl": "/app"
+      "baseUrl": "/webview"
     },
     "extra": {
       "router": {},

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { api } from '@/services/api';
@@ -65,7 +65,9 @@ export default function RootIndex() {
           router.replace('/auth');
         }
       } finally {
-        SplashScreen.hideAsync().catch(() => {});
+        if (Platform.OS !== 'web') {
+          SplashScreen.hideAsync().catch(() => {});
+        }
       }
     };
 

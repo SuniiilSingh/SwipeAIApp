@@ -22,19 +22,12 @@ import {
 } from '@/services/notifications';
 import { CallProvider } from '@/context/call-context';
 
-export default function RootLayout() {
-  const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isDesktop = Platform.OS === 'web' && width > 960;
-
-  // Enforce zero-screenshot / zero-screen-recording policy across all app screens
+function NativeScreenGuard() {
   usePreventScreenCapture();
 
   useEffect(() => {
-    // Ensure native FLAG_SECURE / screen recording protection is permanently active
     ScreenCapture.preventScreenCaptureAsync().catch(() => {});
 
-    // Screenshot attempt detector
     let captureSubscription: any = null;
     try {
       captureSubscription = ScreenCapture.addScreenshotListener(() => {
@@ -45,12 +38,26 @@ export default function RootLayout() {
       });
     } catch (e) {}
 
-    // Hide native splash screen on Android/iOS once layout mounts
-    SplashScreen.hideAsync().catch(() => {});
+    return () => {
+      captureSubscription?.remove?.();
+    };
+  }, []);
 
-    // Ensure notification channels exist and register for Expo Push Notifications
-    ensureNotificationChannelsCreatedAsync().catch(() => {});
-    registerForPushNotificationsAsync().catch(() => {});
+  return null;
+}
+
+export default function RootLayout() {
+  const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = Platform.OS === 'web' && width > 960;
+
+  useEffect(() => {
+    // Hide native splash screen on Android/iOS once layout mounts
+    if (Platform.OS !== 'web') {
+      SplashScreen.hideAsync().catch(() => {});
+      ensureNotificationChannelsCreatedAsync().catch(() => {});
+      registerForPushNotificationsAsync().catch(() => {});
+    }
 
     // Disable right-click inspect and DevTools shortcuts on Web
     let removeWebInspectBlock: (() => void) | null = null;
@@ -92,13 +99,13 @@ export default function RootLayout() {
 
     return () => {
       cleanupNotifications?.();
-      captureSubscription?.remove?.();
       removeWebInspectBlock?.();
     };
   }, [router]);
 
   return (
     <SafeAreaProvider>
+      {Platform.OS !== 'web' && <NativeScreenGuard />}
       <CallProvider>
         <StatusBar style="light" />
         

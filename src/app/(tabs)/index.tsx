@@ -779,16 +779,18 @@ function SwipeableCandidateCard({
             )}
           </TouchableOpacity>
 
-          {/* Boost Button */}
-          <TouchableOpacity
-            style={[styles.boostButton, isCompactScreen && styles.compactHeaderBtn]}
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/store')}
-            accessibilityLabel="Boost Profile">
-            <Text style={[styles.boostButtonText, isCompactScreen && { fontSize: 10 }]}>
-              {isTinyScreen ? '⚡' : '⚡ Boost'}
-            </Text>
-          </TouchableOpacity>
+          {/* Boost Button (Gated by ENABLE_STORE feature flag for Google Play compliance) */}
+          {FEATURE_FLAGS.ENABLE_STORE && (
+            <TouchableOpacity
+              style={[styles.boostButton, isCompactScreen && styles.compactHeaderBtn]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/store')}
+              accessibilityLabel="Boost Profile">
+              <Text style={[styles.boostButtonText, isCompactScreen && { fontSize: 10 }]}>
+                {isTinyScreen ? '⚡' : '⚡ Boost'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Notification Bell Button */}
           <TouchableOpacity

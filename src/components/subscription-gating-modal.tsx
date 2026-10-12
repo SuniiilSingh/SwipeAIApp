@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { FEATURE_FLAGS } from '@/config/features';
 import { hapticFeedback } from '@/utils/haptics';
 
 const { width } = Dimensions.get('window');
@@ -105,6 +106,10 @@ export default function SubscriptionGatingModal({
   onClose,
   onUpgrade,
 }: SubscriptionGatingModalProps) {
+  if (!FEATURE_FLAGS.ENABLE_STORE) {
+    return null;
+  }
+
   const router = useRouter();
   const config = FEATURE_CONFIGS[feature] || FEATURE_CONFIGS.SWIPE;
 

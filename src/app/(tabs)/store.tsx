@@ -13,7 +13,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { Redirect, useFocusEffect } from 'expo-router';
+import { FEATURE_FLAGS } from '@/config/features';
 import { api } from '@/services/api';
 import { ActivePlanResponse, SkuCatalogItem, TransactionHistoryItem } from '@/types';
 import {
@@ -177,6 +178,10 @@ export function getBenefitBreakdown(sku?: string): BenefitBreakdown {
 }
 
 export default function StoreScreen() {
+  if (!FEATURE_FLAGS.ENABLE_STORE) {
+    return <Redirect href="/(tabs)" />;
+  }
+
   const [catalog, setCatalog] = useState<SkuCatalogItem[]>([]);
   const [activePlan, setActivePlan] = useState<ActivePlanResponse | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);

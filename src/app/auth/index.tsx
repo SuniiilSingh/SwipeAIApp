@@ -35,6 +35,20 @@ const ONBOARDING_LANGUAGES = [
   'French 🥐', 'Spanish 💃', 'German 🥨'
 ];
 
+const handleDirectDownload = (url: string) => {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.target = '_self';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    Linking.openURL(url).catch(() => {});
+  }
+};
+
 export default function AuthScreen() {
   const router = useRouter();
 
@@ -1059,6 +1073,30 @@ export default function AuthScreen() {
                         . You must be at least 18 years old to join.
                       </Text>
                     </View>
+
+                    {Platform.OS === 'web' && (
+                      <View style={styles.webAuthDownloadContainer}>
+                        <View style={styles.webAuthDividerRow}>
+                          <View style={styles.webAuthDividerLine} />
+                          <Text style={styles.webAuthDividerText}>GET THE OFFICIAL MOBILE APP</Text>
+                          <View style={styles.webAuthDividerLine} />
+                        </View>
+                        <View style={styles.webAuthBtnRow}>
+                          <TouchableOpacity
+                            style={styles.webAuthApkBtn}
+                            onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.apk')}
+                            activeOpacity={0.85}>
+                            <Text style={styles.webAuthBtnText}>🤖 Android APK</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.webAuthIosBtn}
+                            onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.ipa')}
+                            activeOpacity={0.85}>
+                            <Text style={styles.webAuthBtnText}> Apple iOS</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
                   </>
                 ) : (
                   <>
@@ -3498,5 +3536,57 @@ const styles = StyleSheet.create({
     color: '#E94057',
     fontWeight: '700',
     textDecorationLine: 'underline',
+  },
+  webAuthDownloadContainer: {
+    marginTop: 18,
+    width: '100%',
+    paddingHorizontal: 8,
+  },
+  webAuthDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  webAuthDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  webAuthDividerText: {
+    color: '#8A8D98',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    paddingHorizontal: 10,
+  },
+  webAuthBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  webAuthApkBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1,
+    borderColor: '#E94057',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webAuthIosBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webAuthBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

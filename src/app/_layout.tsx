@@ -46,6 +46,20 @@ function NativeScreenGuard() {
   return null;
 }
 
+export const handleDirectDownload = (url: string) => {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    a.target = '_self';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    Linking.openURL(url).catch(() => {});
+  }
+};
+
 export default function RootLayout() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -172,14 +186,14 @@ export default function RootLayout() {
               <Text style={webStyles.downloadLabel}>Get the Official Mobile App:</Text>
               <View style={webStyles.desktopBtnRow}>
                 <TouchableOpacity
-                  onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.apk')}
+                  onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.apk')}
                   style={webStyles.desktopApkBtn}
                   activeOpacity={0.85}>
                   <Text style={webStyles.desktopApkBtnText}>🤖 Android APK</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.ipa')}
+                  onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.ipa')}
                   style={webStyles.desktopIosBtn}
                   activeOpacity={0.85}>
                   <Text style={webStyles.desktopIosBtnText}> Apple iOS</Text>
@@ -227,13 +241,13 @@ export default function RootLayout() {
                 <Text style={webStyles.mobileWebTitle}>⚡ BlunderR Web View</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <TouchableOpacity
-                    onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.apk')}
+                    onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.apk')}
                     style={webStyles.miniHeaderBtnApk}
                     activeOpacity={0.8}>
                     <Text style={webStyles.miniHeaderBtnText}>🤖 APK</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.ipa')}
+                    onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.ipa')}
                     style={webStyles.miniHeaderBtnIos}
                     activeOpacity={0.8}>
                     <Text style={webStyles.miniHeaderBtnText}> iOS</Text>

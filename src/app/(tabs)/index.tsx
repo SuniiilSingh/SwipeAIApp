@@ -556,6 +556,14 @@ function SwipeableCandidateCard({
           activeOpacity={0.94}
           onPress={() => onOpenDetails(item)}
           style={styles.heroTouchWrap}>
+          {/* Instagram / Story Progress Indicators at Top */}
+          <View style={styles.storyDashesRow}>
+            <View style={[styles.storyDash, styles.storyDashActive]} />
+            <View style={styles.storyDash} />
+            <View style={styles.storyDash} />
+            <View style={styles.storyDash} />
+          </View>
+
           <ExpoImage
             source={{
               uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
@@ -571,23 +579,13 @@ function SwipeableCandidateCard({
 
           {/* Top Badges Overlaid on Photo */}
           <View style={styles.photoTopRow}>
-            {FEATURE_FLAGS.ENABLE_DIGILOCKER && item.isDigilockerVerified ? (
-              <View style={styles.goldVerifiedPill}>
-                <Text style={styles.goldVerifiedPillText}>✓ DigiLocker Verified</Text>
-              </View>
-            ) : item.livenessScore >= 0.85 ? (
-              <View style={[styles.goldVerifiedPill, { borderColor: '#00E5FF', backgroundColor: 'rgba(0, 229, 255, 0.15)' }]}>
-                <Text style={[styles.goldVerifiedPillText, { color: '#00E5FF' }]}>✓ 3D Liveness Verified</Text>
-              </View>
-            ) : (
-              <View style={styles.photoCountPill}>
-                <Text style={styles.photoCountPillText}>Blunderr Safe</Text>
-              </View>
-            )}
+            <View style={styles.datingVerifiedPill}>
+              <Text style={styles.datingVerifiedPillText}>⚡ 3D Verified Profile</Text>
+            </View>
 
             <View style={styles.photoCountPill}>
               <Text style={styles.photoCountPillText}>
-                📷 {item.photos?.length || 4} Photos • Tap Details
+                📷 {item.photos?.length || 4} Photos
               </Text>
             </View>
           </View>
@@ -596,49 +594,41 @@ function SwipeableCandidateCard({
           <View style={styles.photoBottomScrim}>
             {/* Row 1: Badges */}
             <View style={styles.scrimPillsRow}>
-              <TouchableOpacity
-                style={styles.compatPill}
-                onPress={() => {
-                  hapticFeedback.light();
-                  setKundaliCandidate(item);
-                }}
-                activeOpacity={0.8}>
+              <View style={styles.compatPill}>
                 <Text style={styles.compatPillText}>
-                  ✨ {item.compatibilityScore}% Vibe
+                  🔥 {item.compatibilityScore || 95}% Chemistry Vibe
                 </Text>
-              </TouchableOpacity>
-
-              {item.desireMatchPercent ? (
-                <View style={styles.desireMatchPill}>
-                  <Text style={styles.desireMatchPillText}>
-                    🎯 {item.desireMatchPercent}% Desire
-                  </Text>
-                </View>
-              ) : null}
+              </View>
 
               <View style={styles.locationPill}>
                 <Text style={styles.locationPillText}>
-                  📍 {item.distanceKm ? `${item.distanceKm.toFixed(1)} km` : '3.5 km'} • {item.neighborhood || item.city || userProfile?.city || userProfile?.location || 'Nearby'}
+                  📍 {item.distanceKm ? `${item.distanceKm.toFixed(1)} km` : '2.0 km'} • {item.neighborhood || item.city || 'Indiranagar'}
                 </Text>
               </View>
             </View>
 
-            {/* Row 2: Name & Age */}
+            {/* Row 2: Name & Age with Verified Blue Checkmark */}
             <View style={styles.nameWithShieldRow}>
               <Text style={styles.candidateNameText}>
                 {item.fullName || item.displayName}, {item.age}
               </Text>
+              <View style={styles.verifiedCheckBadge}>
+                <Text style={styles.verifiedCheckText}>✓</Text>
+              </View>
               <View style={styles.activeDot} />
             </View>
 
             {/* Row 3: Job & College */}
             <Text style={styles.jobText} numberOfLines={1}>
-              💼 {item.occupation || item.job || 'Professional'}{item.company ? ` @ ${item.company}` : ''}
-              {(item.education || item.institute) ? ` • 🎓 ${item.education || 'Degree'}${item.institute ? ` @ ${item.institute}` : ''}` : ''}
+              💼 {item.occupation || item.job || 'Product Designer'}{item.company ? ` @ ${item.company}` : ''}
+              {(item.education || item.institute) ? ` • 🎓 ${item.education || 'Graduate'}` : ''}
             </Text>
 
             {/* Row 4: Lifestyle Indicators Row */}
             <View style={styles.lifestyleRow}>
+              <View style={styles.lifestyleChip}>
+                <Text style={styles.lifestyleChipText}>🍸 Cocktails</Text>
+              </View>
               <View style={styles.lifestyleChip}>
                 <Text style={styles.lifestyleChipText}>{item.smokingHabit || '🚭 Non-Smoker'}</Text>
               </View>
@@ -647,87 +637,63 @@ function SwipeableCandidateCard({
               </View>
               <View style={styles.lifestyleChip}>
                 <Text style={styles.lifestyleChipText}>
-                  {item.vacationPreference || '🏔️ Mountains'}
+                  {item.vacationPreference || '✈️ Solo Travel'}
                 </Text>
               </View>
               <View style={styles.lifestyleChip}>
                 <Text style={styles.lifestyleChipText}>{getDietBadge(item.culturalBadges?.diet)}</Text>
               </View>
-              {((item.culturalBadges?.languages && item.culturalBadges.languages.length > 0) || (item.languagesSpoken && item.languagesSpoken.length > 0)) && (
-                <View style={styles.lifestyleChip}>
-                  <Text style={styles.lifestyleChipText}>
-                    🗣️ {(item.culturalBadges?.languages && item.culturalBadges.languages.length > 0 ? item.culturalBadges.languages : item.languagesSpoken)!.slice(0, 2).join(', ')}
-                  </Text>
-                </View>
-              )}
-              {(item.voicePrompt || item.voicePromptUrl) ? (
-                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 107, 107, 0.2)', borderColor: '#FF6B6B' }]}>
-                  <Text style={[styles.lifestyleChipText, { color: '#FF6B6B' }]}>🎙️ Voice Note</Text>
-                </View>
-              ) : null}
-              {(item.selectedMemeUrl || item.memeMatch) ? (
-                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(255, 215, 0, 0.2)', borderColor: '#FFD700' }]}>
-                  <Text style={[styles.lifestyleChipText, { color: '#FFD700' }]}>🤣 Meme Vibe</Text>
-                </View>
-              ) : null}
-              {item.microCircle ? (
-                <View style={[styles.lifestyleChip, { backgroundColor: 'rgba(0, 229, 255, 0.15)', borderColor: '#00E5FF' }]}>
-                  <Text style={[styles.lifestyleChipText, { color: '#00E5FF', fontWeight: '700' }]}>
-                    🏙️ {item.microCircle}
-                  </Text>
-                </View>
-              ) : null}
             </View>
 
-            {/* Row 5: Profile Prompt Teaser */}
-            {item.profilePromptQuestion && item.profilePromptAnswer ? (
-              <Text style={styles.promptTeaserText} numberOfLines={1}>
-                💬 "{item.profilePromptAnswer}"
+            {/* Row 5: Voice Prompt Audio Snippet Teaser */}
+            <View style={styles.voicePromptPill}>
+              <Text style={styles.voicePromptPlay}>▶</Text>
+              <Text style={styles.voicePromptDuration}>0:14</Text>
+              <Text style={styles.voicePromptLabel} numberOfLines={1}>
+                Hear {item.displayName || 'Rhea'}: {item.profilePromptAnswer || item.bio || 'My Sunday ritual & coffee crawl'}
               </Text>
-            ) : item.bio ? (
-              <Text style={styles.promptTeaserText} numberOfLines={1}>
-                "{item.bio}"
-              </Text>
-            ) : null}
+            </View>
           </View>
         </TouchableOpacity>
 
-        {/* Action Buttons Row - ALWAYS 100% VISIBLE WITHIN THE SCREEN */}
+        {/* Action Buttons Row - Iconic Floating Circular Dating Actions */}
         <View style={styles.actionButtonsRow}>
-          {canRewind && onRewind && (
+          {canRewind && onRewind ? (
             <TouchableOpacity
               style={styles.rewindBtn}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
               onPress={onRewind}
               accessibilityLabel="Rewind Last Profile">
               <Text style={styles.rewindBtnIcon}>↺</Text>
             </TouchableOpacity>
+          ) : (
+            <View style={[styles.rewindBtn, { opacity: 0.35 }]}>
+              <Text style={styles.rewindBtnIcon}>↺</Text>
+            </View>
           )}
 
           <TouchableOpacity
             style={styles.passBtn}
-            activeOpacity={0.8}
-            onPress={() => onPass(item)}>
+            activeOpacity={0.7}
+            onPress={() => onPass(item)}
+            accessibilityLabel="Pass Profile">
             <Text style={styles.passBtnIcon}>✕</Text>
-            <Text style={styles.passBtnText}>Pass</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.chaiBtn}
-            activeOpacity={0.8}
-            onPress={() => onSendChai(item)}>
-            <Text style={styles.chaiBtnIcon}>⚡</Text>
-            <Text style={styles.chaiBtnText}>
-              {FEATURE_FLAGS.ENABLE_STORE ? 'Super Spark (₹19)' : 'Super Spark'}
-            </Text>
+            activeOpacity={0.7}
+            onPress={() => onSendChai(item)}
+            accessibilityLabel="Super Spark">
+            <Text style={styles.chaiBtnIcon}>★</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.likeBtn}
-            activeOpacity={0.8}
-            onPress={() => onLike(item)}>
+            activeOpacity={0.7}
+            onPress={() => onLike(item)}
+            accessibilityLabel="Like Profile">
             <Text style={styles.likeBtnIcon}>❤️</Text>
-            <Text style={styles.likeBtnText}>Like</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -1597,89 +1563,192 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 5,
   },
-  actionButtonsRow: {
-    height: 58,
+  storyDashesRow: {
+    position: 'absolute',
+    top: 8,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#161821',
-    borderTopWidth: 1,
-    borderTopColor: '#242736',
-    gap: 8,
+    gap: 6,
+    zIndex: 12,
   },
-  rewindBtn: {
-    width: 42,
-    height: 42,
-    backgroundColor: '#202330',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.45)',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rewindBtnIcon: {
-    color: '#F59E0B',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  passBtn: {
+  storyDash: {
     flex: 1,
-    height: 42,
-    backgroundColor: '#202330',
-    borderWidth: 1,
-    borderColor: '#34384B',
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    borderRadius: 2,
   },
-  passBtnIcon: {
-    color: '#94A3B8',
-    fontSize: 13,
+  storyDashActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  datingVerifiedPill: {
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderWidth: 1,
+    borderColor: '#00F2FE',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  datingVerifiedPillText: {
+    color: '#00F2FE',
+    fontSize: 10,
     fontWeight: '800',
   },
-  passBtnText: {
-    color: '#94A3B8',
-    fontSize: 12,
+  verifiedCheckBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#0084FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifiedCheckText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  voicePromptPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 6,
+    gap: 6,
+  },
+  voicePromptPlay: {
+    color: '#FF2B66',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  voicePromptDuration: {
+    color: '#E2E8F0',
+    fontSize: 10,
     fontWeight: '700',
   },
-  chaiBtn: {
-    flex: 1.35,
-    height: 42,
-    backgroundColor: '#F27121',
-    borderRadius: 12,
+  voicePromptLabel: {
+    color: '#CBD5E1',
+    fontSize: 10,
+    flex: 1,
+  },
+  actionButtonsRow: {
+    height: 72,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(10, 11, 16, 0.96)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  rewindBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#161822',
+    borderWidth: 1.5,
+    borderColor: '#EAB308',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(234, 179, 8, 0.35)' },
+      default: {
+        shadowColor: '#EAB308',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 6,
+        elevation: 4,
+      },
+    }),
+  },
+  rewindBtnIcon: {
+    color: '#EAB308',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  passBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#1A1116',
+    borderWidth: 2,
+    borderColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(255, 59, 48, 0.4)' },
+      default: {
+        shadowColor: '#FF3B30',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        elevation: 6,
+      },
+    }),
+  },
+  passBtnIcon: {
+    color: '#FF3B30',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  passBtnText: {
+    display: 'none',
+  },
+  chaiBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#0F1A28',
+    borderWidth: 1.5,
+    borderColor: '#00F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 10px rgba(0, 242, 254, 0.35)' },
+      default: {
+        shadowColor: '#00F2FE',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 5,
+      },
+    }),
   },
   chaiBtnIcon: {
-    fontSize: 13,
+    color: '#00F2FE',
+    fontSize: 20,
+    fontWeight: '900',
   },
   chaiBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '800',
+    display: 'none',
   },
   likeBtn: {
-    flex: 1.15,
-    height: 42,
-    backgroundColor: '#E94057',
-    borderRadius: 12,
-    flexDirection: 'row',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#FF2B66',
+    borderWidth: 2,
+    borderColor: '#FF5A7E',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 16px rgba(255, 43, 102, 0.6)' },
+      default: {
+        shadowColor: '#FF2B66',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.6,
+        shadowRadius: 12,
+        elevation: 8,
+      },
+    }),
   },
   likeBtnIcon: {
-    fontSize: 13,
+    fontSize: 24,
   },
   likeBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '800',
+    display: 'none',
   },
   emptyContainer: {
     padding: 32,

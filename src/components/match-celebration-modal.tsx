@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   Modal,
+  Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -34,6 +36,7 @@ export default function MatchCelebrationModal({
   onOpenChat,
   onKeepSwiping,
 }: MatchCelebrationModalProps) {
+  const [messageText, setMessageText] = useState('');
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const heartPulseAnim = useRef(new Animated.Value(1)).current;
@@ -79,6 +82,7 @@ export default function MatchCelebrationModal({
         scaleAnim.setValue(0.3);
         opacityAnim.setValue(0);
         heartPulseAnim.setValue(1);
+        setMessageText('');
       };
     }
   }, [visible]);
@@ -87,6 +91,15 @@ export default function MatchCelebrationModal({
 
   const candidatePhoto = normalizeImageUrl(candidate.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500');
   const currentMyPhoto = normalizeImageUrl(myPhoto || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500');
+
+  const handleSendMessage = () => {
+    hapticFeedback.medium();
+    if (matchId) {
+      onOpenChat(matchId, candidate.displayName);
+    } else {
+      onKeepSwiping();
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onKeepSwiping}>
@@ -99,14 +112,14 @@ export default function MatchCelebrationModal({
               transform: [{ scale: scaleAnim }],
             },
           ]}>
-          {/* Confetti & Sparkles Heading */}
-          <Text style={styles.sparkleIcon}>✨ 🎉 ✨</Text>
-          <Text style={styles.headline}>It’s a Vibe Match!</Text>
+          {/* Confetti / Sparkles Header */}
+          <Text style={styles.sparkleIcon}>✨ ✨ ✨</Text>
+          <Text style={styles.headline}>IT’S A MATCH!</Text>
           <Text style={styles.subheadline}>
-            You and <Text style={styles.boldName}>{candidate.displayName}</Text> both matched!
+            You and <Text style={styles.boldName}>{candidate.displayName}</Text> liked each other
           </Text>
 
-          {/* Avatars Collision with Pulsing Heart */}
+          {/* Intersecting Avatars with Neon Glowing Rings */}
           <View style={styles.avatarsWrapper}>
             <View style={[styles.avatarBox, styles.avatarLeft]}>
               <ExpoImage
@@ -139,21 +152,34 @@ export default function MatchCelebrationModal({
             </View>
           </View>
 
-          {/* Compatibility Pill */}
-          <View style={styles.compatPill}>
-            <Text style={styles.compatText}>
-              ⚡ {candidate.compatibilityScore || 92}% Compatibility Vibe
-            </Text>
+          {/* Quick Icebreaker Input Box */}
+          <View style={styles.inputBoxWrap}>
+            <TextInput
+              style={styles.messageInput}
+              placeholder={`Say something witty to ${candidate.displayName}... 🍸`}
+              placeholderTextColor="#94A3B8"
+              value={messageText}
+              onChangeText={setMessageText}
+              returnKeyType="send"
+              onSubmitEditing={handleSendMessage}
+            />
+            <View style={styles.micIconWrap}>
+              <Text style={{ fontSize: 16 }}>🎙️</Text>
+            </View>
           </View>
-
-          {/* Description */}
-          <Text style={styles.infoText}>
-            Break the ice with a 10-second rapid quiz or jump straight into the encrypted lounge!
-          </Text>
 
           {/* Action Buttons */}
           <TouchableOpacity
             style={styles.primaryBtn}
+            onPress={handleSendMessage}
+            activeOpacity={0.85}>
+            <Text style={styles.primaryBtnText}>
+              {messageText.trim().length > 0 ? 'Send Message 💬' : 'Send a Message'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryBtn}
             onPress={() => {
               hapticFeedback.medium();
               if (matchId) {
@@ -163,21 +189,7 @@ export default function MatchCelebrationModal({
               }
             }}
             activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>Play 10s Icebreaker ⚡</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={() => {
-              hapticFeedback.medium();
-              if (matchId) {
-                onOpenChat(matchId, candidate.displayName);
-              } else {
-                onKeepSwiping();
-              }
-            }}
-            activeOpacity={0.85}>
-            <Text style={styles.secondaryBtnText}>Say Hi in Chat 💬</Text>
+            <Text style={styles.secondaryBtnText}>Play 10s Icebreaker Quiz ⚡</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -187,7 +199,7 @@ export default function MatchCelebrationModal({
               onKeepSwiping();
             }}
             activeOpacity={0.7}>
-            <Text style={styles.keepSwipingText}>Keep Swiping ↺</Text>
+            <Text style={styles.keepSwipingText}>Keep Swiping</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -205,58 +217,64 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: Math.min(width - 32, 380),
-    backgroundColor: '#161823',
-    borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: '#FF385C',
+    backgroundColor: '#0C0D14',
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: '#FF2B66',
     padding: 24,
     alignItems: 'center',
-    shadowColor: '#FF385C',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 40px rgba(255, 43, 102, 0.45)' },
+      default: {
+        shadowColor: '#FF2B66',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.5,
+        shadowRadius: 25,
+        elevation: 12,
+      },
+    }),
   },
   sparkleIcon: {
-    fontSize: 24,
+    fontSize: 20,
     marginBottom: 6,
+    letterSpacing: 4,
   },
   headline: {
-    color: '#ffffff',
-    fontSize: 26,
+    color: '#FF2B66',
+    fontSize: 28,
     fontWeight: '900',
     textAlign: 'center',
-    letterSpacing: -0.5,
+    letterSpacing: 1.5,
   },
   subheadline: {
-    color: '#9CA3AF',
+    color: '#E2E8F0',
     fontSize: 14,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 20,
   },
   boldName: {
-    color: '#FF7B90',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   avatarsWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 22,
+    marginVertical: 20,
     position: 'relative',
     height: 110,
     width: '100%',
   },
   avatarBox: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     borderWidth: 3,
-    borderColor: '#FF385C',
+    borderColor: '#FF2B66',
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#202330',
+    backgroundColor: '#161822',
   },
   avatarLeft: {
     transform: [{ translateX: 14 }],
@@ -274,9 +292,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 2,
     alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: 8,
   },
   avatarTagText: {
@@ -287,66 +305,80 @@ const styles = StyleSheet.create({
   heartBadge: {
     position: 'absolute',
     zIndex: 10,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#1E1424',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#140810',
     borderWidth: 2,
-    borderColor: '#FF385C',
+    borderColor: '#FF2B66',
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 0px 15px rgba(255, 43, 102, 0.7)' },
+      default: {
+        shadowColor: '#FF2B66',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.7,
+        shadowRadius: 8,
+        elevation: 6,
+      },
+    }),
   },
   heartText: {
-    fontSize: 18,
+    fontSize: 20,
   },
-  compatPill: {
-    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+  inputBoxWrap: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#161824',
     borderWidth: 1,
-    borderColor: 'rgba(255, 56, 92, 0.4)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    marginBottom: 10,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    marginBottom: 14,
   },
-  compatText: {
-    color: '#FF6B8B',
-    fontSize: 12,
-    fontWeight: '800',
+  messageInput: {
+    flex: 1,
+    height: 44,
+    color: '#FFFFFF',
+    fontSize: 13,
   },
-  infoText: {
-    color: '#7F8496',
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 17,
-    marginBottom: 20,
-    paddingHorizontal: 10,
+  micIconWrap: {
+    paddingLeft: 8,
   },
   primaryBtn: {
     width: '100%',
-    height: 48,
-    backgroundColor: '#FF385C',
-    borderRadius: 16,
+    height: 50,
+    backgroundColor: '#FF2B66',
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
-    shadowColor: '#FF385C',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 15px rgba(255, 43, 102, 0.5)' },
+      default: {
+        shadowColor: '#FF2B66',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 6,
+      },
+    }),
   },
   primaryBtnText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
   },
   secondaryBtn: {
     width: '100%',
     height: 46,
-    backgroundColor: '#202434',
-    borderRadius: 16,
+    backgroundColor: '#1A1D2B',
+    borderRadius: 23,
     borderWidth: 1,
-    borderColor: '#32384E',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,

@@ -140,7 +140,7 @@ const formatCandidateDistance = (distKm?: number, index: number = 0): string => 
 
 export default function DopamineCuriosityLoop({
   city = 'Bangalore',
-  minDurationMs = 2400,
+  minDurationMs = 1200,
   isLoading = false,
   candidates,
   userProfile,
@@ -150,6 +150,19 @@ export default function DopamineCuriosityLoop({
   const [minTimePassed, setMinTimePassed] = useState(false);
   const [isTargetLocked, setIsTargetLocked] = useState(false);
   const hasFinishedRef = useRef(false);
+
+  // Proactive prefetch candidate photos in parallel while radar is sweeping
+  useEffect(() => {
+    if (candidates && candidates.length > 0) {
+      const urls = candidates
+        .slice(0, 6)
+        .flatMap((c) => (c.photos && c.photos.length > 0 ? c.photos.slice(0, 2) : []))
+        .filter(Boolean);
+      if (urls.length > 0) {
+        ExpoImage.prefetch(urls).catch(() => {});
+      }
+    }
+  }, [candidates]);
 
   // Seeking gender calculation: guarantees proximity never shows the wrong gender!
   const seekingGender = useMemo(() => getSeekingGender(userProfile), [userProfile]);

@@ -194,6 +194,7 @@ export default function DiscoveryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isCuriosityLoopActive, setIsCuriosityLoopActive] = useState(true);
+  const radarFadeAnim = useRef(new Animated.Value(1)).current;
   const loopTimerFinishedRef = useRef(false);
   const feedLoadedRef = useRef(false);
   const [candidates, setCandidates] = useState<CandidateCard[]>([]);
@@ -261,6 +262,7 @@ export default function DiscoveryScreen() {
   const loadFeed = async (communityOverride?: MicroCircle | null) => {
     feedLoadedRef.current = false;
     loopTimerFinishedRef.current = false;
+    radarFadeAnim.setValue(1);
     setIsCuriosityLoopActive(true);
     try {
       // 1. Discovery Gating Check: Name, Gender, Sexual Orientation and >= 30% completion required
@@ -284,10 +286,21 @@ export default function DiscoveryScreen() {
       try {
         const { status } = await Location.getForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          if (loc?.coords) {
-            lat = loc.coords.latitude;
-            lon = loc.coords.longitude;
+          // Instant cached location (0ms) to eliminate GPS lock stalls
+          const cachedLoc = await Location.getLastKnownPositionAsync().catch(() => null);
+          if (cachedLoc?.coords) {
+            lat = cachedLoc.coords.latitude;
+            lon = cachedLoc.coords.longitude;
+          } else {
+            // Strict 650ms timeout race so GPS satellite lock never stalls the feed
+            const freshLoc = (await Promise.race([
+              Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 650)),
+            ]).catch(() => null)) as Location.LocationObject | null;
+            if (freshLoc?.coords) {
+              lat = freshLoc.coords.latitude;
+              lon = freshLoc.coords.longitude;
+            }
           }
         }
       } catch (e) {}
@@ -304,6 +317,14 @@ export default function DiscoveryScreen() {
         : FALLBACK_DISCOVERY_CANDIDATES;
       setCandidates(list);
       setRemainingSwipes(myProfile.hasActivePass ? 999 : (feed?.remainingDailySwipes ?? 25));
+
+      // Immediately prefetch top candidate hero images while radar is still sweeping
+      if (list && list.length > 0) {
+        const topImageUrls = list.slice(0, 6).flatMap(c => (c.photos && c.photos.length > 0 ? c.photos.slice(0, 2) : [])).filter(Boolean);
+        if (topImageUrls.length > 0) {
+          ExpoImage.prefetch(topImageUrls).catch(() => {});
+        }
+      }
     } catch (e) {
       setCandidates(FALLBACK_DISCOVERY_CANDIDATES);
       setRemainingSwipes(userProfile?.hasActivePass ? 999 : 25);
@@ -312,7 +333,13 @@ export default function DiscoveryScreen() {
       setLoading(false);
       setRefreshing(false);
       if (loopTimerFinishedRef.current) {
-        setIsCuriosityLoopActive(false);
+        Animated.timing(radarFadeAnim, {
+          toValue: 0,
+          duration: 220,
+          useNativeDriver: true,
+        }).start(() => {
+          setIsCuriosityLoopActive(false);
+        });
       }
     }
   };
@@ -320,18 +347,26 @@ export default function DiscoveryScreen() {
   const handleLoopComplete = () => {
     loopTimerFinishedRef.current = true;
     if (feedLoadedRef.current) {
-      setIsCuriosityLoopActive(false);
+      Animated.timing(radarFadeAnim, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsCuriosityLoopActive(false);
+      });
     }
   };
 
   const handleSelectCommunityFilter = (comm: MicroCircle | null) => {
     setSelectedCommunityFilter(comm);
+    radarFadeAnim.setValue(1);
     setIsCuriosityLoopActive(true);
     setLoading(true);
     loadFeed(comm);
   };
 
   const handleRefresh = () => {
+    radarFadeAnim.setValue(1);
     setIsCuriosityLoopActive(true);
     setRefreshing(true);
     loadFeed();
@@ -979,20 +1014,6 @@ function SwipeableCandidateCard({
     </View>
   );
 
-  if (loading || isCuriosityLoopActive) {
-    const currentCity = userProfile?.city || userProfile?.location || 'Bangalore';
-    return (
-      <DopamineCuriosityLoop
-        city={currentCity}
-        minDurationMs={2400}
-        isLoading={loading}
-        candidates={candidates}
-        userProfile={userProfile}
-        onComplete={handleLoopComplete}
-      />
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       {/* Floating Action Feedback Toast */}
@@ -1261,6 +1282,28 @@ function SwipeableCandidateCard({
           subtitle="Discover matches in specific neighborhood tribes & scenes"
           initialCity={selectedCommunityFilter?.city || userProfile?.city || userProfile?.location || undefined}
         />
+      )}
+      {/* DOPAMINE CURIOSITY PROXIMITY RADAR OVERLAY (Smooth zero-latency reveal) */}
+      {isCuriosityLoopActive && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              zIndex: 9999,
+              backgroundColor: '#08080E',
+              opacity: radarFadeAnim,
+            },
+          ]}
+          pointerEvents="auto">
+          <DopamineCuriosityLoop
+            city={userProfile?.city || userProfile?.location || 'Bangalore'}
+            minDurationMs={1200}
+            isLoading={loading}
+            candidates={candidates}
+            userProfile={userProfile}
+            onComplete={handleLoopComplete}
+          />
+        </Animated.View>
       )}
     </SafeAreaView>
   );

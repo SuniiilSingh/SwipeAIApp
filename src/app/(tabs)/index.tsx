@@ -986,6 +986,8 @@ function SwipeableCandidateCard({
         city={currentCity}
         minDurationMs={2400}
         isLoading={loading}
+        candidates={candidates}
+        userProfile={userProfile}
         onComplete={handleLoopComplete}
       />
     );

@@ -1,99 +1,195 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   Easing,
-  Image,
   Platform,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image as ExpoImage } from 'expo-image';
 import { hapticFeedback } from '@/utils/haptics';
+import { CandidateCard, UserProfile } from '@/types';
+import { normalizeImageUrl } from '@/services/api';
 
 const { width } = Dimensions.get('window');
+const RADAR_SIZE = Math.min(width * 0.74, 290);
 
 interface DopamineCuriosityLoopProps {
   city?: string;
   minDurationMs?: number;
   isLoading?: boolean;
+  candidates?: CandidateCard[];
+  userProfile?: UserProfile | null;
   onComplete?: () => void;
 }
 
-const RADAR_SCAN_STEPS = [
+/**
+ * Accurately determines the gender/partner pool the user is seeking.
+ * Guarantees zero gender confusion on the proximity radar.
+ */
+export const getSeekingGender = (profile?: UserProfile | null): 'FEMALE' | 'MALE' | 'ANY' => {
+  if (!profile) return 'FEMALE';
+  const myGender = profile.gender;
+  const orientation = (profile.sexualOrientation || '').toLowerCase();
+
+  // Explicit LGBTQ+ orientations
+  if (orientation.includes('gay') || orientation.includes('homo')) {
+    if (myGender === 'MALE' || myGender === 'FEMALE') return myGender;
+    return 'MALE';
+  }
+  if (orientation.includes('lesbian')) {
+    return 'FEMALE';
+  }
+  if (orientation.includes('bi') || orientation.includes('pan') || orientation.includes('queer')) {
+    return 'ANY';
+  }
+
+  // Heterosexual standard mapping
+  if (myGender === 'MALE') return 'FEMALE';
+  if (myGender === 'FEMALE') return 'MALE';
+  return 'ANY';
+};
+
+// 100% Verified Female Fallback Pool (Used ONLY when offline / zero network and seeking women)
+const FEMALE_FALLBACK_AVATARS = [
   {
-    phase: 1,
-    title: '⚡ Proximity Radar Active',
-    sub: 'Sweeping 5km radius for verified singles...',
-    tag: 'SCANNING FREQUENCY 5.8 GHz',
-    status: 'LOCKING RADAR',
+    id: 'f_1',
+    name: 'Kiara, 24',
+    distance: '800m away',
+    vibe: 'Architect ☕ Indiranagar',
+    bio: 'Looking for someone who argues about playlists over late craft beers...',
+    color: '#FF2E63',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    top: 22,
+    right: 24,
   },
   {
-    phase: 2,
-    title: '🛡️ Zero-Bot Validation',
-    sub: 'Filtering catfish & checking 3D facial liveness...',
-    tag: '100% HUMAN ASSURANCE',
-    status: 'VERIFYING BIOMETRICS',
+    id: 'f_2',
+    name: 'Ananya, 23',
+    distance: '1.2km away',
+    vibe: 'Designer 🎨 Koramangala',
+    bio: 'Third-wave coffee, film cameras and sunset drives.',
+    color: '#00F0FF',
+    photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80',
+    bottom: 26,
+    left: 18,
   },
   {
-    phase: 3,
-    title: '🔥 High-Chemistry Match Detected',
-    sub: 'Found active singles matching your banter vibe!',
-    tag: 'NEARBY COMPATIBILITY > 94%',
-    status: 'MATCHES IDENTIFIED',
-  },
-  {
-    phase: 4,
-    title: '✨ Curating Discovery Deck',
-    sub: 'Locking top candidates to your discovery feed...',
-    tag: 'DECK READY',
-    status: 'LAUNCHING FEED',
+    id: 'f_3',
+    name: 'Tara, 25',
+    distance: '1.6km away',
+    vibe: 'Books & Monsoon Chai 📚 HSR',
+    bio: 'Reads physical books and orders dessert for the table.',
+    color: '#FFB300',
+    photo: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300&auto=format&fit=crop&q=80',
+    top: 80,
+    left: 8,
   },
 ];
 
-const MYSTERY_AVATARS = [
+// 100% Verified Male Fallback Pool (Used ONLY when offline / zero network and seeking men)
+const MALE_FALLBACK_AVATARS = [
   {
-    id: 'av_1',
-    name: 'Kiara, 24',
-    distance: '800m away',
-    vibe: 'Architect ☕ Sour Beers',
-    color: '#FF2E63',
-    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-    top: 24,
-    right: 28,
-  },
-  {
-    id: 'av_2',
-    name: 'Rohan, 25',
-    distance: '1.2km away',
-    vibe: 'Indie Vinyl & Late Drives',
+    id: 'm_1',
+    name: 'Kabir, 26',
+    distance: '750m away',
+    vibe: 'Tech Founder 🚀 Indiranagar',
+    bio: 'Building early-stage AI, running Cubbon Park on Sundays.',
     color: '#00F0FF',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
-    bottom: 30,
-    left: 20,
+    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80',
+    top: 22,
+    right: 24,
   },
   {
-    id: 'av_3',
-    name: 'Ananya, 23',
-    distance: '1.8km away',
-    vibe: 'Third Wave & Monsoon Chai',
+    id: 'm_2',
+    name: 'Rohan, 25',
+    distance: '1.1km away',
+    vibe: 'Musician 🎸 Koramangala',
+    bio: 'Vinyl records, retro synths and late night food hunts.',
+    color: '#FF2E63',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    bottom: 26,
+    left: 18,
+  },
+  {
+    id: 'm_3',
+    name: 'Aryan, 27',
+    distance: '1.7km away',
+    vibe: 'Consultant 💼 Whitefield',
+    bio: 'Coffee snob, weekend trekker and sourdough baker.',
     color: '#FFB300',
-    photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80',
-    top: 85,
-    left: 10,
+    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
+    top: 80,
+    left: 8,
   },
 ];
+
+const formatCandidateDistance = (distKm?: number, index: number = 0): string => {
+  if (typeof distKm === 'number' && distKm > 0) {
+    if (distKm < 1) {
+      return `${Math.round(distKm * 1000)}m away`;
+    }
+    return `${distKm.toFixed(1)}km away`;
+  }
+  const defaultDistances = ['650m away', '1.1km away', '1.6km away'];
+  return defaultDistances[index] || 'Nearby';
+};
 
 export default function DopamineCuriosityLoop({
   city = 'Bangalore',
-  minDurationMs = 2000,
+  minDurationMs = 2400,
   isLoading = false,
+  candidates,
+  userProfile,
   onComplete,
 }: DopamineCuriosityLoopProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [minTimePassed, setMinTimePassed] = useState(false);
+  const [isTargetLocked, setIsTargetLocked] = useState(false);
   const hasFinishedRef = useRef(false);
+
+  // Seeking gender calculation: guarantees proximity never shows the wrong gender!
+  const seekingGender = useMemo(() => getSeekingGender(userProfile), [userProfile]);
+
+  // Map candidates or strictly gender-safe fallbacks
+  const activeAvatars = useMemo(() => {
+    if (candidates && candidates.length > 0) {
+      const realSlice = candidates.slice(0, 3);
+      const positions = [
+        { top: 22, right: 24, color: '#FF2E63' },
+        { bottom: 26, left: 18, color: '#00F0FF' },
+        { top: 80, left: 8, color: '#FFB300' },
+      ];
+
+      return realSlice.map((cand, idx) => {
+        const pos = positions[idx] || positions[0];
+        const rawPhoto = cand.photos?.[0] || '';
+        const fallbackList = seekingGender === 'MALE' ? MALE_FALLBACK_AVATARS : FEMALE_FALLBACK_AVATARS;
+        const photo = normalizeImageUrl(rawPhoto, true) || fallbackList[idx]?.photo;
+
+        return {
+          id: cand.userId || `cand_${idx}`,
+          name: cand.displayName ? `${cand.displayName}, ${cand.age || 24}` : 'Nearby Match',
+          distance: formatCandidateDistance(cand.distanceKm, idx),
+          vibe: cand.occupation || cand.job || 'Verified Member',
+          bio: cand.bio || 'Active high-intent match on BlunderR',
+          color: pos.color,
+          photo,
+          top: pos.top,
+          right: (pos as any).right,
+          bottom: (pos as any).bottom,
+          left: (pos as any).left,
+          isReal: true,
+        };
+      });
+    }
+
+    // Gender-aware fallback
+    return seekingGender === 'MALE' ? MALE_FALLBACK_AVATARS : FEMALE_FALLBACK_AVATARS;
+  }, [candidates, seekingGender]);
 
   // Animations
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -103,8 +199,24 @@ export default function DopamineCuriosityLoop({
   const bubbleScale1 = useRef(new Animated.Value(0)).current;
   const bubbleScale2 = useRef(new Animated.Value(0)).current;
   const bubbleScale3 = useRef(new Animated.Value(0)).current;
+  const lockAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fadeOutAnim = useRef(new Animated.Value(1)).current;
+
+  // Trigger target lock when data arrives or when ready
+  useEffect(() => {
+    const hasRealData = Boolean(candidates && candidates.length > 0);
+    if ((hasRealData || minTimePassed) && !isTargetLocked) {
+      setIsTargetLocked(true);
+      hapticFeedback.medium();
+      Animated.spring(lockAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [candidates, minTimePassed, isTargetLocked]);
 
   // 1. Min duration tracker
   useEffect(() => {
@@ -274,12 +386,48 @@ export default function DopamineCuriosityLoop({
     outputRange: ['0%', '100%'],
   });
 
+  const targetCategoryLabel = seekingGender === 'FEMALE' ? 'VERIFIED WOMEN' : seekingGender === 'MALE' ? 'VERIFIED MEN' : 'VERIFIED SINGLES';
+  const targetSeekText = seekingGender === 'FEMALE' ? 'verified women' : seekingGender === 'MALE' ? 'verified men' : 'active singles';
+
+  const RADAR_SCAN_STEPS = [
+    {
+      phase: 1,
+      title: '⚡ Proximity Radar Active',
+      sub: `Sweeping 5km radius for ${targetSeekText}...`,
+      tag: 'SCANNING FREQUENCY 5.8 GHz',
+      status: 'LOCKING RADAR',
+    },
+    {
+      phase: 2,
+      title: '🛡️ Zero-Bot Validation',
+      sub: 'Filtering catfish & checking 3D facial liveness...',
+      tag: '100% HUMAN ASSURANCE',
+      status: 'VERIFYING BIOMETRICS',
+    },
+    {
+      phase: 3,
+      title: isTargetLocked ? '🎯 Target Locked Nearby' : '🔥 Chemistry Match Detected',
+      sub: isTargetLocked ? `Locked ${activeAvatars.length} verified matches matching your vibe!` : `Found ${targetSeekText} matching your banter vibe!`,
+      tag: isTargetLocked ? 'TARGETS LOCKED > 94%' : 'NEARBY COMPATIBILITY > 94%',
+      status: isTargetLocked ? 'TARGETS IDENTIFIED' : 'MATCHES IDENTIFIED',
+    },
+    {
+      phase: 4,
+      title: '✨ Curating Discovery Deck',
+      sub: 'Locking top candidates to your discovery feed...',
+      tag: 'DECK READY',
+      status: 'LAUNCHING FEED',
+    },
+  ];
+
   const currentStep = RADAR_SCAN_STEPS[stepIndex] || RADAR_SCAN_STEPS[0];
   const displayCity = city
     ? city.includes('Bengaluru') || city.includes('Bangalore')
       ? 'Indiranagar & Koramangala'
       : city
     : 'Indiranagar & Koramangala';
+
+  const avatarScales = [bubbleScale1, bubbleScale2, bubbleScale3];
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeOutAnim }]}>
@@ -292,7 +440,9 @@ export default function DopamineCuriosityLoop({
             </Text>
             <View style={styles.liveRadarPill}>
               <View style={styles.radarDot} />
-              <Text style={styles.radarPillText}>RADAR ACTIVE</Text>
+              <Text style={styles.radarPillText}>
+                {isTargetLocked ? 'TARGETS LOCKED' : 'RADAR ACTIVE'}
+              </Text>
             </View>
           </View>
           <Text style={styles.cityLocationText}>📍 Proximity Pulse • {displayCity}</Text>
@@ -346,77 +496,75 @@ export default function DopamineCuriosityLoop({
             <View style={styles.centerBeaconPing} />
           </Animated.View>
 
-          {/* MYSTERY DISCOVERED SINGLES IN ORBIT */}
-          {/* 1. Kiara */}
-          <Animated.View
-            style={[
-              styles.avatarBubble,
-              {
-                top: MYSTERY_AVATARS[0].top,
-                right: MYSTERY_AVATARS[0].right,
-                borderColor: MYSTERY_AVATARS[0].color,
-                shadowColor: MYSTERY_AVATARS[0].color,
-                transform: [{ scale: bubbleScale1 }],
-              },
-            ]}>
-            <Image
-              source={{ uri: MYSTERY_AVATARS[0].photo }}
-              style={styles.avatarImage}
-            />
-            <View style={[styles.avatarTag, { backgroundColor: MYSTERY_AVATARS[0].color }]}>
-              <Text style={styles.avatarTagText}>📍 800m</Text>
-            </View>
-          </Animated.View>
+          {/* DISCOVERED SINGLES IN ORBIT */}
+          {activeAvatars.map((avatar, idx) => {
+            const scale = avatarScales[idx] || bubbleScale1;
 
-          {/* 2. Rohan */}
-          <Animated.View
-            style={[
-              styles.avatarBubble,
-              {
-                bottom: MYSTERY_AVATARS[1].bottom,
-                left: MYSTERY_AVATARS[1].left,
-                borderColor: MYSTERY_AVATARS[1].color,
-                shadowColor: MYSTERY_AVATARS[1].color,
-                transform: [{ scale: bubbleScale2 }],
-              },
-            ]}>
-            <Image
-              source={{ uri: MYSTERY_AVATARS[1].photo }}
-              style={styles.avatarImage}
-            />
-            <View style={[styles.avatarTag, { backgroundColor: MYSTERY_AVATARS[1].color }]}>
-              <Text style={styles.avatarTagText}>📍 1.2km</Text>
-            </View>
-          </Animated.View>
+            return (
+              <Animated.View
+                key={avatar.id || idx}
+                style={[
+                  styles.avatarBubble,
+                  {
+                    top: avatar.top,
+                    right: avatar.right,
+                    bottom: avatar.bottom,
+                    left: avatar.left,
+                    borderColor: avatar.color,
+                    shadowColor: avatar.color,
+                    transform: [{ scale }],
+                  },
+                ]}>
+                {isTargetLocked ? (
+                  // Target Locked: Reveal photo with smooth lock animation
+                  <Animated.View
+                    style={[
+                      styles.avatarImageWrapper,
+                      {
+                        transform: [
+                          {
+                            scale: lockAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.3, 1],
+                            }),
+                          },
+                        ],
+                        opacity: lockAnim,
+                      },
+                    ]}>
+                    <ExpoImage
+                      source={{ uri: avatar.photo }}
+                      style={styles.avatarImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={150}
+                    />
+                  </Animated.View>
+                ) : (
+                  // Initial Scanning Phase: Pure Neon Sonar Blip (Zero gender spoiler)
+                  <View style={[styles.blipReticle, { borderColor: avatar.color }]}>
+                    <View style={[styles.blipCenterDot, { backgroundColor: avatar.color }]} />
+                  </View>
+                )}
 
-          {/* 3. Ananya */}
-          <Animated.View
-            style={[
-              styles.avatarBubble,
-              {
-                top: MYSTERY_AVATARS[2].top,
-                left: MYSTERY_AVATARS[2].left,
-                borderColor: MYSTERY_AVATARS[2].color,
-                shadowColor: MYSTERY_AVATARS[2].color,
-                transform: [{ scale: bubbleScale3 }],
-              },
-            ]}>
-            <Image
-              source={{ uri: MYSTERY_AVATARS[2].photo }}
-              style={styles.avatarImage}
-            />
-            <View style={[styles.avatarTag, { backgroundColor: MYSTERY_AVATARS[2].color }]}>
-              <Text style={styles.avatarTagText}>📍 1.8km</Text>
-            </View>
-          </Animated.View>
+                <View style={[styles.avatarTag, { backgroundColor: avatar.color }]}>
+                  <Text style={styles.avatarTagText}>
+                    {isTargetLocked ? `📍 ${avatar.distance}` : '📍 Pinging...'}
+                  </Text>
+                </View>
+              </Animated.View>
+            );
+          })}
         </View>
 
         {/* BOTTOM REAL-TIME DOPAMINE HOOK */}
         <View style={styles.bottomSection}>
           {/* Phase Badge */}
           <View style={styles.phaseBadgeRow}>
-            <View style={styles.phasePill}>
-              <Text style={styles.phasePillText}>{currentStep.tag}</Text>
+            <View style={[styles.phasePill, isTargetLocked && styles.phasePillLocked]}>
+              <Text style={[styles.phasePillText, isTargetLocked && styles.phasePillTextLocked]}>
+                {isTargetLocked ? '🎯 3 TARGETS LOCKED' : currentStep.tag}
+              </Text>
             </View>
             <Text style={styles.statusLiveText}>● {currentStep.status}</Text>
           </View>
@@ -428,15 +576,23 @@ export default function DopamineCuriosityLoop({
           {/* Live Mystery Match Teaser Card */}
           <View style={styles.teaserCard}>
             <View style={styles.teaserTopRow}>
-              <Text style={styles.teaserCategory}>⚡ LIVE DISCOVERY SPOTLIGHT</Text>
-              <Text style={styles.teaserDistance}>📍 3 within 1.5 km</Text>
+              <Text style={styles.teaserCategory}>
+                ⚡ {targetCategoryLabel} SPOTLIGHT
+              </Text>
+              <Text style={styles.teaserDistance}>
+                {isTargetLocked ? `📍 ${activeAvatars[0]?.distance || 'Nearby'}` : '📍 3 within 1.5 km'}
+              </Text>
             </View>
-            <Text style={styles.teaserQuote}>
-              "Looking for someone who argues about playlists over late craft beers..."
+            <Text style={styles.teaserQuote} numberOfLines={2}>
+              {isTargetLocked
+                ? `"${activeAvatars[0]?.bio || activeAvatars[0]?.vibe || 'Looking for genuine banter and spontaneous coffee dates...'}"`
+                : '"Looking for someone who argues about playlists over late craft beers..."'}
             </Text>
             <View style={styles.teaserTrustRow}>
               <Text style={styles.teaserTrustBadge}>🛡️ 3D Liveness Verified</Text>
-              <Text style={styles.teaserTrustBadge}>☕ Third Wave Regular</Text>
+              <Text style={styles.teaserTrustBadge}>
+                {isTargetLocked ? `✨ ${activeAvatars[0]?.vibe || 'Verified Profile'}` : '☕ Indiranagar Regular'}
+              </Text>
             </View>
           </View>
 
@@ -450,8 +606,6 @@ export default function DopamineCuriosityLoop({
   );
 }
 
-const RADAR_SIZE = Math.min(width * 0.76, 290);
-
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFill,
@@ -460,24 +614,25 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    justifyContent: 'space-between',
   },
+
+  /* TOP HEADER */
   topHeader: {
-    paddingTop: Platform.OS === 'android' ? 10 : 4,
+    paddingTop: Platform.OS === 'android' ? 12 : 4,
     alignItems: 'center',
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   brandTitle: {
     color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: 1.5,
   },
   brandSpark: {
     color: '#FF2E63',
@@ -485,13 +640,13 @@ const styles = StyleSheet.create({
   liveRadarPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: 'rgba(0, 240, 255, 0.12)',
     borderColor: 'rgba(0, 240, 255, 0.35)',
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
   radarDot: {
     width: 6,
@@ -629,10 +784,31 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
+  avatarImageWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
   avatarImage: {
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  blipReticle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 240, 255, 0.08)',
+  },
+  blipCenterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   avatarTag: {
     position: 'absolute',
@@ -665,11 +841,18 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
+  phasePillLocked: {
+    backgroundColor: 'rgba(0, 240, 255, 0.15)',
+    borderColor: 'rgba(0, 240, 255, 0.45)',
+  },
   phasePillText: {
     color: '#FF5E85',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0.5,
+  },
+  phasePillTextLocked: {
+    color: '#00F0FF',
   },
   statusLiveText: {
     color: '#00F0FF',

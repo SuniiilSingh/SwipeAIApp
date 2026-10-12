@@ -685,10 +685,37 @@ export const api = {
     if (localUri.startsWith('http://') || localUri.startsWith('https://')) {
       return normalizeImageUrl(localUri);
     }
+    if (!authToken) await initAuth();
 
     try {
       let base64Data: string | null = null;
-      if (Platform.OS !== 'web' && FileSystemLegacy && typeof FileSystemLegacy.readAsStringAsync === 'function') {
+
+      // 1. Web blob to base64
+      if (Platform.OS === 'web' && (localUri.startsWith('blob:') || localUri.startsWith('data:'))) {
+        try {
+          const resp = await fetch(localUri);
+          const blob = await resp.blob();
+          base64Data = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const res = reader.result as string;
+              resolve(res.includes(',') ? res.split(',')[1] : res);
+            };
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {}
+      }
+
+      // 2. Modern Expo FileSystem.File base64
+      if (!base64Data && Platform.OS !== 'web' && typeof FileSystem.File === 'function') {
+        try {
+          const file = new FileSystem.File(localUri);
+          base64Data = await file.base64();
+        } catch (e) {}
+      }
+
+      // 3. FileSystemLegacy readAsStringAsync
+      if (!base64Data && Platform.OS !== 'web' && FileSystemLegacy && typeof FileSystemLegacy.readAsStringAsync === 'function') {
         try {
           base64Data = await FileSystemLegacy.readAsStringAsync(localUri, {
             encoding: FileSystemLegacy.EncodingType.Base64,
@@ -699,47 +726,74 @@ export const api = {
       }
 
       if (base64Data) {
-        const token = authToken || (await AsyncStorage.getItem('auth_token'));
-        const res = await fetch(`${BASE_URL}/v1/images/upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        const token = authToken || (await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN));
+        const res = await fetchWithTimeout(
+          `${BASE_URL}/v1/images/upload`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              base64Data,
+              filename: `voice_${Date.now()}.m4a`,
+              contentType: 'audio/m4a',
+            }),
           },
-          body: JSON.stringify({
-            base64Data,
-            filename: `voice_${Date.now()}.m4a`,
-            contentType: 'audio/m4a',
-          }),
-        });
+          30000
+        );
         if (res.ok) {
           const data = await res.json();
-          if (data.publicUrl) {
+          if (data && data.publicUrl) {
             return normalizeImageUrl(data.publicUrl);
           }
         }
       }
 
-      // Fallback: multipart upload via FileSystemLegacy
-      if (Platform.OS !== 'web' && FileSystemLegacy && typeof FileSystemLegacy.uploadAsync === 'function') {
-        const token = authToken || (await AsyncStorage.getItem('auth_token'));
-        const uploadResult = await FileSystemLegacy.uploadAsync(
-          `${BASE_URL}/v1/images/upload`,
-          localUri,
-          {
-            httpMethod: 'POST',
-            uploadType: FileSystemLegacy.FileSystemUploadType.MULTIPART,
-            fieldName: 'file',
-            mimeType: 'audio/m4a',
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          }
-        );
-        if (uploadResult.status >= 200 && uploadResult.status < 300) {
-          const data = JSON.parse(uploadResult.body);
-          if (data.publicUrl) {
-            return normalizeImageUrl(data.publicUrl);
+      // 4. FileSystem modern upload or legacy uploadAsync fallback
+      if (Platform.OS !== 'web') {
+        if (typeof FileSystem.File === 'function') {
+          try {
+            const file = new FileSystem.File(localUri);
+            const uploadResult = await file.upload(`${BASE_URL}/v1/images/upload`, {
+              httpMethod: 'POST',
+              uploadType: FileSystem.UploadType.MULTIPART,
+              fieldName: 'file',
+              mimeType: 'audio/m4a',
+              headers: {
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              },
+            });
+            if (uploadResult.status >= 200 && uploadResult.status < 300) {
+              const data = JSON.parse(uploadResult.body);
+              if (data && data.publicUrl) {
+                return normalizeImageUrl(data.publicUrl);
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (FileSystemLegacy && typeof FileSystemLegacy.uploadAsync === 'function') {
+          const token = authToken || (await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN));
+          const uploadResult = await FileSystemLegacy.uploadAsync(
+            `${BASE_URL}/v1/images/upload`,
+            localUri,
+            {
+              httpMethod: 'POST',
+              uploadType: FileSystemLegacy.FileSystemUploadType.MULTIPART,
+              fieldName: 'file',
+              mimeType: 'audio/m4a',
+              headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            }
+          );
+          if (uploadResult.status >= 200 && uploadResult.status < 300) {
+            const data = JSON.parse(uploadResult.body);
+            if (data && data.publicUrl) {
+              return normalizeImageUrl(data.publicUrl);
+            }
           }
         }
       }
@@ -1234,6 +1288,7 @@ export const api = {
         if (Array.isArray(data)) {
           return data.map((m: ChatMessage) => ({
             ...m,
+            mediaUrl: m.mediaUrl ? normalizeImageUrl(m.mediaUrl) : undefined,
             isFromMe: m.senderId ? m.senderId === currentUserId : Boolean(m.isFromMe),
           }));
         }
@@ -1252,23 +1307,42 @@ export const api = {
   },
 
   sendMessage: async (matchId: string, content: string, mediaUrl?: string, mediaType: 'TEXT' | 'IMAGE' | 'AUDIO' | 'AUDIO_NOTE' | 'VIRTUAL_CHAI' = 'TEXT'): Promise<ChatMessage> => {
+    let resolvedMediaUrl = mediaUrl;
+    if (resolvedMediaUrl && (resolvedMediaUrl.startsWith('file:') || resolvedMediaUrl.startsWith('content:') || resolvedMediaUrl.startsWith('data:') || resolvedMediaUrl.startsWith('blob:'))) {
+      try {
+        if (mediaType === 'IMAGE') {
+          resolvedMediaUrl = await api.uploadImage(resolvedMediaUrl);
+        } else if (mediaType === 'AUDIO' || mediaType === 'AUDIO_NOTE') {
+          resolvedMediaUrl = await api.uploadAudio(resolvedMediaUrl);
+        }
+      } catch (uploadErr) {
+        console.warn('Auto-upload in sendMessage failed:', uploadErr);
+      }
+    }
+
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/chat/${matchId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ content, mediaUrl, mediaType }),
+        body: JSON.stringify({ content, mediaUrl: resolvedMediaUrl, mediaType }),
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const saved = await res.json();
+        return {
+          ...saved,
+          mediaUrl: saved.mediaUrl ? normalizeImageUrl(saved.mediaUrl) : resolvedMediaUrl,
+        };
+      }
     } catch (e) {}
 
-    const isSensitive = mediaUrl?.includes('sensitive') || mediaUrl?.includes('nsfw');
+    const isSensitive = resolvedMediaUrl?.includes('sensitive') || resolvedMediaUrl?.includes('nsfw');
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       matchId,
       senderId: currentUserId,
       recipientId: '',
       content,
-      mediaUrl,
+      mediaUrl: resolvedMediaUrl ? normalizeImageUrl(resolvedMediaUrl) : undefined,
       mediaType,
       isBlurred: isSensitive,
       blurReason: isSensitive ? 'Sensitive Content Warning: Auto-blurred by Shield 360' : undefined,

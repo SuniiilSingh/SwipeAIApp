@@ -17,7 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { api } from '@/services/api';
+import { Image as ExpoImage } from 'expo-image';
+import { api, normalizeImageUrl } from '@/services/api';
 import { CandidateCard, ChatMessage, MatchItem, VirtualChaiSession } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
@@ -269,21 +270,24 @@ export default function ChatScreen() {
                 aesKeyRef.current = key;
               }
               const plain = await decryptMessage(data.content, key);
+              const normalizedMediaUrl = data.mediaUrl ? normalizeImageUrl(data.mediaUrl) : undefined;
               setMessages((prev) => {
                 if (prev.some((m) => m.id === data.id)) return prev;
-                return [...prev, { ...data, content: plain, isFromMe: false }];
+                return [...prev, { ...data, content: plain, mediaUrl: normalizedMediaUrl, isFromMe: false }];
               });
             })
             .catch(() => {
+              const normalizedMediaUrl = data.mediaUrl ? normalizeImageUrl(data.mediaUrl) : undefined;
               setMessages((prev) => {
                 if (prev.some((m) => m.id === data.id)) return prev;
-                return [...prev, { ...data, isFromMe: false }];
+                return [...prev, { ...data, mediaUrl: normalizedMediaUrl, isFromMe: false }];
               });
             });
         } else {
+          const normalizedMediaUrl = data.mediaUrl ? normalizeImageUrl(data.mediaUrl) : undefined;
           setMessages((prev) => {
             if (prev.some((m) => m.id === data.id)) return prev;
-            return [...prev, { ...data, isFromMe: false }];
+            return [...prev, { ...data, mediaUrl: normalizedMediaUrl, isFromMe: false }];
           });
         }
 
@@ -444,19 +448,46 @@ export default function ChatScreen() {
 
       if (!uri || !matchId) return;
 
+      const tempId = `temp-voice-${Date.now()}`;
+      const placeholder = `🎙️ Voice Note (${duration}s)`;
+
+      // Optimistic message with local uri for zero-latency preview
+      const optimisticMsg: ChatMessage = {
+        id: tempId,
+        matchId,
+        senderId: api.getCurrentUserId(),
+        recipientId: matchProfile?.userId || matchDetails?.otherUserId || '',
+        content: placeholder,
+        mediaUrl: uri,
+        mediaType: 'AUDIO',
+        createdAt: new Date().toISOString(),
+        isFromMe: true,
+        status: 'SENT',
+      };
+      setMessages((prev) => [...prev, optimisticMsg]);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 40);
+
+      // Upload audio file to Cloudflare R2 / backend
+      const uploadedUrl = await api.uploadAudio(uri);
+      const audioUrlToSend = uploadedUrl || uri;
+
       let currentKey = aesKeyRef.current;
       if (!currentKey) {
         currentKey = await getOrDeriveMatchKey(matchId, matchDetails?.e2eeSecret);
         aesKeyRef.current = currentKey;
       }
-      const placeholder = `🎙️ Voice Note (${duration}s)`;
       const encryptedPlaceholder = await encryptMessage(placeholder, currentKey);
-      const newMsg = await api.sendMessage(matchId, encryptedPlaceholder, uri, 'AUDIO');
+      const newMsg = await api.sendMessage(matchId, encryptedPlaceholder, audioUrlToSend, 'AUDIO');
       if (newMsg) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === newMsg.id)) return prev;
-          return [...prev, { ...newMsg, content: placeholder, mediaUrl: uri, mediaType: 'AUDIO', isFromMe: true }];
-        });
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? { ...newMsg, content: placeholder, mediaUrl: audioUrlToSend, mediaType: 'AUDIO', isFromMe: true }
+              : m
+          )
+        );
       }
     } catch (e) {
       console.error('Failed to stop recording:', e);
@@ -584,6 +615,7 @@ export default function ChatScreen() {
           mediaTypes: ['images'],
           quality: 0.8,
           allowsEditing: true,
+          base64: true,
         });
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -595,6 +627,7 @@ export default function ChatScreen() {
           mediaTypes: ['images'],
           quality: 0.8,
           allowsEditing: true,
+          base64: true,
         });
       }
 
@@ -602,18 +635,45 @@ export default function ChatScreen() {
         const asset = result.assets[0];
         if (!matchId) return;
 
+        const tempId = `temp-img-${Date.now()}`;
+
+        // Instant optimistic preview for sender
+        const optimisticMsg: ChatMessage = {
+          id: tempId,
+          matchId,
+          senderId: api.getCurrentUserId(),
+          recipientId: matchProfile?.userId || matchDetails?.otherUserId || '',
+          content: '📷 Photo',
+          mediaUrl: asset.uri,
+          mediaType: 'IMAGE',
+          createdAt: new Date().toISOString(),
+          isFromMe: true,
+          status: 'SENT',
+        };
+        setMessages((prev) => [...prev, optimisticMsg]);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 40);
+
+        // Upload photo to Cloudflare R2 / backend
+        const uploadedImageUrl = await api.uploadImage(asset.uri, asset.base64);
+        const imageUrlToSend = uploadedImageUrl || asset.uri;
+
         let currentKey = aesKeyRef.current;
         if (!currentKey) {
           currentKey = await getOrDeriveMatchKey(matchId, matchDetails?.e2eeSecret);
           aesKeyRef.current = currentKey;
         }
         const encryptedPlaceholder = await encryptMessage('📷 Photo', currentKey);
-        const newMsg = await api.sendMessage(matchId, encryptedPlaceholder, asset.uri, 'IMAGE');
+        const newMsg = await api.sendMessage(matchId, encryptedPlaceholder, imageUrlToSend, 'IMAGE');
         if (newMsg) {
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMsg.id)) return prev;
-            return [...prev, { ...newMsg, content: '📷 Photo', mediaUrl: asset.uri, mediaType: 'IMAGE', isFromMe: true }];
-          });
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === tempId
+                ? { ...newMsg, content: '📷 Photo', mediaUrl: imageUrlToSend, mediaType: 'IMAGE', isFromMe: true }
+                : m
+            )
+          );
         }
       }
     } catch (err) {
@@ -655,13 +715,25 @@ export default function ChatScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <Image source={{ uri: item.mediaUrl }} style={styles.chatImage} resizeMode="cover" />
+                <ExpoImage
+                  source={{ uri: normalizeImageUrl(item.mediaUrl) }}
+                  style={styles.chatImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={150}
+                />
               )}
             </View>
           )}
 
           {item.mediaType === 'AUDIO' && item.mediaUrl ? (
             <VoiceNoteBubble audioUri={item.mediaUrl} isFromMe={Boolean(item.isFromMe)} />
+          ) : item.mediaType === 'IMAGE' ? (
+            item.content && item.content !== '📷 Photo' ? (
+              <Text style={[styles.messageText, item.isFromMe ? styles.myMessageText : styles.theirMessageText]}>
+                {item.content}
+              </Text>
+            ) : null
           ) : (
             <Text style={[styles.messageText, item.isFromMe ? styles.myMessageText : styles.theirMessageText]}>
               {item.content}
@@ -698,11 +770,33 @@ export default function ChatScreen() {
             <Text style={styles.backBtn}>←</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setShowProfileModal(true)} style={styles.headerTitleBox}>
-            <Text style={styles.headerTitle}>{matchProfile?.displayName || matchDetails?.otherUserName || candidateName || 'Match'} 👤</Text>
-            <Text style={styles.headerSubtitle}>
-              {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • 🔒 E2EE • AES-256' : '👤 3D Liveness Verified • 🔒 E2EE • AES-256'}
-            </Text>
+          <TouchableOpacity
+            onPress={() => setShowProfileModal(true)}
+            style={styles.headerProfileBox}
+            activeOpacity={0.8}>
+            <View style={styles.headerAvatarWrapper}>
+              <ExpoImage
+                source={{
+                  uri:
+                    normalizeImageUrl(matchProfile?.photos?.[0] || matchDetails?.otherUserPhoto) ||
+                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
+                }}
+                style={styles.headerSmallAvatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={150}
+              />
+              <View style={styles.headerOnlineBadge} />
+            </View>
+
+            <View style={styles.headerTitleBox}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {matchProfile?.displayName || matchDetails?.otherUserName || candidateName || 'Match'}
+              </Text>
+              <Text style={styles.headerSubtitle} numberOfLines={1}>
+                {FEATURE_FLAGS.ENABLE_DIGILOCKER ? '🛡️ DigiLocker Verified • 🔒 E2EE' : '👤 Verified • 🔒 E2EE'}
+              </Text>
+            </View>
           </TouchableOpacity>
 
           <View style={styles.headerCallActionRow}>
@@ -1160,9 +1254,39 @@ const styles = StyleSheet.create({
     paddingRight: 6,
     paddingVertical: 4,
   },
+  headerProfileBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginLeft: 4,
+    marginRight: 6,
+  },
+  headerAvatarWrapper: {
+    position: 'relative',
+  },
+  headerSmallAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#20222C',
+    borderWidth: 1.5,
+    borderColor: 'rgba(233, 64, 87, 0.45)',
+  },
+  headerOnlineBadge: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#0E0F13',
+  },
   headerTitleBox: {
     flex: 1,
-    marginLeft: 8,
+    justifyContent: 'center',
   },
   backBtn: {
     color: '#E94057',

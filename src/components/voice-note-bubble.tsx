@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 import { PlayIcon, PauseIcon } from './chat-icons';
+import { normalizeImageUrl } from '@/services/api';
 
 interface VoiceNoteBubbleProps {
   audioUri: string;
@@ -10,22 +11,42 @@ interface VoiceNoteBubbleProps {
 
 export default function VoiceNoteBubble({ audioUri, isFromMe }: VoiceNoteBubbleProps) {
   const [playbackSpeed, setPlaybackSpeed] = useState<1 | 1.5 | 2>(1);
+  const resolvedUri = normalizeImageUrl(audioUri);
   let player: any = null;
   let status: any = null;
 
   try {
-    player = useAudioPlayer(audioUri);
+    player = useAudioPlayer(resolvedUri || null, { updateInterval: 100 });
     status = useAudioPlayerStatus(player);
   } catch (err) {
     // Fallback if audio hardware unavailable
   }
 
+  useEffect(() => {
+    // Ensure speaker playback even when hardware silent switch is engaged
+    if (Platform.OS !== 'web') {
+      setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: 'mixWithOthers',
+      }).catch(() => {});
+    }
+  }, []);
+
   const isPlaying = Boolean(status?.playing);
   const currentTime = status?.currentTime ?? 0;
   const duration = status?.duration ?? 0;
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!player) return;
+    try {
+      if (Platform.OS !== 'web') {
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          interruptionMode: 'mixWithOthers',
+        });
+      }
+    } catch {}
+
     if (isPlaying) {
       player.pause();
     } else {
@@ -36,7 +57,8 @@ export default function VoiceNoteBubble({ audioUri, isFromMe }: VoiceNoteBubbleP
     }
   };
 
-  const cycleSpeed = () => {
+  const cycleSpeed = (e?: any) => {
+    e?.stopPropagation?.();
     const nextSpeed: 1 | 1.5 | 2 = playbackSpeed === 1 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1;
     setPlaybackSpeed(nextSpeed);
     try {
@@ -53,13 +75,13 @@ export default function VoiceNoteBubble({ audioUri, isFromMe }: VoiceNoteBubbleP
   const progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.playBtn, isFromMe ? styles.myPlayBtn : styles.theirPlayBtn]}
-        onPress={togglePlay}
-        activeOpacity={0.8}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={togglePlay}
+      activeOpacity={0.85}>
+      <View style={[styles.playBtn, isFromMe ? styles.myPlayBtn : styles.theirPlayBtn]}>
         {isPlaying ? <PauseIcon size={14} color="#FFF" /> : <PlayIcon size={14} color="#FFF" />}
-      </TouchableOpacity>
+      </View>
 
       <View style={styles.waveSection}>
         <View style={styles.waveBarRow}>
@@ -90,10 +112,14 @@ export default function VoiceNoteBubble({ audioUri, isFromMe }: VoiceNoteBubbleP
         </View>
       </View>
 
-      <TouchableOpacity style={styles.speedBtn} onPress={cycleSpeed} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.speedBtn}
+        onPress={cycleSpeed}
+        activeOpacity={0.7}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Text style={styles.speedText}>{playbackSpeed}x</Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 }
 

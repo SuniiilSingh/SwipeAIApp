@@ -265,12 +265,6 @@ export default function MatchesScreen() {
               {item.lastMessage || 'Chat lounge unlocked! Say hi 👋'}
             </Text>
           )}
-
-          <TouchableOpacity
-            style={styles.viewProfileChip}
-            onPress={() => setSelectedMatch(item)}>
-            <Text style={styles.viewProfileChipText}>👤 View Full Profile & Details →</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.chevronBox}>

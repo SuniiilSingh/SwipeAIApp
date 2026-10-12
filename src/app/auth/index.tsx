@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -28,6 +29,59 @@ import { DatingIntent } from '@/types';
 import LivenessCameraModal from '@/components/liveness-camera-modal';
 import { FEATURE_FLAGS } from '@/config/features';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
+import { hapticFeedback } from '@/utils/haptics';
+
+interface TeaserProfile {
+  id: string;
+  name: string;
+  age: number;
+  profession: string;
+  distance: string;
+  bio: string;
+  photo: string;
+  voiceDuration: string;
+  affinity: string;
+  affinityEmoji: string;
+}
+
+const TEASER_PROFILES: TeaserProfile[] = [
+  {
+    id: 'teaser-1',
+    name: 'Kiara',
+    age: 24,
+    profession: 'Architect @ Indiranagar',
+    distance: '800m away',
+    bio: 'Brutalist spaces, filter coffee at 7 AM, and late indie records ☕',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800',
+    voiceDuration: '12s Voice Note',
+    affinity: 'Tula (Libra) • 96% Match',
+    affinityEmoji: '⚖️',
+  },
+  {
+    id: 'teaser-2',
+    name: 'Aanya',
+    age: 25,
+    profession: 'Product Designer @ Swiggy',
+    distance: '1.2 km away',
+    bio: 'Late craft beers at Toit, spontaneous Coorg road trips, and dry wit 🍻',
+    photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800',
+    voiceDuration: '15s Voice Note',
+    affinity: 'Simha (Leo) • 92% Match',
+    affinityEmoji: '🦁',
+  },
+  {
+    id: 'teaser-3',
+    name: 'Rhea',
+    age: 23,
+    profession: 'Creative Producer @ Koramangala',
+    distance: '1.8 km away',
+    bio: 'Film photography, rooftop jazz bars, and people who reply to voice notes 🎧',
+    photo: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800',
+    voiceDuration: '10s Voice Note',
+    affinity: 'Dhanu (Sagittarius) • 94% Match',
+    affinityEmoji: '🏹',
+  },
+];
 
 const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
@@ -75,13 +129,15 @@ export default function AuthScreen() {
   const [autoDetectedSuccess, setAutoDetectedSuccess] = useState(false);
   const [otpFeedbackMsg, setOtpFeedbackMsg] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isCompact = windowHeight < 750;
   const isUltraCompact = windowHeight < 680;
   const stackHeight = isUltraCompact ? 250 : isCompact ? 290 : 330;
   const cardWidth = isUltraCompact ? 220 : isCompact ? 245 : 260;
   const cardHeight = isUltraCompact ? 245 : isCompact ? 285 : 320;
   const photoHeight = isUltraCompact ? 170 : isCompact ? 198 : 225;
+  const deckCardWidth = Math.min(windowWidth - 32, 420);
+  const deckCardHeight = isUltraCompact ? 390 : isCompact ? 440 : Math.min(windowHeight * 0.63, 520);
   const [resendTimer, setResendTimer] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -95,6 +151,13 @@ export default function AuthScreen() {
   const [isPlayingVoice, setIsPlayingVoice] = useState(true);
   const soundWaveAnim = useRef(new Animated.Value(0)).current;
   const keyboardAnim = useRef(new Animated.Value(0)).current;
+
+  // Concept 1: Live Swipe Teaser State & Gestures
+  const [teaserIndex, setTeaserIndex] = useState(0);
+  const [showAuthSheet, setShowAuthSheet] = useState(false);
+  const [likedCandidateName, setLikedCandidateName] = useState('Kiara');
+  const [authSheetMode, setAuthSheetMode] = useState<'like' | 'login' | 'superlike'>('like');
+  const swipeAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const animStackHeight = keyboardAnim.interpolate({
     inputRange: [0, 1],
@@ -373,6 +436,108 @@ export default function AuthScreen() {
     ).start();
   }, []);
 
+  // Concept 1: Active & Next Curated Profiles
+  const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
+  const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
+
+  const openAuthSheet = (name?: string, mode: 'like' | 'login' | 'superlike' = 'like') => {
+    hapticFeedback.medium();
+    if (name) setLikedCandidateName(name);
+    setAuthSheetMode(mode);
+    setShowAuthSheet(true);
+  };
+
+  const closeAuthSheet = () => {
+    if (otpSent) return;
+    hapticFeedback.light();
+    setShowAuthSheet(false);
+  };
+
+  const handleTeaserLike = () => {
+    hapticFeedback.success();
+    const candidate = currentTeaser.name;
+    Animated.timing(swipeAnim, {
+      toValue: { x: 500, y: 0 },
+      duration: 260,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start(() => {
+      swipeAnim.setValue({ x: 0, y: 0 });
+      setTeaserIndex((prev) => (prev + 1) % TEASER_PROFILES.length);
+      openAuthSheet(candidate, 'like');
+    });
+  };
+
+  const handleTeaserPass = () => {
+    hapticFeedback.selection();
+    Animated.timing(swipeAnim, {
+      toValue: { x: -500, y: 0 },
+      duration: 260,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start(() => {
+      swipeAnim.setValue({ x: 0, y: 0 });
+      setTeaserIndex((prev) => (prev + 1) % TEASER_PROFILES.length);
+    });
+  };
+
+  const handleTeaserSuperlike = () => {
+    hapticFeedback.heavy();
+    const candidate = currentTeaser.name;
+    Animated.timing(swipeAnim, {
+      toValue: { x: 0, y: -500 },
+      duration: 260,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start(() => {
+      swipeAnim.setValue({ x: 0, y: 0 });
+      setTeaserIndex((prev) => (prev + 1) % TEASER_PROFILES.length);
+      openAuthSheet(candidate, 'superlike');
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !showAuthSheet,
+      onMoveShouldSetPanResponder: (_, gesture) => {
+        return !showAuthSheet && (Math.abs(gesture.dx) > 12 || Math.abs(gesture.dy) > 12);
+      },
+      onPanResponderMove: Animated.event([null, { dx: swipeAnim.x, dy: swipeAnim.y }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx > 120) {
+          handleTeaserLike();
+        } else if (gesture.dx < -120) {
+          handleTeaserPass();
+        } else if (gesture.dy < -120) {
+          handleTeaserSuperlike();
+        } else {
+          Animated.spring(swipeAnim, {
+            toValue: { x: 0, y: 0 },
+            friction: 5,
+            useNativeDriver: Platform.OS !== 'web',
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const cardRotate = swipeAnim.x.interpolate({
+    inputRange: [-250, 0, 250],
+    outputRange: ['-14deg', '0deg', '14deg'],
+    extrapolate: 'clamp',
+  });
+
+  const likeStampOpacity = swipeAnim.x.interpolate({
+    inputRange: [25, 90],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const passStampOpacity = swipeAnim.x.interpolate({
+    inputRange: [-90, -25],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
   // Keyboard visibility listener to dynamically prevent keypad override & smoothly scale photo deck
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -480,6 +645,7 @@ export default function AuthScreen() {
       const res = await api.sendOtp(phone, targetChannel);
       setLoading(false);
       setOtpSent(true);
+      setShowAuthSheet(true);
       setResendTimer(30);
       const codeLen = (res && (res.otpLength === 4 || res.otpLength === 6)) ? res.otpLength : 6;
       setExpectedOtpLength(codeLen);
@@ -625,6 +791,7 @@ export default function AuthScreen() {
     try {
       const res = await api.verifyOtp(phone, finalOtp, authChannel, userLat, userLon, userCity);
       setLoading(false);
+      setShowAuthSheet(false);
       if (res?.whatsappVerified || authChannel === 'whatsapp') {
         setWhatsappVerified(true);
       }
@@ -774,130 +941,121 @@ export default function AuthScreen() {
             </View>
           )}
 
-          {/* STEP 1: Concept 2 — The Kinetic Card Stack Aesthetic */}
+          {/* STEP 1: Concept 1 — The Live Swipe Teaser Deck */}
           {step === 1 && (
-            <View style={[styles.kineticPageContainer, isKeyboardVisible && styles.kineticPageContainerKeyboard]}>
-              {/* Top Wordmark Header */}
-              <View style={[styles.kineticBrandHeader, isKeyboardVisible && styles.kineticBrandHeaderCompact]}>
-                <View style={styles.brandLogoRow}>
-                  <View style={[styles.brandLogoIconGlow, isKeyboardVisible && styles.brandLogoIconGlowCompact]}>
-                    <Text style={[styles.brandLogoIconText, isKeyboardVisible && { fontSize: 13 }]}>🔥</Text>
+            <View style={styles.teaserPageContainer}>
+              {/* Top Header Bar */}
+              <View style={styles.teaserTopBar}>
+                <View style={styles.teaserBrandRow}>
+                  <View style={styles.brandLogoIconGlow}>
+                    <Text style={styles.brandLogoIconText}>🔥</Text>
                   </View>
-                  <BlunderRWordmark size={isKeyboardVisible ? 'md' : 'lg'} slant={true} />
+                  <BlunderRWordmark size="md" slant={true} />
                 </View>
-                {!isKeyboardVisible && (
-                  <View style={styles.kineticVipTagPill}>
-                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
-                    <Text style={styles.kineticVipTagText}>100% VERIFIED HIGH-INTENT STACK</Text>
-                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
-                  </View>
-                )}
+
+                {/* Live Online Pulse Badge */}
+                <View style={styles.teaserLivePill}>
+                  <View style={styles.teaserLiveDot} />
+                  <Text style={styles.teaserLiveText}>1,240 Online</Text>
+                </View>
+
+                {/* Direct Member Log In Button */}
+                <TouchableOpacity
+                  style={styles.teaserLoginBtn}
+                  onPress={() => openAuthSheet(undefined, 'login')}
+                  activeOpacity={0.8}>
+                  <Text style={styles.teaserLoginBtnText}>Log In</Text>
+                </TouchableOpacity>
               </View>
 
-              {/* 3D Kinetic Card Stack Centerpiece */}
-              <Animated.View
-                style={[
-                  styles.kineticStackContainer,
-                  {
-                    height: animStackHeight,
-                    transform: [{ scale: animStackScale }],
-                    marginTop: isKeyboardVisible ? 12 : animStackMarginVertical,
-                    marginBottom: animStackMarginVertical,
-                  },
-                ]}>
-                {/* Background Card 4 (Deepest Shadow Card - Tilted -27 deg) */}
+              {/* The Live Interactive Swipe Deck */}
+              <View style={[styles.teaserDeckArea, { height: deckCardHeight, width: deckCardWidth }]}>
+                {/* Background Next Card (Behind Hero) */}
                 <View
-                  style={[styles.kineticCard4, { width: cardWidth, height: cardHeight }]}
-                  pointerEvents="none"
-                />
-
-                {/* Background Card 3 (Tilted -20 deg with Dark Photo Layer) */}
-                <View
-                  style={[styles.kineticCard3, { width: cardWidth, height: cardHeight }]}
-                  pointerEvents="none">
-                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
-                    <Image
-                      source={{
-                        uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600',
-                      }}
-                      style={styles.cardInnerPhotoDimmed}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.cardDimmerOverlay} />
-                  </View>
-                </View>
-
-                {/* Background Card 2 (Tilted -13 deg with Cyan/Mint Glow & Photo Preview) */}
-                <View
-                  style={[styles.kineticCard2, { width: cardWidth, height: cardHeight }]}
-                  pointerEvents="none">
-                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
-                    <Image
-                      source={{
-                        uri: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600',
-                      }}
-                      style={styles.cardInnerPhotoDimmed}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.cardDimmerOverlaySoft} />
-                  </View>
-                </View>
-
-                {/* Foreground Hero Card 1 (Tilted -6 deg with Levitating Float Physics) */}
-                <Animated.View
                   style={[
-                    styles.kineticCardHero,
+                    styles.teaserCardBack,
+                    { height: deckCardHeight, width: deckCardWidth },
+                  ]}
+                  pointerEvents="none">
+                  <Image
+                    source={{ uri: nextTeaser.photo }}
+                    style={styles.teaserPhoto}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.teaserPhotoOverlay} />
+                  <View style={styles.teaserCardBottomContent}>
+                    <Text style={styles.teaserCardName}>{nextTeaser.name}, {nextTeaser.age}</Text>
+                    <Text style={styles.teaserCardDistance}>📍 {nextTeaser.distance} • {nextTeaser.profession}</Text>
+                  </View>
+                </View>
+
+                {/* Hero Foreground Card (Interactive With PanResponder) */}
+                <Animated.View
+                  {...panResponder.panHandlers}
+                  style={[
+                    styles.teaserCardHero,
                     {
-                      width: cardWidth,
-                      height: cardHeight,
-                      transform: [{ translateY: floatAnim }, { rotate: '-6deg' }],
+                      height: deckCardHeight,
+                      width: deckCardWidth,
+                      transform: [
+                        { translateX: swipeAnim.x },
+                        { translateY: swipeAnim.y },
+                        { rotate: cardRotate },
+                      ],
                     },
                   ]}>
-                  {/* Outer Frame with Inner Photo Container */}
-                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
-                    <Image
-                      source={{
-                        uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800',
-                      }}
-                      style={styles.cardInnerPhoto}
-                      resizeMode="cover"
-                    />
-                  </View>
+                  <Image
+                    source={{ uri: currentTeaser.photo }}
+                    style={styles.teaserPhoto}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.teaserPhotoOverlay} />
 
-                  {/* Floating 3D Verified Checkmark Badge on Card Right Edge */}
-                  <View style={styles.floatingVerifiedBadgeRight}>
-                    <Text style={styles.floatingVerifiedText}>✓</Text>
-                  </View>
+                  {/* Stamp Badges (Show when dragging) */}
+                  <Animated.View style={[styles.teaserStampLike, { opacity: likeStampOpacity }]} pointerEvents="none">
+                    <Text style={styles.teaserStampLikeText}>LIKE ❤️</Text>
+                  </Animated.View>
+                  <Animated.View style={[styles.teaserStampNope, { opacity: passStampOpacity }]} pointerEvents="none">
+                    <Text style={styles.teaserStampNopeText}>NOPE ✕</Text>
+                  </Animated.View>
 
-                  {/* Card Lower-Right Heart Accent */}
-                  <View style={styles.cardHeartAccent}>
-                    <Text style={styles.cardHeartIcon}>❤️</Text>
-                  </View>
-
-                  {/* Tilted Glass Candidate Info & Voice Waveform Overlay (Tilted Right) */}
-                  <View style={styles.candidateGlassOverlay}>
-                    {/* Left Verified Badge mounted directly on Name Card */}
-                    <View style={styles.nameCardVerifiedBadge}>
-                      <Text style={styles.floatingVerifiedText}>✓</Text>
+                  {/* Top Badges Inside Card */}
+                  <View style={styles.teaserCardTopRow}>
+                    <View style={styles.teaserPreviewBadge}>
+                      <Text style={styles.teaserPreviewBadgeSparkle}>✦</Text>
+                      <Text style={styles.teaserPreviewBadgeText}>LIVE PREVIEW</Text>
                     </View>
+                    <View style={styles.teaserVerifiedBadge}>
+                      <Text style={styles.teaserVerifiedBadgeText}>✓ Verified</Text>
+                    </View>
+                  </View>
 
-                    {/* Name, Age, Profession */}
-                    <View style={styles.candidateIdentityRow}>
-                      <Text style={styles.candidateName}>Aanya, 25</Text>
+                  {/* Bottom Content Inside Card */}
+                  <View style={styles.teaserCardBottomContent}>
+                    {/* Identity & Profession */}
+                    <View style={styles.teaserIdentityRow}>
+                      <Text style={styles.teaserCardName}>{currentTeaser.name}, {currentTeaser.age}</Text>
                       <View style={styles.candidateDot} />
-                      <Text style={styles.candidateProfession}>Product Designer @ Swiggy</Text>
+                      <Text style={styles.teaserAffinityEmoji}>{currentTeaser.affinityEmoji}</Text>
                     </View>
+                    <Text style={styles.teaserCardDistance}>📍 {currentTeaser.distance} • {currentTeaser.profession}</Text>
 
-                    {/* Interactive Voice Note Player Bar */}
+                    {/* Bio Snippet */}
+                    <Text style={styles.teaserCardBio} numberOfLines={2}>
+                      "{currentTeaser.bio}"
+                    </Text>
+
+                    {/* Playable Voice Note Bar */}
                     <TouchableOpacity
                       style={styles.voiceNoteBar}
                       activeOpacity={0.8}
-                      onPress={() => setIsPlayingVoice(!isPlayingVoice)}>
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setIsPlayingVoice(!isPlayingVoice);
+                      }}>
                       <View style={styles.voicePlayBtn}>
                         <Text style={styles.voicePlayIcon}>{isPlayingVoice ? '⏸' : '▶'}</Text>
                       </View>
-
-                      {/* Dynamic Pulsing Sound Waveform Bars */}
                       <View style={styles.waveformContainer}>
                         {[10, 20, 14, 26, 18, 28, 22, 16, 24, 19, 26, 15, 21, 12].map((baseHeight, idx) => {
                           const barHeight = isPlayingVoice
@@ -923,31 +1081,122 @@ export default function AuthScreen() {
                           );
                         })}
                       </View>
-
-                      <Text style={styles.voiceDurationText}>15s Voice Note</Text>
+                      <Text style={styles.voiceDurationText}>{currentTeaser.voiceDuration}</Text>
                     </TouchableOpacity>
 
-                    {/* Vedic Astrology Match Pill */}
+                    {/* Vedic Match Affinity Pill */}
                     <View style={styles.vedicMatchPill}>
-                      <Text style={styles.vedicEmoji}>🦁</Text>
-                      <Text style={styles.vedicMatchText}>Simha (Leo) • 92% Match</Text>
+                      <Text style={styles.vedicEmoji}>{currentTeaser.affinityEmoji}</Text>
+                      <Text style={styles.vedicMatchText}>{currentTeaser.affinity}</Text>
                     </View>
                   </View>
                 </Animated.View>
-              </Animated.View>
+              </View>
 
-              {/* Bottom Sheet Auth Drawer */}
-              <View style={[styles.kineticAuthDrawer, isKeyboardVisible && styles.kineticAuthDrawerKeyboard]}>
-                {/* Drawer Top Handle Indicator */}
-                {!isKeyboardVisible && <View style={styles.drawerHandleBar} />}
+              {/* Floating Action Controls */}
+              <View style={styles.teaserActionRow}>
+                {/* Pass Button */}
+                <TouchableOpacity
+                  style={styles.teaserPassBtn}
+                  onPress={handleTeaserPass}
+                  activeOpacity={0.8}>
+                  <Text style={styles.teaserPassIcon}>✕</Text>
+                </TouchableOpacity>
 
-                {/* Social Proof Hook */}
-                {!isKeyboardVisible && (
-                  <View style={styles.socialProofRow}>
-                    <View style={styles.livePulseDot} />
-                    <Text style={styles.socialProofText}>Someone 3.2 km away is listening right now</Text>
-                  </View>
-                )}
+                {/* Superlike Button */}
+                <TouchableOpacity
+                  style={styles.teaserSuperBtn}
+                  onPress={handleTeaserSuperlike}
+                  activeOpacity={0.8}>
+                  <Text style={styles.teaserSuperIcon}>★</Text>
+                </TouchableOpacity>
+
+                {/* Like Button */}
+                <TouchableOpacity
+                  style={styles.teaserLikeBtn}
+                  onPress={handleTeaserLike}
+                  activeOpacity={0.85}>
+                  <Text style={styles.teaserLikeIcon}>❤️</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Swipe Guidance Hint */}
+              <Text style={styles.teaserHintText}>
+                Swipe right or tap ❤️ to like • Tap ✕ to pass
+              </Text>
+            </View>
+          )}
+
+          {/* SLIDE-UP AUTH DRAWER (MODAL HOOK) */}
+          <Modal
+            visible={(showAuthSheet || otpSent) && step === 1}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => {
+              if (!otpSent) closeAuthSheet();
+            }}>
+            <View style={styles.sheetOverlay}>
+              <TouchableOpacity
+                style={styles.sheetBackdropTouch}
+                activeOpacity={1}
+                onPress={() => {
+                  if (!otpSent) closeAuthSheet();
+                }}
+              />
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={styles.sheetKeyboardWrapper}>
+                <View style={styles.sheetContainer}>
+                  {/* Drawer Top Handle Indicator */}
+                  <View style={styles.drawerHandleBar} />
+
+                  {/* Dismiss Button */}
+                  {!otpSent && (
+                    <TouchableOpacity
+                      style={styles.sheetDismissBtn}
+                      onPress={closeAuthSheet}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                      <Text style={styles.sheetDismissText}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.sheetScrollContent}>
+                    {/* Header Hook */}
+                    <View style={styles.sheetHeaderBox}>
+                      <View style={styles.sheetHookPill}>
+                        <Text style={styles.sheetHookEmoji}>
+                          {authSheetMode === 'superlike' ? '★' : authSheetMode === 'login' ? '⚡' : '❤️'}
+                        </Text>
+                        <Text style={styles.sheetHookPillText}>
+                          {authSheetMode === 'superlike'
+                            ? `SUPERLIKED ${likedCandidateName.toUpperCase()}`
+                            : authSheetMode === 'login'
+                            ? 'VIP ACCESS'
+                            : `LIKED ${likedCandidateName.toUpperCase()}`}
+                        </Text>
+                      </View>
+                      <Text style={styles.sheetHeaderTitle}>
+                        {authSheetMode === 'login'
+                          ? 'Welcome Back to BlunderR'
+                          : `Connect with ${likedCandidateName}`}
+                      </Text>
+                      <Text style={styles.sheetHeaderSub}>
+                        {authSheetMode === 'login'
+                          ? 'Continue with WhatsApp or Mobile Number'
+                          : `1-Tap to message & connect with ${likedCandidateName} in Bangalore.`}
+                      </Text>
+                    </View>
+
+                    {/* Social Proof Hook */}
+                    {!otpSent && (
+                      <View style={styles.socialProofRow}>
+                        <View style={styles.livePulseDot} />
+                        <Text style={styles.socialProofText}>1,240 verified singles active in Bangalore right now</Text>
+                      </View>
+                    )}
 
                 {!otpSent ? (
                   <>
@@ -1054,6 +1303,14 @@ export default function AuthScreen() {
                         </Text>
                       </View>
                     )}
+
+                    {/* Keep Browsing Previews Link */}
+                    <TouchableOpacity
+                      style={styles.keepBrowsingBtn}
+                      onPress={closeAuthSheet}
+                      activeOpacity={0.7}>
+                      <Text style={styles.keepBrowsingText}>Keep browsing preview profiles ↓</Text>
+                    </TouchableOpacity>
 
                     {/* Apple & Google Mandatory Legal Terms & Privacy Policy */}
                     <View style={styles.authLegalBox}>
@@ -1238,7 +1495,7 @@ export default function AuthScreen() {
                 )}
 
                 {/* Bottom: 3D Holographic Trust Pass Badge (Feature Flag Controlled) */}
-                {FEATURE_FLAGS.ENABLE_DIGILOCKER && !isKeyboardVisible && (
+                {FEATURE_FLAGS.ENABLE_DIGILOCKER && (
                   <View style={styles.trustBadgeContainer}>
                     <View style={styles.trustBadgePill}>
                       <Text style={styles.trustBadgeIcon}>🛡️</Text>
@@ -1248,9 +1505,11 @@ export default function AuthScreen() {
                     </View>
                   </View>
                 )}
-              </View>
+                  </ScrollView>
+                </View>
+              </KeyboardAvoidingView>
             </View>
-          )}
+          </Modal>
 
         {/* STEP 2: Zero-Knowledge Trust Pass (DigiLocker & 3D Liveness) */}
         {step === 2 && (
@@ -1648,6 +1907,406 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#08080E',
+  },
+  // Concept 1: Live Swipe Teaser Styles
+  teaserPageContainer: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  teaserTopBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  teaserBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  teaserLivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 46, 99, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 46, 99, 0.35)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  teaserLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FF2E63',
+    ...Platform.select({
+      web: { boxShadow: '0 0 6px #FF2E63' },
+      default: { shadowColor: '#FF2E63', shadowOpacity: 0.8, shadowRadius: 4, elevation: 2 },
+    }),
+  },
+  teaserLiveText: {
+    color: '#FF7A9A',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  teaserLoginBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  teaserLoginBtnText: {
+    color: '#ffffff',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  teaserDeckArea: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teaserCardBack: {
+    position: 'absolute',
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#121622',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    transform: [{ scale: 0.94 }, { translateY: 10 }],
+    opacity: 0.65,
+  },
+  teaserCardHero: {
+    position: 'absolute',
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#171D2A',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 46, 99, 0.5)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 25px rgba(255, 46, 99, 0.25)',
+      },
+      default: {
+        shadowColor: '#FF2E63',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.45,
+        shadowRadius: 22,
+        elevation: 12,
+      },
+    }),
+  },
+  teaserPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  teaserPhotoOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'transparent',
+    ...Platform.select({
+      web: {
+        background: 'linear-gradient(180deg, rgba(5, 6, 10, 0.2) 0%, rgba(5, 6, 10, 0.1) 40%, rgba(5, 6, 10, 0.85) 75%, rgba(5, 6, 10, 0.98) 100%)',
+      },
+      default: {
+        backgroundColor: 'rgba(5, 6, 10, 0.35)',
+      },
+    }),
+  },
+  teaserStampLike: {
+    position: 'absolute',
+    top: 24,
+    left: 20,
+    borderWidth: 3,
+    borderColor: '#00E676',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    transform: [{ rotate: '-18deg' }],
+    backgroundColor: 'rgba(0, 230, 118, 0.15)',
+    zIndex: 30,
+  },
+  teaserStampLikeText: {
+    color: '#00E676',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  teaserStampNope: {
+    position: 'absolute',
+    top: 24,
+    right: 20,
+    borderWidth: 3,
+    borderColor: '#FF3366',
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    transform: [{ rotate: '18deg' }],
+    backgroundColor: 'rgba(255, 51, 102, 0.15)',
+    zIndex: 30,
+  },
+  teaserStampNopeText: {
+    color: '#FF3366',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  teaserCardTopRow: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 20,
+  },
+  teaserPreviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  teaserPreviewBadgeSparkle: {
+    color: '#00F2FE',
+    fontSize: 9,
+  },
+  teaserPreviewBadgeText: {
+    color: '#E0F7FA',
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 1.1,
+  },
+  teaserVerifiedBadge: {
+    backgroundColor: 'rgba(0, 136, 255, 0.85)',
+    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  teaserVerifiedBadgeText: {
+    color: '#ffffff',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  teaserCardBottomContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+    zIndex: 20,
+    backgroundColor: 'rgba(5, 6, 10, 0.7)',
+  },
+  teaserIdentityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  teaserCardName: {
+    color: '#ffffff',
+    fontSize: 21,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  teaserAffinityEmoji: {
+    fontSize: 16,
+  },
+  teaserCardDistance: {
+    color: '#BAC4D6',
+    fontSize: 11.5,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  teaserCardBio: {
+    color: '#E2E8F0',
+    fontSize: 11.5,
+    fontStyle: 'italic',
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  teaserActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  teaserPassBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(18, 22, 34, 0.95)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 6px 18px rgba(0, 0, 0, 0.4)' },
+      default: { shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+    }),
+  },
+  teaserPassIcon: {
+    color: '#CBD5E1',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  teaserSuperBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(24, 28, 42, 0.95)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 171, 0, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 6px 18px rgba(255, 171, 0, 0.25)' },
+      default: { shadowColor: '#FFAA00', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+    }),
+  },
+  teaserSuperIcon: {
+    color: '#FFB300',
+    fontSize: 20,
+  },
+  teaserLikeBtn: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: '#FF2E63',
+    borderWidth: 2,
+    borderColor: '#FFA5B9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 8px 24px rgba(255, 46, 99, 0.55)' },
+      default: { shadowColor: '#FF2E63', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.6, shadowRadius: 14, elevation: 8 },
+    }),
+  },
+  teaserLikeIcon: {
+    fontSize: 26,
+  },
+  teaserHintText: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+
+  // Slide-Up Modal Auth Sheet Styles
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    justifyContent: 'flex-end',
+  },
+  sheetBackdropTouch: {
+    flex: 1,
+  },
+  sheetKeyboardWrapper: {
+    width: '100%',
+    maxHeight: '88%',
+  },
+  sheetContainer: {
+    backgroundColor: '#0E111B',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1.5,
+    borderTopColor: 'rgba(255, 46, 99, 0.4)',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+    position: 'relative',
+    ...Platform.select({
+      web: { boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.8)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.7, shadowRadius: 20, elevation: 16 },
+    }),
+  },
+  sheetDismissBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  sheetDismissText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  sheetScrollContent: {
+    paddingBottom: 16,
+  },
+  sheetHeaderBox: {
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  sheetHookPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 46, 99, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 46, 99, 0.4)',
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 6,
+  },
+  sheetHookEmoji: {
+    fontSize: 11,
+    color: '#FF2E63',
+  },
+  sheetHookPillText: {
+    color: '#FFA1B8',
+    fontSize: 9.5,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  sheetHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#ffffff',
+    textAlign: 'center',
+    letterSpacing: -0.4,
+  },
+  sheetHeaderSub: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 2,
+    paddingHorizontal: 8,
+    lineHeight: 16,
+  },
+  keepBrowsingBtn: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  keepBrowsingText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '700',
   },
   ambientOrbTop: {
     position: 'absolute',

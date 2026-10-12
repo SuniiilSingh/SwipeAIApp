@@ -34,6 +34,7 @@ import { FEATURE_FLAGS } from '@/config/features';
 import { Image as ExpoImage } from 'expo-image';
 import { hapticFeedback } from '@/utils/haptics';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
+import DopamineCuriosityLoop from '@/components/dopamine-curiosity-loop';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
@@ -75,6 +76,9 @@ export default function DiscoveryScreen() {
   const isTinyScreen = windowWidth < 355;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isCuriosityLoopActive, setIsCuriosityLoopActive] = useState(true);
+  const loopTimerFinishedRef = useRef(false);
+  const feedLoadedRef = useRef(false);
   const [candidates, setCandidates] = useState<CandidateCard[]>([]);
   const [selectedFilter, setSelectedFilter] = useState('ALL');
   const [remainingSwipes, setRemainingSwipes] = useState(25);
@@ -138,6 +142,9 @@ export default function DiscoveryScreen() {
   );
 
   const loadFeed = async (communityOverride?: MicroCircle | null) => {
+    feedLoadedRef.current = false;
+    loopTimerFinishedRef.current = false;
+    setIsCuriosityLoopActive(true);
     try {
       // 1. Discovery Gating Check: Name, Gender, Sexual Orientation and >= 30% completion required
       const myProfile = await api.getMyProfile();
@@ -150,6 +157,7 @@ export default function DiscoveryScreen() {
       if (!hasName || !hasGender || !hasOrientation || completionPct < 30) {
         setLoading(false);
         setRefreshing(false);
+        setIsCuriosityLoopActive(false);
         router.replace('/auth/onboarding-decks' as any);
         return;
       }
@@ -181,18 +189,31 @@ export default function DiscoveryScreen() {
       setCandidates([]);
       setRemainingSwipes(userProfile?.hasActivePass ? 999 : 25);
     } finally {
+      feedLoadedRef.current = true;
       setLoading(false);
       setRefreshing(false);
+      if (loopTimerFinishedRef.current) {
+        setIsCuriosityLoopActive(false);
+      }
+    }
+  };
+
+  const handleLoopComplete = () => {
+    loopTimerFinishedRef.current = true;
+    if (feedLoadedRef.current) {
+      setIsCuriosityLoopActive(false);
     }
   };
 
   const handleSelectCommunityFilter = (comm: MicroCircle | null) => {
     setSelectedCommunityFilter(comm);
+    setIsCuriosityLoopActive(true);
     setLoading(true);
     loadFeed(comm);
   };
 
   const handleRefresh = () => {
+    setIsCuriosityLoopActive(true);
     setRefreshing(true);
     loadFeed();
   };
@@ -839,15 +860,14 @@ function SwipeableCandidateCard({
     </View>
   );
 
-  if (loading) {
-    const currentCity = userProfile?.city || userProfile?.location;
+  if (loading || isCuriosityLoopActive) {
+    const currentCity = userProfile?.city || userProfile?.location || 'Bangalore';
     return (
-      <SafeAreaView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#E94057" />
-        <Text style={styles.loadingText}>
-          {currentCity ? `Curating verified profiles in ${currentCity}...` : 'Curating verified profiles near you...'}
-        </Text>
-      </SafeAreaView>
+      <DopamineCuriosityLoop
+        city={currentCity}
+        minDurationMs={2600}
+        onComplete={handleLoopComplete}
+      />
     );
   }
 

@@ -43,63 +43,63 @@ export default function KundaliChartDiamond({
           {/* Top Diamond - House 1 (Lagna / Tanu Bhava - Self & Soul) */}
           <View style={[styles.houseBox, styles.house1]}>
             <Text style={styles.houseNumber}>1</Text>
-            <Text style={styles.housePlanet}>Asc: {rashiShort(lagnaSign || chandraRashi)}</Text>
-            <Text style={styles.houseLabel}>तनु भाव (Lagna)</Text>
+            <Text style={styles.housePlanet} numberOfLines={1}>Asc: {rashiShort(lagnaSign || chandraRashi)}</Text>
+            <Text style={styles.houseLabel} numberOfLines={1}>तनु भाव (Lagna)</Text>
           </View>
 
           {/* House 2 - Top Left (Dhana Bhava - Wealth & Voice) */}
           <View style={[styles.houseBox, styles.house2]}>
             <Text style={styles.houseNumber}>2</Text>
-            <Text style={styles.housePlanet}>धन</Text>
+            <Text style={styles.housePlanet} numberOfLines={1}>धन</Text>
           </View>
 
           {/* House 12 - Top Right (Vyaya Bhava - Subconscious) */}
           <View style={[styles.houseBox, styles.house12]}>
             <Text style={styles.houseNumber}>12</Text>
-            <Text style={styles.housePlanet}>व्यय</Text>
+            <Text style={styles.housePlanet} numberOfLines={1}>व्यय</Text>
           </View>
 
           {/* House 4 - Center Left (Matru / Sukh Bhava - Inner Peace & Home) */}
           <View style={[styles.houseBox, styles.house4]}>
             <Text style={styles.houseNumber}>4</Text>
-            <Text style={styles.housePlanet}>Mo: {rashiShort(chandraRashi)}</Text>
-            <Text style={styles.houseLabel}>सुख (Moon)</Text>
+            <Text style={styles.housePlanet} numberOfLines={1}>Mo: {rashiShort(chandraRashi)}</Text>
+            <Text style={styles.houseLabel} numberOfLines={1}>सुख (Moon)</Text>
           </View>
 
           {/* House 10 - Center Right (Karma Bhava - Ambition & Purpose) */}
           <View style={[styles.houseBox, styles.house10]}>
             <Text style={styles.houseNumber}>10</Text>
-            <Text style={styles.housePlanet}>Su: {rashiShort(sunSign)}</Text>
-            <Text style={styles.houseLabel}>कर्म (Sun)</Text>
+            <Text style={styles.housePlanet} numberOfLines={1}>Su: {rashiShort(sunSign)}</Text>
+            <Text style={styles.houseLabel} numberOfLines={1}>कर्म (Sun)</Text>
           </View>
 
           {/* House 7 - Bottom Diamond (Kalatra Bhava - True Love & Life Partner) */}
           <View style={[styles.houseBox, styles.house7]}>
             <Text style={styles.houseNumber}>7</Text>
-            <Text style={[styles.housePlanet, { color: '#FF6B6B' }]}>
+            <Text style={[styles.housePlanet, { color: '#FF6B6B' }]} numberOfLines={1}>
               {isManglik ? 'Ma (मंगळ)' : 'कलत्र (Love)'}
             </Text>
-            <Text style={styles.houseLabel}>जाया भाव (Spouse)</Text>
+            <Text style={styles.houseLabel} numberOfLines={1}>जाया भाव (Spouse)</Text>
           </View>
 
           {/* House 5 - Tri-Kona (Love Romance & Intellect) */}
           <View style={[styles.houseBox, styles.house5]}>
             <Text style={styles.houseNumber}>5</Text>
-            <Text style={styles.housePlanet}>पुत्र/प्रेम</Text>
+            <Text style={styles.housePlanet} numberOfLines={1}>पुत्र/प्रेम</Text>
           </View>
 
           {/* House 9 - Dharma Bhava (Fortune & Higher Calling) */}
           <View style={[styles.houseBox, styles.house9]}>
             <Text style={styles.houseNumber}>9</Text>
-            <Text style={styles.housePlanet}>धर्म/भाग्य</Text>
+            <Text style={styles.housePlanet} numberOfLines={1}>धर्म/भाग्य</Text>
           </View>
         </View>
 
         {/* Center Astrological Badge */}
         <View style={styles.centerBadge}>
           <Text style={styles.centerZodiacSymbol}>🪐</Text>
-          <Text style={styles.centerStarText}>{nakshatraName || 'Rohini'}</Text>
-          <Text style={styles.centerSubText}>Sidereal Lahiri</Text>
+          <Text style={styles.centerStarText} numberOfLines={1}>{nakshatraName || 'Rohini'}</Text>
+          <Text style={styles.centerSubText} numberOfLines={1}>Sidereal Lahiri</Text>
         </View>
       </View>
 
@@ -187,9 +187,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30, 32, 54, 0.65)',
     borderWidth: 1,
     borderColor: 'rgba(129, 140, 248, 0.25)',
-    padding: 6,
+    padding: 3,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   house1: {
     top: 8,
@@ -249,21 +250,21 @@ const styles = StyleSheet.create({
   },
   houseNumber: {
     position: 'absolute',
-    top: 3,
-    left: 5,
+    top: 2,
+    left: 4,
     fontSize: 9,
     fontWeight: '800',
     color: '#818CF8',
   },
   housePlanet: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
     color: '#FFFFFF',
     marginTop: 2,
     textAlign: 'center',
   },
   houseLabel: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '600',
     color: '#94A3B8',
     marginTop: 1,

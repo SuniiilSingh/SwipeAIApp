@@ -69,6 +69,123 @@ const FILTER_TAGS = [
   { id: 'NON_DRINKER', label: '🚫 Teetotaler' },
 ];
 
+const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
+  {
+    userId: 'c_tanya_24',
+    displayName: 'Tanya',
+    age: 24,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 98,
+    distanceKm: 2.1,
+    city: 'Bengaluru',
+    neighborhood: 'Indiranagar 100ft Rd',
+    microCircle: '☕ Indiranagar Third Wave Cafe Club',
+    job: 'Product Designer @ Fintech',
+    institute: 'NID Ahmedabad',
+    height: 168,
+    photos: [
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80',
+    ],
+    bio: 'Designing user journeys by day, hunting for sour beers & indie gig spots by night. Low social battery for small talk.',
+    culturalBadges: {
+      diet: 'PURE_VEG' as any,
+      living: 'WITH_FLATMATES' as any,
+      languages: ['English', 'Hindi'],
+      zodiac: 'Taurus ♉ (Rohini)',
+    },
+    compatibilityScore: 96,
+    cosmicChemistry: {
+      synergyTag: 'Rohini & Uttara Phalguni 32/36 Gunas',
+      score: 96,
+    },
+    voicePrompt: {
+      audioUrl: '',
+      durationSec: 14,
+      promptText: 'My most controversial chai opinion: cardamom is essential, ginger is overrated ☕',
+    },
+    selectedMemeTitle: 'Sunday brunch priorities 🥐',
+    selectedMemeUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    userId: 'c_aarav_26',
+    displayName: 'Aarav',
+    age: 26,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 96,
+    distanceKm: 3.4,
+    city: 'Bengaluru',
+    neighborhood: 'Koramangala 4th Block',
+    microCircle: '🚀 Koramangala Tech Founders & Builders',
+    job: 'Founding Engineer @ AI Infra',
+    institute: 'IIT Roorkee',
+    height: 181,
+    photos: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop&q=80',
+    ],
+    bio: 'Training LLMs by sunrise, deadlifting by sunset. If you enjoy spontaneous weekend road trips and filter coffee, say hi.',
+    culturalBadges: {
+      diet: 'EGGETARIAN' as any,
+      living: 'ALONE' as any,
+      languages: ['English', 'Hindi', 'Kannada'],
+      zodiac: 'Scorpio ♏ (Anuradha)',
+    },
+    compatibilityScore: 92,
+    cosmicChemistry: {
+      synergyTag: 'Deep Graha Maitri Resonance',
+      score: 92,
+    },
+    voicePrompt: {
+      audioUrl: '',
+      durationSec: 12,
+      promptText: 'One song I can put on loop forever: Cold/Mess by Prateek Kuhad 🎸',
+    },
+    selectedMemeTitle: 'Pushing code straight to production 💻',
+    selectedMemeUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80',
+  },
+  {
+    userId: 'c_meera_25',
+    displayName: 'Meera',
+    age: 25,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 97,
+    distanceKm: 1.8,
+    city: 'Bengaluru',
+    neighborhood: 'HSR Sector 3',
+    microCircle: '🎨 Bangalore Indie Art & Gig Scene',
+    job: 'Brand Strategist & Writer',
+    institute: 'St. Xavier’s College',
+    height: 165,
+    photos: [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=80',
+    ],
+    bio: 'Curating Spotify playlists instead of talking about feelings. Passionate about street photography, monsoon walks, and old bakeries.',
+    culturalBadges: {
+      diet: 'PURE_VEG' as any,
+      living: 'WITH_FAMILY' as any,
+      languages: ['English', 'Hindi', 'Gujarati'],
+      zodiac: 'Cancer ♋ (Pushya)',
+    },
+    compatibilityScore: 94,
+    cosmicChemistry: {
+      synergyTag: 'Pushya Nakshatra High Emotional Bond',
+      score: 94,
+    },
+    voicePrompt: {
+      audioUrl: '',
+      durationSec: 15,
+      promptText: 'First date rule: no resume talk, only favorite comfort street food 🥟',
+    },
+    selectedMemeTitle: 'My social battery at loud parties 🔋',
+    selectedMemeUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80',
+  },
+];
+
 export default function DiscoveryScreen() {
   const router = useRouter();
   const { width: windowWidth } = useWindowDimensions();
@@ -182,11 +299,13 @@ export default function DiscoveryScreen() {
         longitude: lon,
         microCircle: effectiveCommunity ? effectiveCommunity.name : undefined,
       });
-      const list = feed?.candidates && Array.isArray(feed.candidates) ? feed.candidates : [];
+      const list = feed?.candidates && Array.isArray(feed.candidates) && feed.candidates.length > 0
+        ? feed.candidates
+        : FALLBACK_DISCOVERY_CANDIDATES;
       setCandidates(list);
       setRemainingSwipes(myProfile.hasActivePass ? 999 : (feed?.remainingDailySwipes ?? 25));
     } catch (e) {
-      setCandidates([]);
+      setCandidates(FALLBACK_DISCOVERY_CANDIDATES);
       setRemainingSwipes(userProfile?.hasActivePass ? 999 : 25);
     } finally {
       feedLoadedRef.current = true;
@@ -865,7 +984,8 @@ function SwipeableCandidateCard({
     return (
       <DopamineCuriosityLoop
         city={currentCity}
-        minDurationMs={2600}
+        minDurationMs={2400}
+        isLoading={loading}
         onComplete={handleLoopComplete}
       />
     );
@@ -898,11 +1018,15 @@ function SwipeableCandidateCard({
           renderItem={renderCandidateCard}
           pagingEnabled={true}
           showsVerticalScrollIndicator={false}
-          getItemLayout={(_, index) => ({
-            length: feedDimensions.height,
-            offset: feedDimensions.height * index,
-            index,
-          })}
+          getItemLayout={
+            filteredCandidates.length > 0
+              ? (_, index) => ({
+                  length: feedDimensions.height,
+                  offset: feedDimensions.height * index,
+                  index,
+                })
+              : undefined
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

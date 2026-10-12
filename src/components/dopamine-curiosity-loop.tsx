@@ -12,11 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { hapticFeedback } from '@/utils/haptics';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface DopamineCuriosityLoopProps {
   city?: string;
   minDurationMs?: number;
+  isLoading?: boolean;
   onComplete?: () => void;
 }
 
@@ -86,10 +87,13 @@ const MYSTERY_AVATARS = [
 
 export default function DopamineCuriosityLoop({
   city = 'Bangalore',
-  minDurationMs = 2800,
+  minDurationMs = 2000,
+  isLoading = false,
   onComplete,
 }: DopamineCuriosityLoopProps) {
   const [stepIndex, setStepIndex] = useState(0);
+  const [minTimePassed, setMinTimePassed] = useState(false);
+  const hasFinishedRef = useRef(false);
 
   // Animations
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -102,11 +106,52 @@ export default function DopamineCuriosityLoop({
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fadeOutAnim = useRef(new Animated.Value(1)).current;
 
+  // 1. Min duration tracker
   useEffect(() => {
-    // 1. Initial tactile haptic feedback
+    const minTimer = setTimeout(() => {
+      setMinTimePassed(true);
+    }, minDurationMs);
+    return () => clearTimeout(minTimer);
+  }, [minDurationMs]);
+
+  // 2. Synchronized transition: Only transition out when BOTH minimum time has passed AND data loading has finished
+  useEffect(() => {
+    if (minTimePassed && !isLoading && !hasFinishedRef.current) {
+      hasFinishedRef.current = true;
+      hapticFeedback.success();
+      Animated.timing(fadeOutAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        onComplete?.();
+      });
+    }
+  }, [minTimePassed, isLoading, onComplete]);
+
+  // 3. Safety ceiling timer: Never stay stuck scanning if network takes more than 4.5 seconds
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (!hasFinishedRef.current) {
+        hasFinishedRef.current = true;
+        hapticFeedback.success();
+        Animated.timing(fadeOutAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }).start(() => {
+          onComplete?.();
+        });
+      }
+    }, Math.max(minDurationMs + 1600, 4500));
+    return () => clearTimeout(safetyTimer);
+  }, [minDurationMs, onComplete]);
+
+  useEffect(() => {
+    // Initial tactile haptic feedback
     hapticFeedback.medium();
 
-    // 2. Continuous rotating sonar sweep
+    // Continuous rotating sonar sweep
     Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
@@ -116,7 +161,7 @@ export default function DopamineCuriosityLoop({
       })
     ).start();
 
-    // 3. Heartbeat pulsing on center pin
+    // Heartbeat pulsing on center pin
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -134,7 +179,7 @@ export default function DopamineCuriosityLoop({
       ])
     ).start();
 
-    // 4. Breathing concentric radar rings
+    // Breathing concentric radar rings
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
@@ -166,7 +211,7 @@ export default function DopamineCuriosityLoop({
       ])
     ).start();
 
-    // 5. Pop mystery avatars sequentially as sonar sweeps
+    // Pop mystery avatars sequentially as sonar sweeps
     const t1 = setTimeout(() => {
       hapticFeedback.light();
       Animated.spring(bubbleScale1, {
@@ -175,7 +220,7 @@ export default function DopamineCuriosityLoop({
         tension: 80,
         useNativeDriver: true,
       }).start();
-    }, 600);
+    }, 450);
 
     const t2 = setTimeout(() => {
       hapticFeedback.light();
@@ -186,7 +231,7 @@ export default function DopamineCuriosityLoop({
         tension: 80,
         useNativeDriver: true,
       }).start();
-    }, 1300);
+    }, 1000);
 
     const t3 = setTimeout(() => {
       hapticFeedback.medium();
@@ -197,13 +242,13 @@ export default function DopamineCuriosityLoop({
         tension: 80,
         useNativeDriver: true,
       }).start();
-    }, 2000);
+    }, 1600);
 
     const t4 = setTimeout(() => {
       setStepIndex(3);
-    }, 2600);
+    }, 2100);
 
-    // 6. Dopamine Progress Meter filling to 100%
+    // Dopamine Progress Meter filling to 100%
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: minDurationMs,
@@ -211,24 +256,11 @@ export default function DopamineCuriosityLoop({
       useNativeDriver: false,
     }).start();
 
-    // 7. Complete after duration with smooth fade out
-    const finishTimer = setTimeout(() => {
-      hapticFeedback.success();
-      Animated.timing(fadeOutAnim, {
-        toValue: 0,
-        duration: 350,
-        useNativeDriver: true,
-      }).start(() => {
-        onComplete?.();
-      });
-    }, minDurationMs);
-
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       clearTimeout(t4);
-      clearTimeout(finishTimer);
     };
   }, [minDurationMs]);
 
@@ -243,12 +275,15 @@ export default function DopamineCuriosityLoop({
   });
 
   const currentStep = RADAR_SCAN_STEPS[stepIndex] || RADAR_SCAN_STEPS[0];
-  const displayCity = city ? (city.includes('Bengaluru') || city.includes('Bangalore') ? 'Indiranagar & Koramangala' : city) : 'Indiranagar & Koramangala';
+  const displayCity = city
+    ? city.includes('Bengaluru') || city.includes('Bangalore')
+      ? 'Indiranagar & Koramangala'
+      : city
+    : 'Indiranagar & Koramangala';
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeOutAnim }]}>
       <SafeAreaView style={styles.safeArea}>
-        
         {/* TOP STATUS HEADER */}
         <View style={styles.topHeader}>
           <View style={styles.brandRow}>
@@ -378,7 +413,6 @@ export default function DopamineCuriosityLoop({
 
         {/* BOTTOM REAL-TIME DOPAMINE HOOK */}
         <View style={styles.bottomSection}>
-          
           {/* Phase Badge */}
           <View style={styles.phaseBadgeRow}>
             <View style={styles.phasePill}>
@@ -410,9 +444,7 @@ export default function DopamineCuriosityLoop({
           <View style={styles.progressTrack}>
             <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
           </View>
-
         </View>
-
       </SafeAreaView>
     </Animated.View>
   );

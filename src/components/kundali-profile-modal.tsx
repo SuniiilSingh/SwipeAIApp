@@ -153,30 +153,30 @@ export default function KundaliProfileModal({
                 <View style={styles.attrGrid}>
                   {/* Nakshatra */}
                   <View style={styles.attrCard}>
-                    <Text style={styles.attrLabel}>✨ Birth Star (Nakshatra)</Text>
-                    <Text style={styles.attrValue}>{astrology?.nakshatraName || 'Rohini'}</Text>
-                    <Text style={styles.attrSub}>Pada {astrology?.nakshatraPada || 1} • Star {astrology?.nakshatraId || 4}/27</Text>
+                    <Text style={styles.attrLabel} numberOfLines={1}>✨ Birth Star (Nakshatra)</Text>
+                    <Text style={styles.attrValue} numberOfLines={1}>{astrology?.nakshatraName || 'Rohini'}</Text>
+                    <Text style={styles.attrSub} numberOfLines={1}>Pada {astrology?.nakshatraPada || 1} • Star {astrology?.nakshatraId || 4}/27</Text>
                   </View>
 
                   {/* Moon Sign */}
                   <View style={styles.attrCard}>
-                    <Text style={styles.attrLabel}>🌙 Moon Sign (Rashi)</Text>
-                    <Text style={styles.attrValue}>{astrology?.chandraRashi || 'Taurus'}</Text>
-                    <Text style={styles.attrSub}>Lord: {astrology?.chandraRashiLord || 'Venus'}</Text>
+                    <Text style={styles.attrLabel} numberOfLines={1}>🌙 Moon Sign (Rashi)</Text>
+                    <Text style={styles.attrValue} numberOfLines={1}>{astrology?.chandraRashi || 'Taurus'}</Text>
+                    <Text style={styles.attrSub} numberOfLines={1}>Lord: {astrology?.chandraRashiLord || 'Venus'}</Text>
                   </View>
 
                   {/* Sun Sign */}
                   <View style={styles.attrCard}>
-                    <Text style={styles.attrLabel}>☀️ Western Sun Sign</Text>
-                    <Text style={styles.attrValue}>{astrology?.sunSign || 'Taurus'}</Text>
-                    <Text style={styles.attrSub}>Solar Soul Identity</Text>
+                    <Text style={styles.attrLabel} numberOfLines={1}>☀️ Western Sun Sign</Text>
+                    <Text style={styles.attrValue} numberOfLines={1}>{astrology?.sunSign || 'Taurus'}</Text>
+                    <Text style={styles.attrSub} numberOfLines={1}>Solar Soul Identity</Text>
                   </View>
 
                   {/* Numerology */}
                   <View style={styles.attrCard}>
-                    <Text style={styles.attrLabel}>🔢 Life Path Number</Text>
-                    <Text style={styles.attrValue}>{astrology?.numerologyNumber || 6}</Text>
-                    <Text style={styles.attrSub}>Destiny Vibration</Text>
+                    <Text style={styles.attrLabel} numberOfLines={1}>🔢 Life Path Number</Text>
+                    <Text style={styles.attrValue} numberOfLines={1}>{astrology?.numerologyNumber || 6}</Text>
+                    <Text style={styles.attrSub} numberOfLines={1}>Destiny Vibration</Text>
                   </View>
                 </View>
 
@@ -184,33 +184,33 @@ export default function KundaliProfileModal({
                 <Text style={styles.sectionHeader}>Ashtakoot Compatibility Archetypes 🧬</Text>
                 <View style={styles.archetypeContainer}>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🐾 Animal Totem (Yoni - Physical Chemistry):</Text>
-                    <Text style={styles.archetypeValue}>{astrology?.yoniAnimal || 'Serpent'}</Text>
+                    <Text style={styles.archetypeLabel} numberOfLines={1}>🐾 Animal Totem (Yoni):</Text>
+                    <Text style={styles.archetypeValue} numberOfLines={1}>{astrology?.yoniAnimal || 'Serpent'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>⚡ Temperament (Gana - Mental Synergy):</Text>
-                    <Text style={styles.archetypeValue}>{astrology?.gana || 'Manushya'}</Text>
+                    <Text style={styles.archetypeLabel} numberOfLines={1}>⚡ Temperament (Gana):</Text>
+                    <Text style={styles.archetypeValue} numberOfLines={1}>{astrology?.gana || 'Manushya'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🧬 Vitality & Genetic Lineage (Nadi):</Text>
-                    <Text style={styles.archetypeValue}>{astrology?.nadi || 'Antya'}</Text>
+                    <Text style={styles.archetypeLabel} numberOfLines={1}>🧬 Genetic Lineage (Nadi):</Text>
+                    <Text style={styles.archetypeValue} numberOfLines={1}>{astrology?.nadi || 'Antya'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🕊️ Spiritual & Work Ego (Varna):</Text>
-                    <Text style={styles.archetypeValue}>{astrology?.varna || 'Vaishya'}</Text>
+                    <Text style={styles.archetypeLabel} numberOfLines={1}>🕊️ Spiritual Ego (Varna):</Text>
+                    <Text style={styles.archetypeValue} numberOfLines={1}>{astrology?.varna || 'Vaishya'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>💫 Natural Dominance & Allure (Vashya):</Text>
-                    <Text style={styles.archetypeValue}>{astrology?.vashya || 'Chatushpada'}</Text>
+                    <Text style={styles.archetypeLabel} numberOfLines={1}>💫 Natural Allure (Vashya):</Text>
+                    <Text style={styles.archetypeValue} numberOfLines={1}>{astrology?.vashya || 'Chatushpada'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🪐 Planetary Lord (Graha Maitri):</Text>
-                    <Text style={styles.archetypeValue}>{astrology?.chandraRashiLord || 'Venus'}</Text>
+                    <Text style={styles.archetypeLabel} numberOfLines={1}>🪐 Planetary Lord:</Text>
+                    <Text style={styles.archetypeValue} numberOfLines={1}>{astrology?.chandraRashiLord || 'Venus'}</Text>
                   </View>
                   <View style={styles.archetypeRow}>
-                    <Text style={styles.archetypeLabel}>🔥 Manglik & Mars Intensity (Kuja Dosha):</Text>
-                    <Text style={[styles.archetypeValue, astrology?.isManglik ? { color: '#F59E0B' } : { color: '#10B981' }]}>
-                      {astrology?.isManglik ? '⚡ Manglik (High Passion)' : '✓ Non-Manglik (Balanced)'}
+                    <Text style={styles.archetypeLabel} numberOfLines={1}>🔥 Manglik Intensity:</Text>
+                    <Text style={[styles.archetypeValue, astrology?.isManglik ? { color: '#F59E0B' } : { color: '#10B981' }]} numberOfLines={1}>
+                      {astrology?.isManglik ? '⚡ Manglik' : '✓ Non-Manglik'}
                     </Text>
                   </View>
                 </View>
@@ -390,6 +390,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#262638',
+    overflow: 'hidden',
   },
   attrLabel: {
     fontSize: 11,
@@ -398,7 +399,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   attrValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 2,
@@ -422,16 +423,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 2,
+    overflow: 'hidden',
   },
   archetypeLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#8E8E9F',
     fontWeight: '500',
+    flex: 1,
+    marginRight: 8,
   },
   archetypeValue: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#FFFFFF',
     fontWeight: '700',
+    flexShrink: 0,
+    textAlign: 'right',
   },
   calibrateCard: {
     backgroundColor: '#161622',

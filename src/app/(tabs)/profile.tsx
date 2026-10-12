@@ -1636,7 +1636,7 @@ export default function ProfileScreen() {
             {/* Modern Cosmic Chemistry & Vedic Rashis */}
             <View style={styles.sectionCard}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Text style={styles.sectionTitle}>🌌 Vedic Cosmic Blueprint (Janampatri)</Text>
+                <Text style={[styles.sectionTitle, { flex: 1, marginRight: 8 }]} numberOfLines={1}>🌌 Vedic Cosmic Blueprint</Text>
                 <TouchableOpacity
                   onPress={() => {
                     hapticFeedback.light();
@@ -1652,17 +1652,17 @@ export default function ProfileScreen() {
                   setShowKundaliModal(true);
                 }}>
                 <View style={styles.astroRow}>
-                  <View style={[styles.astroPill, { flex: 1.4 }]}>
-                    <Text style={styles.astroLabel}>Vedic Rashi (Moon)</Text>
+                  <View style={[styles.astroPill, { flex: 1.2 }]}>
+                    <Text style={styles.astroLabel} numberOfLines={1}>Moon Sign</Text>
                     <Text style={styles.astroValue} numberOfLines={1}>{profile.zodiacSign || profile.moonSign || setupZodiacSign || 'Tap to View'}</Text>
                   </View>
                   <View style={styles.astroPill}>
-                    <Text style={styles.astroLabel}>Sun Sign</Text>
-                    <Text style={styles.astroValue}>{profile.sunSign || 'Taurus ♉'}</Text>
+                    <Text style={styles.astroLabel} numberOfLines={1}>Sun Sign</Text>
+                    <Text style={styles.astroValue} numberOfLines={1}>{profile.sunSign || 'Taurus ♉'}</Text>
                   </View>
                   <View style={styles.astroPill}>
-                    <Text style={styles.astroLabel}>Kundali Chart</Text>
-                    <Text style={[styles.astroValue, { color: '#818CF8' }]}>D1 Chart 🪐</Text>
+                    <Text style={styles.astroLabel} numberOfLines={1}>Kundali</Text>
+                    <Text style={[styles.astroValue, { color: '#818CF8' }]} numberOfLines={1}>D1 Chart 🪐</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -2091,7 +2091,7 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={styles.pickerFieldBtn}
                 onPress={() => setShowKundaliModal(true)}>
-                <Text style={styles.pickerFieldText}>
+                <Text style={styles.pickerFieldText} numberOfLines={1} ellipsizeMode="tail">
                   ✨ View Nakshatra, Moon Sign & Kundali ▾
                 </Text>
               </TouchableOpacity>
@@ -2269,7 +2269,7 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={[styles.pickerFieldBtn, { minHeight: 48 }]}
                 onPress={() => setShowZodiacPickerModal(true)}>
-                <Text style={[styles.pickerFieldText, !setupZodiacSign && { color: '#8E94A5' }]}>
+                <Text style={[styles.pickerFieldText, !setupZodiacSign && { color: '#8E94A5' }]} numberOfLines={1} ellipsizeMode="tail">
                   {setupZodiacSign || 'Select Vedic Rashi (Mesha, Vrishabha, Mithuna, etc.) 🪐'}
                 </Text>
               </TouchableOpacity>
@@ -4048,24 +4048,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 6,
+    overflow: 'hidden',
   },
   astroPill: {
     flex: 1,
     backgroundColor: '#1E1F28',
-    padding: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    minWidth: 0,
   },
   astroLabel: {
     color: '#8E94A5',
     fontSize: 10,
     fontWeight: '700',
+    textAlign: 'center',
   },
   astroValue: {
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '800',
     marginTop: 2,
+    textAlign: 'center',
   },
   privacyHubCard: {
     flexDirection: 'row',

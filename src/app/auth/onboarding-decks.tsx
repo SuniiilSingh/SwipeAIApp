@@ -201,9 +201,9 @@ export default function OnboardingDecksScreen() {
   const [dietaryPref, setDietaryPref] = useState<DietaryPreference>('PURE_VEG');
   const [drinkingHabit, setDrinkingHabit] = useState<string>('Socially');
 
-  // Deck 6: Vedic Birth Details
-  const [birthTime, setBirthTime] = useState<string>('14:30');
-  const [birthCity, setBirthCity] = useState<string>('Bengaluru');
+  // Deck 7: Vedic Birth Details (Moved to Deck 7)
+  const [birthTime, setBirthTime] = useState<string>('00:00');
+  const [birthCity, setBirthCity] = useState<string>('');
 
   // Deck 7: 6-Slot Photo Showcase (Minimum 2 required, up to 6 optional)
   const [photoSlots, setPhotoSlots] = useState<string[]>(['', '', '', '', '', '']);
@@ -287,7 +287,7 @@ export default function OnboardingDecksScreen() {
         }
         if (prof?.microCircle) setMicroCircle(prof.microCircle);
         if (prof?.city || prof?.location) {
-          setBirthCity(prof.city || prof.location || 'Bengaluru');
+          setBirthCity(prof.city || prof.location || '');
         }
         if (prof?.job || prof?.occupation) setJob(prof.job || prof.occupation || '');
         if (prof?.institute || prof?.education) setInstitute(prof.institute || prof.education || '');
@@ -369,7 +369,97 @@ export default function OnboardingDecksScreen() {
     return `${heightCm} cm (${feet}'${inches}'')`;
   };
 
+  const validateDeck = (deck: number): { valid: boolean; message?: string } => {
+    switch (deck) {
+      case 1: {
+        if (!fullName || fullName.trim().length < 2) {
+          return { valid: false, message: 'Please enter your name (at least 2 characters) to continue.' };
+        }
+        const yr = parseInt(dobYear, 10);
+        const currentYr = new Date().getFullYear();
+        const age = currentYr - yr;
+        if (isNaN(yr) || yr < 1920 || yr > currentYr || age < 18) {
+          return { valid: false, message: 'You must be at least 18 years old to join BlunderR.' };
+        }
+        if (!selfieUrl || selfieUrl.trim().length === 0) {
+          return { valid: false, message: 'Please take or upload your verification selfie to continue.' };
+        }
+        return { valid: true };
+      }
+      case 2: {
+        if (!genderDisplay || !genderDisplay.trim()) {
+          return { valid: false, message: 'Please select how you identify.' };
+        }
+        if (!lookingFor || !lookingFor.trim()) {
+          return { valid: false, message: 'Please select who you are looking to meet.' };
+        }
+        return { valid: true };
+      }
+      case 3: {
+        if (!microCircle || !microCircle.trim()) {
+          return { valid: false, message: 'Please select your neighborhood micro-circle.' };
+        }
+        if (!job || !job.trim()) {
+          return { valid: false, message: 'Please enter what pays your bills (career / profession) to continue.' };
+        }
+        return { valid: true };
+      }
+      case 4: {
+        if (!bio || bio.trim().length < 10) {
+          return { valid: false, message: 'Please enter or select a bio with at least 10 characters.' };
+        }
+        return { valid: true };
+      }
+      case 5: {
+        if (!heightCm || heightCm < 100) {
+          return { valid: false, message: 'Please select your height to continue.' };
+        }
+        if (!dietaryPref) {
+          return { valid: false, message: 'Please select your dietary preference.' };
+        }
+        if (!drinkingHabit) {
+          return { valid: false, message: 'Please select your drinking habit.' };
+        }
+        return { valid: true };
+      }
+      case 6: {
+        // Deck 6 is Photo Showcase (Min 2 required)
+        const validPhotos = photoSlotsRef.current.filter((u) => u && u.trim().length > 0);
+        if (validPhotos.length < 2) {
+          return {
+            valid: false,
+            message: `Please upload at least 2 photos (${validPhotos.length}/2 uploaded). You can upload up to 6 photos!`,
+          };
+        }
+        return { valid: true };
+      }
+      case 7: {
+        // Deck 7 is Vedic Janampatri (Exact Birth Time & Birth City)
+        if (!birthTime || !birthTime.trim()) {
+          return { valid: false, message: 'Please enter your exact birth time (HH:MM) to calibrate your chart.' };
+        }
+        if (!birthCity || !birthCity.trim()) {
+          return { valid: false, message: 'Please enter your birth city / town to calibrate your Vedic Kundali.' };
+        }
+        return { valid: true };
+      }
+      default:
+        return { valid: true };
+    }
+  };
+
   const advanceToDeck = (targetDeck: number) => {
+    if (targetDeck > activeDeck) {
+      for (let d = activeDeck; d < targetDeck; d++) {
+        const validation = validateDeck(d);
+        if (!validation.valid) {
+          hapticFeedback.warning();
+          Alert.alert('Incomplete Step ⚠️', validation.message);
+          return;
+        }
+      }
+    }
+
     hapticFeedback.medium();
     Animated.sequence([
       Animated.timing(deckAnim, {
@@ -575,9 +665,9 @@ export default function OnboardingDecksScreen() {
       hapticFeedback.warning();
       Alert.alert(
         'Upload At Least 2 Photos 📸',
-        'Please upload at least 2 profile photos on Deck 7 before launching your profile. You can also upload all 6 photos!'
+        'Please upload at least 2 profile photos on Deck 6 before launching your profile. You can also upload all 6 photos!'
       );
-      advanceToDeck(7);
+      advanceToDeck(6);
       return;
     }
     if (isSubmitting) return;
@@ -637,8 +727,8 @@ export default function OnboardingDecksScreen() {
 
       // 2. Update Vedic Janampatri
       await api.updateMyBirthDetails({
-        birthTime: birthTime || '12:00',
-        birthCity: birthCity || 'Bengaluru',
+        birthTime: birthTime || '00:00',
+        birthCity: birthCity || 'New Delhi',
       });
 
       // 3. Mark Onboarding Complete
@@ -1410,12 +1500,12 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>🚀 78% Magnetism! Cosmic & Photo decks ahead</Text>
+                  <Text style={styles.paceCue}>🚀 78% Magnetism! Photo & Cosmic decks ahead</Text>
                   <TouchableOpacity
                     style={styles.btnPrimary}
                     activeOpacity={0.85}
                     onPress={() => advanceToDeck(6)}>
-                    <Text style={styles.btnPrimaryText}>Next: Cosmic Janampatri ➔</Text>
+                    <Text style={styles.btnPrimaryText}>Next: Photo Showcase (Min 2) ➔</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(4)}>
                     <Text style={styles.btnBackText}>← Back</Text>
@@ -1424,69 +1514,12 @@ export default function OnboardingDecksScreen() {
               </View>
             )}
 
-            {/* ==================== DECK 6: VEDIC JANAMPATRI ==================== */}
+            {/* ==================== DECK 6: 6-SLOT PHOTO SHOWCASE ==================== */}
             {activeDeck === 6 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>🪐 DECK 6 OF 7 • VEDIC JANAMPATRI</Text>
-                  </View>
-                  <Text style={styles.deckTitle}>Calibrate your birth chart</Text>
-                  <Text style={styles.deckSub}>Sidereal Swiss Ephemeris for 36-point Guna Milan.</Text>
-                </View>
-
-                <View style={styles.deckBody}>
-                  {/* Kundali Diamond Visual Component */}
-                  <View style={styles.kundliChartBox}>
-                    <KundaliChartDiamond chandraRashi="Taurus (वृषभ)" sunSign="Leo" />
-                  </View>
-
-                  <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>EXACT BIRTH TIME (HH:MM)</Text>
-                    <TextInput
-                      style={styles.glowInput}
-                      value={birthTime}
-                      onChangeText={setBirthTime}
-                      placeholder="14:30"
-                      placeholderTextColor="#64748B"
-                    />
-                  </View>
-
-                  <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>BIRTH CITY / TOWN</Text>
-                    <TextInput
-                      style={styles.glowInput}
-                      value={birthCity}
-                      onChangeText={setBirthCity}
-                      placeholder="Bengaluru"
-                      placeholderTextColor="#64748B"
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.deckFooter}>
-                  <Text style={[styles.paceCue, { color: '#FCD34D' }]}>
-                    🌟 90% Magnetism! Final Photo Showcase deck ahead
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.btnPrimary}
-                    activeOpacity={0.85}
-                    onPress={() => advanceToDeck(7)}>
-                    <Text style={styles.btnPrimaryText}>Next: Photo Showcase (Min 2) ➔</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(5)}>
-                    <Text style={styles.btnBackText}>← Back</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* ==================== DECK 7: 6-SLOT PHOTO SHOWCASE ==================== */}
-            {activeDeck === 7 && (
-              <View style={styles.deckInner}>
-                <View style={styles.deckHeader}>
-                  <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>📸 DECK 7 OF 7 • PHOTO SHOWCASE</Text>
+                    <Text style={styles.deckBadgeText}>📸 DECK 6 OF 7 • PHOTO SHOWCASE</Text>
                   </View>
                   <Text style={styles.deckTitle}>Upload at least 2 photos</Text>
                   <Text style={styles.deckSub}>
@@ -1559,7 +1592,7 @@ export default function OnboardingDecksScreen() {
                               />
                               <View style={styles.photoSlotTopTag}>
                                 <Text style={styles.photoSlotTopTagText}>
-                                  {idx === 0 ? '★ MAIN' : `#${idx + 1}`}
+                                   {idx === 0 ? '★ MAIN' : `#${idx + 1}`}
                                 </Text>
                               </View>
                               <TouchableOpacity
@@ -1635,7 +1668,7 @@ export default function OnboardingDecksScreen() {
 
                 <View style={styles.deckFooter}>
                   <Text style={[styles.paceCue, { color: '#FCD34D' }]}>
-                    👑 {uploadedPhotosList.length >= 2 ? '100% Top-Tier Profile Magnetism!' : 'Upload at least 2 photos to unlock final launch'}
+                    🌟 {uploadedPhotosList.length >= 2 ? '90% Magnetism! Final Vedic Kundali deck ahead' : 'Upload at least 2 photos to unlock final step'}
                   </Text>
                   <TouchableOpacity
                     style={[
@@ -1652,16 +1685,73 @@ export default function OnboardingDecksScreen() {
                         );
                         return;
                       }
-                      advanceToDeck(8);
+                      advanceToDeck(7);
                     }}>
                     <Text style={styles.btnPrimaryText}>
                       {uploadedPhotosList.length >= 2
-                        ? 'Review Synthesized Profile ➔'
+                        ? 'Next: Vedic Janampatri (Last Step) ➔'
                         : `Upload ${2 - uploadedPhotosList.length} More Photo${2 - uploadedPhotosList.length === 1 ? '' : 's'} to Continue`}
                     </Text>
                   </TouchableOpacity>
+                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(5)}>
+                    <Text style={styles.btnBackText}>← Back</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* ==================== DECK 7: VEDIC JANAMPATRI ==================== */}
+            {activeDeck === 7 && (
+              <View style={styles.deckInner}>
+                <View style={styles.deckHeader}>
+                  <View style={styles.deckBadge}>
+                    <Text style={styles.deckBadgeText}>🪐 DECK 7 OF 7 • VEDIC JANAMPATRI</Text>
+                  </View>
+                  <Text style={styles.deckTitle}>Calibrate your birth chart</Text>
+                  <Text style={styles.deckSub}>Sidereal Swiss Ephemeris for 36-point Guna Milan.</Text>
+                </View>
+
+                <View style={styles.deckBody}>
+                  {/* Kundali Diamond Visual Component */}
+                  <View style={styles.kundliChartBox}>
+                    <KundaliChartDiamond chandraRashi="Taurus (वृषभ)" sunSign="Leo" />
+                  </View>
+
+                  <View style={styles.fieldBox}>
+                    <Text style={styles.fieldLabel}>EXACT BIRTH TIME (HH:MM)</Text>
+                    <TextInput
+                      style={styles.glowInput}
+                      value={birthTime}
+                      onChangeText={setBirthTime}
+                      placeholder="00:00"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+
+                  <View style={styles.fieldBox}>
+                    <Text style={styles.fieldLabel}>BIRTH CITY / TOWN</Text>
+                    <TextInput
+                      style={styles.glowInput}
+                      value={birthCity}
+                      onChangeText={setBirthCity}
+                      placeholder="e.g. New Delhi, Mumbai, Jaipur"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.deckFooter}>
+                  <Text style={[styles.paceCue, { color: '#FCD34D' }]}>
+                    👑 100% Top-Tier Profile Magnetism! Cosmic calibration ready
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.btnPrimary}
+                    activeOpacity={0.85}
+                    onPress={() => advanceToDeck(8)}>
+                    <Text style={styles.btnPrimaryText}>Review Synthesized Profile ➔</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(6)}>
-                    <Text style={styles.btnBackText}>← Back to Janampatri</Text>
+                    <Text style={styles.btnBackText}>← Back to Photos</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1766,7 +1856,7 @@ export default function OnboardingDecksScreen() {
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(7)}>
-                    <Text style={styles.btnBackText}>← Back to Photo Showcase</Text>
+                    <Text style={styles.btnBackText}>← Back to Vedic Janampatri</Text>
                   </TouchableOpacity>
                 </View>
               </View>

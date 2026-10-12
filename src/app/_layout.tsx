@@ -172,16 +172,14 @@ export default function RootLayout() {
               <Text style={webStyles.downloadLabel}>Get the Official Mobile App:</Text>
               <View style={webStyles.desktopBtnRow}>
                 <TouchableOpacity
-                  onPress={() => Linking.openURL('https://expo.dev/artifacts/eas/1VbdICRgtwwG-knj2ouL9qq7aWufivcxiNRdc75npCM.apk')}
+                  onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.apk')}
                   style={webStyles.desktopApkBtn}
                   activeOpacity={0.85}>
                   <Text style={webStyles.desktopApkBtnText}>🤖 Android APK</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => {
-                    if (typeof window !== 'undefined') window.location.href = '/#download-apple';
-                  }}
+                  onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.ipa')}
                   style={webStyles.desktopIosBtn}
                   activeOpacity={0.85}>
                   <Text style={webStyles.desktopIosBtnText}> Apple iOS</Text>
@@ -229,15 +227,13 @@ export default function RootLayout() {
                 <Text style={webStyles.mobileWebTitle}>⚡ BlunderR Web View</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <TouchableOpacity
-                    onPress={() => Linking.openURL('https://expo.dev/artifacts/eas/1VbdICRgtwwG-knj2ouL9qq7aWufivcxiNRdc75npCM.apk')}
+                    onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.apk')}
                     style={webStyles.miniHeaderBtnApk}
                     activeOpacity={0.8}>
                     <Text style={webStyles.miniHeaderBtnText}>🤖 APK</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => {
-                      if (typeof window !== 'undefined') window.location.href = '/#download-apple';
-                    }}
+                    onPress={() => Linking.openURL('https://blunderr.in/downloads/BlunderR.ipa')}
                     style={webStyles.miniHeaderBtnIos}
                     activeOpacity={0.8}>
                     <Text style={webStyles.miniHeaderBtnText}> iOS</Text>

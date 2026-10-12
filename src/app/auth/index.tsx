@@ -966,8 +966,7 @@ export default function AuthScreen() {
                     hapticFeedback.light();
                     openAuthSheet(undefined, 'login');
                   }}
-                  activeOpacity={0.75}>
-                  <Text style={styles.teaserLoginBtnIcon}>⚡</Text>
+                  activeOpacity={0.8}>
                   <Text style={styles.teaserLoginBtnText}>Log In</Text>
                 </TouchableOpacity>
               </View>
@@ -1128,20 +1127,6 @@ export default function AuthScreen() {
               <Text style={styles.teaserHintText}>
                 Swipe right or tap ❤️ to like • Tap ✕ to pass
               </Text>
-
-              {/* Member Log In Hook (Thumb-Friendly Bottom Bar) */}
-              <View style={styles.teaserFooterRow}>
-                <Text style={styles.teaserFooterText}>Already have an account?</Text>
-                <TouchableOpacity
-                  style={styles.teaserBottomLoginBtn}
-                  onPress={() => {
-                    hapticFeedback.light();
-                    openAuthSheet(undefined, 'login');
-                  }}
-                  activeOpacity={0.75}>
-                  <Text style={styles.teaserBottomLoginText}>Log In ›</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           )}
 
@@ -1182,48 +1167,6 @@ export default function AuthScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     contentContainerStyle={styles.sheetScrollContent}>
-                    {/* Mode Segmented Switch: Quick Sign Up vs VIP Member Log In */}
-                    {!otpSent && (
-                      <View style={styles.sheetModeSwitch}>
-                        <TouchableOpacity
-                          style={[
-                            styles.sheetModeTab,
-                            authSheetMode !== 'login' && styles.sheetModeTabActive,
-                          ]}
-                          onPress={() => {
-                            hapticFeedback.light();
-                            setAuthSheetMode('like');
-                          }}
-                          activeOpacity={0.8}>
-                          <Text
-                            style={[
-                              styles.sheetModeTabText,
-                              authSheetMode !== 'login' && styles.sheetModeTabTextActive,
-                            ]}>
-                            ✨ Sign Up
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.sheetModeTab,
-                            authSheetMode === 'login' && styles.sheetModeTabActive,
-                          ]}
-                          onPress={() => {
-                            hapticFeedback.light();
-                            setAuthSheetMode('login');
-                          }}
-                          activeOpacity={0.8}>
-                          <Text
-                            style={[
-                              styles.sheetModeTabText,
-                              authSheetMode === 'login' && styles.sheetModeTabTextActive,
-                            ]}>
-                            ⚡ Member Log In
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-
                     {/* Header Hook */}
                     <View style={styles.sheetHeaderBox}>
                       <View style={styles.sheetHookPill}>
@@ -1277,7 +1220,7 @@ export default function AuthScreen() {
                           <View style={styles.waKineticBtnInner}>
                             <Text style={styles.waKineticIcon}>💬</Text>
                             <Text style={[styles.waKineticText, !isPhoneFilled && styles.waKineticTextDisabled]}>
-                              {authSheetMode === 'login' ? 'Log In via WhatsApp' : 'WhatsApp 1-Tap'}
+                              WhatsApp
                             </Text>
                           </View>
                         )}
@@ -1343,9 +1286,7 @@ export default function AuthScreen() {
                       ) : (
                         <View style={styles.kineticNextBtnInner}>
                           <Text style={[styles.kineticNextBtnText, !isPhoneFilled && styles.kineticNextBtnTextDisabled]}>
-                            {authSheetMode === 'login'
-                              ? 'Log In with SMS OTP'
-                              : (FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? 'Next' : 'Continue with SMS OTP')}
+                            {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? 'Next' : 'Continue with SMS OTP'}
                           </Text>
                           <Text style={styles.kineticNextArrow}>→</Text>
                         </View>
@@ -2018,94 +1959,33 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   teaserLoginBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 46, 99, 0.14)',
+    backgroundColor: 'rgba(255, 46, 99, 0.16)',
     borderWidth: 1.2,
-    borderColor: 'rgba(255, 46, 99, 0.55)',
+    borderColor: 'rgba(255, 46, 99, 0.65)',
     paddingVertical: 6,
-    paddingHorizontal: 13,
-    borderRadius: 18,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
     ...Platform.select({
       web: {
-        boxShadow: '0 0 14px rgba(255, 46, 99, 0.35)',
-        backdropFilter: 'blur(8px)',
+        boxShadow: '0 0 16px rgba(255, 46, 99, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+        backdropFilter: 'blur(10px)',
       },
       default: {
         shadowColor: '#FF2E63',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.55,
-        shadowRadius: 6,
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
         elevation: 4,
       },
     }),
   },
-  teaserLoginBtnIcon: {
-    fontSize: 11,
-    color: '#FF2E63',
-  },
   teaserLoginBtnText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '800',
     letterSpacing: 0.4,
-  },
-  teaserFooterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 10,
-    paddingVertical: 4,
-  },
-  teaserFooterText: {
-    color: '#8A96AA',
-    fontSize: 12.5,
-    fontWeight: '500',
-  },
-  teaserBottomLoginBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-  teaserBottomLoginText: {
-    color: '#FF2E63',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-    textDecorationLine: 'underline',
-  },
-  sheetModeSwitch: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 14,
-    padding: 3,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  sheetModeTab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 11,
-  },
-  sheetModeTabActive: {
-    backgroundColor: '#FF2E63',
-    ...Platform.select({
-      web: { boxShadow: '0 0 12px rgba(255, 46, 99, 0.4)' },
-      default: { shadowColor: '#FF2E63', shadowOpacity: 0.5, shadowRadius: 6, elevation: 3 },
-    }),
-  },
-  sheetModeTabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8A96AA',
-  },
-  sheetModeTabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '800',
   },
   teaserDeckArea: {
     position: 'relative',

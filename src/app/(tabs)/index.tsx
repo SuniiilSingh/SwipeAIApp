@@ -690,7 +690,9 @@ function SwipeableCandidateCard({
       style={{
         width: feedDimensions.width,
         height: feedDimensions.height,
-        paddingHorizontal: 14,
+        maxWidth: 440,
+        alignSelf: 'center',
+        paddingHorizontal: 12,
         paddingBottom: 8,
         paddingTop: 4,
       }}>
@@ -1331,6 +1333,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   feedHeaderContainer: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 10,
@@ -1579,6 +1584,9 @@ const styles = StyleSheet.create({
   },
   feedWrapper: {
     flex: 1,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
   },
   cardContainer: {
     flex: 1,

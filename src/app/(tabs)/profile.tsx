@@ -1253,8 +1253,8 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Unified Profile Completion Header Banner */}
-        {(!setupFullname.trim() || !setupGenderDisplay || !setupOrientation || completionScore < 30) ? (
+        {/* Unified Profile Completion Header Banner (View Mode Only) */}
+        {!isEditingProfile && ((!setupFullname.trim() || !setupGenderDisplay || !setupOrientation || completionScore < 30) ? (
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.incompleteBanner}
@@ -1366,7 +1366,7 @@ export default function ProfileScreen() {
               <Text style={styles.allStarSub}>Profile fully optimized for maximum discovery & 3.5x match rate.</Text>
             </View>
           </TouchableOpacity>
-        )}
+        ))}
 
         {/* VIEW PROFILE MODE */}
         {!isEditingProfile && (
@@ -3830,6 +3830,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   scrollContent: {
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
     padding: 16,
   },
   completionCard: {

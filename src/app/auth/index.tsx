@@ -136,8 +136,10 @@ export default function AuthScreen() {
   const cardWidth = isUltraCompact ? 220 : isCompact ? 245 : 260;
   const cardHeight = isUltraCompact ? 245 : isCompact ? 285 : 320;
   const photoHeight = isUltraCompact ? 170 : isCompact ? 198 : 225;
-  const deckCardWidth = Math.min(windowWidth - 32, 420);
-  const deckCardHeight = isUltraCompact ? 390 : isCompact ? 440 : Math.min(windowHeight * 0.63, 520);
+  const safeAvailableHeight = Math.max(480, windowHeight - (insets.top || 20) - (insets.bottom || 20));
+  const maxAvailableCardHeight = Math.max(330, safeAvailableHeight - 170);
+  const deckCardHeight = Math.min(maxAvailableCardHeight, 520);
+  const deckCardWidth = Math.min(windowWidth - 32, Math.round(deckCardHeight * 0.72), 390);
   const [resendTimer, setResendTimer] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -925,8 +927,8 @@ export default function AuthScreen() {
             step === 1 && (isKeyboardVisible ? [styles.scrollContentStep1Keyboard, { paddingTop: isUltraCompact ? 36 : 68 }] : styles.scrollContentStep1),
           ]}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={step > 1}
-          bounces={step > 1}
+          scrollEnabled={true}
+          bounces={false}
           alwaysBounceVertical={false}
           showsVerticalScrollIndicator={false}>
           {/* Header above steps 2, 3, 4 */}
@@ -1915,17 +1917,21 @@ const styles = StyleSheet.create({
   teaserPageContainer: {
     flex: 1,
     width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   teaserTopBar: {
     width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    marginBottom: 8,
+    paddingHorizontal: 4,
+    marginBottom: 6,
   },
   teaserBrandRow: {
     flexDirection: 'row',
@@ -2157,11 +2163,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   teaserActionRow: {
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 4,
   },
   teaserPassBtn: {
@@ -2238,7 +2247,9 @@ const styles = StyleSheet.create({
   },
   sheetKeyboardWrapper: {
     width: '100%',
-    maxHeight: '88%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    maxHeight: '92%',
   },
   sheetContainer: {
     backgroundColor: '#0E111B',
@@ -2248,7 +2259,7 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255, 46, 99, 0.4)',
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
     position: 'relative',
     ...Platform.select({
       web: { boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.8)' },
@@ -2396,23 +2407,31 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   scrollContentStep1: {
     flexGrow: 1,
-    height: '100%',
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
     justifyContent: 'space-between',
     paddingVertical: 4,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   scrollContentStep1Keyboard: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 68,
+    paddingTop: 48,
     paddingBottom: 4,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   headerStepAbove: {
     flexDirection: 'row',

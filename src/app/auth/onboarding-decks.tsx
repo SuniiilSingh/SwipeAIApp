@@ -743,7 +743,7 @@ export default function OnboardingDecksScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={styles.container}>
       {/* ========================================================
           TOP DYNAMIC HUD ISLAND (MAGNETISM TRACKER & STEPPER)
           ======================================================== */}
@@ -2103,6 +2103,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#05060A',
   },
   topHud: {
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
@@ -2203,10 +2206,13 @@ const styles = StyleSheet.create({
   },
   scrollArena: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     position: 'relative',
   },
   stackShadowCard: {

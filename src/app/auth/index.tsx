@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Linking,
   Modal,
-  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -29,59 +28,6 @@ import { DatingIntent } from '@/types';
 import LivenessCameraModal from '@/components/liveness-camera-modal';
 import { FEATURE_FLAGS } from '@/config/features';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
-import { hapticFeedback } from '@/utils/haptics';
-
-interface TeaserProfile {
-  id: string;
-  name: string;
-  age: number;
-  profession: string;
-  distance: string;
-  bio: string;
-  photo: string;
-  voiceDuration: string;
-  affinity: string;
-  affinityEmoji: string;
-}
-
-const TEASER_PROFILES: TeaserProfile[] = [
-  {
-    id: 'teaser-1',
-    name: 'Kiara',
-    age: 25,
-    profession: 'Architect @ Indiranagar',
-    distance: '800m away',
-    bio: 'Filter coffee at 7 AM, brutalist spaces, and late indie records ☕',
-    photo: 'https://blunderr.in/downloads/blunderr-model-pink-offshoulder.jpg',
-    voiceDuration: '12s Voice Note',
-    affinity: 'Tula (Libra) • 96% Match',
-    affinityEmoji: '⚖️',
-  },
-  {
-    id: 'teaser-2',
-    name: 'Aanya',
-    age: 25,
-    profession: 'Product Designer @ Swiggy',
-    distance: '1.2 km away',
-    bio: 'Late craft beers at Toit, spontaneous Coorg road trips, and dry wit 🍻',
-    photo: 'https://blunderr.in/downloads/blunderr-model-e-studio.jpg',
-    voiceDuration: '15s Voice Note',
-    affinity: 'Simha (Leo) • 92% Match',
-    affinityEmoji: '🦁',
-  },
-  {
-    id: 'teaser-3',
-    name: 'Rhea',
-    age: 24,
-    profession: 'Creative Producer @ Koramangala',
-    distance: '1.8 km away',
-    bio: 'Film photography, rooftop jazz bars, and people who reply to voice notes 🎧',
-    photo: 'https://blunderr.in/downloads/blunderr-model-a.jpg',
-    voiceDuration: '10s Voice Note',
-    affinity: 'Dhanu (Sagittarius) • 94% Match',
-    affinityEmoji: '🏹',
-  },
-];
 
 const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
@@ -129,17 +75,13 @@ export default function AuthScreen() {
   const [autoDetectedSuccess, setAutoDetectedSuccess] = useState(false);
   const [otpFeedbackMsg, setOtpFeedbackMsg] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const isCompact = windowHeight < 750;
   const isUltraCompact = windowHeight < 680;
   const stackHeight = isUltraCompact ? 250 : isCompact ? 290 : 330;
   const cardWidth = isUltraCompact ? 220 : isCompact ? 245 : 260;
   const cardHeight = isUltraCompact ? 245 : isCompact ? 285 : 320;
   const photoHeight = isUltraCompact ? 170 : isCompact ? 198 : 225;
-  const safeAvailableHeight = Math.max(480, windowHeight - (insets.top || 20) - (insets.bottom || 20));
-  const maxAvailableCardHeight = Math.max(300, safeAvailableHeight - 165);
-  const deckCardHeight = Math.min(maxAvailableCardHeight, isCompact ? 440 : 495);
-  const deckCardWidth = Math.min(windowWidth - 32, Math.round(deckCardHeight * 0.72), 390);
   const [resendTimer, setResendTimer] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -153,13 +95,6 @@ export default function AuthScreen() {
   const [isPlayingVoice, setIsPlayingVoice] = useState(true);
   const soundWaveAnim = useRef(new Animated.Value(0)).current;
   const keyboardAnim = useRef(new Animated.Value(0)).current;
-
-  // Concept 1: Live Swipe Teaser State & Gestures
-  const [teaserIndex, setTeaserIndex] = useState(0);
-  const [showAuthSheet, setShowAuthSheet] = useState(false);
-  const [likedCandidateName, setLikedCandidateName] = useState('Kiara');
-  const [authSheetMode, setAuthSheetMode] = useState<'like' | 'login' | 'superlike'>('like');
-  const swipeAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
 
   const animStackHeight = keyboardAnim.interpolate({
     inputRange: [0, 1],
@@ -438,108 +373,6 @@ export default function AuthScreen() {
     ).start();
   }, []);
 
-  // Concept 1: Active & Next Curated Profiles
-  const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
-  const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
-
-  const openAuthSheet = (name?: string, mode: 'like' | 'login' | 'superlike' = 'like') => {
-    hapticFeedback.medium();
-    if (name) setLikedCandidateName(name);
-    setAuthSheetMode(mode);
-    setShowAuthSheet(true);
-  };
-
-  const closeAuthSheet = () => {
-    if (otpSent) return;
-    hapticFeedback.light();
-    setShowAuthSheet(false);
-  };
-
-  const handleTeaserLike = () => {
-    hapticFeedback.success();
-    const candidate = currentTeaser.name;
-    Animated.timing(swipeAnim, {
-      toValue: { x: 500, y: 0 },
-      duration: 260,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start(() => {
-      swipeAnim.setValue({ x: 0, y: 0 });
-      setTeaserIndex((prev) => (prev + 1) % TEASER_PROFILES.length);
-      openAuthSheet(candidate, 'like');
-    });
-  };
-
-  const handleTeaserPass = () => {
-    hapticFeedback.selection();
-    Animated.timing(swipeAnim, {
-      toValue: { x: -500, y: 0 },
-      duration: 260,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start(() => {
-      swipeAnim.setValue({ x: 0, y: 0 });
-      setTeaserIndex((prev) => (prev + 1) % TEASER_PROFILES.length);
-    });
-  };
-
-  const handleTeaserSuperlike = () => {
-    hapticFeedback.heavy();
-    const candidate = currentTeaser.name;
-    Animated.timing(swipeAnim, {
-      toValue: { x: 0, y: -500 },
-      duration: 260,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start(() => {
-      swipeAnim.setValue({ x: 0, y: 0 });
-      setTeaserIndex((prev) => (prev + 1) % TEASER_PROFILES.length);
-      openAuthSheet(candidate, 'superlike');
-    });
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gesture) => {
-        return !showAuthSheet && (Math.abs(gesture.dx) > 10 || Math.abs(gesture.dy) > 10);
-      },
-      onPanResponderMove: Animated.event([null, { dx: swipeAnim.x, dy: swipeAnim.y }], {
-        useNativeDriver: false,
-      }),
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dx > 120) {
-          handleTeaserLike();
-        } else if (gesture.dx < -120) {
-          handleTeaserPass();
-        } else if (gesture.dy < -120) {
-          handleTeaserSuperlike();
-        } else {
-          Animated.spring(swipeAnim, {
-            toValue: { x: 0, y: 0 },
-            friction: 5,
-            useNativeDriver: Platform.OS !== 'web',
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  const cardRotate = swipeAnim.x.interpolate({
-    inputRange: [-250, 0, 250],
-    outputRange: ['-14deg', '0deg', '14deg'],
-    extrapolate: 'clamp',
-  });
-
-  const likeStampOpacity = swipeAnim.x.interpolate({
-    inputRange: [25, 90],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
-  const passStampOpacity = swipeAnim.x.interpolate({
-    inputRange: [-90, -25],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
-
   // Keyboard visibility listener to dynamically prevent keypad override & smoothly scale photo deck
   useEffect(() => {
     const showSub = Keyboard.addListener(
@@ -647,7 +480,6 @@ export default function AuthScreen() {
       const res = await api.sendOtp(phone, targetChannel);
       setLoading(false);
       setOtpSent(true);
-      setShowAuthSheet(true);
       setResendTimer(30);
       const codeLen = (res && (res.otpLength === 4 || res.otpLength === 6)) ? res.otpLength : 6;
       setExpectedOtpLength(codeLen);
@@ -793,7 +625,6 @@ export default function AuthScreen() {
     try {
       const res = await api.verifyOtp(phone, finalOtp, authChannel, userLat, userLon, userCity);
       setLoading(false);
-      setShowAuthSheet(false);
       if (res?.whatsappVerified || authChannel === 'whatsapp') {
         setWhatsappVerified(true);
       }
@@ -928,7 +759,7 @@ export default function AuthScreen() {
           ]}
           keyboardShouldPersistTaps="handled"
           scrollEnabled={true}
-          bounces={false}
+          bounces={true}
           alwaysBounceVertical={false}
           showsVerticalScrollIndicator={false}>
           {/* Header above steps 2, 3, 4 */}
@@ -943,113 +774,130 @@ export default function AuthScreen() {
             </View>
           )}
 
-          {/* STEP 1: The Live Swipe Teaser Deck + Grounded Mobile Login */}
+          {/* STEP 1: Concept 2 — The Kinetic Card Stack Aesthetic */}
           {step === 1 && (
-            <View style={styles.teaserPageContainer}>
-              {/* Top Header Bar (Clean, No Top Login Button) */}
-              <View style={styles.teaserTopBar}>
-                <View style={styles.teaserBrandRow}>
-                  <View style={styles.brandLogoIconGlow}>
-                    <Text style={styles.brandLogoIconText}>🔥</Text>
+            <View style={[styles.kineticPageContainer, isKeyboardVisible && styles.kineticPageContainerKeyboard]}>
+              {/* Top Wordmark Header */}
+              <View style={[styles.kineticBrandHeader, isKeyboardVisible && styles.kineticBrandHeaderCompact]}>
+                <View style={styles.brandLogoRow}>
+                  <View style={[styles.brandLogoIconGlow, isKeyboardVisible && styles.brandLogoIconGlowCompact]}>
+                    <Text style={[styles.brandLogoIconText, isKeyboardVisible && { fontSize: 13 }]}>🔥</Text>
                   </View>
-                  <BlunderRWordmark size="md" slant={true} />
+                  <BlunderRWordmark size={isKeyboardVisible ? 'md' : 'lg'} slant={true} />
                 </View>
-
-                {/* Live Online Pulse Badge */}
-                <View style={styles.teaserLivePill}>
-                  <View style={styles.teaserLiveDot} />
-                  <Text style={styles.teaserLiveText}>1,240 Online</Text>
-                </View>
+                {!isKeyboardVisible && (
+                  <View style={styles.kineticVipTagPill}>
+                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
+                    <Text style={styles.kineticVipTagText}>100% VERIFIED HIGH-INTENT STACK</Text>
+                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
+                  </View>
+                )}
               </View>
 
-              {/* The Live Interactive Swipe Deck */}
-              <View style={[styles.teaserDeckArea, { height: deckCardHeight, width: deckCardWidth }]}>
-                {/* Background Next Card (Behind Hero) */}
+              {/* 3D Kinetic Card Stack Centerpiece */}
+              <Animated.View
+                style={[
+                  styles.kineticStackContainer,
+                  {
+                    height: animStackHeight,
+                    transform: [{ scale: animStackScale }],
+                    marginTop: isKeyboardVisible ? 12 : animStackMarginVertical,
+                    marginBottom: animStackMarginVertical,
+                  },
+                ]}>
+                {/* Background Card 4 (Deepest Shadow Card - Tilted -27 deg) */}
                 <View
-                  style={[
-                    styles.teaserCardBack,
-                    { height: deckCardHeight, width: deckCardWidth },
-                  ]}
+                  style={[styles.kineticCard4, { width: cardWidth, height: cardHeight }]}
+                  pointerEvents="none"
+                />
+
+                {/* Background Card 3 (Tilted -20 deg with Dark Photo Layer) */}
+                <View
+                  style={[styles.kineticCard3, { width: cardWidth, height: cardHeight }]}
                   pointerEvents="none">
-                  <Image
-                    source={{ uri: nextTeaser.photo }}
-                    style={styles.teaserPhoto}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.teaserPhotoOverlay} />
-                  <View style={styles.teaserCardBottomContent}>
-                    <Text style={styles.teaserCardName}>{nextTeaser.name}, {nextTeaser.age}</Text>
-                    <Text style={styles.teaserCardDistance}>📍 {nextTeaser.distance} • {nextTeaser.profession}</Text>
+                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
+                    <Image
+                      source={{
+                        uri: 'https://blunderr.in/downloads/blunderr-model-a.jpg',
+                      }}
+                      style={styles.cardInnerPhotoDimmed}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.cardDimmerOverlay} />
                   </View>
                 </View>
 
-                {/* Hero Foreground Card (Interactive With PanResponder) */}
+                {/* Background Card 2 (Tilted -13 deg with Cyan/Mint Glow & Photo Preview) */}
+                <View
+                  style={[styles.kineticCard2, { width: cardWidth, height: cardHeight }]}
+                  pointerEvents="none">
+                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
+                    <Image
+                      source={{
+                        uri: 'https://blunderr.in/downloads/blunderr-model-e-studio.jpg',
+                      }}
+                      style={styles.cardInnerPhotoDimmed}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.cardDimmerOverlaySoft} />
+                  </View>
+                </View>
+
+                {/* Foreground Hero Card 1 (Tilted -6 deg with Levitating Float Physics) */}
                 <Animated.View
-                  {...panResponder.panHandlers}
                   style={[
-                    styles.teaserCardHero,
+                    styles.kineticCardHero,
                     {
-                      height: deckCardHeight,
-                      width: deckCardWidth,
-                      transform: [
-                        { translateX: swipeAnim.x },
-                        { translateY: swipeAnim.y },
-                        { rotate: cardRotate },
-                      ],
+                      width: cardWidth,
+                      height: cardHeight,
+                      transform: [{ translateY: floatAnim }, { rotate: '-6deg' }],
                     },
                   ]}>
-                  <Image
-                    source={{ uri: currentTeaser.photo }}
-                    style={styles.teaserPhoto}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.teaserPhotoOverlay} />
-
-                  {/* Stamp Badges (Show when dragging) */}
-                  <Animated.View style={[styles.teaserStampLike, { opacity: likeStampOpacity }]} pointerEvents="none">
-                    <Text style={styles.teaserStampLikeText}>LIKE ❤️</Text>
-                  </Animated.View>
-                  <Animated.View style={[styles.teaserStampNope, { opacity: passStampOpacity }]} pointerEvents="none">
-                    <Text style={styles.teaserStampNopeText}>NOPE ✕</Text>
-                  </Animated.View>
-
-                  {/* Top Badges Inside Card */}
-                  <View style={styles.teaserCardTopRow}>
-                    <View style={styles.teaserPreviewBadge}>
-                      <Text style={styles.teaserPreviewBadgeSparkle}>✦</Text>
-                      <Text style={styles.teaserPreviewBadgeText}>LIVE PREVIEW</Text>
-                    </View>
-                    <View style={styles.teaserVerifiedBadge}>
-                      <Text style={styles.teaserVerifiedBadgeText}>🛡️ 3D Verified</Text>
-                    </View>
+                  {/* Outer Frame with Inner Photo Container */}
+                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
+                    <Image
+                      source={{
+                        uri: 'https://blunderr.in/downloads/blunderr-model-pink-offshoulder.jpg',
+                      }}
+                      style={styles.cardInnerPhoto}
+                      resizeMode="cover"
+                    />
                   </View>
 
-                  {/* Bottom Content Inside Card */}
-                  <View style={styles.teaserCardBottomContent}>
-                    {/* Identity & Profession */}
-                    <View style={styles.teaserIdentityRow}>
-                      <Text style={styles.teaserCardName}>{currentTeaser.name}, {currentTeaser.age}</Text>
-                      <View style={styles.candidateDot} />
-                      <Text style={styles.teaserAffinityEmoji}>{currentTeaser.affinityEmoji}</Text>
+                  {/* Floating 3D Verified Checkmark Badge on Card Right Edge */}
+                  <View style={styles.floatingVerifiedBadgeRight}>
+                    <Text style={styles.floatingVerifiedText}>✓</Text>
+                  </View>
+
+                  {/* Card Lower-Right Heart Accent */}
+                  <View style={styles.cardHeartAccent}>
+                    <Text style={styles.cardHeartIcon}>❤️</Text>
+                  </View>
+
+                  {/* Tilted Glass Candidate Info & Voice Waveform Overlay (Tilted Right) */}
+                  <View style={styles.candidateGlassOverlay}>
+                    {/* Left Verified Badge mounted directly on Name Card */}
+                    <View style={styles.nameCardVerifiedBadge}>
+                      <Text style={styles.floatingVerifiedText}>✓</Text>
                     </View>
-                    <Text style={styles.teaserCardDistance}>📍 {currentTeaser.distance} • {currentTeaser.profession}</Text>
 
-                    {/* Bio Snippet */}
-                    <Text style={styles.teaserCardBio} numberOfLines={1}>
-                      "{currentTeaser.bio}"
-                    </Text>
+                    {/* Name, Age, Profession */}
+                    <View style={styles.candidateIdentityRow}>
+                      <Text style={styles.candidateName}>Kiara, 25</Text>
+                      <View style={styles.candidateDot} />
+                      <Text style={styles.candidateProfession}>Architect @ Indiranagar</Text>
+                    </View>
 
-                    {/* Playable Voice Note Bar */}
+                    {/* Interactive Voice Note Player Bar */}
                     <TouchableOpacity
                       style={styles.voiceNoteBar}
                       activeOpacity={0.8}
-                      onPress={() => {
-                        hapticFeedback.light();
-                        setIsPlayingVoice(!isPlayingVoice);
-                      }}>
+                      onPress={() => setIsPlayingVoice(!isPlayingVoice)}>
                       <View style={styles.voicePlayBtn}>
                         <Text style={styles.voicePlayIcon}>{isPlayingVoice ? '⏸' : '▶'}</Text>
                       </View>
+
+                      {/* Dynamic Pulsing Sound Waveform Bars */}
                       <View style={styles.waveformContainer}>
                         {[10, 20, 14, 26, 18, 28, 22, 16, 24, 19, 26, 15, 21, 12].map((baseHeight, idx) => {
                           const barHeight = isPlayingVoice
@@ -1075,128 +923,31 @@ export default function AuthScreen() {
                           );
                         })}
                       </View>
-                      <Text style={styles.voiceDurationText}>{currentTeaser.voiceDuration}</Text>
+
+                      <Text style={styles.voiceDurationText}>12s Voice Note</Text>
                     </TouchableOpacity>
 
-                    {/* Floating Action Controls Anchored at Bottom of Profile Card */}
-                    <View style={styles.cardFloatingActionRow}>
-                      {/* Pass Button */}
-                      <TouchableOpacity
-                        style={styles.cardActionPassBtn}
-                        onPress={handleTeaserPass}
-                        activeOpacity={0.8}>
-                        <Text style={styles.cardActionPassIcon}>✕</Text>
-                      </TouchableOpacity>
-
-                      {/* Superlike Button */}
-                      <TouchableOpacity
-                        style={styles.cardActionSuperBtn}
-                        onPress={handleTeaserSuperlike}
-                        activeOpacity={0.8}>
-                        <Text style={styles.cardActionSuperIcon}>★</Text>
-                      </TouchableOpacity>
-
-                      {/* Like Button */}
-                      <TouchableOpacity
-                        style={styles.cardActionLikeBtn}
-                        onPress={handleTeaserLike}
-                        activeOpacity={0.85}>
-                        <Text style={styles.cardActionLikeIcon}>❤️</Text>
-                      </TouchableOpacity>
+                    {/* Vedic Astrology Match Pill */}
+                    <View style={styles.vedicMatchPill}>
+                      <Text style={styles.vedicEmoji}>⚖️</Text>
+                      <Text style={styles.vedicMatchText}>Tula (Libra) • 96% Match</Text>
                     </View>
                   </View>
                 </Animated.View>
-              </View>
+              </Animated.View>
 
-              {/* Grounded Bottom Mobile Login Button (Clean Single Login Entry) */}
-              <View style={styles.groundedLoginArea}>
-                <TouchableOpacity
-                  style={styles.groundedMobileLoginBtn}
-                  onPress={() => {
-                    hapticFeedback.medium();
-                    openAuthSheet(undefined, 'login');
-                  }}
-                  activeOpacity={0.88}>
-                  <Text style={styles.groundedMobileLoginIcon}>📱</Text>
-                  <Text style={styles.groundedMobileLoginBtnText}>Continue with Mobile Number</Text>
-                </TouchableOpacity>
-                <Text style={styles.groundedLoginSubtext}>
-                  100% Genuine Profiles • 0 Catfish Guarantee
-                </Text>
-              </View>
-            </View>
-          )}
+              {/* Bottom Sheet Auth Drawer */}
+              <View style={[styles.kineticAuthDrawer, isKeyboardVisible && styles.kineticAuthDrawerKeyboard]}>
+                {/* Drawer Top Handle Indicator */}
+                {!isKeyboardVisible && <View style={styles.drawerHandleBar} />}
 
-          {/* SLIDE-UP AUTH DRAWER (MODAL HOOK) */}
-          <Modal
-            visible={(showAuthSheet || otpSent) && step === 1}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={() => {
-              if (!otpSent) closeAuthSheet();
-            }}>
-            <View style={styles.sheetOverlay}>
-              <TouchableOpacity
-                style={styles.sheetBackdropTouch}
-                activeOpacity={1}
-                onPress={() => {
-                  if (!otpSent) closeAuthSheet();
-                }}
-              />
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={styles.sheetKeyboardWrapper}>
-                <View style={styles.sheetContainer}>
-                  {/* Drawer Top Handle Indicator */}
-                  <View style={styles.drawerHandleBar} />
-
-                  {/* Dismiss Button */}
-                  {!otpSent && (
-                    <TouchableOpacity
-                      style={styles.sheetDismissBtn}
-                      onPress={closeAuthSheet}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                      <Text style={styles.sheetDismissText}>✕</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    contentContainerStyle={styles.sheetScrollContent}>
-                    {/* Header Hook */}
-                    <View style={styles.sheetHeaderBox}>
-                      <View style={styles.sheetHookPill}>
-                        <Text style={styles.sheetHookEmoji}>
-                          {authSheetMode === 'superlike' ? '★' : authSheetMode === 'login' ? '⚡' : '❤️'}
-                        </Text>
-                        <Text style={styles.sheetHookPillText}>
-                          {authSheetMode === 'superlike'
-                            ? `SUPERLIKED ${likedCandidateName.toUpperCase()}`
-                            : authSheetMode === 'login'
-                            ? 'VIP ACCESS'
-                            : `LIKED ${likedCandidateName.toUpperCase()}`}
-                        </Text>
-                      </View>
-                      <Text style={styles.sheetHeaderTitle}>
-                        {authSheetMode === 'login'
-                          ? 'Welcome Back to BlunderR'
-                          : `Connect with ${likedCandidateName}`}
-                      </Text>
-                      <Text style={styles.sheetHeaderSub}>
-                        {authSheetMode === 'login'
-                          ? 'Continue with WhatsApp or Mobile Number'
-                          : `1-Tap to message & connect with ${likedCandidateName} in Bangalore.`}
-                      </Text>
-                    </View>
-
-                    {/* Social Proof Hook */}
-                    {!otpSent && (
-                      <View style={styles.socialProofRow}>
-                        <View style={styles.livePulseDot} />
-                        <Text style={styles.socialProofText}>1,240 verified singles active in Bangalore right now</Text>
-                      </View>
-                    )}
+                {/* Social Proof Hook */}
+                {!isKeyboardVisible && (
+                  <View style={styles.socialProofRow}>
+                    <View style={styles.livePulseDot} />
+                    <Text style={styles.socialProofText}>Someone 3.2 km away is listening right now</Text>
+                  </View>
+                )}
 
                 {!otpSent ? (
                   <>
@@ -1303,14 +1054,6 @@ export default function AuthScreen() {
                         </Text>
                       </View>
                     )}
-
-                    {/* Keep Browsing Previews Link */}
-                    <TouchableOpacity
-                      style={styles.keepBrowsingBtn}
-                      onPress={closeAuthSheet}
-                      activeOpacity={0.7}>
-                      <Text style={styles.keepBrowsingText}>Keep browsing preview profiles ↓</Text>
-                    </TouchableOpacity>
 
                     {/* Apple & Google Mandatory Legal Terms & Privacy Policy */}
                     <View style={styles.authLegalBox}>
@@ -1495,7 +1238,7 @@ export default function AuthScreen() {
                 )}
 
                 {/* Bottom: 3D Holographic Trust Pass Badge (Feature Flag Controlled) */}
-                {FEATURE_FLAGS.ENABLE_DIGILOCKER && (
+                {FEATURE_FLAGS.ENABLE_DIGILOCKER && !isKeyboardVisible && (
                   <View style={styles.trustBadgeContainer}>
                     <View style={styles.trustBadgePill}>
                       <Text style={styles.trustBadgeIcon}>🛡️</Text>
@@ -1505,11 +1248,9 @@ export default function AuthScreen() {
                     </View>
                   </View>
                 )}
-                  </ScrollView>
-                </View>
-              </KeyboardAvoidingView>
+              </View>
             </View>
-          </Modal>
+          )}
 
         {/* STEP 2: Zero-Knowledge Trust Pass (DigiLocker & 3D Liveness) */}
         {step === 2 && (
@@ -1908,472 +1649,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#08080E',
   },
-  // Concept 1: Live Swipe Teaser Styles
-  teaserPageContainer: {
-    flex: 1,
-    width: '100%',
-    maxWidth: 440,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  teaserTopBar: {
-    width: '100%',
-    maxWidth: 440,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 6,
-  },
-  teaserBrandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  teaserLivePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 46, 99, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 46, 99, 0.35)',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-  },
-  teaserLiveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FF2E63',
-    ...Platform.select({
-      web: { boxShadow: '0 0 6px #FF2E63' },
-      default: { shadowColor: '#FF2E63', shadowOpacity: 0.8, shadowRadius: 4, elevation: 2 },
-    }),
-  },
-  teaserLiveText: {
-    color: '#FF7A9A',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  teaserLoginBtn: {
-    backgroundColor: 'rgba(255, 46, 99, 0.16)',
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 46, 99, 0.65)',
-    paddingVertical: 6,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 0 16px rgba(255, 46, 99, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
-        backdropFilter: 'blur(10px)',
-      },
-      default: {
-        shadowColor: '#FF2E63',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.6,
-        shadowRadius: 8,
-        elevation: 4,
-      },
-    }),
-  },
-  teaserLoginBtnText: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
-    fontWeight: '800',
-    letterSpacing: 0.4,
-  },
-  teaserDeckArea: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  teaserCardBack: {
-    position: 'absolute',
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#121622',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    transform: [{ scale: 0.94 }, { translateY: 10 }],
-    opacity: 0.65,
-  },
-  teaserCardHero: {
-    position: 'absolute',
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#171D2A',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 46, 99, 0.5)',
-    ...Platform.select({
-      web: {
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 25px rgba(255, 46, 99, 0.25)',
-      },
-      default: {
-        shadowColor: '#FF2E63',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.45,
-        shadowRadius: 22,
-        elevation: 12,
-      },
-    }),
-  },
-  teaserPhoto: {
-    width: '100%',
-    height: '100%',
-  },
-  teaserPhotoOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'transparent',
-    ...Platform.select({
-      web: {
-        background: 'linear-gradient(180deg, rgba(5, 6, 10, 0.2) 0%, rgba(5, 6, 10, 0.1) 40%, rgba(5, 6, 10, 0.85) 75%, rgba(5, 6, 10, 0.98) 100%)',
-      },
-      default: {
-        backgroundColor: 'rgba(5, 6, 10, 0.35)',
-      },
-    }),
-  },
-  teaserStampLike: {
-    position: 'absolute',
-    top: 24,
-    left: 20,
-    borderWidth: 3,
-    borderColor: '#00E676',
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    transform: [{ rotate: '-18deg' }],
-    backgroundColor: 'rgba(0, 230, 118, 0.15)',
-    zIndex: 30,
-  },
-  teaserStampLikeText: {
-    color: '#00E676',
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  teaserStampNope: {
-    position: 'absolute',
-    top: 24,
-    right: 20,
-    borderWidth: 3,
-    borderColor: '#FF3366',
-    borderRadius: 12,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    transform: [{ rotate: '18deg' }],
-    backgroundColor: 'rgba(255, 51, 102, 0.15)',
-    zIndex: 30,
-  },
-  teaserStampNopeText: {
-    color: '#FF3366',
-    fontSize: 20,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  teaserCardTopRow: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    right: 14,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 20,
-  },
-  teaserPreviewBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 12,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  teaserPreviewBadgeSparkle: {
-    color: '#00F2FE',
-    fontSize: 9,
-  },
-  teaserPreviewBadgeText: {
-    color: '#E0F7FA',
-    fontSize: 9.5,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-  },
-  teaserVerifiedBadge: {
-    backgroundColor: 'rgba(0, 136, 255, 0.85)',
-    borderRadius: 12,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  teaserVerifiedBadgeText: {
-    color: '#ffffff',
-    fontSize: 9.5,
-    fontWeight: '800',
-  },
-  teaserCardBottomContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 14,
-    zIndex: 20,
-    backgroundColor: 'rgba(5, 6, 10, 0.7)',
-  },
-  teaserIdentityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  teaserCardName: {
-    color: '#ffffff',
-    fontSize: 21,
-    fontWeight: '900',
-    letterSpacing: -0.3,
-  },
-  teaserAffinityEmoji: {
-    fontSize: 16,
-  },
-  teaserCardDistance: {
-    color: '#BAC4D6',
-    fontSize: 11.5,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  teaserCardBio: {
-    color: '#E2E8F0',
-    fontSize: 11.5,
-    fontStyle: 'italic',
-    lineHeight: 16,
-    marginBottom: 8,
-  },
-  cardFloatingActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    marginTop: 8,
-    marginBottom: 2,
-  },
-  cardActionPassBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(10, 12, 18, 0.88)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 51, 102, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0 6px 16px rgba(0, 0, 0, 0.6)' },
-      default: { shadowColor: '#FF3366', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
-    }),
-  },
-  cardActionPassIcon: {
-    color: '#FF6B8B',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  cardActionSuperBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(10, 12, 18, 0.88)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 171, 0, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0 6px 16px rgba(255, 171, 0, 0.25)' },
-      default: { shadowColor: '#FFAA00', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
-    }),
-  },
-  cardActionSuperIcon: {
-    color: '#FFB300',
-    fontSize: 18,
-  },
-  cardActionLikeBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(10, 12, 18, 0.88)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(0, 230, 118, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0 6px 18px rgba(0, 230, 118, 0.3)' },
-      default: { shadowColor: '#00E676', shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
-    }),
-  },
-  cardActionLikeIcon: {
-    fontSize: 24,
-  },
-  groundedLoginArea: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  groundedMobileLoginBtn: {
-    width: '100%',
-    paddingVertical: 13,
-    borderRadius: 20,
-    backgroundColor: '#FF2E63',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    ...Platform.select({
-      web: {
-        background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 50%, #FF8A00 100%)',
-        boxShadow: '0 8px 24px rgba(255, 46, 99, 0.45)',
-      },
-      default: {
-        shadowColor: '#FF2E63',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.55,
-        shadowRadius: 12,
-        elevation: 6,
-      },
-    }),
-  },
-  groundedMobileLoginIcon: {
-    fontSize: 15,
-  },
-  groundedMobileLoginBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  groundedLoginSubtext: {
-    color: '#7E8B9F',
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 5,
-    letterSpacing: 0.2,
-    textAlign: 'center',
-  },
-
-  // Slide-Up Modal Auth Sheet Styles
-  sheetOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    justifyContent: 'flex-end',
-  },
-  sheetBackdropTouch: {
-    flex: 1,
-  },
-  sheetKeyboardWrapper: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    maxHeight: '92%',
-  },
-  sheetContainer: {
-    backgroundColor: '#0E111B',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 1.5,
-    borderTopColor: 'rgba(255, 46, 99, 0.4)',
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
-    position: 'relative',
-    ...Platform.select({
-      web: { boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.8)' },
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.7, shadowRadius: 20, elevation: 16 },
-    }),
-  },
-  sheetDismissBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 14,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  sheetDismissText: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  sheetScrollContent: {
-    paddingBottom: 16,
-  },
-  sheetHeaderBox: {
-    alignItems: 'center',
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  sheetHookPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(255, 46, 99, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 46, 99, 0.4)',
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    marginBottom: 6,
-  },
-  sheetHookEmoji: {
-    fontSize: 11,
-    color: '#FF2E63',
-  },
-  sheetHookPillText: {
-    color: '#FFA1B8',
-    fontSize: 9.5,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  sheetHeaderTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#ffffff',
-    textAlign: 'center',
-    letterSpacing: -0.4,
-  },
-  sheetHeaderSub: {
-    fontSize: 11.5,
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginTop: 2,
-    paddingHorizontal: 8,
-    lineHeight: 16,
-  },
-  keepBrowsingBtn: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginTop: 4,
-  },
-  keepBrowsingText: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '700',
-  },
   ambientOrbTop: {
     position: 'absolute',
     top: -80,
@@ -2443,31 +1718,29 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
   },
   scrollContentStep1: {
     flexGrow: 1,
-    width: '100%',
-    maxWidth: 440,
-    alignSelf: 'center',
+    minHeight: '100%',
     justifyContent: 'space-between',
     paddingVertical: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
   },
   scrollContentStep1Keyboard: {
     flexGrow: 1,
-    width: '100%',
-    maxWidth: 440,
-    alignSelf: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 48,
+    paddingTop: 68,
     paddingBottom: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   headerStepAbove: {
     flexDirection: 'row',

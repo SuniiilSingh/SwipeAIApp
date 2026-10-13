@@ -48,11 +48,11 @@ const TEASER_PROFILES: TeaserProfile[] = [
   {
     id: 'teaser-1',
     name: 'Kiara',
-    age: 24,
+    age: 25,
     profession: 'Architect @ Indiranagar',
     distance: '800m away',
-    bio: 'Brutalist spaces, filter coffee at 7 AM, and late indie records ☕',
-    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800',
+    bio: 'Filter coffee at 7 AM, brutalist spaces, and late indie records ☕',
+    photo: 'https://blunderr.in/downloads/blunderr-model-pink-offshoulder.jpg',
     voiceDuration: '12s Voice Note',
     affinity: 'Tula (Libra) • 96% Match',
     affinityEmoji: '⚖️',
@@ -64,7 +64,7 @@ const TEASER_PROFILES: TeaserProfile[] = [
     profession: 'Product Designer @ Swiggy',
     distance: '1.2 km away',
     bio: 'Late craft beers at Toit, spontaneous Coorg road trips, and dry wit 🍻',
-    photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800',
+    photo: 'https://blunderr.in/downloads/blunderr-model-e-studio.jpg',
     voiceDuration: '15s Voice Note',
     affinity: 'Simha (Leo) • 92% Match',
     affinityEmoji: '🦁',
@@ -72,11 +72,11 @@ const TEASER_PROFILES: TeaserProfile[] = [
   {
     id: 'teaser-3',
     name: 'Rhea',
-    age: 23,
+    age: 24,
     profession: 'Creative Producer @ Koramangala',
     distance: '1.8 km away',
     bio: 'Film photography, rooftop jazz bars, and people who reply to voice notes 🎧',
-    photo: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800',
+    photo: 'https://blunderr.in/downloads/blunderr-model-a.jpg',
     voiceDuration: '10s Voice Note',
     affinity: 'Dhanu (Sagittarius) • 94% Match',
     affinityEmoji: '🏹',
@@ -137,8 +137,8 @@ export default function AuthScreen() {
   const cardHeight = isUltraCompact ? 245 : isCompact ? 285 : 320;
   const photoHeight = isUltraCompact ? 170 : isCompact ? 198 : 225;
   const safeAvailableHeight = Math.max(480, windowHeight - (insets.top || 20) - (insets.bottom || 20));
-  const maxAvailableCardHeight = Math.max(330, safeAvailableHeight - 170);
-  const deckCardHeight = Math.min(maxAvailableCardHeight, 520);
+  const maxAvailableCardHeight = Math.max(300, safeAvailableHeight - 165);
+  const deckCardHeight = Math.min(maxAvailableCardHeight, isCompact ? 440 : 495);
   const deckCardWidth = Math.min(windowWidth - 32, Math.round(deckCardHeight * 0.72), 390);
   const [resendTimer, setResendTimer] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -497,9 +497,9 @@ export default function AuthScreen() {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !showAuthSheet,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gesture) => {
-        return !showAuthSheet && (Math.abs(gesture.dx) > 12 || Math.abs(gesture.dy) > 12);
+        return !showAuthSheet && (Math.abs(gesture.dx) > 10 || Math.abs(gesture.dy) > 10);
       },
       onPanResponderMove: Animated.event([null, { dx: swipeAnim.x, dy: swipeAnim.y }], {
         useNativeDriver: false,
@@ -943,10 +943,10 @@ export default function AuthScreen() {
             </View>
           )}
 
-          {/* STEP 1: Concept 1 — The Live Swipe Teaser Deck */}
+          {/* STEP 1: The Live Swipe Teaser Deck + Grounded Mobile Login */}
           {step === 1 && (
             <View style={styles.teaserPageContainer}>
-              {/* Top Header Bar */}
+              {/* Top Header Bar (Clean, No Top Login Button) */}
               <View style={styles.teaserTopBar}>
                 <View style={styles.teaserBrandRow}>
                   <View style={styles.brandLogoIconGlow}>
@@ -960,17 +960,6 @@ export default function AuthScreen() {
                   <View style={styles.teaserLiveDot} />
                   <Text style={styles.teaserLiveText}>1,240 Online</Text>
                 </View>
-
-                {/* Direct Member Log In Button */}
-                <TouchableOpacity
-                  style={styles.teaserLoginBtn}
-                  onPress={() => {
-                    hapticFeedback.light();
-                    openAuthSheet(undefined, 'login');
-                  }}
-                  activeOpacity={0.8}>
-                  <Text style={styles.teaserLoginBtnText}>Log In</Text>
-                </TouchableOpacity>
               </View>
 
               {/* The Live Interactive Swipe Deck */}
@@ -1031,7 +1020,7 @@ export default function AuthScreen() {
                       <Text style={styles.teaserPreviewBadgeText}>LIVE PREVIEW</Text>
                     </View>
                     <View style={styles.teaserVerifiedBadge}>
-                      <Text style={styles.teaserVerifiedBadgeText}>✓ Verified</Text>
+                      <Text style={styles.teaserVerifiedBadgeText}>🛡️ 3D Verified</Text>
                     </View>
                   </View>
 
@@ -1046,7 +1035,7 @@ export default function AuthScreen() {
                     <Text style={styles.teaserCardDistance}>📍 {currentTeaser.distance} • {currentTeaser.profession}</Text>
 
                     {/* Bio Snippet */}
-                    <Text style={styles.teaserCardBio} numberOfLines={2}>
+                    <Text style={styles.teaserCardBio} numberOfLines={1}>
                       "{currentTeaser.bio}"
                     </Text>
 
@@ -1089,46 +1078,52 @@ export default function AuthScreen() {
                       <Text style={styles.voiceDurationText}>{currentTeaser.voiceDuration}</Text>
                     </TouchableOpacity>
 
-                    {/* Vedic Match Affinity Pill */}
-                    <View style={styles.vedicMatchPill}>
-                      <Text style={styles.vedicEmoji}>{currentTeaser.affinityEmoji}</Text>
-                      <Text style={styles.vedicMatchText}>{currentTeaser.affinity}</Text>
+                    {/* Floating Action Controls Anchored at Bottom of Profile Card */}
+                    <View style={styles.cardFloatingActionRow}>
+                      {/* Pass Button */}
+                      <TouchableOpacity
+                        style={styles.cardActionPassBtn}
+                        onPress={handleTeaserPass}
+                        activeOpacity={0.8}>
+                        <Text style={styles.cardActionPassIcon}>✕</Text>
+                      </TouchableOpacity>
+
+                      {/* Superlike Button */}
+                      <TouchableOpacity
+                        style={styles.cardActionSuperBtn}
+                        onPress={handleTeaserSuperlike}
+                        activeOpacity={0.8}>
+                        <Text style={styles.cardActionSuperIcon}>★</Text>
+                      </TouchableOpacity>
+
+                      {/* Like Button */}
+                      <TouchableOpacity
+                        style={styles.cardActionLikeBtn}
+                        onPress={handleTeaserLike}
+                        activeOpacity={0.85}>
+                        <Text style={styles.cardActionLikeIcon}>❤️</Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </Animated.View>
               </View>
 
-              {/* Floating Action Controls */}
-              <View style={styles.teaserActionRow}>
-                {/* Pass Button */}
+              {/* Grounded Bottom Mobile Login Button (Clean Single Login Entry) */}
+              <View style={styles.groundedLoginArea}>
                 <TouchableOpacity
-                  style={styles.teaserPassBtn}
-                  onPress={handleTeaserPass}
-                  activeOpacity={0.8}>
-                  <Text style={styles.teaserPassIcon}>✕</Text>
+                  style={styles.groundedMobileLoginBtn}
+                  onPress={() => {
+                    hapticFeedback.medium();
+                    openAuthSheet(undefined, 'login');
+                  }}
+                  activeOpacity={0.88}>
+                  <Text style={styles.groundedMobileLoginIcon}>📱</Text>
+                  <Text style={styles.groundedMobileLoginBtnText}>Continue with Mobile Number</Text>
                 </TouchableOpacity>
-
-                {/* Superlike Button */}
-                <TouchableOpacity
-                  style={styles.teaserSuperBtn}
-                  onPress={handleTeaserSuperlike}
-                  activeOpacity={0.8}>
-                  <Text style={styles.teaserSuperIcon}>★</Text>
-                </TouchableOpacity>
-
-                {/* Like Button */}
-                <TouchableOpacity
-                  style={styles.teaserLikeBtn}
-                  onPress={handleTeaserLike}
-                  activeOpacity={0.85}>
-                  <Text style={styles.teaserLikeIcon}>❤️</Text>
-                </TouchableOpacity>
+                <Text style={styles.groundedLoginSubtext}>
+                  100% Genuine Profiles • 0 Catfish Guarantee
+                </Text>
               </View>
-
-              {/* Swipe Guidance Hint */}
-              <Text style={styles.teaserHintText}>
-                Swipe right or tap ❤️ to like • Tap ✕ to pass
-              </Text>
             </View>
           )}
 
@@ -2162,78 +2157,119 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginBottom: 8,
   },
-  teaserActionRow: {
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
+  cardFloatingActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
     marginTop: 8,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  teaserPassBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: 'rgba(18, 22, 34, 0.95)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      web: { boxShadow: '0 6px 18px rgba(0, 0, 0, 0.4)' },
-      default: { shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
-    }),
-  },
-  teaserPassIcon: {
-    color: '#CBD5E1',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  teaserSuperBtn: {
+  cardActionPassBtn: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(24, 28, 42, 0.95)',
+    backgroundColor: 'rgba(10, 12, 18, 0.88)',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 171, 0, 0.4)',
+    borderColor: 'rgba(255, 51, 102, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
-      web: { boxShadow: '0 6px 18px rgba(255, 171, 0, 0.25)' },
+      web: { boxShadow: '0 6px 16px rgba(0, 0, 0, 0.6)' },
+      default: { shadowColor: '#FF3366', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+    }),
+  },
+  cardActionPassIcon: {
+    color: '#FF6B8B',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  cardActionSuperBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(10, 12, 18, 0.88)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 171, 0, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0 6px 16px rgba(255, 171, 0, 0.25)' },
       default: { shadowColor: '#FFAA00', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
     }),
   },
-  teaserSuperIcon: {
+  cardActionSuperIcon: {
     color: '#FFB300',
-    fontSize: 20,
+    fontSize: 18,
   },
-  teaserLikeBtn: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#FF2E63',
-    borderWidth: 2,
-    borderColor: '#FFA5B9',
+  cardActionLikeBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(10, 12, 18, 0.88)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 230, 118, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
-      web: { boxShadow: '0 8px 24px rgba(255, 46, 99, 0.55)' },
-      default: { shadowColor: '#FF2E63', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.6, shadowRadius: 14, elevation: 8 },
+      web: { boxShadow: '0 6px 18px rgba(0, 230, 118, 0.3)' },
+      default: { shadowColor: '#00E676', shadowOpacity: 0.35, shadowRadius: 10, elevation: 6 },
     }),
   },
-  teaserLikeIcon: {
-    fontSize: 26,
+  cardActionLikeIcon: {
+    fontSize: 24,
   },
-  teaserHintText: {
-    color: '#64748B',
+  groundedLoginArea: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  groundedMobileLoginBtn: {
+    width: '100%',
+    paddingVertical: 13,
+    borderRadius: 20,
+    backgroundColor: '#FF2E63',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    ...Platform.select({
+      web: {
+        background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 50%, #FF8A00 100%)',
+        boxShadow: '0 8px 24px rgba(255, 46, 99, 0.45)',
+      },
+      default: {
+        shadowColor: '#FF2E63',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.55,
+        shadowRadius: 12,
+        elevation: 6,
+      },
+    }),
+  },
+  groundedMobileLoginIcon: {
+    fontSize: 15,
+  },
+  groundedMobileLoginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  groundedLoginSubtext: {
+    color: '#7E8B9F',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '600',
+    marginTop: 5,
     letterSpacing: 0.2,
     textAlign: 'center',
-    marginTop: 2,
   },
 
   // Slide-Up Modal Auth Sheet Styles

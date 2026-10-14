@@ -210,6 +210,38 @@ export default function AuthScreen() {
   const maxDeckProportional = Math.min(Math.floor(windowHeight * 0.58), 470);
   const deckHeight = Math.max(300, Math.min(availableDeckHeight, maxDeckProportional));
 
+  const otpElevateAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (otpSent) {
+      Animated.spring(otpElevateAnim, {
+        toValue: 1,
+        friction: 7,
+        tension: 100,
+        useNativeDriver: useNativeAnim,
+      }).start();
+    } else {
+      Animated.timing(otpElevateAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: useNativeAnim,
+      }).start();
+    }
+  }, [otpSent]);
+
+  // When entering phone or OTP, text box elevates UP over the bottom of the model photo (above the keypad)
+  const baseLift = isCompact ? 120 : 105;
+  const otpExtraLift = 35;
+  const loginElevateY = Animated.add(
+    morphAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -baseLift],
+    }),
+    otpElevateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -otpExtraLift],
+    })
+  );
+
   const cardRotate = swipeAnim.x.interpolate({
     inputRange: [-220, 0, 220],
     outputRange: ['-12deg', '0deg', '12deg'],
@@ -224,6 +256,13 @@ export default function AuthScreen() {
     if (focus) {
       setTimeout(() => phoneInputRef.current?.focus(), 260);
     }
+  };
+
+  const closePhoneMode = () => {
+    Keyboard.dismiss();
+    Animated.timing(morphAnim, { toValue: 0, duration: 220, useNativeDriver: useNativeAnim }).start(() => {
+      setPhoneMode(false);
+    });
   };
 
   // Arrow pops in only once all 10 digits are entered
@@ -865,7 +904,7 @@ export default function AuthScreen() {
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={step === 1 ? undefined : (Platform.OS === 'ios' ? 'padding' : undefined)}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}>
         <ScrollView
           ref={scrollRef}
@@ -989,7 +1028,17 @@ export default function AuthScreen() {
                   </View>
 
                   {/* Option A Glass Action Buttons inside the card bottom */}
-                  <View style={styles.optACardActions}>
+                  <Animated.View
+                    style={[
+                      styles.optACardActions,
+                      {
+                        opacity: morphAnim.interpolate({
+                          inputRange: [0, 0.4],
+                          outputRange: [1, 0],
+                        }),
+                      },
+                    ]}
+                    pointerEvents={phoneMode || otpSent ? 'none' : 'auto'}>
                     {/* Pass Button */}
                     <TouchableOpacity
                       style={styles.optAActPass}
@@ -1013,12 +1062,19 @@ export default function AuthScreen() {
                       onPress={() => flyCard('right')}>
                       <Text style={styles.optAActLikeIcon}>❤️</Text>
                     </TouchableOpacity>
-                  </View>
+                  </Animated.View>
                 </Animated.View>
               </View>
 
               {/* Login Area (Option A: Morphing CTA -> Phone Input + Arrow / OTP) */}
-              <View style={[styles.optALoginArea, { width: deckWidth }]}>
+              <Animated.View
+                style={[
+                  styles.optALoginArea,
+                  {
+                    width: deckWidth,
+                    transform: [{ translateY: loginElevateY }],
+                  },
+                ]}>
                 {!otpSent ? (
                   <View style={[styles.optAMorphBox, phoneMode && styles.optAMorphBoxActive]}>
                     {!phoneMode ? (
@@ -1053,6 +1109,17 @@ export default function AuthScreen() {
                         {/* Digit Counter (Visible until 10 digits) */}
                         {!isPhoneFilled && (
                           <Text style={styles.optACountText}>{cleanedPhoneDigits.length}/10</Text>
+                        )}
+
+                        {/* Close button when empty */}
+                        {phone.length === 0 && (
+                          <TouchableOpacity
+                            style={styles.optAClosePhoneBtn}
+                            activeOpacity={0.7}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            onPress={closePhoneMode}>
+                            <Text style={styles.optAClosePhoneIcon}>✕</Text>
+                          </TouchableOpacity>
                         )}
 
                         {/* Arrow Button pops in on 10 digits */}
@@ -1160,7 +1227,7 @@ export default function AuthScreen() {
                     Privacy
                   </Text>
                 </Text>
-              </View>
+              </Animated.View>
             </View>
           )}
 
@@ -3786,7 +3853,15 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     marginTop: 6,
     alignItems: 'center',
-    zIndex: 20,
+    zIndex: 35,
+    ...Platform.select({
+      web: {
+        zIndex: 35,
+      },
+      default: {
+        elevation: 20,
+      },
+    }),
   },
   optAMorphBox: {
     width: '100%',
@@ -3806,13 +3881,14 @@ const styles = StyleSheet.create({
   optAMorphBoxActive: {
     backgroundColor: '#12151F',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 46, 99, 0.65)',
+    borderColor: 'rgba(255, 46, 99, 0.7)',
     ...Platform.select({
       web: {
         background: '#12151F',
-        boxShadow: '0 0 0 3px rgba(255, 46, 99, 0.15)',
+        boxShadow: '0 12px 36px rgba(0, 0, 0, 0.85), 0 0 0 3px rgba(255, 46, 99, 0.2)',
+        backdropFilter: 'blur(16px)',
       },
-      default: { shadowColor: '#FF2E63', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.6, shadowRadius: 14, elevation: 12 },
     }),
   },
   optACtaBtn: {
@@ -3865,6 +3941,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginRight: 10,
+  },
+  optAClosePhoneBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  optAClosePhoneIcon: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '800',
   },
   optAGoBtn: {
     width: 40,

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Modal,
+  PanResponder,
   Platform,
   ScrollView,
   StyleSheet,
@@ -33,6 +34,31 @@ const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
   'Kannada 🌿', 'Malayalam 🌴', 'Marathi 🚩', 'Gujarati 💎', 'Marwari 🏜️', 'Urdu 📜',
   'French 🥐', 'Spanish 💃', 'German 🥨'
+];
+
+// First-screen teaser deck (Option A · Glass). Kiara is the flagship AI model.
+const TEASER_PROFILES = [
+  {
+    name: 'Kiara',
+    age: 25,
+    meta: '800m away · Architect @ Indiranagar',
+    chip: '⚖️ Tula · 96% Match',
+    photo: 'https://blunderr.in/downloads/blunderr-model-pink-offshoulder.jpg',
+  },
+  {
+    name: 'Aanya',
+    age: 25,
+    meta: '1.2 km away · Product Designer',
+    chip: '🦁 Simha · 92% Match',
+    photo: 'https://blunderr.in/downloads/blunderr-model-e-studio.jpg',
+  },
+  {
+    name: 'Rhea',
+    age: 24,
+    meta: '1.8 km away · Creative Producer',
+    chip: '🏹 Dhanu · 94% Match',
+    photo: 'https://blunderr.in/downloads/blunderr-model-a.jpg',
+  },
 ];
 
 const handleDirectDownload = (url: string) => {
@@ -75,7 +101,7 @@ export default function AuthScreen() {
   const [autoDetectedSuccess, setAutoDetectedSuccess] = useState(false);
   const [otpFeedbackMsg, setOtpFeedbackMsg] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isCompact = windowHeight < 750;
   const isUltraCompact = windowHeight < 680;
   const stackHeight = isUltraCompact ? 250 : isCompact ? 290 : 330;
@@ -159,6 +185,95 @@ export default function AuthScreen() {
   // Phone validation: user must fill exactly 10 digits before OTP dispatch buttons are enabled
   const cleanedPhoneDigits = phone.replace(/[^0-9]/g, '').slice(0, 10);
   const isPhoneFilled = cleanedPhoneDigits.length === 10;
+
+  // ── Option A · Glass: swipe deck + morphing mobile-number button ──
+  const useNativeAnim = Platform.OS !== 'web';
+  const [teaserIndex, setTeaserIndex] = useState(0);
+  const teaserIndexRef = useRef(0);
+  teaserIndexRef.current = teaserIndex;
+  const [phoneMode, setPhoneMode] = useState(false);
+  const [likedName, setLikedName] = useState<string | null>(null);
+  const swipeAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const morphAnim = useRef(new Animated.Value(0)).current;
+  const goAnim = useRef(new Animated.Value(0)).current;
+  const phoneInputRef = useRef<TextInput>(null);
+
+  const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
+  const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
+
+  const deckWidth = Math.min(windowWidth - 28, 452);
+  const loginBlockHeight = otpSent ? 196 : 118;
+  const availableDeckHeight = windowHeight - insets.top - insets.bottom - 64 - loginBlockHeight - 18;
+  const deckHeight = isKeyboardVisible
+    ? (isUltraCompact ? 150 : isCompact ? 180 : 220)
+    : Math.max(isUltraCompact ? 300 : 340, Math.min(availableDeckHeight, 620));
+
+  const cardRotate = swipeAnim.x.interpolate({
+    inputRange: [-220, 0, 220],
+    outputRange: ['-12deg', '0deg', '12deg'],
+    extrapolate: 'clamp',
+  });
+  const likeStampOpacity = swipeAnim.x.interpolate({ inputRange: [0, 90], outputRange: [0, 1], extrapolate: 'clamp' });
+  const nopeStampOpacity = swipeAnim.x.interpolate({ inputRange: [-90, 0], outputRange: [1, 0], extrapolate: 'clamp' });
+
+  const openPhoneMode = (focus: boolean) => {
+    setPhoneMode(true);
+    Animated.timing(morphAnim, { toValue: 1, duration: 240, useNativeDriver: useNativeAnim }).start();
+    if (focus) {
+      setTimeout(() => phoneInputRef.current?.focus(), 260);
+    }
+  };
+
+  // Arrow pops in only once all 10 digits are entered
+  useEffect(() => {
+    Animated.spring(goAnim, {
+      toValue: isPhoneFilled ? 1 : 0,
+      friction: 6,
+      tension: 140,
+      useNativeDriver: useNativeAnim,
+    }).start();
+  }, [isPhoneFilled]);
+
+  // swipeAnim is driven by Animated.event (JS), so all its animations stay on the JS driver
+  const flyCard = (dir: 'left' | 'right' | 'up') => {
+    const target =
+      dir === 'up' ? { x: 0, y: -900 } : { x: dir === 'right' ? 520 : -520, y: 40 };
+    const swipedName = TEASER_PROFILES[teaserIndexRef.current % TEASER_PROFILES.length].name;
+    Animated.timing(swipeAnim, { toValue: target, duration: 260, useNativeDriver: false }).start(() => {
+      swipeAnim.setValue({ x: 0, y: 0 });
+      setTeaserIndex((i) => i + 1);
+      if (dir !== 'left' && !otpSent) {
+        setLikedName(swipedName);
+        openPhoneMode(false);
+      }
+    });
+  };
+  const flyCardRef = useRef(flyCard);
+  flyCardRef.current = flyCard;
+
+  const deckPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 || Math.abs(g.dy) > 8,
+      onPanResponderMove: Animated.event([null, { dx: swipeAnim.x, dy: swipeAnim.y }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (_, g) => {
+        if (g.dx > 110) flyCardRef.current('right');
+        else if (g.dx < -110) flyCardRef.current('left');
+        else if (g.dy < -120) flyCardRef.current('up');
+        else Animated.spring(swipeAnim, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: false }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(swipeAnim, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: false }).start();
+      },
+    })
+  ).current;
+
+  const submitPhone = () => {
+    if (!isPhoneFilled || loading) return;
+    handleSendOtp(FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && isWhatsAppDetected ? 'whatsapp' : 'sms');
+  };
 
   // Check WhatsApp App Availability and Existing Onboarding Status
   useEffect(() => {
@@ -774,359 +889,197 @@ export default function AuthScreen() {
             </View>
           )}
 
-          {/* STEP 1: Concept 2 — The Kinetic Card Stack Aesthetic */}
+          {/* STEP 1: Option A · Glass Teaser Deck + Morphing Mobile Login */}
           {step === 1 && (
-            <View style={[styles.kineticPageContainer, isKeyboardVisible && styles.kineticPageContainerKeyboard]}>
-              {/* Top Wordmark Header */}
-              <View style={[styles.kineticBrandHeader, isKeyboardVisible && styles.kineticBrandHeaderCompact]}>
+            <View style={styles.optAPageContainer}>
+              {/* Top Wordmark & Online Badge Header */}
+              <View style={styles.optATopBar}>
                 <View style={styles.brandLogoRow}>
-                  <View style={[styles.brandLogoIconGlow, isKeyboardVisible && styles.brandLogoIconGlowCompact]}>
-                    <Text style={[styles.brandLogoIconText, isKeyboardVisible && { fontSize: 13 }]}>🔥</Text>
+                  <View style={styles.brandLogoIconGlow}>
+                    <Text style={styles.brandLogoIconText}>🔥</Text>
                   </View>
-                  <BlunderRWordmark size={isKeyboardVisible ? 'md' : 'lg'} slant={true} />
+                  <BlunderRWordmark size="md" slant={true} />
                 </View>
-                {!isKeyboardVisible && (
-                  <View style={styles.kineticVipTagPill}>
-                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
-                    <Text style={styles.kineticVipTagText}>100% VERIFIED HIGH-INTENT STACK</Text>
-                    <Text style={styles.kineticVipTagSparkle}>✦</Text>
-                  </View>
-                )}
+                <View style={styles.optAOnlinePill}>
+                  <View style={styles.optALiveDot} />
+                  <Text style={styles.optAOnlineText}>1,240 online</Text>
+                </View>
               </View>
 
-              {/* 3D Kinetic Card Stack Centerpiece */}
-              <Animated.View
-                style={[
-                  styles.kineticStackContainer,
-                  {
-                    height: animStackHeight,
-                    transform: [{ scale: animStackScale }],
-                    marginTop: isKeyboardVisible ? 12 : animStackMarginVertical,
-                    marginBottom: animStackMarginVertical,
-                  },
-                ]}>
-                {/* Background Card 4 (Deepest Shadow Card - Tilted -27 deg) */}
-                <View
-                  style={[styles.kineticCard4, { width: cardWidth, height: cardHeight }]}
-                  pointerEvents="none"
-                />
-
-                {/* Background Card 3 (Tilted -20 deg with Dark Photo Layer) */}
-                <View
-                  style={[styles.kineticCard3, { width: cardWidth, height: cardHeight }]}
-                  pointerEvents="none">
-                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
-                    <Image
-                      source={{
-                        uri: 'https://blunderr.in/downloads/blunderr-model-a.jpg',
-                      }}
-                      style={styles.cardInnerPhotoDimmed}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.cardDimmerOverlay} />
+              {/* Interactive Card Deck */}
+              <View style={[styles.optADeckContainer, { width: deckWidth, height: deckHeight }]}>
+                {/* Background Card (Preview of next profile) */}
+                <View style={[styles.optACardBack, { width: deckWidth, height: deckHeight }]} pointerEvents="none">
+                  <Image
+                    source={{ uri: nextTeaser.photo }}
+                    style={styles.optACardImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.optACardShade} />
+                  <View style={styles.optACardTopBadges}>
+                    <View style={styles.optABadge}>
+                      <Text style={styles.optABadgeText}>✦ LIVE PREVIEW</Text>
+                    </View>
+                    <View style={styles.optABadge}>
+                      <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
+                    </View>
+                  </View>
+                  <View style={styles.optACardInfo}>
+                    <Text style={styles.optACardName}>
+                      {nextTeaser.name}, {nextTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
+                    </Text>
+                    <Text style={styles.optACardMeta}>📍 {nextTeaser.meta}</Text>
+                    <View style={styles.optAChip}>
+                      <Text style={styles.optAChipText}>{nextTeaser.chip}</Text>
+                    </View>
                   </View>
                 </View>
 
-                {/* Background Card 2 (Tilted -13 deg with Cyan/Mint Glow & Photo Preview) */}
-                <View
-                  style={[styles.kineticCard2, { width: cardWidth, height: cardHeight }]}
-                  pointerEvents="none">
-                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
-                    <Image
-                      source={{
-                        uri: 'https://blunderr.in/downloads/blunderr-model-e-studio.jpg',
-                      }}
-                      style={styles.cardInnerPhotoDimmed}
-                      resizeMode="cover"
-                    />
-                    <View style={styles.cardDimmerOverlaySoft} />
-                  </View>
-                </View>
-
-                {/* Foreground Hero Card 1 (Tilted -6 deg with Levitating Float Physics) */}
+                {/* Foreground Card (Interactive swipe with PanResponder) */}
                 <Animated.View
+                  {...deckPanResponder.panHandlers}
                   style={[
-                    styles.kineticCardHero,
+                    styles.optACardFront,
                     {
-                      width: cardWidth,
-                      height: cardHeight,
-                      transform: [{ translateY: floatAnim }, { rotate: '-6deg' }],
+                      width: deckWidth,
+                      height: deckHeight,
+                      transform: [
+                        { translateX: swipeAnim.x },
+                        { translateY: swipeAnim.y },
+                        { rotate: cardRotate },
+                      ],
                     },
                   ]}>
-                  {/* Outer Frame with Inner Photo Container */}
-                  <View style={[styles.cardPhotoFrame, { height: photoHeight }]}>
-                    <Image
-                      source={{
-                        uri: 'https://blunderr.in/downloads/blunderr-model-pink-offshoulder.jpg',
-                      }}
-                      style={styles.cardInnerPhoto}
-                      resizeMode="cover"
-                    />
-                  </View>
+                  <Image
+                    source={{ uri: currentTeaser.photo }}
+                    style={styles.optACardImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.optACardShade} />
 
-                  {/* Floating 3D Verified Checkmark Badge on Card Right Edge */}
-                  <View style={styles.floatingVerifiedBadgeRight}>
-                    <Text style={styles.floatingVerifiedText}>✓</Text>
-                  </View>
+                  {/* Stamp Badges on Drag */}
+                  <Animated.View style={[styles.optAStampLike, { opacity: likeStampOpacity }]} pointerEvents="none">
+                    <Text style={styles.optAStampLikeText}>LIKE</Text>
+                  </Animated.View>
+                  <Animated.View style={[styles.optAStampNope, { opacity: nopeStampOpacity }]} pointerEvents="none">
+                    <Text style={styles.optAStampNopeText}>NOPE</Text>
+                  </Animated.View>
 
-                  {/* Card Lower-Right Heart Accent */}
-                  <View style={styles.cardHeartAccent}>
-                    <Text style={styles.cardHeartIcon}>❤️</Text>
-                  </View>
-
-                  {/* Tilted Glass Candidate Info & Voice Waveform Overlay (Tilted Right) */}
-                  <View style={styles.candidateGlassOverlay}>
-                    {/* Left Verified Badge mounted directly on Name Card */}
-                    <View style={styles.nameCardVerifiedBadge}>
-                      <Text style={styles.floatingVerifiedText}>✓</Text>
+                  {/* Top Badges */}
+                  <View style={styles.optACardTopBadges} pointerEvents="none">
+                    <View style={styles.optABadge}>
+                      <Text style={styles.optABadgeText}>✦ LIVE PREVIEW</Text>
                     </View>
-
-                    {/* Name, Age, Profession */}
-                    <View style={styles.candidateIdentityRow}>
-                      <Text style={styles.candidateName}>Kiara, 25</Text>
-                      <View style={styles.candidateDot} />
-                      <Text style={styles.candidateProfession}>Architect @ Indiranagar</Text>
+                    <View style={styles.optABadge}>
+                      <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
                     </View>
+                  </View>
 
-                    {/* Interactive Voice Note Player Bar */}
+                  {/* Profile Info */}
+                  <View style={styles.optACardInfo} pointerEvents="none">
+                    <Text style={styles.optACardName}>
+                      {currentTeaser.name}, {currentTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
+                    </Text>
+                    <Text style={styles.optACardMeta}>📍 {currentTeaser.meta}</Text>
+                    <View style={styles.optAChip}>
+                      <Text style={styles.optAChipText}>{currentTeaser.chip}</Text>
+                    </View>
+                  </View>
+
+                  {/* Option A Glass Action Buttons inside the card bottom */}
+                  <View style={styles.optACardActions}>
+                    {/* Pass Button */}
                     <TouchableOpacity
-                      style={styles.voiceNoteBar}
+                      style={styles.optAActPass}
                       activeOpacity={0.8}
-                      onPress={() => setIsPlayingVoice(!isPlayingVoice)}>
-                      <View style={styles.voicePlayBtn}>
-                        <Text style={styles.voicePlayIcon}>{isPlayingVoice ? '⏸' : '▶'}</Text>
-                      </View>
-
-                      {/* Dynamic Pulsing Sound Waveform Bars */}
-                      <View style={styles.waveformContainer}>
-                        {[10, 20, 14, 26, 18, 28, 22, 16, 24, 19, 26, 15, 21, 12].map((baseHeight, idx) => {
-                          const barHeight = isPlayingVoice
-                            ? soundWaveAnim.interpolate({
-                                inputRange: [0, 0.5, 1],
-                                outputRange: [
-                                  baseHeight * (0.4 + ((idx % 3) * 0.2)),
-                                  baseHeight * (0.9 + ((idx % 2) * 0.3)),
-                                  baseHeight * (0.5 + (((idx + 1) % 3) * 0.2)),
-                                ],
-                              })
-                            : baseHeight * 0.5;
-
-                          return (
-                            <Animated.View
-                              key={idx}
-                              style={[
-                                styles.waveformBar,
-                                { height: barHeight },
-                                idx < 6 && styles.waveformBarActive,
-                              ]}
-                            />
-                          );
-                        })}
-                      </View>
-
-                      <Text style={styles.voiceDurationText}>12s Voice Note</Text>
+                      onPress={() => flyCard('left')}>
+                      <Text style={styles.optAActPassIcon}>✕</Text>
                     </TouchableOpacity>
 
-                    {/* Vedic Astrology Match Pill */}
-                    <View style={styles.vedicMatchPill}>
-                      <Text style={styles.vedicEmoji}>⚖️</Text>
-                      <Text style={styles.vedicMatchText}>Tula (Libra) • 96% Match</Text>
-                    </View>
+                    {/* Star / Super Like Button */}
+                    <TouchableOpacity
+                      style={styles.optAActStar}
+                      activeOpacity={0.8}
+                      onPress={() => flyCard('up')}>
+                      <Text style={styles.optAActStarIcon}>★</Text>
+                    </TouchableOpacity>
+
+                    {/* Like Button (Prominent) */}
+                    <TouchableOpacity
+                      style={styles.optAActLike}
+                      activeOpacity={0.85}
+                      onPress={() => flyCard('right')}>
+                      <Text style={styles.optAActLikeIcon}>❤️</Text>
+                    </TouchableOpacity>
                   </View>
                 </Animated.View>
-              </Animated.View>
+              </View>
 
-              {/* Bottom Sheet Auth Drawer */}
-              <View style={[styles.kineticAuthDrawer, isKeyboardVisible && styles.kineticAuthDrawerKeyboard]}>
-                {/* Drawer Top Handle Indicator */}
-                {!isKeyboardVisible && <View style={styles.drawerHandleBar} />}
-
-                {/* Social Proof Hook */}
-                {!isKeyboardVisible && (
-                  <View style={styles.socialProofRow}>
-                    <View style={styles.livePulseDot} />
-                    <Text style={styles.socialProofText}>Someone 3.2 km away is listening right now</Text>
-                  </View>
-                )}
-
+              {/* Login Area (Option A: Morphing CTA -> Phone Input + Arrow / OTP) */}
+              <View style={[styles.optALoginArea, { width: deckWidth }]}>
                 {!otpSent ? (
-                  <>
-                    {/* WhatsApp 1-Tap Hero Button with Neon Glow Rim (Feature Flag Controlled) */}
-                    {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && (
+                  <View style={[styles.optAMorphBox, phoneMode && styles.optAMorphBoxActive]}>
+                    {!phoneMode ? (
                       <TouchableOpacity
-                        style={[
-                          styles.waKineticBtn,
-                          !isPhoneFilled && styles.waKineticBtnDisabled,
-                          isWhatsAppDetected && isPhoneFilled && styles.waKineticBtnGlow,
-                        ]}
-                        onPress={() => handleSendOtp('whatsapp')}
-                        disabled={!isPhoneFilled || loading || (resendTimer > 0 && authChannel === 'whatsapp')}
-                        activeOpacity={0.85}>
-                        {loading && authChannel === 'whatsapp' ? (
-                          <ActivityIndicator color="#ffffff" />
-                        ) : (
-                          <View style={styles.waKineticBtnInner}>
-                            <Text style={styles.waKineticIcon}>💬</Text>
-                            <Text style={[styles.waKineticText, !isPhoneFilled && styles.waKineticTextDisabled]}>
-                              WhatsApp
-                            </Text>
-                          </View>
-                        )}
+                        style={styles.optACtaBtn}
+                        activeOpacity={0.88}
+                        onPress={() => openPhoneMode(true)}>
+                        <Text style={styles.optACtaIcon}>📱</Text>
+                        <Text style={styles.optACtaText}>Continue with Mobile Number</Text>
                       </TouchableOpacity>
-                    )}
-
-                    {/* Sunken Dark Pill Phone Input */}
-                    <View style={[styles.kineticPhoneBox, isPhoneFilled && styles.kineticPhoneBoxActive]}>
-                      <View style={styles.kineticFlagContainer}>
-                        <Text style={styles.kineticFlagIcon}>🇮🇳</Text>
-                        <Text style={styles.kineticCountryCode}>+91</Text>
-                      </View>
-                      <View style={styles.kineticPhoneDivider} />
-                      <TextInput
-                        style={styles.kineticPhoneInput}
-                        value={phone}
-                        onChangeText={(text) => {
-                          const digitsOnly = text.replace(/[^0-9]/g, '').slice(0, 10);
-                          setPhone(digitsOnly);
-                          if (otpSent) {
-                            setOtpSent(false);
-                            setOtp('');
-                            setResendTimer(0);
-                            setIsAutoDetectingOtp(false);
-                            setOtpFeedbackMsg(null);
-                          }
-                        }}
-                        placeholder="Phone number"
-                        placeholderTextColor="#687285"
-                        keyboardType="number-pad"
-                        maxLength={10}
-                      />
-                    </View>
-
-                    {/* Mobile Number Validation Status Hint */}
-                    <View style={styles.kineticPhoneStatusRow}>
-                      <Text
-                        style={[
-                          styles.kineticPhoneStatusText,
-                          isPhoneFilled ? styles.kineticPhoneStatusSuccess : styles.kineticPhoneStatusHint,
-                        ]}>
-                        {isPhoneFilled
-                          ? FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH
-                            ? '✓ 10-digit number ready • Tap WhatsApp or Next'
-                            : '✓ 10-digit number ready • Tap Continue'
-                          : cleanedPhoneDigits.length > 0
-                          ? `Enter 10-digit mobile number (${cleanedPhoneDigits.length}/10 digits)`
-                          : 'Enter your 10-digit mobile number above'}
-                      </Text>
-                    </View>
-
-                    {/* Velvet Rose Action Button ("Next" / SMS OTP) */}
-                    <TouchableOpacity
-                      style={[
-                        styles.kineticNextBtn,
-                        !isPhoneFilled && styles.kineticNextBtnDisabled,
-                      ]}
-                      onPress={() => handleSendOtp('sms')}
-                      disabled={!isPhoneFilled || loading || (resendTimer > 0 && authChannel === 'sms')}
-                      activeOpacity={0.85}>
-                      {loading && authChannel === 'sms' ? (
-                        <ActivityIndicator color="#ffffff" />
-                      ) : (
-                        <View style={styles.kineticNextBtnInner}>
-                          <Text style={[styles.kineticNextBtnText, !isPhoneFilled && styles.kineticNextBtnTextDisabled]}>
-                            {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? 'Next' : 'Continue with SMS OTP'}
-                          </Text>
-                          <Text style={styles.kineticNextArrow}>→</Text>
+                    ) : (
+                      <View style={styles.optAFieldRow}>
+                        <View style={styles.optACountryCodeBox}>
+                          <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
                         </View>
-                      )}
-                    </TouchableOpacity>
+                        <TextInput
+                          ref={phoneInputRef}
+                          style={styles.optAPhoneInput}
+                          value={phone}
+                          onChangeText={(text) => {
+                            const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
+                            setPhone(digits);
+                          }}
+                          placeholder="Mobile number"
+                          placeholderTextColor="#5D6679"
+                          keyboardType="number-pad"
+                          maxLength={10}
+                          returnKeyType="done"
+                          onSubmitEditing={submitPhone}
+                        />
 
-                    {/* WhatsApp Detection Indicator Badge */}
-                    {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && (
-                      <View style={styles.detectionRow}>
-                        <View style={[styles.statusDot, isWhatsAppDetected ? styles.dotGreen : styles.dotGray]} />
-                        <Text style={styles.detectionText}>
-                          {isCheckingWhatsApp
-                            ? 'Detecting WhatsApp on this device...'
-                            : isWhatsAppDetected
-                            ? '⚡ WhatsApp Detected • 1-Tap OTP Enabled'
-                            : 'SMS OTP Fallback Ready'}
-                        </Text>
+                        {/* Digit Counter (Visible until 10 digits) */}
+                        {!isPhoneFilled && (
+                          <Text style={styles.optACountText}>{cleanedPhoneDigits.length}/10</Text>
+                        )}
+
+                        {/* Arrow Button pops in on 10 digits */}
+                        {isPhoneFilled && (
+                          <Animated.View style={{ transform: [{ scale: goAnim }] }}>
+                            <TouchableOpacity
+                              style={styles.optAGoBtn}
+                              activeOpacity={0.85}
+                              disabled={loading}
+                              onPress={submitPhone}>
+                              {loading ? (
+                                <ActivityIndicator color="#fff" size="small" />
+                              ) : (
+                                <Text style={styles.optAGoArrow}>→</Text>
+                              )}
+                            </TouchableOpacity>
+                          </Animated.View>
+                        )}
                       </View>
                     )}
-
-                    {/* Apple & Google Mandatory Legal Terms & Privacy Policy */}
-                    <View style={styles.authLegalBox}>
-                      <Text style={styles.authLegalText}>
-                        By continuing, you agree to Blunderr's{' '}
-                        <Text
-                          style={styles.authLegalLink}
-                          onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => Linking.openURL('https://blunderr.in/terms').catch(() => {}))}>
-                          Terms of Service
-                        </Text>
-                        {' '}and{' '}
-                        <Text
-                          style={styles.authLegalLink}
-                          onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => Linking.openURL('https://blunderr.in/privacy').catch(() => {}))}>
-                          Privacy Policy
-                        </Text>
-                        . You must be at least 18 years old to join.
-                      </Text>
-                    </View>
-
-                    {Platform.OS === 'web' && (
-                      <View style={styles.webAuthDownloadContainer}>
-                        <View style={styles.webAuthDividerRow}>
-                          <View style={styles.webAuthDividerLine} />
-                          <Text style={styles.webAuthDividerText}>GET THE OFFICIAL MOBILE APP</Text>
-                          <View style={styles.webAuthDividerLine} />
-                        </View>
-                        <View style={styles.webAuthBtnRow}>
-                          <TouchableOpacity
-                            style={styles.webAuthApkBtn}
-                            onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.apk')}
-                            activeOpacity={0.85}>
-                            <Text style={styles.webAuthBtnText}>🤖 Android APK</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.webAuthIosBtn}
-                            onPress={() => handleDirectDownload('https://blunderr.in/downloads/BlunderR.ipa')}
-                            activeOpacity={0.85}>
-                            <Text style={styles.webAuthBtnText}> Apple iOS</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    )}
-                  </>
+                  </View>
                 ) : (
-                  <>
-                    {/* OTP Sent State Inside Bottom Sheet */}
-                    <View style={styles.otpHeaderBox}>
-                      <Text style={styles.otpHeaderTitle}>Verification Code</Text>
-                      <Text style={styles.otpHeaderSub}>
-                        Code dispatched to +91 {cleanedPhoneDigits.slice(-4).padStart(10, '•')} via {authChannel === 'whatsapp' ? 'WhatsApp 💬' : 'SMS 📱'}
-                      </Text>
-                    </View>
+                  /* OTP Verification inline in the same spot */
+                  <View style={styles.optAOtpBox}>
+                    <Text style={styles.optAOtpTitle}>
+                      Code sent to <Text style={styles.optAOtpNumber}>+91 ••••• •{cleanedPhoneDigits.slice(-4)}</Text>
+                    </Text>
 
-                    {/* Mock OTP Badge */}
-                    {FEATURE_FLAGS.USE_MOCK_OTP && (
-                      <View style={styles.mockOtpBanner}>
-                        <Text style={styles.mockOtpText}>⚡ Test Mode Active: Code 123456 Auto-Filled!</Text>
-                      </View>
-                    )}
-
-                    {autoDetectedSuccess && !FEATURE_FLAGS.USE_MOCK_OTP && (
-                      <View style={styles.autoDetectSuccessBanner}>
-                        <Text style={styles.autoDetectSuccessText}>
-                          {authChannel === 'whatsapp'
-                            ? '✓ WhatsApp OTP Auto-detected!'
-                            : '✓ SMS OTP Auto-detected!'}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Dynamic OTP Boxes UI */}
-                    <Text style={styles.otpBoxesLabel}>Enter {expectedOtpLength}-Digit Verification Code</Text>
+                    {/* Liquid OTP Boxes */}
                     <TouchableOpacity
                       activeOpacity={1}
                       onPress={() => otpInputRef.current?.focus()}
@@ -1135,21 +1088,19 @@ export default function AuthScreen() {
                         {Array.from({ length: expectedOtpLength }).map((_, idx) => {
                           const digit = otp[idx] || '';
                           const isFocused = otp.length === idx;
-                          const isSuccess = autoDetectedSuccess && otp.length === expectedOtpLength;
                           return (
                             <View
                               key={idx}
                               style={[
                                 styles.liquidOtpBox,
                                 isFocused && styles.liquidOtpBoxFocused,
-                                isSuccess && styles.liquidOtpBoxSuccess,
+                                otp.length === expectedOtpLength && styles.liquidOtpBoxSuccess,
                               ]}>
-                              <Text style={[styles.otpDigit, isSuccess && styles.otpDigitSuccess]}>{digit}</Text>
+                              <Text style={styles.otpDigit}>{digit}</Text>
                             </View>
                           );
                         })}
                       </View>
-
                       <TextInput
                         ref={otpInputRef}
                         value={otp}
@@ -1169,85 +1120,44 @@ export default function AuthScreen() {
                       />
                     </TouchableOpacity>
 
-                    {/* Velvet Rose Action Button ("Verify & Proceed") */}
-                    <TouchableOpacity
-                      style={[
-                        styles.kineticNextBtn,
-                        styles.kineticVerifyBtn,
-                        (otp.length !== expectedOtpLength || loading) && styles.kineticNextBtnDisabled,
-                      ]}
-                      onPress={() => handleVerifyOtp(otp)}
-                      disabled={otp.length !== expectedOtpLength || loading}
-                      activeOpacity={0.85}>
-                      {loading ? (
-                        <ActivityIndicator color="#ffffff" />
-                      ) : (
-                        <View style={styles.kineticNextBtnInner}>
-                          <Text
-                            style={[
-                              styles.kineticNextBtnText,
-                              otp.length !== expectedOtpLength && styles.kineticNextBtnTextDisabled,
-                            ]}>
-                            Verify & Proceed
-                          </Text>
-                          <Text style={styles.kineticNextArrow}>→</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Resend Actions & Change Number */}
-                    <View style={styles.otpResendWrapper}>
+                    {/* Resend & Change Number Row */}
+                    <View style={styles.optAOtpActionsRow}>
                       {resendTimer > 0 ? (
-                        <Text style={styles.resendTimerText}>
-                          Resend code in {resendTimer}s
-                        </Text>
+                        <Text style={styles.optAResendTimer}>Resend in {resendTimer}s</Text>
                       ) : (
-                        <View style={styles.resendLinksRow}>
-                          {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && (
-                            <>
-                              <TouchableOpacity
-                                onPress={() => handleSendOtp('whatsapp')}
-                                disabled={loading}>
-                                <Text style={styles.resendLinkText}>Resend WhatsApp Code</Text>
-                              </TouchableOpacity>
-                              <Text style={styles.resendDot}>•</Text>
-                            </>
-                          )}
-                          <TouchableOpacity
-                            onPress={() => handleSendOtp('sms')}
-                            disabled={loading}>
-                            <Text style={styles.resendLinkText}>
-                              {FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH ? 'Send via SMS' : 'Resend Code via SMS 📱'}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity onPress={() => handleSendOtp('sms')} disabled={loading}>
+                          <Text style={styles.optAResendLink}>Resend code</Text>
+                        </TouchableOpacity>
                       )}
+                      <Text style={styles.optADot}>•</Text>
                       <TouchableOpacity
-                        style={styles.editNumberBtn}
                         onPress={() => {
                           setOtpSent(false);
                           setOtp('');
                           setResendTimer(0);
-                          setIsAutoDetectingOtp(false);
-                          setOtpFeedbackMsg(null);
+                          openPhoneMode(true);
                         }}>
-                        <Text style={styles.editNumberText}>← Change Mobile Number</Text>
+                        <Text style={styles.optAChangeLink}>Change number</Text>
                       </TouchableOpacity>
-                    </View>
-                  </>
-                )}
-
-                {/* Bottom: 3D Holographic Trust Pass Badge (Feature Flag Controlled) */}
-                {FEATURE_FLAGS.ENABLE_DIGILOCKER && !isKeyboardVisible && (
-                  <View style={styles.trustBadgeContainer}>
-                    <View style={styles.trustBadgePill}>
-                      <Text style={styles.trustBadgeIcon}>🛡️</Text>
-                      <Text style={styles.trustBadgeBrand}>DigiLocker</Text>
-                      <View style={styles.trustBadgeDivider} />
-                      <Text style={styles.trustBadgeText}>100% Verified Singles</Text>
                     </View>
                   </View>
                 )}
+
+                {/* Subtext Trust Line */}
+                <Text style={styles.optATrustText}>
+                  100% verified profiles • By continuing you agree to{' '}
+                  <Text
+                    style={styles.optALink}
+                    onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => {})}>
+                    Terms
+                  </Text>
+                  {' '}&amp;{' '}
+                  <Text
+                    style={styles.optALink}
+                    onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => {})}>
+                    Privacy
+                  </Text>
+                </Text>
               </View>
             </View>
           )}
@@ -3594,5 +3504,428 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+
+  // Option A · Glass Teaser Deck & Morphing Login Styles
+  optAPageContainer: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  optATopBar: {
+    width: '100%',
+    maxWidth: 452,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 6,
+    zIndex: 10,
+  },
+  optAOnlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 230, 118, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 230, 118, 0.35)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+  },
+  optALiveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#00E676',
+    ...Platform.select({
+      web: { boxShadow: '0 0 8px #00E676' },
+      default: { shadowColor: '#00E676', shadowOpacity: 0.8, shadowRadius: 6, elevation: 4 },
+    }),
+  },
+  optAOnlineText: {
+    color: '#B8F5D0',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  optADeckContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+  },
+  optACardBack: {
+    position: 'absolute',
+    borderRadius: 26,
+    overflow: 'hidden',
+    backgroundColor: '#0F1219',
+    transform: [{ scale: 0.94 }, { translateY: 10 }],
+    opacity: 0.55,
+  },
+  optACardFront: {
+    position: 'absolute',
+    borderRadius: 26,
+    overflow: 'hidden',
+    backgroundColor: '#12151F',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    ...Platform.select({
+      web: { boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.6, shadowRadius: 20, elevation: 12 },
+    }),
+  },
+  optACardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  optACardShade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    ...Platform.select({
+      web: {
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 48%, rgba(5,6,10,0.94) 100%)',
+      },
+      default: {
+        backgroundColor: 'rgba(0,0,0,0.18)',
+      },
+    }),
+  },
+  optACardTopBadges: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 5,
+  },
+  optABadge: {
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    ...Platform.select({
+      web: { backdropFilter: 'blur(8px)' },
+    }),
+  },
+  optABadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  optACardInfo: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 84,
+    zIndex: 5,
+  },
+  optACardName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  optACardVerified: {
+    color: '#0088FF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  optACardMeta: {
+    color: '#D4DBE8',
+    fontSize: 12.5,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  optAChip: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    backgroundColor: 'rgba(255, 171, 0, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 171, 0, 0.45)',
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+    borderRadius: 10,
+  },
+  optAChipText: {
+    color: '#FFD56B',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  optAStampLike: {
+    position: 'absolute',
+    top: 48,
+    left: 20,
+    borderWidth: 3,
+    borderColor: '#00E676',
+    borderRadius: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    transform: [{ rotate: '-14deg' }],
+    zIndex: 20,
+  },
+  optAStampLikeText: {
+    color: '#00E676',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  optAStampNope: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    borderWidth: 3,
+    borderColor: '#FF4D6D',
+    borderRadius: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    transform: [{ rotate: '14deg' }],
+    zIndex: 20,
+  },
+  optAStampNopeText: {
+    color: '#FF4D6D',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  optACardActions: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    zIndex: 15,
+  },
+  optAActPass: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(12, 14, 22, 0.65)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 77, 109, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { backdropFilter: 'blur(12px)', boxShadow: '0 6px 16px rgba(0,0,0,0.5)' },
+      default: { shadowColor: '#FF4D6D', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+    }),
+  },
+  optAActPassIcon: {
+    color: '#FF6B8B',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  optAActStar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(12, 14, 22, 0.65)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 179, 0, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { backdropFilter: 'blur(12px)', boxShadow: '0 6px 16px rgba(0,0,0,0.5)' },
+      default: { shadowColor: '#FFB300', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+    }),
+  },
+  optAActStarIcon: {
+    color: '#FFB300',
+    fontSize: 18,
+  },
+  optAActLike: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(12, 14, 22, 0.7)',
+    borderWidth: 1.8,
+    borderColor: 'rgba(0, 230, 118, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0, 230, 118, 0.35)' },
+      default: { shadowColor: '#00E676', shadowOpacity: 0.45, shadowRadius: 10, elevation: 6 },
+    }),
+  },
+  optAActLikeIcon: {
+    fontSize: 25,
+  },
+  optALoginArea: {
+    alignSelf: 'center',
+    paddingHorizontal: 6,
+    paddingTop: 6,
+    paddingBottom: 10,
+    alignItems: 'center',
+  },
+  optAMorphBox: {
+    width: '100%',
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
+    backgroundColor: '#FF2E63',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 55%, #FF8A00 100%)',
+        boxShadow: '0 6px 20px rgba(255, 46, 99, 0.4)',
+      },
+      default: { shadowColor: '#FF2E63', shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 },
+    }),
+  },
+  optAMorphBoxActive: {
+    backgroundColor: '#12151F',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 46, 99, 0.65)',
+    ...Platform.select({
+      web: {
+        background: '#12151F',
+        boxShadow: '0 0 0 3px rgba(255, 46, 99, 0.15)',
+      },
+      default: { shadowColor: '#FF2E63', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
+    }),
+  },
+  optACtaBtn: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  optACtaIcon: {
+    fontSize: 16,
+  },
+  optACtaText: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  optAFieldRow: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 14,
+    paddingRight: 6,
+  },
+  optACountryCodeBox: {
+    paddingRight: 10,
+    marginRight: 10,
+    borderRightWidth: 1,
+    borderRightColor: '#2E3446',
+  },
+  optACountryCodeText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  optAPhoneInput: {
+    flex: 1,
+    height: '100%',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    paddingVertical: 0,
+  },
+  optACountText: {
+    color: '#6B7488',
+    fontSize: 12,
+    fontWeight: '700',
+    marginRight: 10,
+  },
+  optAGoBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FF2E63',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        background: 'linear-gradient(135deg, #FF2E63, #FF8A00)',
+        boxShadow: '0 4px 12px rgba(255, 46, 99, 0.45)',
+      },
+      default: { shadowColor: '#FF2E63', shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 },
+    }),
+  },
+  optAGoArrow: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  optAOtpBox: {
+    width: '100%',
+    backgroundColor: '#12151F',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 46, 99, 0.45)',
+    alignItems: 'center',
+  },
+  optAOtpTitle: {
+    color: '#B5BFD0',
+    fontSize: 12.5,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  optAOtpNumber: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  optAOtpActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 6,
+  },
+  optAResendTimer: {
+    color: '#7E8B9F',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  optAResendLink: {
+    color: '#FF6B8B',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  optADot: {
+    color: '#4B5565',
+    fontSize: 12,
+  },
+  optAChangeLink: {
+    color: '#A0ADC2',
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  optATrustText: {
+    color: '#6B7488',
+    fontSize: 10.5,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 7,
+    letterSpacing: 0.2,
+  },
+  optALink: {
+    color: '#8A96AA',
+    textDecorationLine: 'underline',
   },
 });

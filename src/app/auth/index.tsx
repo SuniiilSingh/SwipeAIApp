@@ -185,6 +185,7 @@ export default function AuthScreen() {
   // Phone validation: user must fill exactly 10 digits before OTP dispatch buttons are enabled
   const cleanedPhoneDigits = phone.replace(/[^0-9]/g, '').slice(0, 10);
   const isPhoneFilled = cleanedPhoneDigits.length === 10;
+  const isOtpFilled = otp.length === expectedOtpLength && expectedOtpLength > 0;
 
   // ── Option A · Glass: swipe deck + morphing mobile-number button ──
   const useNativeAnim = Platform.OS !== 'web';
@@ -196,6 +197,7 @@ export default function AuthScreen() {
   const swipeAnim = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const morphAnim = useRef(new Animated.Value(0)).current;
   const goAnim = useRef(new Animated.Value(0)).current;
+  const otpGoAnim = useRef(new Animated.Value(0)).current;
   const phoneInputRef = useRef<TextInput>(null);
 
   const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
@@ -274,6 +276,16 @@ export default function AuthScreen() {
       useNativeDriver: useNativeAnim,
     }).start();
   }, [isPhoneFilled]);
+
+  // Arrow pops in only once all OTP digits are entered
+  useEffect(() => {
+    Animated.spring(otpGoAnim, {
+      toValue: isOtpFilled ? 1 : 0,
+      friction: 6,
+      tension: 140,
+      useNativeDriver: useNativeAnim,
+    }).start();
+  }, [isOtpFilled]);
 
   // swipeAnim is driven by Animated.event (JS), so all its animations stay on the JS driver
   const flyCard = (dir: 'left' | 'right' | 'up') => {
@@ -1106,11 +1118,6 @@ export default function AuthScreen() {
                           onSubmitEditing={submitPhone}
                         />
 
-                        {/* Digit Counter (Visible until 10 digits) */}
-                        {!isPhoneFilled && (
-                          <Text style={styles.optACountText}>{cleanedPhoneDigits.length}/10</Text>
-                        )}
-
                         {/* Close button when empty */}
                         {phone.length === 0 && (
                           <TouchableOpacity
@@ -1148,46 +1155,68 @@ export default function AuthScreen() {
                       Code sent to <Text style={styles.optAOtpNumber}>+91 ••••• •{cleanedPhoneDigits.slice(-4)}</Text>
                     </Text>
 
-                    {/* Liquid OTP Boxes */}
-                    <TouchableOpacity
-                      activeOpacity={1}
-                      onPress={() => otpInputRef.current?.focus()}
-                      style={styles.otpBoxesContainer}>
-                      <View style={styles.otpBoxesRow} pointerEvents="none">
-                        {Array.from({ length: expectedOtpLength }).map((_, idx) => {
-                          const digit = otp[idx] || '';
-                          const isFocused = otp.length === idx;
-                          return (
-                            <View
-                              key={idx}
-                              style={[
-                                styles.liquidOtpBox,
-                                isFocused && styles.liquidOtpBoxFocused,
-                                otp.length === expectedOtpLength && styles.liquidOtpBoxSuccess,
-                              ]}>
-                              <Text style={styles.otpDigit}>{digit}</Text>
-                            </View>
-                          );
-                        })}
-                      </View>
-                      <TextInput
-                        ref={otpInputRef}
-                        value={otp}
-                        onChangeText={(val) => {
-                          const digitsOnly = val.replace(/[^0-9]/g, '').slice(0, expectedOtpLength);
-                          setOtp(digitsOnly);
-                          if (digitsOnly.length === expectedOtpLength) {
-                            handleVerifyOtp(digitsOnly);
-                          }
-                        }}
-                        keyboardType="number-pad"
-                        maxLength={expectedOtpLength}
-                        style={styles.hiddenOtpInput}
-                        autoFocus
-                        textContentType="oneTimeCode"
-                        autoComplete="one-time-code"
-                      />
-                    </TouchableOpacity>
+                    {/* Liquid OTP Boxes with same arrow button on completion */}
+                    <View style={styles.optAOtpRowWithButton}>
+                      <TouchableOpacity
+                        activeOpacity={1}
+                        onPress={() => otpInputRef.current?.focus()}
+                        style={styles.optAOtpBoxesTouchable}>
+                        <View style={styles.optAOtpBoxesRow} pointerEvents="none">
+                          {Array.from({ length: expectedOtpLength }).map((_, idx) => {
+                            const digit = otp[idx] || '';
+                            const isFocused = otp.length === idx;
+                            return (
+                              <View
+                                key={idx}
+                                style={[
+                                  styles.liquidOtpBox,
+                                  isFocused && styles.liquidOtpBoxFocused,
+                                  otp.length === expectedOtpLength && styles.liquidOtpBoxSuccess,
+                                ]}>
+                                <Text style={styles.otpDigit}>{digit}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                        <TextInput
+                          ref={otpInputRef}
+                          value={otp}
+                          onChangeText={(val) => {
+                            const digitsOnly = val.replace(/[^0-9]/g, '').slice(0, expectedOtpLength);
+                            setOtp(digitsOnly);
+                          }}
+                          keyboardType="number-pad"
+                          maxLength={expectedOtpLength}
+                          style={styles.hiddenOtpInput}
+                          autoFocus
+                          textContentType="oneTimeCode"
+                          autoComplete="one-time-code"
+                          returnKeyType="done"
+                          onSubmitEditing={() => {
+                            if (isOtpFilled) {
+                              handleVerifyOtp(otp);
+                            }
+                          }}
+                        />
+                      </TouchableOpacity>
+
+                      {/* Arrow Button pops in on OTP completion (same as mobile number) */}
+                      {isOtpFilled && (
+                        <Animated.View style={{ transform: [{ scale: otpGoAnim }], marginLeft: 8 }}>
+                          <TouchableOpacity
+                            style={styles.optAGoBtn}
+                            activeOpacity={0.85}
+                            disabled={loading}
+                            onPress={() => handleVerifyOtp(otp)}>
+                            {loading ? (
+                              <ActivityIndicator color="#fff" size="small" />
+                            ) : (
+                              <Text style={styles.optAGoArrow}>→</Text>
+                            )}
+                          </TouchableOpacity>
+                        </Animated.View>
+                      )}
+                    </View>
 
                     {/* Resend & Change Number Row */}
                     <View style={styles.optAOtpActionsRow}>
@@ -3980,7 +4009,7 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#12151F',
     borderRadius: 20,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     borderWidth: 1.2,
     borderColor: 'rgba(255, 46, 99, 0.45)',
@@ -3995,6 +4024,22 @@ const styles = StyleSheet.create({
   optAOtpNumber: {
     color: '#FFFFFF',
     fontWeight: '800',
+  },
+  optAOtpRowWithButton: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 6,
+  },
+  optAOtpBoxesTouchable: {
+    flex: 1,
+    position: 'relative',
+  },
+  optAOtpBoxesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   optAOtpActionsRow: {
     flexDirection: 'row',

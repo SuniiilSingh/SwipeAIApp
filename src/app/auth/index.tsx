@@ -201,16 +201,14 @@ export default function AuthScreen() {
   const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
   const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
 
-  // Golden aspect ratio card sizing: sleek, proportional, and fits cleanly without vertical overlap
+  // Golden aspect ratio card sizing: sleek, proportional, and strictly stable (never squeezes on mobile or OTP focus)
   const deckWidth = Math.min(windowWidth - 32, 360);
   const loginBlockHeight = otpSent ? 190 : 110;
   const topBarReserved = 50;
   const verticalSpacingReserved = 24;
   const availableDeckHeight = windowHeight - insets.top - insets.bottom - topBarReserved - loginBlockHeight - verticalSpacingReserved;
   const maxDeckProportional = Math.min(Math.floor(windowHeight * 0.58), 470);
-  const deckHeight = isKeyboardVisible
-    ? (isUltraCompact ? 130 : isCompact ? 155 : 180)
-    : Math.max(280, Math.min(availableDeckHeight, maxDeckProportional));
+  const deckHeight = Math.max(300, Math.min(availableDeckHeight, maxDeckProportional));
 
   const cardRotate = swipeAnim.x.interpolate({
     inputRange: [-220, 0, 220],
@@ -874,7 +872,7 @@ export default function AuthScreen() {
           style={styles.scrollFlex}
           contentContainerStyle={[
             styles.scrollContent,
-            step === 1 && (isKeyboardVisible ? [styles.scrollContentStep1Keyboard, { paddingTop: isUltraCompact ? 36 : 68 }] : styles.scrollContentStep1),
+            step === 1 ? styles.scrollContentStep1 : undefined,
           ]}
           keyboardShouldPersistTaps="handled"
           scrollEnabled={true}
@@ -1044,12 +1042,6 @@ export default function AuthScreen() {
                             const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
                             setPhone(digits);
                           }}
-                          onFocus={() => {
-                            if (Platform.OS === 'web') setIsKeyboardVisible(true);
-                          }}
-                          onBlur={() => {
-                            if (Platform.OS === 'web') setIsKeyboardVisible(false);
-                          }}
                           placeholder="Mobile number"
                           placeholderTextColor="#5D6679"
                           keyboardType="number-pad"
@@ -1124,12 +1116,6 @@ export default function AuthScreen() {
                         keyboardType="number-pad"
                         maxLength={expectedOtpLength}
                         style={styles.hiddenOtpInput}
-                        onFocus={() => {
-                          if (Platform.OS === 'web') setIsKeyboardVisible(true);
-                        }}
-                        onBlur={() => {
-                          if (Platform.OS === 'web') setIsKeyboardVisible(false);
-                        }}
                         autoFocus
                         textContentType="oneTimeCode"
                         autoComplete="one-time-code"

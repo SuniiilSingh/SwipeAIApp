@@ -201,12 +201,16 @@ export default function AuthScreen() {
   const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
   const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
 
-  const deckWidth = Math.min(windowWidth - 28, 452);
-  const loginBlockHeight = otpSent ? 196 : 118;
-  const availableDeckHeight = windowHeight - insets.top - insets.bottom - 64 - loginBlockHeight - 18;
+  // Golden aspect ratio card sizing: sleek, proportional, and fits cleanly without vertical overlap
+  const deckWidth = Math.min(windowWidth - 32, 360);
+  const loginBlockHeight = otpSent ? 190 : 110;
+  const topBarReserved = 50;
+  const verticalSpacingReserved = 24;
+  const availableDeckHeight = windowHeight - insets.top - insets.bottom - topBarReserved - loginBlockHeight - verticalSpacingReserved;
+  const maxDeckProportional = Math.min(Math.floor(windowHeight * 0.58), 470);
   const deckHeight = isKeyboardVisible
-    ? (isUltraCompact ? 150 : isCompact ? 180 : 220)
-    : Math.max(isUltraCompact ? 300 : 340, Math.min(availableDeckHeight, 620));
+    ? (isUltraCompact ? 130 : isCompact ? 155 : 180)
+    : Math.max(280, Math.min(availableDeckHeight, maxDeckProportional));
 
   const cardRotate = swipeAnim.x.interpolate({
     inputRange: [-220, 0, 220],
@@ -1040,6 +1044,12 @@ export default function AuthScreen() {
                             const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
                             setPhone(digits);
                           }}
+                          onFocus={() => {
+                            if (Platform.OS === 'web') setIsKeyboardVisible(true);
+                          }}
+                          onBlur={() => {
+                            if (Platform.OS === 'web') setIsKeyboardVisible(false);
+                          }}
                           placeholder="Mobile number"
                           placeholderTextColor="#5D6679"
                           keyboardType="number-pad"
@@ -1114,6 +1124,12 @@ export default function AuthScreen() {
                         keyboardType="number-pad"
                         maxLength={expectedOtpLength}
                         style={styles.hiddenOtpInput}
+                        onFocus={() => {
+                          if (Platform.OS === 'web') setIsKeyboardVisible(true);
+                        }}
+                        onBlur={() => {
+                          if (Platform.OS === 'web') setIsKeyboardVisible(false);
+                        }}
                         autoFocus
                         textContentType="oneTimeCode"
                         autoComplete="one-time-code"
@@ -3510,19 +3526,21 @@ const styles = StyleSheet.create({
   optAPageContainer: {
     flex: 1,
     width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 2,
   },
   optATopBar: {
     width: '100%',
-    maxWidth: 452,
+    maxWidth: 360,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingTop: 2,
-    paddingBottom: 6,
+    paddingBottom: 4,
     zIndex: 10,
   },
   optAOnlinePill: {
@@ -3556,31 +3574,42 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 4,
+    marginTop: 2,
+    marginBottom: 6,
   },
   optACardBack: {
     position: 'absolute',
-    borderRadius: 26,
+    top: 0,
+    left: 0,
+    borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#0F1219',
-    transform: [{ scale: 0.94 }, { translateY: 10 }],
+    transform: [{ scale: 0.95 }, { translateY: 6 }],
     opacity: 0.55,
   },
   optACardFront: {
     position: 'absolute',
-    borderRadius: 26,
+    top: 0,
+    left: 0,
+    borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#12151F',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     ...Platform.select({
-      web: { boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)' },
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.6, shadowRadius: 20, elevation: 12 },
+      web: { boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6)' },
+      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.55, shadowRadius: 18, elevation: 10 },
     }),
   },
   optACardImage: {
     width: '100%',
     height: '100%',
+    ...Platform.select({
+      web: {
+        objectFit: 'cover' as any,
+        objectPosition: 'center 15%' as any,
+      },
+    }),
   },
   optACardShade: {
     position: 'absolute',
@@ -3591,18 +3620,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     ...Platform.select({
       web: {
-        background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 48%, rgba(5,6,10,0.94) 100%)',
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 52%, rgba(5,6,10,0.9) 100%)',
       },
       default: {
-        backgroundColor: 'rgba(0,0,0,0.18)',
+        backgroundColor: 'rgba(0,0,0,0.14)',
       },
     }),
   },
   optACardTopBadges: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    right: 12,
+    top: 10,
+    left: 10,
+    right: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     zIndex: 5,
@@ -3611,91 +3640,91 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-    borderRadius: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     ...Platform.select({
       web: { backdropFilter: 'blur(8px)' },
     }),
   },
   optABadgeText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '800',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   optACardInfo: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 84,
+    left: 14,
+    right: 14,
+    bottom: 68,
     zIndex: 5,
   },
   optACardName: {
     color: '#FFFFFF',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: -0.3,
   },
   optACardVerified: {
     color: '#0088FF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
   },
   optACardMeta: {
     color: '#D4DBE8',
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '600',
-    marginTop: 3,
+    marginTop: 2,
   },
   optAChip: {
     alignSelf: 'flex-start',
-    marginTop: 6,
+    marginTop: 4,
     backgroundColor: 'rgba(255, 171, 0, 0.16)',
     borderWidth: 1,
     borderColor: 'rgba(255, 171, 0, 0.45)',
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-    borderRadius: 10,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    borderRadius: 8,
   },
   optAChipText: {
     color: '#FFD56B',
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '800',
   },
   optAStampLike: {
     position: 'absolute',
-    top: 48,
-    left: 20,
+    top: 40,
+    left: 16,
     borderWidth: 3,
     borderColor: '#00E676',
     borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
     transform: [{ rotate: '-14deg' }],
     zIndex: 20,
   },
   optAStampLikeText: {
     color: '#00E676',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: 1.5,
   },
   optAStampNope: {
     position: 'absolute',
-    top: 48,
-    right: 20,
+    top: 40,
+    right: 16,
     borderWidth: 3,
     borderColor: '#FF4D6D',
     borderRadius: 10,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
     transform: [{ rotate: '14deg' }],
     zIndex: 20,
   },
   optAStampNopeText: {
     color: '#FF4D6D',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: 1.5,
   },
@@ -3703,78 +3732,80 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 16,
+    bottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: 14,
     zIndex: 15,
   },
   optAActPass: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: 'rgba(12, 14, 22, 0.65)',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 77, 109, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
-      web: { backdropFilter: 'blur(12px)', boxShadow: '0 6px 16px rgba(0,0,0,0.5)' },
+      web: { backdropFilter: 'blur(12px)', boxShadow: '0 4px 14px rgba(0,0,0,0.45)' },
       default: { shadowColor: '#FF4D6D', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
     }),
   },
   optAActPassIcon: {
     color: '#FF6B8B',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
   },
   optAActStar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(12, 14, 22, 0.65)',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 179, 0, 0.65)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
-      web: { backdropFilter: 'blur(12px)', boxShadow: '0 6px 16px rgba(0,0,0,0.5)' },
+      web: { backdropFilter: 'blur(12px)', boxShadow: '0 4px 14px rgba(0,0,0,0.45)' },
       default: { shadowColor: '#FFB300', shadowOpacity: 0.35, shadowRadius: 8, elevation: 4 },
     }),
   },
   optAActStarIcon: {
     color: '#FFB300',
-    fontSize: 18,
+    fontSize: 16,
   },
   optAActLike: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: 'rgba(12, 14, 22, 0.7)',
     borderWidth: 1.8,
     borderColor: 'rgba(0, 230, 118, 0.7)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
-      web: { backdropFilter: 'blur(12px)', boxShadow: '0 8px 20px rgba(0, 230, 118, 0.35)' },
+      web: { backdropFilter: 'blur(12px)', boxShadow: '0 6px 18px rgba(0, 230, 118, 0.35)' },
       default: { shadowColor: '#00E676', shadowOpacity: 0.45, shadowRadius: 10, elevation: 6 },
     }),
   },
   optAActLikeIcon: {
-    fontSize: 25,
+    fontSize: 22,
   },
   optALoginArea: {
     alignSelf: 'center',
-    paddingHorizontal: 6,
-    paddingTop: 6,
+    paddingHorizontal: 4,
+    paddingTop: 8,
     paddingBottom: 10,
+    marginTop: 6,
     alignItems: 'center',
+    zIndex: 20,
   },
   optAMorphBox: {
     width: '100%',
-    height: 52,
-    borderRadius: 26,
+    height: 50,
+    borderRadius: 25,
     overflow: 'hidden',
     backgroundColor: '#FF2E63',
     justifyContent: 'center',
@@ -3811,7 +3842,7 @@ const styles = StyleSheet.create({
   },
   optACtaText: {
     color: '#FFFFFF',
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,
   },

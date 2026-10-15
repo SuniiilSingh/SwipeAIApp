@@ -5,6 +5,7 @@ import {
   Animated,
   AppState,
   AppStateStatus,
+  Dimensions,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -203,14 +204,18 @@ export default function AuthScreen() {
   const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
   const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
 
-  // Golden aspect ratio card sizing: sleek, proportional, and strictly stable (never squeezes on mobile or OTP focus)
-  const deckWidth = Math.min(windowWidth - 32, 360);
-  const loginBlockHeight = otpSent ? 190 : 110;
-  const topBarReserved = 50;
-  const verticalSpacingReserved = 24;
-  const availableDeckHeight = windowHeight - insets.top - insets.bottom - topBarReserved - loginBlockHeight - verticalSpacingReserved;
-  const maxDeckProportional = Math.min(Math.floor(windowHeight * 0.58), 470);
-  const deckHeight = Math.max(300, Math.min(availableDeckHeight, maxDeckProportional));
+  // Stable physical screen dimensions: immune to keyboard toggle resizes
+  const screenDimensions = Dimensions.get('screen');
+  const baseScreenHeight = screenDimensions.height > 0 ? screenDimensions.height : windowHeight;
+  const isCompactScreen = baseScreenHeight < 750;
+  const isUltraCompactScreen = baseScreenHeight < 680;
+
+  // Responsive deck sizing: fits all screens with 0 overflow & 0 scroller
+  const deckWidth = Math.min(windowWidth - 32, 350);
+  const totalReservedVertical = insets.top + insets.bottom + 120;
+  const maxDeckProportional = Math.min(Math.floor(baseScreenHeight * 0.50), 390);
+  const availableDeck = baseScreenHeight - totalReservedVertical;
+  const deckHeight = Math.max(260, Math.min(availableDeck, maxDeckProportional));
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -230,17 +235,29 @@ export default function AuthScreen() {
     }
   }, [otpSent]);
 
-  // When entering phone or OTP, text box elevates UP over the bottom of the model photo (above the keypad)
-  const baseLift = isCompact ? 120 : 105;
-  const otpExtraLift = 35;
-  const loginElevateY = Animated.add(
+  // Profile Info glides up slightly when in phone/OTP mode so it stays proudly above the popped up text box
+  const cardInfoElevateY = Animated.add(
     morphAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, -baseLift],
+      outputRange: [0, isUltraCompactScreen ? -32 : -36],
     }),
     otpElevateAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, -otpExtraLift],
+      outputRange: [0, isUltraCompactScreen ? -38 : -44],
+    })
+  );
+
+  // Text box pops up over the lower part of the model card (below the profile and above keypad)
+  const phoneLift = isUltraCompactScreen ? 68 : isCompactScreen ? 74 : 80;
+  const otpLift = isUltraCompactScreen ? 116 : isCompactScreen ? 126 : 134;
+  const loginElevateY = Animated.add(
+    morphAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -phoneLift],
+    }),
+    otpElevateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, -(otpLift - phoneLift)],
     })
   );
 
@@ -926,8 +943,8 @@ export default function AuthScreen() {
             step === 1 ? styles.scrollContentStep1 : undefined,
           ]}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={true}
-          bounces={true}
+          scrollEnabled={step !== 1}
+          bounces={step !== 1}
           alwaysBounceVertical={false}
           showsVerticalScrollIndicator={false}>
           {/* Header above steps 2, 3, 4 */}
@@ -977,7 +994,11 @@ export default function AuthScreen() {
                       <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
                     </View>
                   </View>
-                  <View style={styles.optACardInfo}>
+                  <Animated.View
+                    style={[
+                      styles.optACardInfo,
+                      { transform: [{ translateY: cardInfoElevateY }] },
+                    ]}>
                     <Text style={styles.optACardName}>
                       {nextTeaser.name}, {nextTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
                     </Text>
@@ -985,7 +1006,7 @@ export default function AuthScreen() {
                     <View style={styles.optAChip}>
                       <Text style={styles.optAChipText}>{nextTeaser.chip}</Text>
                     </View>
-                  </View>
+                  </Animated.View>
                 </View>
 
                 {/* Foreground Card (Interactive swipe with PanResponder) */}
@@ -1029,7 +1050,12 @@ export default function AuthScreen() {
                   </View>
 
                   {/* Profile Info */}
-                  <View style={styles.optACardInfo} pointerEvents="none">
+                  <Animated.View
+                    style={[
+                      styles.optACardInfo,
+                      { transform: [{ translateY: cardInfoElevateY }] },
+                    ]}
+                    pointerEvents="none">
                     <Text style={styles.optACardName}>
                       {currentTeaser.name}, {currentTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
                     </Text>
@@ -1037,7 +1063,7 @@ export default function AuthScreen() {
                     <View style={styles.optAChip}>
                       <Text style={styles.optAChipText}>{currentTeaser.chip}</Text>
                     </View>
-                  </View>
+                  </Animated.View>
 
                   {/* Option A Glass Action Buttons inside the card bottom */}
                   <Animated.View
@@ -1241,21 +1267,30 @@ export default function AuthScreen() {
                   </View>
                 )}
 
-                {/* Subtext Trust Line */}
-                <Text style={styles.optATrustText}>
-                  100% verified profiles • By continuing you agree to{' '}
-                  <Text
-                    style={styles.optALink}
-                    onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => {})}>
-                    Terms
+                {/* Subtext Trust Line (Fades out when in phone mode or OTP mode so it doesn't clutter the card) */}
+                <Animated.View
+                  style={{
+                    opacity: morphAnim.interpolate({
+                      inputRange: [0, 0.4],
+                      outputRange: [1, 0],
+                    }),
+                  }}
+                  pointerEvents={phoneMode ? 'none' : 'auto'}>
+                  <Text style={styles.optATrustText}>
+                    100% verified profiles • By continuing you agree to{' '}
+                    <Text
+                      style={styles.optALink}
+                      onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => {})}>
+                      Terms
+                    </Text>
+                    {' '}&amp;{' '}
+                    <Text
+                      style={styles.optALink}
+                      onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => {})}>
+                      Privacy
+                    </Text>
                   </Text>
-                  {' '}&amp;{' '}
-                  <Text
-                    style={styles.optALink}
-                    onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => {})}>
-                    Privacy
-                  </Text>
-                </Text>
+                </Animated.View>
               </Animated.View>
             </View>
           )}
@@ -1735,13 +1770,14 @@ const styles = StyleSheet.create({
   },
   scrollContentStep1: {
     flexGrow: 1,
-    minHeight: '100%',
+    height: '100%',
     justifyContent: 'space-between',
-    paddingVertical: 4,
-    paddingHorizontal: 16,
-    maxWidth: 480,
+    paddingVertical: 2,
+    paddingHorizontal: 12,
+    maxWidth: 420,
     width: '100%',
     alignSelf: 'center',
+    overflow: 'hidden',
   },
   scrollContentStep1Keyboard: {
     flexGrow: 1,
@@ -3607,12 +3643,14 @@ const styles = StyleSheet.create({
   // Option A · Glass Teaser Deck & Morphing Login Styles
   optAPageContainer: {
     flex: 1,
+    height: '100%',
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 2,
+    overflow: 'hidden',
   },
   optATopBar: {
     width: '100%',
@@ -3878,9 +3916,9 @@ const styles = StyleSheet.create({
   optALoginArea: {
     alignSelf: 'center',
     paddingHorizontal: 4,
-    paddingTop: 8,
-    paddingBottom: 10,
-    marginTop: 6,
+    paddingTop: 4,
+    paddingBottom: 6,
+    marginTop: 4,
     alignItems: 'center',
     zIndex: 35,
     ...Platform.select({

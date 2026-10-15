@@ -21,6 +21,7 @@
     "android": {
       "package": "com.blunderr.dating",
       "versionCode": 8,
+      "allowBackup": false,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

@@ -9,6 +9,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Linking,
   Modal,
   PanResponder,
@@ -18,9 +19,15 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
@@ -230,7 +237,9 @@ export default function AuthScreen() {
   const isUltraCompactScreen = effectiveHeight < 640;
   const isCompactScreen = effectiveHeight < 760;
 
-  // Responsive deck sizing: strictly clamped to fit all devices without clipping or scrolling
+  // Responsive deck sizing: Option A Baseline
+  // In resting state (keypad closed), card expands to fill the screen with zero wasted bottom space.
+  // When typing (keypad open), card compresses fluidly to provide generous clearance for keypad + input.
   const deckWidth = Math.max(280, Math.min(effectiveWidth - 28, 350));
   const safeHeight = effectiveHeight - (insets.top || 0) - (insets.bottom || 0);
   const availableForDeck = Math.max(260, safeHeight - 146);
@@ -239,7 +248,9 @@ export default function AuthScreen() {
     : isCompactScreen
     ? Math.floor(safeHeight * 0.56)
     : Math.floor(safeHeight * 0.57);
-  const deckHeight = Math.max(280, Math.min(availableForDeck, proportionalDeck, 460));
+  const restingDeckHeight = Math.max(290, Math.min(safeHeight - 128, 520));
+  const typingDeckHeight = Math.max(250, Math.min(proportionalDeck, 320));
+  const deckHeight = isKeyboardVisible ? typingDeckHeight : restingDeckHeight;
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -594,11 +605,14 @@ export default function AuthScreen() {
     ).start();
   }, []);
 
-  // Keyboard visibility listener to dynamically prevent keypad override & smoothly scale photo deck
+  // Keyboard visibility listener to dynamically prevent keypad override & smoothly scale photo deck (Option A)
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
+        if (Platform.OS !== 'web') {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        }
         setIsKeyboardVisible(true);
         if (e?.endCoordinates?.height) {
           setKeyboardHeight(e.endCoordinates.height);
@@ -608,11 +622,19 @@ export default function AuthScreen() {
           duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
           useNativeDriver: false,
         }).start();
+        Animated.timing(morphAnim, {
+          toValue: 1,
+          duration: Platform.OS === 'ios' ? (e?.duration || 240) : 220,
+          useNativeDriver: useNativeAnim,
+        }).start();
       }
     );
     const hideSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       (e) => {
+        if (Platform.OS !== 'web') {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        }
         setIsKeyboardVisible(false);
         setKeyboardHeight(0);
         Animated.timing(keyboardAnim, {
@@ -620,6 +642,18 @@ export default function AuthScreen() {
           duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
           useNativeDriver: false,
         }).start();
+        Animated.timing(morphAnim, {
+          toValue: 0,
+          duration: Platform.OS === 'ios' ? (e?.duration || 220) : 200,
+          useNativeDriver: useNativeAnim,
+        }).start();
+        // If user dismissed keyboard without entering any digits and OTP not sent, return to CTA button
+        setPhone((currentPhone) => {
+          if (!currentPhone || currentPhone.trim().length === 0) {
+            setPhoneMode(false);
+          }
+          return currentPhone;
+        });
       }
     );
     return () => {
@@ -997,7 +1031,8 @@ export default function AuthScreen() {
 
           {/* STEP 1: Option A · Glass Teaser Deck + Morphing Mobile Login */}
           {step === 1 && (
-            <View style={styles.optAPageContainer}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+              <View style={styles.optAPageContainer}>
               {/* Top Wordmark & Online Badge Header */}
               <View style={styles.optATopBar}>
                 <View style={styles.brandLogoRow}>
@@ -1172,7 +1207,10 @@ export default function AuthScreen() {
                         <Text style={styles.optACtaText}>Continue with Mobile Number</Text>
                       </TouchableOpacity>
                     ) : (
-                      <View style={styles.optAFieldRow}>
+                      <TouchableOpacity
+                        activeOpacity={1}
+                        style={styles.optAFieldRow}
+                        onPress={() => phoneInputRef.current?.focus()}>
                         <View style={styles.optACountryCodeBox}>
                           <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
                         </View>
@@ -1184,6 +1222,25 @@ export default function AuthScreen() {
                             const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
                             setPhone(digits);
                           }}
+                          onFocus={() => {
+                            setIsKeyboardVisible(true);
+                            Animated.timing(morphAnim, {
+                              toValue: 1,
+                              duration: 240,
+                              useNativeDriver: useNativeAnim,
+                            }).start();
+                          }}
+                          onBlur={() => {
+                            setIsKeyboardVisible(false);
+                            Animated.timing(morphAnim, {
+                              toValue: 0,
+                              duration: 220,
+                              useNativeDriver: useNativeAnim,
+                            }).start();
+                            if (!phone || phone.trim().length === 0) {
+                              setPhoneMode(false);
+                            }
+                          }}
                           placeholder="Mobile number"
                           placeholderTextColor="#5D6679"
                           keyboardType="number-pad"
@@ -1191,17 +1248,6 @@ export default function AuthScreen() {
                           returnKeyType="done"
                           onSubmitEditing={submitPhone}
                         />
-
-                        {/* Close button when empty */}
-                        {phone.length === 0 && (
-                          <TouchableOpacity
-                            style={styles.optAClosePhoneBtn}
-                            activeOpacity={0.7}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                            onPress={closePhoneMode}>
-                            <Text style={styles.optAClosePhoneIcon}>✕</Text>
-                          </TouchableOpacity>
-                        )}
 
                         {/* Arrow Button pops in on 10 digits */}
                         {isPhoneFilled && (
@@ -1220,7 +1266,7 @@ export default function AuthScreen() {
                             </TouchableOpacity>
                           </Animated.View>
                         )}
-                      </View>
+                      </TouchableOpacity>
                     )}
                   </View>
                 ) : (
@@ -1260,6 +1306,8 @@ export default function AuthScreen() {
                             const digitsOnly = val.replace(/[^0-9]/g, '').slice(0, expectedOtpLength);
                             setOtp(digitsOnly);
                           }}
+                          onFocus={() => setIsKeyboardVisible(true)}
+                          onBlur={() => setIsKeyboardVisible(false)}
                           keyboardType="number-pad"
                           maxLength={expectedOtpLength}
                           style={styles.hiddenOtpInput}
@@ -1344,7 +1392,8 @@ export default function AuthScreen() {
               </Animated.View>
             </View>
           </View>
-        )}
+        </TouchableWithoutFeedback>
+      )}
 
         {/* STEP 2: Zero-Knowledge Trust Pass (DigiLocker & 3D Liveness) */}
         {step === 2 && (

@@ -45,6 +45,7 @@ const TEASER_PROFILES = [
     meta: '800m away · Architect @ Indiranagar',
     chip: '⚖️ Tula · 96% Match',
     photo: 'https://blunderr.in/downloads/blunderr-model-pink-offshoulder.jpg',
+    localImage: require('@/assets/images/teaser-kiara-pink.jpg'),
   },
   {
     name: 'Aanya',
@@ -52,6 +53,7 @@ const TEASER_PROFILES = [
     meta: '1.2 km away · Product Designer',
     chip: '🦁 Simha · 92% Match',
     photo: 'https://blunderr.in/downloads/blunderr-model-e-studio.jpg',
+    localImage: require('@/assets/images/teaser-aanya-studio.jpg'),
   },
   {
     name: 'Rhea',
@@ -59,6 +61,7 @@ const TEASER_PROFILES = [
     meta: '1.8 km away · Creative Producer',
     chip: '🏹 Dhanu · 94% Match',
     photo: 'https://blunderr.in/downloads/blunderr-model-a.jpg',
+    localImage: require('@/assets/images/teaser-rhea-model.jpg'),
   },
 ];
 
@@ -213,26 +216,30 @@ export default function AuthScreen() {
     windowWidth || 0,
     windowDimensions.width || 0,
     screenDimensions.width || 0,
-    clientWidth,
-    360
+    clientWidth || 0,
+    320
   );
   const effectiveHeight = Math.max(
     windowHeight || 0,
     windowDimensions.height || 0,
     screenDimensions.height || 0,
-    clientHeight,
-    740
+    clientHeight || 0,
+    480
   );
 
-  const isCompactScreen = effectiveHeight < 750;
-  const isUltraCompactScreen = effectiveHeight < 680;
+  const isUltraCompactScreen = effectiveHeight < 640;
+  const isCompactScreen = effectiveHeight < 760;
 
-  // Responsive deck sizing: strictly clamped between 280 and 350 width, guaranteed to NEVER collapse or be negative
-  const deckWidth = Math.max(280, Math.min(effectiveWidth - 32, 350));
-  const totalReservedVertical = insets.top + insets.bottom + 120;
-  const maxDeckProportional = Math.min(Math.floor(effectiveHeight * 0.50), 390);
-  const availableDeck = effectiveHeight - totalReservedVertical;
-  const deckHeight = Math.max(260, Math.min(availableDeck, maxDeckProportional));
+  // Responsive deck sizing: strictly clamped to fit all devices without clipping or scrolling
+  const deckWidth = Math.max(280, Math.min(effectiveWidth - 28, 350));
+  const safeHeight = effectiveHeight - (insets.top || 0) - (insets.bottom || 0);
+  const availableForDeck = Math.max(260, safeHeight - 146);
+  const proportionalDeck = isUltraCompactScreen
+    ? Math.floor(safeHeight * 0.54)
+    : isCompactScreen
+    ? Math.floor(safeHeight * 0.56)
+    : Math.floor(safeHeight * 0.57);
+  const deckHeight = Math.max(280, Math.min(availableForDeck, proportionalDeck, 460));
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -256,17 +263,17 @@ export default function AuthScreen() {
   const cardInfoElevateY = Animated.add(
     morphAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, isUltraCompactScreen ? -32 : -36],
+      outputRange: [0, isUltraCompactScreen ? -30 : -34],
     }),
     otpElevateAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, isUltraCompactScreen ? -38 : -44],
+      outputRange: [0, isUltraCompactScreen ? -36 : -42],
     })
   );
 
   // Text box pops up over the lower part of the model card (below the profile and above keypad)
-  const phoneLift = isUltraCompactScreen ? 68 : isCompactScreen ? 74 : 80;
-  const otpLift = isUltraCompactScreen ? 116 : isCompactScreen ? 126 : 134;
+  const phoneLift = isUltraCompactScreen ? 60 : isCompactScreen ? 68 : 74;
+  const otpLift = isUltraCompactScreen ? 110 : isCompactScreen ? 120 : 128;
   const loginElevateY = Animated.add(
     morphAnim.interpolate({
       inputRange: [0, 1],
@@ -993,60 +1000,64 @@ export default function AuthScreen() {
                 </View>
               </View>
 
-              {/* Interactive Card Deck */}
-              <View style={[styles.optADeckContainer, { width: deckWidth, height: deckHeight }]}>
-                {/* Background Card (Preview of next profile) */}
-                <View style={[styles.optACardBack, { width: deckWidth, height: deckHeight }]} pointerEvents="none">
-                  <Image
-                    source={{ uri: nextTeaser.photo }}
-                    style={styles.optACardImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.optACardShade} />
-                  <View style={styles.optACardTopBadges}>
-                    <View style={styles.optABadge}>
-                      <Text style={styles.optABadgeText}>✦ LIVE PREVIEW</Text>
+              {/* Center Main Content: Deck + Login Area directly anchored */}
+              <View style={styles.optAMainContent}>
+                {/* Interactive Card Deck */}
+                <View style={[styles.optADeckContainer, { width: deckWidth, height: deckHeight }]}>
+                  {/* Background Card (Preview of next profile) */}
+                  <View style={[styles.optACardBack, { width: deckWidth, height: deckHeight }]} pointerEvents="none">
+                    <Image
+                      source={nextTeaser.localImage || { uri: nextTeaser.photo }}
+                      style={styles.optACardImage}
+                      resizeMode="cover"
+                      fadeDuration={0}
+                    />
+                    <View style={styles.optACardShade} />
+                    <View style={styles.optACardTopBadges}>
+                      <View style={styles.optABadge}>
+                        <Text style={styles.optABadgeText}>✦ LIVE PREVIEW</Text>
+                      </View>
+                      <View style={styles.optABadge}>
+                        <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
+                      </View>
                     </View>
-                    <View style={styles.optABadge}>
-                      <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
-                    </View>
+                    <Animated.View
+                      style={[
+                        styles.optACardInfo,
+                        { transform: [{ translateY: cardInfoElevateY }] },
+                      ]}>
+                      <Text style={styles.optACardName}>
+                        {nextTeaser.name}, {nextTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
+                      </Text>
+                      <Text style={styles.optACardMeta}>📍 {nextTeaser.meta}</Text>
+                      <View style={styles.optAChip}>
+                        <Text style={styles.optAChipText}>{nextTeaser.chip}</Text>
+                      </View>
+                    </Animated.View>
                   </View>
-                  <Animated.View
-                    style={[
-                      styles.optACardInfo,
-                      { transform: [{ translateY: cardInfoElevateY }] },
-                    ]}>
-                    <Text style={styles.optACardName}>
-                      {nextTeaser.name}, {nextTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
-                    </Text>
-                    <Text style={styles.optACardMeta}>📍 {nextTeaser.meta}</Text>
-                    <View style={styles.optAChip}>
-                      <Text style={styles.optAChipText}>{nextTeaser.chip}</Text>
-                    </View>
-                  </Animated.View>
-                </View>
 
-                {/* Foreground Card (Interactive swipe with PanResponder) */}
-                <Animated.View
-                  {...deckPanResponder.panHandlers}
-                  style={[
-                    styles.optACardFront,
-                    {
-                      width: deckWidth,
-                      height: deckHeight,
-                      transform: [
-                        { translateX: swipeAnim.x },
-                        { translateY: swipeAnim.y },
-                        { rotate: cardRotate },
-                      ],
-                    },
-                  ]}>
-                  <Image
-                    source={{ uri: currentTeaser.photo }}
-                    style={styles.optACardImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.optACardShade} />
+                  {/* Foreground Card (Interactive swipe with PanResponder) */}
+                  <Animated.View
+                    {...deckPanResponder.panHandlers}
+                    style={[
+                      styles.optACardFront,
+                      {
+                        width: deckWidth,
+                        height: deckHeight,
+                        transform: [
+                          { translateX: swipeAnim.x },
+                          { translateY: swipeAnim.y },
+                          { rotate: cardRotate },
+                        ],
+                      },
+                    ]}>
+                    <Image
+                      source={currentTeaser.localImage || { uri: currentTeaser.photo }}
+                      style={styles.optACardImage}
+                      resizeMode="cover"
+                      fadeDuration={0}
+                    />
+                    <View style={styles.optACardShade} />
 
                   {/* Stamp Badges on Drag */}
                   <Animated.View style={[styles.optAStampLike, { opacity: likeStampOpacity }]} pointerEvents="none">
@@ -1312,7 +1323,8 @@ export default function AuthScreen() {
                 </Animated.View>
               </Animated.View>
             </View>
-          )}
+          </View>
+        )}
 
         {/* STEP 2: Zero-Knowledge Trust Pass (DigiLocker & 3D Liveness) */}
         {step === 2 && (
@@ -1789,13 +1801,12 @@ const styles = StyleSheet.create({
   },
   scrollContentStep1: {
     flexGrow: 1,
-    height: '100%',
-    justifyContent: 'space-between',
     paddingVertical: 2,
     paddingHorizontal: 12,
     maxWidth: 420,
     width: '100%',
     alignSelf: 'center',
+    justifyContent: 'center',
     overflow: 'hidden',
   },
   scrollContentStep1Keyboard: {
@@ -3669,14 +3680,18 @@ const styles = StyleSheet.create({
   // Option A · Glass Teaser Deck & Morphing Login Styles
   optAPageContainer: {
     flex: 1,
-    height: '100%',
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 2,
     overflow: 'hidden',
+  },
+  optAMainContent: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   optATopBar: {
     width: '100%',
@@ -3720,8 +3735,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
-    marginBottom: 6,
+    marginVertical: 2,
   },
   optACardBack: {
     position: 'absolute',
@@ -3941,10 +3955,10 @@ const styles = StyleSheet.create({
   },
   optALoginArea: {
     alignSelf: 'center',
-    paddingHorizontal: 4,
-    paddingTop: 4,
-    paddingBottom: 6,
-    marginTop: 4,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 2,
+    marginTop: 10,
     alignItems: 'center',
     zIndex: 35,
     ...Platform.select({
@@ -4006,12 +4020,12 @@ const styles = StyleSheet.create({
     height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 14,
-    paddingRight: 8,
+    paddingLeft: 12,
+    paddingRight: 6,
   },
   optACountryCodeBox: {
-    paddingRight: 10,
-    marginRight: 10,
+    paddingRight: 8,
+    marginRight: 8,
     borderRightWidth: 1,
     borderRightColor: '#2E3446',
   },
@@ -4022,6 +4036,7 @@ const styles = StyleSheet.create({
   },
   optAPhoneInput: {
     flex: 1,
+    minWidth: 0,
     height: '100%',
     color: '#FFFFFF',
     fontSize: 16,
@@ -4057,9 +4072,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   optAGoBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#FF2E63',
     alignItems: 'center',
     justifyContent: 'center',

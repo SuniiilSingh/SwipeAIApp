@@ -204,17 +204,34 @@ export default function AuthScreen() {
   const currentTeaser = TEASER_PROFILES[teaserIndex % TEASER_PROFILES.length];
   const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
 
-  // Stable physical screen dimensions: immune to keyboard toggle resizes
+  // Stable physical screen dimensions: immune to keyboard toggle resizes & SSR 0-width collapse
   const screenDimensions = Dimensions.get('screen');
-  const baseScreenHeight = screenDimensions.height > 0 ? screenDimensions.height : windowHeight;
-  const isCompactScreen = baseScreenHeight < 750;
-  const isUltraCompactScreen = baseScreenHeight < 680;
+  const windowDimensions = Dimensions.get('window');
+  const clientWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+  const clientHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+  const effectiveWidth = Math.max(
+    windowWidth || 0,
+    windowDimensions.width || 0,
+    screenDimensions.width || 0,
+    clientWidth,
+    360
+  );
+  const effectiveHeight = Math.max(
+    windowHeight || 0,
+    windowDimensions.height || 0,
+    screenDimensions.height || 0,
+    clientHeight,
+    740
+  );
 
-  // Responsive deck sizing: fits all screens with 0 overflow & 0 scroller
-  const deckWidth = Math.min(windowWidth - 32, 350);
+  const isCompactScreen = effectiveHeight < 750;
+  const isUltraCompactScreen = effectiveHeight < 680;
+
+  // Responsive deck sizing: strictly clamped between 280 and 350 width, guaranteed to NEVER collapse or be negative
+  const deckWidth = Math.max(280, Math.min(effectiveWidth - 32, 350));
   const totalReservedVertical = insets.top + insets.bottom + 120;
-  const maxDeckProportional = Math.min(Math.floor(baseScreenHeight * 0.50), 390);
-  const availableDeck = baseScreenHeight - totalReservedVertical;
+  const maxDeckProportional = Math.min(Math.floor(effectiveHeight * 0.50), 390);
+  const availableDeck = effectiveHeight - totalReservedVertical;
   const deckHeight = Math.max(260, Math.min(availableDeck, maxDeckProportional));
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
@@ -1161,6 +1178,7 @@ export default function AuthScreen() {
                             <TouchableOpacity
                               style={styles.optAGoBtn}
                               activeOpacity={0.85}
+                              accessibilityRole="button"
                               disabled={loading}
                               onPress={submitPhone}>
                               {loading ? (
@@ -1232,6 +1250,7 @@ export default function AuthScreen() {
                           <TouchableOpacity
                             style={styles.optAGoBtn}
                             activeOpacity={0.85}
+                            accessibilityRole="button"
                             disabled={loading}
                             onPress={() => handleVerifyOtp(otp)}>
                             {loading ? (
@@ -3110,6 +3129,11 @@ const styles = StyleSheet.create({
     color: 'transparent',
     backgroundColor: 'transparent',
     zIndex: 10,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+      },
+    }),
   },
   primaryButton: {
     backgroundColor: '#E94057',
@@ -3981,7 +4005,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 14,
-    paddingRight: 6,
+    paddingRight: 8,
   },
   optACountryCodeBox: {
     paddingRight: 10,
@@ -4002,6 +4026,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.2,
     paddingVertical: 0,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+      },
+    }),
   },
   optACountText: {
     color: '#6B7488',
@@ -4034,6 +4063,7 @@ const styles = StyleSheet.create({
       web: {
         background: 'linear-gradient(135deg, #FF2E63, #FF8A00)',
         boxShadow: '0 4px 12px rgba(255, 46, 99, 0.45)',
+        cursor: 'pointer',
       },
       default: { shadowColor: '#FF2E63', shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 },
     }),

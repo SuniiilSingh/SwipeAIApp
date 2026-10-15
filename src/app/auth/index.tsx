@@ -3132,7 +3132,9 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         outlineWidth: 0,
-      },
+        outlineStyle: 'none',
+        boxShadow: 'none',
+      } as any,
     }),
   },
   primaryButton: {
@@ -4029,7 +4031,9 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: {
         outlineWidth: 0,
-      },
+        outlineStyle: 'none',
+        boxShadow: 'none',
+      } as any,
     }),
   },
   optACountText: {

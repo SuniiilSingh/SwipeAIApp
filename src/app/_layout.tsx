@@ -103,9 +103,26 @@ export default function RootLayout() {
       window.addEventListener('contextmenu', handleContextMenu);
       window.addEventListener('keydown', handleKeyDown);
 
+      const styleTag = document.createElement('style');
+      styleTag.id = 'blunderr-web-fixes';
+      styleTag.innerHTML = `
+        input, textarea, [contenteditable="true"], [tabindex] {
+          outline: none !important;
+          outline-style: none !important;
+          -webkit-tap-highlight-color: transparent !important;
+        }
+        input:focus, input:focus-visible, textarea:focus, textarea:focus-visible {
+          outline: none !important;
+          outline-style: none !important;
+          box-shadow: none !important;
+        }
+      `;
+      document.head.appendChild(styleTag);
+
       removeWebInspectBlock = () => {
         window.removeEventListener('contextmenu', handleContextMenu);
         window.removeEventListener('keydown', handleKeyDown);
+        styleTag.remove();
       };
     }
 

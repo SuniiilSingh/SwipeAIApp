@@ -1,5 +1,13 @@
-node_modules
-*.aab
+node_modules/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+/ios
+/android
 *.apk
-dist
-.expo
+*.aab
+build-*.apk
+blunderr-*.apk
+blunderr-*.aab
+.git

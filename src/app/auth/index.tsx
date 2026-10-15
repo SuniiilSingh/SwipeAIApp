@@ -259,21 +259,33 @@ export default function AuthScreen() {
     }
   }, [otpSent]);
 
-  // Profile Info glides up slightly when in phone/OTP mode so it stays proudly above the popped up text box
-  const cardInfoElevateY = Animated.add(
+  // The model photo card deck stays stably positioned under the top bar with a subtle micro-lift
+  const deckElevateY = Animated.add(
     morphAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, isUltraCompactScreen ? -30 : -34],
+      outputRange: [0, -6],
     }),
     otpElevateAnim.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, isUltraCompactScreen ? -36 : -42],
+      outputRange: [0, -4],
     })
   );
 
-  // Text box pops up over the lower part of the model card (below the profile and above keypad)
-  const phoneLift = isUltraCompactScreen ? 60 : isCompactScreen ? 68 : 74;
-  const otpLift = isUltraCompactScreen ? 110 : isCompactScreen ? 120 : 128;
+  // Profile Info glides up inside the card so Kiara's name, age and match badge stay proudly above the text box
+  const cardInfoElevateY = Animated.add(
+    morphAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, isUltraCompactScreen ? -36 : isCompactScreen ? -42 : -48],
+    }),
+    otpElevateAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, isUltraCompactScreen ? -20 : isCompactScreen ? -24 : -28],
+    })
+  );
+
+  // Text box pops up significantly higher over the lower part of the model card to stay completely above keypad
+  const phoneLift = isUltraCompactScreen ? 88 : isCompactScreen ? 102 : 112;
+  const otpLift = isUltraCompactScreen ? 134 : isCompactScreen ? 148 : 158;
   const loginElevateY = Animated.add(
     morphAnim.interpolate({
       inputRange: [0, 1],
@@ -1001,9 +1013,17 @@ export default function AuthScreen() {
               </View>
 
               {/* Center Main Content: Deck + Login Area directly anchored */}
-              <View style={styles.optAMainContent}>
+              <View style={[styles.optAMainContent, { paddingTop: isUltraCompactScreen ? 8 : isCompactScreen ? 14 : 22 }]}>
                 {/* Interactive Card Deck */}
-                <View style={[styles.optADeckContainer, { width: deckWidth, height: deckHeight }]}>
+                <Animated.View
+                  style={[
+                    styles.optADeckContainer,
+                    {
+                      width: deckWidth,
+                      height: deckHeight,
+                      transform: [{ translateY: deckElevateY }],
+                    },
+                  ]}>
                   {/* Background Card (Preview of next profile) */}
                   <View style={[styles.optACardBack, { width: deckWidth, height: deckHeight }]} pointerEvents="none">
                     <Image
@@ -1130,7 +1150,7 @@ export default function AuthScreen() {
                     </TouchableOpacity>
                   </Animated.View>
                 </Animated.View>
-              </View>
+              </Animated.View>
 
               {/* Login Area (Option A: Morphing CTA -> Phone Input + Arrow / OTP) */}
               <Animated.View
@@ -3691,7 +3711,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   optATopBar: {
     width: '100%',

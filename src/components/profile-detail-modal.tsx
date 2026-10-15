@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CandidateCard, DietaryPreference, LivingStatus } from '@/types';
+import { CandidateCard, ContextType, DietaryPreference, LivingStatus } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
@@ -30,7 +30,7 @@ interface ProfileDetailModalProps {
   onLike?: () => void;
   onPass?: () => void;
   onSendSuperSpark?: () => void;
-  onComment?: () => void;
+  onComment?: (contextType?: ContextType, contextTargetId?: string, contextTitle?: string, previewUrl?: string) => void;
   onStartChat?: () => void;
   onVirtualChai?: () => void;
 }
@@ -333,9 +333,25 @@ export default function ProfileDetailModal({
           {/* Profile Prompt / Icebreaker */}
           {candidate.profilePromptAnswer && (
             <View style={styles.promptQuoteCard}>
-              <Text style={styles.promptQuestionTitle}>
-                🗣️ {candidate.profilePromptQuestion || 'The key to my heart is...'}
-              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                <Text style={[styles.promptQuestionTitle, { flex: 1, marginRight: 8 }]}>
+                  🗣️ {candidate.profilePromptQuestion || 'The key to my heart is...'}
+                </Text>
+                {onComment && (
+                  <TouchableOpacity
+                    style={styles.promptCommentChip}
+                    onPress={() =>
+                      onComment(
+                        'PROMPT',
+                        'profile_prompt',
+                        candidate.profilePromptQuestion || 'Profile Prompt',
+                        undefined
+                      )
+                    }>
+                    <Text style={styles.promptCommentChipText}>✨ Spark</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <Text style={styles.promptAnswerText}>"{candidate.profilePromptAnswer}"</Text>
             </View>
           )}
@@ -578,8 +594,17 @@ export default function ProfileDetailModal({
           )}
 
           {onComment && (
-            <TouchableOpacity style={styles.actionCommentBtn} onPress={onComment}>
-              <Text style={styles.actionCommentIcon}>💬</Text>
+            <TouchableOpacity
+              style={styles.actionCommentBtn}
+              onPress={() =>
+                onComment(
+                  'PHOTO',
+                  `photo_${activePhotoIdx}`,
+                  `${candidate.displayName}'s Photo #${activePhotoIdx + 1}`,
+                  photos[activePhotoIdx]
+                )
+              }>
+              <Text style={styles.actionCommentIcon}>✨</Text>
             </TouchableOpacity>
           )}
 
@@ -1421,5 +1446,18 @@ const styles = StyleSheet.create({
     color: '#E94057',
     fontSize: 16,
     fontWeight: '800',
+  },
+  promptCommentChip: {
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+  },
+  promptCommentChipText: {
+    color: '#FBBF24',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

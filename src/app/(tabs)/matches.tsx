@@ -302,28 +302,37 @@ export default function MatchesScreen() {
             <Text style={styles.sparksSub}>Tap to view profile & match back</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sparksScroll}>
-            {likesReceived.map((item) => (
-              <TouchableOpacity
-                key={item.userId}
-                style={styles.sparkCard}
-                activeOpacity={0.85}
-                onPress={() => setSelectedLikeCandidate(item)}>
-                <View style={styles.sparkAvatarWrap}>
-                  <ExpoImage
-                    source={{ uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500' }}
-                    style={styles.sparkAvatar}
-                    contentFit="cover"
-                  />
-                  <View style={styles.sparkBadge}>
-                    <Text style={{ fontSize: 10 }}>❤️</Text>
+            {likesReceived.map((item) => {
+              const hasSparkNote = Boolean(item.commentText);
+              return (
+                <TouchableOpacity
+                  key={item.userId}
+                  style={[styles.sparkCard, hasSparkNote && styles.sparkCardWithNote]}
+                  activeOpacity={0.85}
+                  onPress={() => setSelectedLikeCandidate(item)}>
+                  <View style={[styles.sparkAvatarWrap, hasSparkNote && styles.sparkAvatarWrapWithNote]}>
+                    <ExpoImage
+                      source={{ uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500' }}
+                      style={styles.sparkAvatar}
+                      contentFit="cover"
+                    />
+                    <View style={[styles.sparkBadge, hasSparkNote && styles.sparkNoteBadge]}>
+                      <Text style={{ fontSize: 10 }}>{hasSparkNote ? '✨' : '❤️'}</Text>
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.sparkName} numberOfLines={1}>
-                  {item.displayName || 'Someone'}
-                </Text>
-                <Text style={styles.sparkHint}>Liked you</Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={styles.sparkName} numberOfLines={1}>
+                    {item.displayName || 'Someone'}
+                  </Text>
+                  {hasSparkNote ? (
+                    <Text style={styles.sparkNoteText} numberOfLines={1}>
+                      💬 {item.commentText}
+                    </Text>
+                  ) : (
+                    <Text style={styles.sparkHint}>Liked you</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
       )}
@@ -829,6 +838,28 @@ const styles = StyleSheet.create({
     color: '#FF6584',
     fontSize: 9,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  sparkCardWithNote: {
+    width: 84,
+  },
+  sparkAvatarWrapWithNote: {
+    borderColor: '#F59E0B',
+    borderWidth: 2,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  sparkNoteBadge: {
+    backgroundColor: '#F59E0B',
+  },
+  sparkNoteText: {
+    color: '#FBBF24',
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: 2,
     textAlign: 'center',
   },
 });

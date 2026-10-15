@@ -22,6 +22,7 @@ import { api, normalizeImageUrl } from '@/services/api';
 import { CandidateCard, ChatMessage, MatchItem, VirtualChaiSession } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
+import { privateDetector } from '@/utils/private-detector';
 import { hapticFeedback } from '@/utils/haptics';
 import {
   AudioCallIcon,
@@ -584,6 +585,36 @@ export default function ChatScreen() {
     );
   };
 
+  const handleRequestReveal = (messageId: string) => {
+    hapticFeedback.warning();
+    Alert.alert(
+      '⚠️ Sensitive Content Warning',
+      'BlunderR Private Detector has blurred this incoming photo to protect you from unsolicited sensitive imagery. Are you sure you want to view it?',
+      [
+        {
+          text: 'Keep Blurred',
+          style: 'cancel',
+        },
+        {
+          text: 'Report & Block',
+          style: 'destructive',
+          onPress: () => {
+            privateDetector.reportMedia(messageId, 'UNSOLICITED_SENSITIVE_MEDIA');
+            handleBlockUser();
+          },
+        },
+        {
+          text: 'Reveal Photo',
+          onPress: async () => {
+            hapticFeedback.medium();
+            await privateDetector.revealImage(messageId);
+            setUnblurredImages((prev) => ({ ...prev, [messageId]: true }));
+          },
+        },
+      ]
+    );
+  };
+
   const handleTyping = (text: string) => {
     setInputText(text);
     if (!matchId) return;
@@ -696,7 +727,9 @@ export default function ChatScreen() {
   const remainingHours = getRemainingHours();
 
   const renderMessageItem = ({ item }: { item: ChatMessage }) => {
-    const isBlurred = item.isBlurred && !unblurredImages[item.id];
+    const isBlurred =
+      privateDetector.shouldBlurImage(item.id, Boolean(item.isFromMe), item.isBlurred) &&
+      !unblurredImages[item.id];
 
     return (
       <View style={[styles.messageBubbleRow, item.isFromMe ? styles.myMessageRow : styles.theirMessageRow]}>
@@ -705,14 +738,23 @@ export default function ChatScreen() {
             <View style={styles.imageContainer}>
               {isBlurred ? (
                 <View style={styles.blurredBox}>
-                  <Text style={styles.shieldIcon}>🛡️</Text>
-                  <Text style={styles.shieldTitle}>Sensitive Content Warning</Text>
-                  <Text style={styles.shieldSub}>Auto-blurred by Shield 360 AI Detector.</Text>
-                  <TouchableOpacity
-                    style={styles.revealBtn}
-                    onPress={() => setUnblurredImages((prev) => ({ ...prev, [item.id]: true }))}>
-                    <Text style={styles.revealBtnText}>Tap to View</Text>
-                  </TouchableOpacity>
+                  <ExpoImage
+                    source={{ uri: normalizeImageUrl(item.mediaUrl) }}
+                    style={[styles.chatImage, styles.blurredBackdrop]}
+                    contentFit="cover"
+                    blurRadius={Platform.OS === 'web' ? 20 : 35}
+                  />
+                  <View style={styles.shieldContentOverlay}>
+                    <Text style={styles.shieldIcon}>🛡️</Text>
+                    <Text style={styles.shieldTitle}>Sensitive Content Warning</Text>
+                    <Text style={styles.shieldSub}>Auto-blurred by Shield 360 Private Detector.</Text>
+                    <TouchableOpacity
+                      style={styles.revealBtn}
+                      onPress={() => handleRequestReveal(item.id)}
+                      activeOpacity={0.8}>
+                      <Text style={styles.revealBtnText}>Tap to View</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ) : (
                 <ExpoImage
@@ -1543,7 +1585,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#15161C',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+    borderRadius: 12,
+  },
+  blurredBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.5,
+  },
+  shieldContentOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 10,
+    backgroundColor: 'rgba(15, 17, 24, 0.72)',
   },
   shieldIcon: {
     fontSize: 22,
@@ -1564,14 +1627,16 @@ const styles = StyleSheet.create({
   },
   revealBtn: {
     backgroundColor: '#2A2C38',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 8,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   revealBtnText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
   inputBar: {

@@ -22,8 +22,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { api } from '@/services/api';
-import { ActionType, CandidateCard, ContextType, UserProfile } from '@/types';
+import { ActionType, CandidateCard, ContextType, SparkNoteQuota, UserProfile } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
+import SparkNoteModal from '@/components/spark-note-modal';
 import DesireProfileModal from '@/components/desire-profile-modal';
 import MatchCelebrationModal from '@/components/match-celebration-modal';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
@@ -236,7 +237,19 @@ export default function DiscoveryScreen() {
     }, 2000);
   };
 
-  // Comment Modal state
+  // Spark Note state
+  const [sparkNoteModalVisible, setSparkNoteModalVisible] = useState(false);
+  const [sparkNoteCandidate, setSparkNoteCandidate] = useState<CandidateCard | null>(null);
+  const [sparkNoteQuota, setSparkNoteQuota] = useState<SparkNoteQuota | null>(null);
+  const [sparkNoteContext, setSparkNoteContext] = useState<{
+    type: ContextType;
+    targetId?: string;
+    title?: string;
+    previewUrl?: string;
+    promptText?: string;
+  }>({ type: 'PHOTO' });
+
+  // Comment Modal state (legacy fallback)
   const [commentModalVisible, setCommentModalVisible] = useState(false);
   const [selectedContext, setSelectedContext] = useState<{
     type: ContextType;
@@ -255,6 +268,7 @@ export default function DiscoveryScreen() {
   useFocusEffect(
     useCallback(() => {
       loadFeed();
+      api.getSparkNoteQuota().then(setSparkNoteQuota).catch(() => {});
       api.getUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => {});
     }, [])
   );
@@ -377,6 +391,25 @@ export default function DiscoveryScreen() {
     setShowFullProfileModal(true);
   };
 
+  const handleOpenSparkNote = (
+    candidate: CandidateCard,
+    contextType: ContextType = 'PHOTO',
+    contextTargetId?: string,
+    contextTitle?: string,
+    previewUrl?: string,
+    promptText?: string
+  ) => {
+    setSparkNoteCandidate(candidate);
+    setSparkNoteContext({
+      type: contextType,
+      targetId: contextTargetId || 'photo_0',
+      title: contextTitle || `${candidate.displayName}'s Profile`,
+      previewUrl: previewUrl || candidate.photos?.[0] || candidate.photo1,
+      promptText: promptText,
+    });
+    setSparkNoteModalVisible(true);
+  };
+
   const handleAction = async (
     targetCandidate: CandidateCard,
     actionType: ActionType,
@@ -386,7 +419,7 @@ export default function DiscoveryScreen() {
 
     // 1. PLAN GATING CHECKS (Skipped in 100% Free Launch mode):
     if (FEATURE_FLAGS.ENABLE_STORE) {
-      if (actionType === 'LIKE') {
+      if (actionType === 'LIKE' && !noteText) {
         const isVip = Boolean(userProfile?.hasActivePass);
         if (!isVip && remainingSwipes <= 0) {
           hapticFeedback.warning();
@@ -424,7 +457,20 @@ export default function DiscoveryScreen() {
     }
 
     // 4. Show instant tactile feedback toast & haptics
-    if (actionType === 'PASS') {
+    if (noteText) {
+      hapticFeedback.heavy();
+      showToast(`✨ Sent Spark Note to ${targetName}!`);
+      setSparkNoteQuota((prev) =>
+        prev
+          ? {
+              ...prev,
+              usedToday: prev.usedToday + 1,
+              remainingToday: Math.max(0, prev.remainingToday - 1),
+              canSendFree: false,
+            }
+          : null
+      );
+    } else if (actionType === 'PASS') {
       hapticFeedback.light();
       showToast(`✕ Passed on ${targetName}`);
     } else if (actionType === 'LIKE') {
@@ -589,10 +635,12 @@ interface SwipeableCardProps {
   onLike: (item: CandidateCard) => void;
   onPass: (item: CandidateCard) => void;
   onSendChai: (item: CandidateCard) => void;
+  onSparkNote?: (item: CandidateCard) => void;
   onOpenDetails: (item: CandidateCard) => void;
   onRewind?: () => void;
   canRewind?: boolean;
   canLike?: boolean;
+  hasFreeSparkNote?: boolean;
 }
 
 function SwipeableCandidateCard({
@@ -601,10 +649,12 @@ function SwipeableCandidateCard({
   onLike,
   onPass,
   onSendChai,
+  onSparkNote,
   onOpenDetails,
   onRewind,
   canRewind,
   canLike = true,
+  hasFreeSparkNote = true,
 }: SwipeableCardProps) {
   const pan = useRef(new Animated.ValueXY()).current;
 
@@ -865,6 +915,21 @@ function SwipeableCandidateCard({
             <Text style={styles.chaiBtnIcon}>★</Text>
           </TouchableOpacity>
 
+          {onSparkNote && (
+            <TouchableOpacity
+              style={styles.sparkNoteBtn}
+              activeOpacity={0.7}
+              onPress={() => onSparkNote(item)}
+              accessibilityLabel="Daily Free Spark Note">
+              <Text style={styles.sparkNoteBtnIcon}>✨</Text>
+              {hasFreeSparkNote && (
+                <View style={styles.freePillDot}>
+                  <Text style={styles.freePillText}>1</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.likeBtn}
             activeOpacity={0.7}
@@ -881,6 +946,7 @@ function SwipeableCandidateCard({
   const renderCandidateCard = ({ item }: { item: CandidateCard }) => {
     const isVip = Boolean(userProfile?.hasActivePass);
     const canLike = isVip || remainingSwipes > 0;
+    const isFreeSparkAvailable = sparkNoteQuota ? sparkNoteQuota.canSendFree : true;
     return (
       <SwipeableCandidateCard
         item={item}
@@ -888,10 +954,12 @@ function SwipeableCandidateCard({
         onLike={(cand) => handleAction(cand, 'LIKE')}
         onPass={(cand) => handleAction(cand, 'PASS')}
         onSendChai={(cand) => handleSendCuttingChai(cand)}
+        onSparkNote={(cand) => handleOpenSparkNote(cand)}
         onOpenDetails={(cand) => handleOpenProfile(cand)}
         onRewind={handleRewind}
         canRewind={swipedHistory.length > 0}
         canLike={canLike}
+        hasFreeSparkNote={isFreeSparkAvailable}
       />
     );
   };
@@ -1201,23 +1269,47 @@ function SwipeableCandidateCard({
           setSelectedCandidate(null);
           if (target) confirmSendCuttingChai();
         }}
-        onComment={() => {
+        onComment={(contextType, contextTargetId, contextTitle, previewUrl) => {
+          const target = selectedCandidate;
           setShowFullProfileModal(false);
-          const isVip = Boolean(userProfile?.hasActivePass);
-          const dms = userProfile?.directDmsBalance || 0;
-          if (!isVip && dms <= 0) {
-            hapticFeedback.warning();
-            setGatingFeature('DIRECT_DM');
-            setGatingModalVisible(true);
-            return;
+          if (target) {
+            handleOpenSparkNote(
+              target,
+              contextType || 'PHOTO',
+              contextTargetId,
+              contextTitle,
+              previewUrl
+            );
           }
-          if (selectedCandidate) {
-            setSelectedContext({
-              type: 'PROMPT',
-              targetId: 'bio_prompt',
-              title: `${selectedCandidate.displayName}'s Profile`,
-            });
-            setCommentModalVisible(true);
+        }}
+      />
+
+      {/* FREE DAILY SPARK NOTE MODAL */}
+      <SparkNoteModal
+        visible={sparkNoteModalVisible}
+        candidate={sparkNoteCandidate}
+        quota={sparkNoteQuota}
+        contextType={sparkNoteContext.type}
+        contextTargetId={sparkNoteContext.targetId}
+        contextPreviewUrl={sparkNoteContext.previewUrl}
+        contextPromptText={sparkNoteContext.promptText}
+        onClose={() => {
+          setSparkNoteModalVisible(false);
+          setSparkNoteCandidate(null);
+        }}
+        onSubmit={(noteText, ctxType, ctxTargetId) => {
+          const target = sparkNoteCandidate;
+          setSparkNoteModalVisible(false);
+          setSparkNoteCandidate(null);
+          if (target) {
+            if (ctxType) {
+              setSelectedContext({
+                type: ctxType,
+                targetId: ctxTargetId || 'photo_0',
+                title: sparkNoteContext.title || '',
+              });
+            }
+            handleAction(target, 'LIKE', noteText);
           }
         }}
       />
@@ -1922,6 +2014,46 @@ const styles = StyleSheet.create({
   },
   chaiBtnText: {
     display: 'none',
+  },
+  sparkNoteBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1E1B10',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 10px rgba(245, 158, 11, 0.4)' },
+      default: {
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 5,
+      },
+    }),
+  },
+  sparkNoteBtnIcon: {
+    fontSize: 20,
+  },
+  freePillDot: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: '#000000',
+  },
+  freePillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
   },
   likeBtn: {
     width: 58,

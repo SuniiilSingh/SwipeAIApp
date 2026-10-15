@@ -15,6 +15,7 @@ import {
   UserProfile,
   VirtualChaiSession,
   DesireProfile,
+  SparkNoteQuota,
   AppNotification,
   PaymentAuditTimeline,
   PaymentAuditEvent,
@@ -1058,6 +1059,24 @@ export const api = {
       matchId: null,
       message: 'Recorded.',
       remainingDailySwipes: 25,
+    };
+  },
+
+  getSparkNoteQuota: async (): Promise<SparkNoteQuota> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/discovery/spark-note/quota`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
+    // Graceful offline fallback
+    return {
+      totalDaily: 1,
+      usedToday: 0,
+      remainingToday: 1,
+      canSendFree: true,
+      resetsAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
     };
   },
 

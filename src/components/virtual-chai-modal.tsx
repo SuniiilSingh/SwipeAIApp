@@ -12,8 +12,11 @@ import {
 } from 'react-native';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { VirtualChaiSession } from '@/types';
+import { playIncomingRingtone, stopIncomingRingtone } from '@/services/sound-service';
+import { hapticFeedback } from '@/utils/haptics';
 
 const { width, height } = Dimensions.get('window');
+const EPHEMERAL_MAX_SECONDS = 180; // 3-minute ephemeral Virtual Chai date
 
 export type CallStatus = 'RINGING' | 'INCOMING' | 'CONNECTED' | 'DECLINED' | 'ENDED';
 
@@ -61,7 +64,20 @@ export default function VirtualChaiModal({
     }
   }, [initialVideo]);
 
-  // Call duration timer (only when CONNECTED)
+  // Ringtone playback on incoming lock-screen call
+  useEffect(() => {
+    if (visible && callStatus === 'INCOMING') {
+      playIncomingRingtone().catch(() => {});
+    } else {
+      stopIncomingRingtone();
+    }
+
+    return () => {
+      stopIncomingRingtone();
+    };
+  }, [visible, callStatus]);
+
+  // Call duration timer (only when CONNECTED) with 3-minute ephemeral limit
   useEffect(() => {
     if (!visible || callStatus !== 'CONNECTED') {
       setCallDuration(0);
@@ -69,11 +85,19 @@ export default function VirtualChaiModal({
     }
 
     const timer = setInterval(() => {
-      setCallDuration((prev) => prev + 1);
+      setCallDuration((prev) => {
+        if (prev >= EPHEMERAL_MAX_SECONDS - 1) {
+          clearInterval(timer);
+          hapticFeedback.warning();
+          onEndCall();
+          return EPHEMERAL_MAX_SECONDS;
+        }
+        return prev + 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [visible, callStatus]);
+  }, [visible, callStatus, onEndCall]);
 
   // Pulsing animation for audio waves / ringing
   useEffect(() => {
@@ -163,7 +187,15 @@ export default function VirtualChaiModal({
           </View>
 
           <Text style={styles.timerText}>
-            {isConnected ? formatDuration(callDuration) : isIncoming ? 'Incoming...' : isRinging ? 'Calling...' : isDeclined ? 'Declined' : ''}
+            {isConnected
+              ? `⏳ ${formatDuration(Math.max(0, EPHEMERAL_MAX_SECONDS - callDuration))}`
+              : isIncoming
+              ? 'Lock Screen Call...'
+              : isRinging
+              ? 'Calling...'
+              : isDeclined
+              ? 'Declined'
+              : ''}
           </Text>
 
           <View style={styles.securityPill}>
@@ -253,16 +285,30 @@ export default function VirtualChaiModal({
         {/* Bottom Control Actions Dock */}
         <View style={styles.controlsDock}>
           {isIncoming ? (
-            // Incoming Call: Decline and Accept Buttons
+            // Incoming Call: Authentic Lock Screen Decline and Accept
             <View style={styles.incomingActionRow}>
-              <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.declineBtn}
+                onPress={() => {
+                  hapticFeedback.light();
+                  stopIncomingRingtone();
+                  onDecline?.();
+                }}
+                activeOpacity={0.8}>
                 <Text style={styles.declineIcon}>✕</Text>
                 <Text style={styles.declineLabel}>Decline</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.acceptBtn} onPress={onAccept} activeOpacity={0.8}>
-                <Text style={styles.acceptIcon}>📞</Text>
-                <Text style={styles.acceptLabel}>Accept</Text>
+              <TouchableOpacity
+                style={styles.acceptBtn}
+                onPress={() => {
+                  hapticFeedback.heavy();
+                  stopIncomingRingtone();
+                  onAccept?.();
+                }}
+                activeOpacity={0.8}>
+                <Text style={styles.acceptIcon}>☕</Text>
+                <Text style={styles.acceptLabel}>Answer Chai</Text>
               </TouchableOpacity>
             </View>
           ) : isRinging ? (

@@ -156,6 +156,17 @@ export interface CandidateCard {
   photo2?: string;
   desireMatchPercent?: number;
   desireMatchHighlights?: string[];
+  commentText?: string;
+  contextType?: string;
+  contextTargetId?: string;
+}
+
+export interface SparkNoteQuota {
+  totalDaily: number;
+  usedToday: number;
+  remainingToday: number;
+  canSendFree: boolean;
+  resetsAt: string;
 }
 
 export interface DesireProfile {

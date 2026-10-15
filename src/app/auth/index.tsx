@@ -237,19 +237,20 @@ export default function AuthScreen() {
   const isUltraCompactScreen = effectiveHeight < 640;
   const isCompactScreen = effectiveHeight < 760;
 
-  // Responsive deck sizing: Option A Baseline
-  // In resting state (keypad closed), card expands to fill the screen with zero wasted bottom space.
+  // Responsive deck sizing: Option 2 (Dynamic Flex Budgeting)
+  // In resting state (keypad closed), card expands fluidly to fill the available screen budget with zero dead void.
   // When typing (keypad open), card compresses fluidly to provide generous clearance for keypad + input.
-  const deckWidth = Math.max(280, Math.min(effectiveWidth - 28, 350));
+  const deckWidth = Math.max(280, Math.min(effectiveWidth - 24, 384));
   const safeHeight = effectiveHeight - (insets.top || 0) - (insets.bottom || 0);
-  const availableForDeck = Math.max(260, safeHeight - 146);
+  const nonDeckFootprint = isUltraCompactScreen ? 134 : isCompactScreen ? 146 : 158;
+  const availableForDeck = Math.max(280, safeHeight - nonDeckFootprint);
+  const restingDeckHeight = Math.max(290, Math.min(availableForDeck, 640));
   const proportionalDeck = isUltraCompactScreen
-    ? Math.floor(safeHeight * 0.54)
+    ? Math.floor(safeHeight * 0.52)
     : isCompactScreen
-    ? Math.floor(safeHeight * 0.56)
-    : Math.floor(safeHeight * 0.57);
-  const restingDeckHeight = Math.max(290, Math.min(safeHeight - 128, 520));
-  const typingDeckHeight = Math.max(250, Math.min(proportionalDeck, 320));
+    ? Math.floor(safeHeight * 0.54)
+    : Math.floor(safeHeight * 0.55);
+  const typingDeckHeight = Math.max(220, Math.min(proportionalDeck, 290));
   const deckHeight = isKeyboardVisible ? typingDeckHeight : restingDeckHeight;
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
@@ -1034,7 +1035,7 @@ export default function AuthScreen() {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
               <View style={styles.optAPageContainer}>
               {/* Top Wordmark & Online Badge Header */}
-              <View style={styles.optATopBar}>
+              <View style={[styles.optATopBar, { width: deckWidth }]}>
                 <View style={styles.brandLogoRow}>
                   <View style={styles.brandLogoIconGlow}>
                     <Text style={styles.brandLogoIconText}>🔥</Text>
@@ -1048,7 +1049,14 @@ export default function AuthScreen() {
               </View>
 
               {/* Center Main Content: Deck + Login Area directly anchored */}
-              <View style={[styles.optAMainContent, { paddingTop: isUltraCompactScreen ? 8 : isCompactScreen ? 14 : 22 }]}>
+              <View
+                style={[
+                  styles.optAMainContent,
+                  {
+                    paddingTop: isUltraCompactScreen ? 6 : isCompactScreen ? 10 : 14,
+                    paddingBottom: Math.max(insets.bottom || 0, 10),
+                  },
+                ]}>
                 {/* Interactive Card Deck */}
                 <Animated.View
                   style={[
@@ -1871,11 +1879,11 @@ const styles = StyleSheet.create({
   scrollContentStep1: {
     flexGrow: 1,
     paddingVertical: 2,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     maxWidth: 420,
     width: '100%',
     alignSelf: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     overflow: 'hidden',
   },
   scrollContentStep1Keyboard: {
@@ -3753,6 +3761,7 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     alignSelf: 'center',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 2,
     overflow: 'hidden',
   },
@@ -3760,11 +3769,11 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
   },
   optATopBar: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 390,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -4026,8 +4035,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 0,
     paddingTop: 0,
-    paddingBottom: 2,
-    marginTop: 10,
+    paddingBottom: 4,
+    marginTop: 8,
     alignItems: 'center',
     zIndex: 35,
     ...Platform.select({

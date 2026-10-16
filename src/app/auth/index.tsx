@@ -237,21 +237,14 @@ export default function AuthScreen() {
   const isUltraCompactScreen = effectiveHeight < 640;
   const isCompactScreen = effectiveHeight < 760;
 
-  // Responsive deck sizing: Option 2 (Dynamic Flex Budgeting)
-  // In resting state (keypad closed), card expands fluidly to fill the available screen budget with zero dead void.
-  // When typing (keypad open), card compresses fluidly to provide generous clearance for keypad + input.
-  const deckWidth = Math.max(280, Math.min(effectiveWidth - 24, 384));
+  // Responsive deck sizing: Single Canvas Hero Overlay
+  // The card expands fluidly to fill the available screen budget between the top bar and bottom insets.
+  // There is NO separate bottom container and NO sudden deck height collapse on typing.
+  const deckWidth = Math.max(280, Math.min(effectiveWidth - 20, 390));
   const safeHeight = effectiveHeight - (insets.top || 0) - (insets.bottom || 0);
-  const nonDeckFootprint = isUltraCompactScreen ? 134 : isCompactScreen ? 146 : 158;
-  const availableForDeck = Math.max(280, safeHeight - nonDeckFootprint);
-  const restingDeckHeight = Math.max(290, Math.min(availableForDeck, 640));
-  const proportionalDeck = isUltraCompactScreen
-    ? Math.floor(safeHeight * 0.52)
-    : isCompactScreen
-    ? Math.floor(safeHeight * 0.54)
-    : Math.floor(safeHeight * 0.55);
-  const typingDeckHeight = Math.max(220, Math.min(proportionalDeck, 290));
-  const deckHeight = isKeyboardVisible ? typingDeckHeight : restingDeckHeight;
+  const nonDeckFootprint = isUltraCompactScreen ? 82 : isCompactScreen ? 90 : 98;
+  const availableForDeck = Math.max(300, safeHeight - nonDeckFootprint);
+  const deckHeight = availableForDeck;
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -270,44 +263,6 @@ export default function AuthScreen() {
       }).start();
     }
   }, [otpSent]);
-
-  // The model photo card deck stays stably positioned under the top bar with a subtle micro-lift
-  const deckElevateY = Animated.add(
-    morphAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -6],
-    }),
-    otpElevateAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -4],
-    })
-  );
-
-  // Profile Info glides up inside the card so Kiara's name, age and match badge stay proudly above the text box
-  const cardInfoElevateY = Animated.add(
-    morphAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, isUltraCompactScreen ? -36 : isCompactScreen ? -42 : -48],
-    }),
-    otpElevateAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, isUltraCompactScreen ? -20 : isCompactScreen ? -24 : -28],
-    })
-  );
-
-  // Text box pops up significantly higher over the lower part of the model card to stay completely above keypad
-  const phoneLift = isUltraCompactScreen ? 88 : isCompactScreen ? 102 : 112;
-  const otpLift = isUltraCompactScreen ? 134 : isCompactScreen ? 148 : 158;
-  const loginElevateY = Animated.add(
-    morphAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -phoneLift],
-    }),
-    otpElevateAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -(otpLift - phoneLift)],
-    })
-  );
 
   const cardRotate = swipeAnim.x.interpolate({
     inputRange: [-220, 0, 220],
@@ -1004,8 +959,8 @@ export default function AuthScreen() {
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={step === 1 ? undefined : (Platform.OS === 'ios' ? 'padding' : undefined)}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}>
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
         <ScrollView
           ref={scrollRef}
           style={styles.scrollFlex}
@@ -1058,13 +1013,12 @@ export default function AuthScreen() {
                   },
                 ]}>
                 {/* Interactive Card Deck */}
-                <Animated.View
+                <View
                   style={[
                     styles.optADeckContainer,
                     {
                       width: deckWidth,
                       height: deckHeight,
-                      transform: [{ translateY: deckElevateY }],
                     },
                   ]}>
                   {/* Background Card (Preview of next profile) */}
@@ -1084,24 +1038,22 @@ export default function AuthScreen() {
                         <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
                       </View>
                     </View>
-                    <Animated.View
-                      style={[
-                        styles.optACardInfo,
-                        { transform: [{ translateY: cardInfoElevateY }] },
-                      ]}>
-                      <Text style={styles.optACardName}>
-                        {nextTeaser.name}, {nextTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
-                      </Text>
-                      <Text style={styles.optACardMeta}>📍 {nextTeaser.meta}</Text>
-                      <View style={styles.optAChip}>
-                        <Text style={styles.optAChipText}>{nextTeaser.chip}</Text>
+                    <View style={styles.optACardBottomTray}>
+                      <View style={styles.optACardInfo}>
+                        <Text style={styles.optACardName}>
+                          {nextTeaser.name}, {nextTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
+                        </Text>
+                        <Text style={styles.optACardMeta}>📍 {nextTeaser.meta}</Text>
+                        <View style={styles.optAChip}>
+                          <Text style={styles.optAChipText}>{nextTeaser.chip}</Text>
+                        </View>
                       </View>
-                    </Animated.View>
+                    </View>
                   </View>
 
                   {/* Foreground Card (Interactive swipe with PanResponder) */}
                   <Animated.View
-                    {...deckPanResponder.panHandlers}
+                    {...(!phoneMode && !otpSent ? deckPanResponder.panHandlers : {})}
                     style={[
                       styles.optACardFront,
                       {
@@ -1122,282 +1074,255 @@ export default function AuthScreen() {
                     />
                     <View style={styles.optACardShade} />
 
-                  {/* Stamp Badges on Drag */}
-                  <Animated.View style={[styles.optAStampLike, { opacity: likeStampOpacity }]} pointerEvents="none">
-                    <Text style={styles.optAStampLikeText}>LIKE</Text>
-                  </Animated.View>
-                  <Animated.View style={[styles.optAStampNope, { opacity: nopeStampOpacity }]} pointerEvents="none">
-                    <Text style={styles.optAStampNopeText}>NOPE</Text>
-                  </Animated.View>
+                    {/* Stamp Badges on Drag */}
+                    <Animated.View style={[styles.optAStampLike, { opacity: likeStampOpacity }]} pointerEvents="none">
+                      <Text style={styles.optAStampLikeText}>LIKE</Text>
+                    </Animated.View>
+                    <Animated.View style={[styles.optAStampNope, { opacity: nopeStampOpacity }]} pointerEvents="none">
+                      <Text style={styles.optAStampNopeText}>NOPE</Text>
+                    </Animated.View>
 
-                  {/* Top Badges */}
-                  <View style={styles.optACardTopBadges} pointerEvents="none">
-                    <View style={styles.optABadge}>
-                      <Text style={styles.optABadgeText}>✦ LIVE PREVIEW</Text>
+                    {/* Top Badges */}
+                    <View style={styles.optACardTopBadges} pointerEvents="none">
+                      <View style={styles.optABadge}>
+                        <Text style={styles.optABadgeText}>✦ LIVE PREVIEW</Text>
+                      </View>
+                      <View style={styles.optABadge}>
+                        <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
+                      </View>
                     </View>
-                    <View style={styles.optABadge}>
-                      <Text style={styles.optABadgeText}>🛡️ 3D Verified</Text>
-                    </View>
-                  </View>
 
-                  {/* Profile Info */}
-                  <Animated.View
-                    style={[
-                      styles.optACardInfo,
-                      { transform: [{ translateY: cardInfoElevateY }] },
-                    ]}
-                    pointerEvents="none">
-                    <Text style={styles.optACardName}>
-                      {currentTeaser.name}, {currentTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
-                    </Text>
-                    <Text style={styles.optACardMeta}>📍 {currentTeaser.meta}</Text>
-                    <View style={styles.optAChip}>
-                      <Text style={styles.optAChipText}>{currentTeaser.chip}</Text>
-                    </View>
-                  </Animated.View>
-
-                  {/* Option A Glass Action Buttons inside the card bottom */}
-                  <Animated.View
-                    style={[
-                      styles.optACardActions,
-                      {
-                        opacity: morphAnim.interpolate({
-                          inputRange: [0, 0.4],
-                          outputRange: [1, 0],
-                        }),
-                      },
-                    ]}
-                    pointerEvents={phoneMode || otpSent ? 'none' : 'auto'}>
-                    {/* Pass Button */}
-                    <TouchableOpacity
-                      style={styles.optAActPass}
-                      activeOpacity={0.8}
-                      onPress={() => flyCard('left')}>
-                      <Text style={styles.optAActPassIcon}>✕</Text>
-                    </TouchableOpacity>
-
-                    {/* Star / Super Like Button */}
-                    <TouchableOpacity
-                      style={styles.optAActStar}
-                      activeOpacity={0.8}
-                      onPress={() => flyCard('up')}>
-                      <Text style={styles.optAActStarIcon}>★</Text>
-                    </TouchableOpacity>
-
-                    {/* Like Button (Prominent) */}
-                    <TouchableOpacity
-                      style={styles.optAActLike}
-                      activeOpacity={0.85}
-                      onPress={() => flyCard('right')}>
-                      <Text style={styles.optAActLikeIcon}>❤️</Text>
-                    </TouchableOpacity>
-                  </Animated.View>
-                </Animated.View>
-              </Animated.View>
-
-              {/* Login Area (Option A: Morphing CTA -> Phone Input + Arrow / OTP) */}
-              <Animated.View
-                style={[
-                  styles.optALoginArea,
-                  {
-                    width: deckWidth,
-                    transform: [{ translateY: loginElevateY }],
-                  },
-                ]}>
-                {!otpSent ? (
-                  <View style={[styles.optAMorphBox, phoneMode && styles.optAMorphBoxActive]}>
-                    {!phoneMode ? (
-                      <TouchableOpacity
-                        style={styles.optACtaBtn}
-                        activeOpacity={0.88}
-                        onPress={() => openPhoneMode(true)}>
-                        <Text style={styles.optACtaIcon}>📱</Text>
-                        <Text style={styles.optACtaText}>Continue with Mobile Number</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity
-                        activeOpacity={1}
-                        style={styles.optAFieldRow}
-                        onPress={() => phoneInputRef.current?.focus()}>
-                        <View style={styles.optACountryCodeBox}>
-                          <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
+                    {/* Integrated Bottom Overlay Tray over Kiara's photo */}
+                    <View style={styles.optACardBottomTray}>
+                      {/* Profile Info */}
+                      <View style={styles.optACardInfo}>
+                        <Text style={styles.optACardName}>
+                          {currentTeaser.name}, {currentTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
+                        </Text>
+                        <Text style={styles.optACardMeta}>📍 {currentTeaser.meta}</Text>
+                        <View style={styles.optAChip}>
+                          <Text style={styles.optAChipText}>{currentTeaser.chip}</Text>
                         </View>
-                        <TextInput
-                          ref={phoneInputRef}
-                          style={styles.optAPhoneInput}
-                          value={phone}
-                          onChangeText={(text) => {
-                            const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
-                            setPhone(digits);
-                          }}
-                          onFocus={() => {
-                            setIsKeyboardVisible(true);
-                            Animated.timing(morphAnim, {
-                              toValue: 1,
-                              duration: 240,
-                              useNativeDriver: useNativeAnim,
-                            }).start();
-                          }}
-                          onBlur={() => {
-                            setIsKeyboardVisible(false);
-                            Animated.timing(morphAnim, {
-                              toValue: 0,
-                              duration: 220,
-                              useNativeDriver: useNativeAnim,
-                            }).start();
-                            if (!phone || phone.trim().length === 0) {
-                              setPhoneMode(false);
-                            }
-                          }}
-                          placeholder="Mobile number"
-                          placeholderTextColor="#5D6679"
-                          keyboardType="number-pad"
-                          maxLength={10}
-                          returnKeyType="done"
-                          onSubmitEditing={submitPhone}
-                        />
+                      </View>
 
-                        {/* Arrow Button pops in on 10 digits */}
-                        {isPhoneFilled && (
-                          <Animated.View style={{ transform: [{ scale: goAnim }] }}>
-                            <TouchableOpacity
-                              style={styles.optAGoBtn}
-                              activeOpacity={0.85}
-                              accessibilityRole="button"
-                              disabled={loading}
-                              onPress={submitPhone}>
-                              {loading ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                              ) : (
-                                <Text style={styles.optAGoArrow}>→</Text>
-                              )}
-                            </TouchableOpacity>
-                          </Animated.View>
-                        )}
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                ) : (
-                  /* OTP Verification inline in the same spot */
-                  <View style={styles.optAOtpBox}>
-                    <Text style={styles.optAOtpTitle}>
-                      Code sent to <Text style={styles.optAOtpNumber}>+91 ••••• •{cleanedPhoneDigits.slice(-4)}</Text>
-                    </Text>
-
-                    {/* Liquid OTP Boxes with same arrow button on completion */}
-                    <View style={styles.optAOtpRowWithButton}>
-                      <TouchableOpacity
-                        activeOpacity={1}
-                        onPress={() => otpInputRef.current?.focus()}
-                        style={styles.optAOtpBoxesTouchable}>
-                        <View style={styles.optAOtpBoxesRow} pointerEvents="none">
-                          {Array.from({ length: expectedOtpLength }).map((_, idx) => {
-                            const digit = otp[idx] || '';
-                            const isFocused = otp.length === idx;
-                            return (
-                              <View
-                                key={idx}
-                                style={[
-                                  styles.liquidOtpBox,
-                                  isFocused && styles.liquidOtpBoxFocused,
-                                  otp.length === expectedOtpLength && styles.liquidOtpBoxSuccess,
-                                ]}>
-                                <Text style={styles.otpDigit}>{digit}</Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                        <TextInput
-                          ref={otpInputRef}
-                          value={otp}
-                          onChangeText={(val) => {
-                            const digitsOnly = val.replace(/[^0-9]/g, '').slice(0, expectedOtpLength);
-                            setOtp(digitsOnly);
-                          }}
-                          onFocus={() => setIsKeyboardVisible(true)}
-                          onBlur={() => setIsKeyboardVisible(false)}
-                          keyboardType="number-pad"
-                          maxLength={expectedOtpLength}
-                          style={styles.hiddenOtpInput}
-                          autoFocus
-                          textContentType="oneTimeCode"
-                          autoComplete="one-time-code"
-                          returnKeyType="done"
-                          onSubmitEditing={() => {
-                            if (isOtpFilled) {
-                              handleVerifyOtp(otp);
-                            }
-                          }}
-                        />
-                      </TouchableOpacity>
-
-                      {/* Arrow Button pops in on OTP completion (same as mobile number) */}
-                      {isOtpFilled && (
-                        <Animated.View style={{ transform: [{ scale: otpGoAnim }], marginLeft: 8 }}>
+                      {/* Action Buttons (✕, ★, ❤️) - visible only in resting state */}
+                      {!phoneMode && !otpSent && (
+                        <View style={styles.optACardActions}>
                           <TouchableOpacity
-                            style={styles.optAGoBtn}
-                            activeOpacity={0.85}
-                            accessibilityRole="button"
-                            disabled={loading}
-                            onPress={() => handleVerifyOtp(otp)}>
-                            {loading ? (
-                              <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                              <Text style={styles.optAGoArrow}>→</Text>
-                            )}
+                            style={styles.optAActPass}
+                            activeOpacity={0.8}
+                            onPress={() => flyCard('left')}>
+                            <Text style={styles.optAActPassIcon}>✕</Text>
                           </TouchableOpacity>
-                        </Animated.View>
+                          <TouchableOpacity
+                            style={styles.optAActStar}
+                            activeOpacity={0.8}
+                            onPress={() => flyCard('up')}>
+                            <Text style={styles.optAActStarIcon}>★</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.optAActLike}
+                            activeOpacity={0.85}
+                            onPress={() => flyCard('right')}>
+                            <Text style={styles.optAActLikeIcon}>❤️</Text>
+                          </TouchableOpacity>
+                        </View>
                       )}
-                    </View>
 
-                    {/* Resend & Change Number Row */}
-                    <View style={styles.optAOtpActionsRow}>
-                      {resendTimer > 0 ? (
-                        <Text style={styles.optAResendTimer}>Resend in {resendTimer}s</Text>
-                      ) : (
-                        <TouchableOpacity onPress={() => handleSendOtp('sms')} disabled={loading}>
-                          <Text style={styles.optAResendLink}>Resend code</Text>
-                        </TouchableOpacity>
-                      )}
-                      <Text style={styles.optADot}>•</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setOtpSent(false);
-                          setOtp('');
-                          setResendTimer(0);
-                          openPhoneMode(true);
-                        }}>
-                        <Text style={styles.optAChangeLink}>Change number</Text>
-                      </TouchableOpacity>
+                      {/* Overlaid Login Controls directly over photo base */}
+                      <View style={styles.optALoginSlot}>
+                        {!otpSent ? (
+                          <View style={[styles.optAMorphBox, phoneMode && styles.optAMorphBoxActive]}>
+                            {!phoneMode ? (
+                              <TouchableOpacity
+                                style={styles.optACtaBtn}
+                                activeOpacity={0.88}
+                                onPress={() => openPhoneMode(true)}>
+                                <Text style={styles.optACtaIcon}>📱</Text>
+                                <Text style={styles.optACtaText}>Continue with Mobile Number</Text>
+                              </TouchableOpacity>
+                            ) : (
+                              <TouchableOpacity
+                                activeOpacity={1}
+                                style={styles.optAFieldRow}
+                                onPress={() => phoneInputRef.current?.focus()}>
+                                <View style={styles.optACountryCodeBox}>
+                                  <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
+                                </View>
+                                <TextInput
+                                  ref={phoneInputRef}
+                                  style={styles.optAPhoneInput}
+                                  value={phone}
+                                  onChangeText={(text) => {
+                                    const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
+                                    setPhone(digits);
+                                  }}
+                                  onFocus={() => {
+                                    setIsKeyboardVisible(true);
+                                    setPhoneMode(true);
+                                  }}
+                                  onBlur={() => {
+                                    setIsKeyboardVisible(false);
+                                    if (!phone || phone.trim().length === 0) {
+                                      setPhoneMode(false);
+                                    }
+                                  }}
+                                  placeholder="Mobile number"
+                                  placeholderTextColor="#5D6679"
+                                  keyboardType="phone-pad"
+                                  textContentType="telephoneNumber"
+                                  autoComplete="tel"
+                                  maxLength={10}
+                                  returnKeyType="done"
+                                  onSubmitEditing={submitPhone}
+                                />
+
+                                {/* Arrow Button pops in on 10 digits */}
+                                {isPhoneFilled && (
+                                  <Animated.View style={{ transform: [{ scale: goAnim }] }}>
+                                    <TouchableOpacity
+                                      style={styles.optAGoBtn}
+                                      activeOpacity={0.85}
+                                      accessibilityRole="button"
+                                      disabled={loading}
+                                      onPress={submitPhone}>
+                                      {loading ? (
+                                        <ActivityIndicator color="#fff" size="small" />
+                                      ) : (
+                                        <Text style={styles.optAGoArrow}>→</Text>
+                                      )}
+                                    </TouchableOpacity>
+                                  </Animated.View>
+                                )}
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        ) : (
+                          /* OTP Verification inline in the same spot */
+                          <View style={styles.optAOtpBox}>
+                            <View style={styles.optAOtpHeaderBar}>
+                              <Text style={styles.optAOtpTitle}>
+                                Code sent to <Text style={styles.optAOtpNumber}>+91 ••••• •{cleanedPhoneDigits.slice(-4)}</Text>
+                              </Text>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setOtpSent(false);
+                                  setOtp('');
+                                  setResendTimer(0);
+                                  openPhoneMode(true);
+                                }}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Text style={styles.optAChangeLink}>Change</Text>
+                              </TouchableOpacity>
+                            </View>
+
+                            {/* Liquid OTP Boxes with arrow button on completion */}
+                            <View style={styles.optAOtpRowWithButton}>
+                              <TouchableOpacity
+                                activeOpacity={1}
+                                onPress={() => otpInputRef.current?.focus()}
+                                style={styles.optAOtpBoxesTouchable}>
+                                <View style={styles.optAOtpBoxesRow} pointerEvents="none">
+                                  {Array.from({ length: expectedOtpLength }).map((_, idx) => {
+                                    const digit = otp[idx] || '';
+                                    const isFocused = otp.length === idx;
+                                    return (
+                                      <View
+                                        key={idx}
+                                        style={[
+                                          styles.liquidOtpBox,
+                                          isFocused && styles.liquidOtpBoxFocused,
+                                          otp.length === expectedOtpLength && styles.liquidOtpBoxSuccess,
+                                        ]}>
+                                        <Text style={styles.otpDigit}>{digit}</Text>
+                                      </View>
+                                    );
+                                  })}
+                                </View>
+                                <TextInput
+                                  ref={otpInputRef}
+                                  value={otp}
+                                  onChangeText={(val) => {
+                                    const digitsOnly = val.replace(/[^0-9]/g, '').slice(0, expectedOtpLength);
+                                    setOtp(digitsOnly);
+                                  }}
+                                  onFocus={() => setIsKeyboardVisible(true)}
+                                  onBlur={() => setIsKeyboardVisible(false)}
+                                  keyboardType="number-pad"
+                                  maxLength={expectedOtpLength}
+                                  style={styles.hiddenOtpInput}
+                                  autoFocus
+                                  textContentType="oneTimeCode"
+                                  autoComplete="sms-otp"
+                                  returnKeyType="done"
+                                  onSubmitEditing={() => {
+                                    if (isOtpFilled) {
+                                      handleVerifyOtp(otp);
+                                    }
+                                  }}
+                                />
+                              </TouchableOpacity>
+
+                              {/* Arrow Button pops in on OTP completion */}
+                              {isOtpFilled && (
+                                <Animated.View style={{ transform: [{ scale: otpGoAnim }], marginLeft: 8 }}>
+                                  <TouchableOpacity
+                                    style={styles.optAGoBtn}
+                                    activeOpacity={0.85}
+                                    accessibilityRole="button"
+                                    disabled={loading}
+                                    onPress={() => handleVerifyOtp(otp)}>
+                                    {loading ? (
+                                      <ActivityIndicator color="#fff" size="small" />
+                                    ) : (
+                                      <Text style={styles.optAGoArrow}>→</Text>
+                                    )}
+                                  </TouchableOpacity>
+                                </Animated.View>
+                              )}
+                            </View>
+
+                            {/* Resend Row */}
+                            <View style={styles.optAOtpActionsRow}>
+                              {resendTimer > 0 ? (
+                                <Text style={styles.optAResendTimer}>Resend in {resendTimer}s</Text>
+                              ) : (
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setResendTimer(30);
+                                    handleSendOtp(FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH && isWhatsAppDetected ? 'whatsapp' : 'sms');
+                                  }}
+                                  disabled={loading}>
+                                  <Text style={styles.optAResendLink}>Resend code</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        )}
+                      </View>
                     </View>
+                  </Animated.View>
+                </View>
+
+                {/* Subtext Trust Line below the card */}
+                {!isKeyboardVisible && (
+                  <View style={styles.optATrustContainer}>
+                    <Text style={styles.optATrustText}>
+                      100% verified profiles • By continuing you agree to{' '}
+                      <Text
+                        style={styles.optALink}
+                        onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => {})}>
+                        Terms
+                      </Text>
+                      {' '}&amp;{' '}
+                      <Text
+                        style={styles.optALink}
+                        onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => {})}>
+                        Privacy
+                      </Text>
+                    </Text>
                   </View>
                 )}
-
-                {/* Subtext Trust Line (Fades out when in phone mode or OTP mode so it doesn't clutter the card) */}
-                <Animated.View
-                  style={{
-                    opacity: morphAnim.interpolate({
-                      inputRange: [0, 0.4],
-                      outputRange: [1, 0],
-                    }),
-                  }}
-                  pointerEvents={phoneMode ? 'none' : 'auto'}>
-                  <Text style={styles.optATrustText}>
-                    100% verified profiles • By continuing you agree to{' '}
-                    <Text
-                      style={styles.optALink}
-                      onPress={() => Linking.openURL('https://api.blunderr.in/terms').catch(() => {})}>
-                      Terms
-                    </Text>
-                    {' '}&amp;{' '}
-                    <Text
-                      style={styles.optALink}
-                      onPress={() => Linking.openURL('https://api.blunderr.in/privacy').catch(() => {})}>
-                      Privacy
-                    </Text>
-                  </Text>
-                </Animated.View>
-              </Animated.View>
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -3891,11 +3816,27 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  optACardInfo: {
+  optACardBottomTray: {
     position: 'absolute',
-    left: 14,
-    right: 14,
-    bottom: 68,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    backgroundColor: 'rgba(8, 10, 18, 0.82)',
+    zIndex: 10,
+    ...Platform.select({
+      web: {
+        background: 'linear-gradient(180deg, rgba(8,10,18,0) 0%, rgba(8,10,18,0.72) 28%, rgba(6,7,12,0.96) 90%)',
+        backdropFilter: 'blur(12px)',
+      },
+    }),
+  },
+  optACardInfo: {
+    marginBottom: 8,
     zIndex: 5,
   },
   optACardName: {
@@ -3967,14 +3908,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   optACardActions: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 14,
+    gap: 16,
+    marginBottom: 10,
     zIndex: 15,
   },
   optAActPass: {
@@ -4031,22 +3969,21 @@ const styles = StyleSheet.create({
   optAActLikeIcon: {
     fontSize: 22,
   },
-  optALoginArea: {
-    alignSelf: 'center',
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: 4,
-    marginTop: 8,
+  optALoginSlot: {
+    width: '100%',
+    zIndex: 20,
+  },
+  optAOtpHeaderBar: {
+    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 35,
-    ...Platform.select({
-      web: {
-        zIndex: 35,
-      },
-      default: {
-        elevation: 20,
-      },
-    }),
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  optATrustContainer: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: 'center',
   },
   optAMorphBox: {
     width: '100%',

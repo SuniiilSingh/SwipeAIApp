@@ -44,15 +44,15 @@ const ONBOARDING_LANGUAGES = [
   'French 🥐', 'Spanish 💃', 'German 🥨'
 ];
 
-// First-screen teaser deck (Option A · Glass). Kiara is the flagship AI model.
+// First-screen teaser deck (Option A · Glass). Tara is the flagship original character.
 const TEASER_PROFILES = [
   {
-    name: 'Kiara',
+    name: 'Tara',
     age: 25,
     meta: '800m away · Architect @ Indiranagar',
     chip: '⚖️ Tula · 96% Match',
-    photo: 'https://blunderr.in/downloads/blunderr-model-pink-offshoulder.jpg',
-    localImage: require('@/assets/images/teaser-kiara-pink.jpg'),
+    photo: 'https://blunderr.in/downloads/blunderr-model-tara.jpg',
+    localImage: require('@/assets/images/teaser-tara.jpg'),
   },
   {
     name: 'Aanya',
@@ -1092,7 +1092,7 @@ export default function AuthScreen() {
                       </View>
                     </View>
 
-                    {/* Integrated Bottom Overlay Tray over Kiara's photo */}
+                    {/* Integrated Bottom Overlay Tray over photo */}
                     <View style={styles.optACardBottomTray}>
                       {/* Profile Info */}
                       <View style={styles.optACardInfo}>

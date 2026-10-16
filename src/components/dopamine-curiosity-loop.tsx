@@ -57,7 +57,7 @@ export const getSeekingGender = (profile?: UserProfile | null): 'FEMALE' | 'MALE
 const FEMALE_FALLBACK_AVATARS = [
   {
     id: 'f_1',
-    name: 'Kiara, 24',
+    name: 'Tara, 24',
     distance: '800m away',
     vibe: 'Architect ☕ Indiranagar',
     bio: 'Looking for someone who argues about playlists over late craft beers...',

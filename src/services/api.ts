@@ -2281,4 +2281,14 @@ export const api = {
       manglikSummary: 'Harmonious Mars placement: Serene, balanced dynamic',
     };
   },
+
+  getAppVersion: async (): Promise<any> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/system/app-version`);
+      if (res.ok) return await res.json();
+    } catch (e) {
+      console.warn('[api] Failed to fetch app version:', e);
+    }
+    return null;
+  },
 };

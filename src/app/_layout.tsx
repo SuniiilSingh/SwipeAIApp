@@ -21,6 +21,7 @@ import {
   setupNotificationObserver,
 } from '@/services/notifications';
 import { CallProvider } from '@/context/call-context';
+import { FlexibleUpdateBanner } from '@/components/flexible-update-banner';
 
 function NativeScreenGuard() {
   usePreventScreenCapture();
@@ -292,6 +293,7 @@ export default function RootLayout() {
             </View>
           </View>
         )}
+        <FlexibleUpdateBanner />
       </CallProvider>
     </SafeAreaProvider>
   );

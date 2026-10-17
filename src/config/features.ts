@@ -21,6 +21,12 @@ export const FEATURE_FLAGS = {
   ENABLE_LIVENESS: true,
 
   /**
+   * Async 3D Liveness Multi-Touch Recovery Loop.
+   * Controls Discovery Top Pill, Matches Chat Gate, Profile Status Card, and Push Alert.
+   */
+  ENABLE_ASYNC_LIVENESS_RECOVERY: true,
+
+  /**
    * Shadow Shield Relative & Boss Privacy Hashing.
    */
   ENABLE_SHADOW_SHIELD: true,

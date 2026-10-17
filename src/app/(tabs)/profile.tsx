@@ -35,6 +35,9 @@ import DesireProfileModal from '@/components/desire-profile-modal';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
 import MicroCommunityModal from '@/components/micro-community-modal';
 import KundaliProfileModal from '@/components/kundali-profile-modal';
+import LivenessRetakeModal from '@/components/liveness-retake-modal';
+import { useLivenessRecovery } from '@/services/liveness-recovery';
+import { FEATURE_FLAGS } from '@/config/features';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
@@ -211,6 +214,10 @@ export default function ProfileScreen() {
   const [shieldHideMutuals, setShieldHideMutuals] = useState(true);
   const [shieldedContactsCount, setShieldedContactsCount] = useState(0);
   const [isSavingShield, setIsSavingShield] = useState(false);
+
+  // Single-Flag 3D Liveness Recovery
+  const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
+  const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
 
   const mediaRecorderRef = React.useRef<any>(null);
   const audioChunksRef = React.useRef<any[]>([]);
@@ -1430,17 +1437,61 @@ export default function ProfileScreen() {
               );
             })()}
 
+            {/* Surface 3: Profile 3D Liveness Incomplete Card (Single Flag) */}
+            {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && (
+              <View style={styles.profileLivenessRecoveryCard}>
+                <View style={styles.profileLivenessHeaderRow}>
+                  <View style={styles.profileLivenessIconWrap}>
+                    <Text style={{ fontSize: 20 }}>⚠️</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.profileLivenessTitle}>3D Liveness Incomplete</Text>
+                    <Text style={styles.profileLivenessSub}>
+                      The room was a bit dim to detect your 3D depth contours. Retake a quick 3-second selfie to activate your Blue Shield.
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.profileLivenessActionsRow}>
+                  <TouchableOpacity
+                    style={styles.profileLivenessRetakeBtn}
+                    onPress={() => {
+                      hapticFeedback.medium();
+                      setShowLivenessRetakeModal(true);
+                    }}
+                    activeOpacity={0.85}>
+                    <Text style={styles.profileLivenessRetakeBtnText}>Retake Selfie 📸</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.profileLivenessWhyBtn}
+                    onPress={() => {
+                      Alert.alert(
+                        'Why is this needed?',
+                        'BlunderR enforces 100% genuine humans. In low lighting, our AI cannot verify 3D depth contours to protect you against stolen photos and AI deepfakes.'
+                      );
+                    }}
+                    activeOpacity={0.8}>
+                    <Text style={styles.profileLivenessWhyBtnText}>Why?</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Main Info Card */}
             <View style={styles.sectionCard}>
               <View style={styles.nameRow}>
                 <Text style={styles.displayName}>
                   {profile.fullName || profile.displayName || 'Set Up Your Name'}{profile.age > 0 ? `, ${profile.age}` : ''}
                 </Text>
-                {profile.digilockerVerified && (
+                {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry ? (
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingBadgeText}>⚠️ CHECK NEEDED</Text>
+                  </View>
+                ) : profile.digilockerVerified || profile.faceVerified ? (
                   <View style={styles.goldBadge}>
                     <Text style={styles.goldBadgeText}>🛡️ VERIFIED</Text>
                   </View>
-                )}
+                ) : null}
               </View>
 
               {profile.job || profile.occupation || profile.company ? (
@@ -3746,6 +3797,16 @@ export default function ProfileScreen() {
         />
       )}
 
+      {/* 3D LIVENESS RETAKE RECOVERY MODAL (Single-Flag System) */}
+      <LivenessRetakeModal
+        visible={showLivenessRetakeModal}
+        onClose={() => setShowLivenessRetakeModal(false)}
+        referrer="Profile Hub"
+        onSuccess={() => {
+          loadProfile();
+        }}
+      />
+
       {/* MICRO-COMMUNITY CIRCLE MODAL */}
       {showCommunityModal && (
         <MicroCommunityModal
@@ -5625,6 +5686,83 @@ const styles = StyleSheet.create({
   syncContactsBtnText: {
     color: '#E94057',
     fontSize: 12,
+    fontWeight: '800',
+  },
+  profileLivenessRecoveryCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+  },
+  profileLivenessHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  profileLivenessIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileLivenessTitle: {
+    color: '#FCD34D',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  profileLivenessSub: {
+    color: '#FDE68A',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  profileLivenessActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
+  profileLivenessRetakeBtn: {
+    flex: 1,
+    backgroundColor: '#F59E0B',
+    paddingVertical: 11,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileLivenessRetakeBtnText: {
+    color: '#08080E',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  profileLivenessWhyBtn: {
+    backgroundColor: '#1E2334',
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2D354E',
+  },
+  profileLivenessWhyBtnText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pendingBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  pendingBadgeText: {
+    color: '#FCD34D',
+    fontSize: 10,
     fontWeight: '800',
   },
 });

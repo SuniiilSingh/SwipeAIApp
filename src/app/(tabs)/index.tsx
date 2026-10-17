@@ -36,6 +36,9 @@ import { Image as ExpoImage } from 'expo-image';
 import { hapticFeedback } from '@/utils/haptics';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 import DopamineCuriosityLoop from '@/components/dopamine-curiosity-loop';
+import { useLivenessRecovery } from '@/services/liveness-recovery';
+import LivenessRetakeModal from '@/components/liveness-retake-modal';
+import DiscoveryVoiceSnippet from '@/components/discovery-voice-snippet';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
@@ -265,6 +268,10 @@ export default function DiscoveryScreen() {
   // Unread notification count for header badge
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
+  // Single-flag Async 3D Liveness Recovery
+  const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
+  const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       loadFeed();
@@ -416,6 +423,13 @@ export default function DiscoveryScreen() {
     noteText?: string
   ) => {
     if (!targetCandidate) return;
+
+    // 0. 3D LIVENESS RECOVERY GATE (Single Flag):
+    if (FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && actionType === 'LIKE') {
+      hapticFeedback.warning();
+      setShowLivenessRetakeModal(true);
+      return;
+    }
 
     // 1. PLAN GATING CHECKS (Skipped in 100% Free Launch mode):
     if (FEATURE_FLAGS.ENABLE_STORE) {
@@ -829,7 +843,7 @@ function SwipeableCandidateCard({
 
               <View style={styles.locationPill}>
                 <Text style={styles.locationPillText}>
-                  📍 {item.distanceKm ? `${item.distanceKm.toFixed(1)} km` : '2.0 km'} • {item.neighborhood || item.city || 'Indiranagar'}
+                  📍 {item.fuzzyDistance ? item.fuzzyDistance : (item.distanceKm ? `${item.distanceKm < 2 ? '< 2 km' : `${Math.round(item.distanceKm)} km`}` : '< 2 km')}
                 </Text>
               </View>
             </View>
@@ -872,14 +886,13 @@ function SwipeableCandidateCard({
               </View>
             </View>
 
-            {/* Row 5: Voice Prompt Audio Snippet Teaser */}
-            <View style={styles.voicePromptPill}>
-              <Text style={styles.voicePromptPlay}>▶</Text>
-              <Text style={styles.voicePromptDuration}>0:14</Text>
-              <Text style={styles.voicePromptLabel} numberOfLines={1}>
-                Hear {item.displayName || 'Rhea'}: {item.profilePromptAnswer || item.bio || 'My Sunday ritual & coffee crawl'}
-              </Text>
-            </View>
+            {/* Row 5: Interactive Audio Snippet with Real Waveform */}
+            <DiscoveryVoiceSnippet
+              audioUri={item.voicePromptUrl || item.voicePrompt?.audioUrl}
+              durationSec={item.voicePromptDuration || item.voicePrompt?.durationSec || 15}
+              promptText={item.voicePromptText || item.voicePrompt?.promptText || item.profilePromptAnswer}
+              displayName={item.displayName}
+            />
           </View>
         </TouchableOpacity>
 
@@ -1054,6 +1067,26 @@ function SwipeableCandidateCard({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Surface 1: Discovery 3D Liveness Recovery Floating Pill */}
+      {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && (
+        <TouchableOpacity
+          style={styles.discoveryLivenessPill}
+          onPress={() => {
+            hapticFeedback.light();
+            setShowLivenessRetakeModal(true);
+          }}
+          activeOpacity={0.85}>
+          <Text style={styles.discoveryLivenessIcon}>⚠️</Text>
+          <View style={styles.discoveryLivenessTextWrap}>
+            <Text style={styles.discoveryLivenessTitle}>Verification paused: Dim lighting</Text>
+            <Text style={styles.discoveryLivenessSub}>Tap to retake 3s selfie & unlock mutual matching →</Text>
+          </View>
+          <View style={styles.discoveryLivenessActionBtn}>
+            <Text style={styles.discoveryLivenessActionText}>Retake</Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Horizontal Filter Bar with Full-Width ScrollView */}
       <View style={styles.filterBarContainer}>
@@ -1377,6 +1410,16 @@ function SwipeableCandidateCard({
           initialCity={selectedCommunityFilter?.city || userProfile?.city || userProfile?.location || undefined}
         />
       )}
+
+      {/* 3D LIVENESS RETAKE RECOVERY MODAL (Single-Flag System) */}
+      <LivenessRetakeModal
+        visible={showLivenessRetakeModal}
+        onClose={() => setShowLivenessRetakeModal(false)}
+        referrer="Discovery Feed"
+        onSuccess={() => {
+          loadFeed();
+        }}
+      />
       {/* DOPAMINE CURIOSITY PROXIMITY RADAR OVERLAY (Smooth zero-latency reveal) */}
       {isCuriosityLoopActive && (
         <Animated.View
@@ -2250,5 +2293,46 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  discoveryLivenessPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 10,
+  },
+  discoveryLivenessIcon: {
+    fontSize: 16,
+  },
+  discoveryLivenessTextWrap: {
+    flex: 1,
+  },
+  discoveryLivenessTitle: {
+    color: '#FCD34D',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  discoveryLivenessSub: {
+    color: '#FDE68A',
+    fontSize: 10,
+    marginTop: 1,
+  },
+  discoveryLivenessActionBtn: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  discoveryLivenessActionText: {
+    color: '#08080E',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

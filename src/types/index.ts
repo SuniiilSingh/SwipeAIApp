@@ -18,8 +18,19 @@ export type LivingStatus = 'WITH_PARENTS' | 'INDEPENDENT_FLAT' | 'PG';
 export type MatchStatus =
   | 'PENDING_ICEBREAKER'
   | 'ACTIVE_CHAT'
+  | 'DATE_PLANNED'
+  | 'QUEUED_CAPACITY'
   | 'EXPIRED'
   | 'UNMATCHED';
+
+export interface MatchCapacityInfo {
+  activeMatchesCount: number;
+  maxLimit: number;
+  isAtCapacity: boolean;
+  queuedMatchesCount: number;
+  plannedDatesCount: number;
+  message: string;
+}
 
 export type ActionType = 'LIKE' | 'PASS' | 'SUPER_SPARK';
 export type ContextType = 'PHOTO' | 'VOICE' | 'PROMPT' | 'MEME';
@@ -37,7 +48,9 @@ export interface UserProfile {
   digilockerVerified: boolean;
   whatsappVerified: boolean;
   faceVerified?: boolean;
-  verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | string;
+  needsLivenessRetry?: boolean;
+  livenessStatus?: 'VERIFIED' | 'PENDING' | 'RETRY_NEEDED' | string;
+  verificationStatus?: 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED' | 'RETRY_NEEDED' | string;
   livenessScore: number;
   karmaScore: number;
   dietaryPref?: DietaryPreference;
@@ -100,6 +113,7 @@ export interface CandidateCard {
   isWhatsappVerified: boolean;
   livenessScore: number;
   distanceKm: number;
+  fuzzyDistance?: string;
   culturalBadges: {
     diet: DietaryPreference;
     living: LivingStatus;
@@ -221,6 +235,9 @@ export interface MatchItem {
   lastMessageTime?: string;
   otherProfile?: CandidateCard;
   e2eeSecret?: string;
+  datePlannedAt?: string;
+  dateVenue?: string;
+  dateNote?: string;
 }
 
 export interface ChatMessage {

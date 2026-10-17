@@ -1,8 +1,11 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Animated,
   FlatList,
   Image,
+  Modal,
   Platform,
   RefreshControl,
   ScrollView,
@@ -16,18 +19,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
 import { api } from '@/services/api';
-import { CandidateCard, MatchItem, UserProfile } from '@/types';
+import { CandidateCard, MatchItem, UserProfile, MatchCapacityInfo } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscription-gating-modal';
 import { hapticFeedback } from '@/utils/haptics';
 import { useCall } from '@/context/call-context';
 import { FEATURE_FLAGS } from '@/config/features';
+import { useLivenessRecovery } from '@/services/liveness-recovery';
+import LivenessRetakeModal from '@/components/liveness-retake-modal';
 
-export type MatchFilterType = 'ALL' | 'QUIZ' | 'EXPIRING' | 'ACTIVE';
+export type MatchFilterType = 'ALL' | 'ACTIVE' | 'QUIZ' | 'EXPIRING' | 'DATES_PLANNED';
 
 export default function MatchesScreen() {
   const router = useRouter();
   const { subscribeToWebSocket } = useCall();
+  const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
+  const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [likesReceived, setLikesReceived] = useState<CandidateCard[]>([]);
   const [selectedLikeCandidate, setSelectedLikeCandidate] = useState<CandidateCard | null>(null);
@@ -37,20 +44,109 @@ export default function MatchesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<MatchFilterType>('ALL');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [capacity, setCapacity] = useState<MatchCapacityInfo | null>(null);
+  const [showRuleOfFiveModal, setShowRuleOfFiveModal] = useState(false);
+  const [showSlotManagerModal, setShowSlotManagerModal] = useState(false);
+  const [pendingQueuedMatch, setPendingQueuedMatch] = useState<MatchItem | null>(null);
+  const [isFreeingSlot, setIsFreeingSlot] = useState(false);
   const [gatingModalVisible, setGatingModalVisible] = useState(false);
   const [gatingFeature, setGatingFeature] = useState<GatingFeatureType>('REVIVE');
+
+  // Breathing pulse animation for <12h expiring matches and expired matches
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.35, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const getUrgencyRingColor = (item: MatchItem) => {
+    if (item.status === 'DATE_PLANNED') return '#FFD700'; // Gold
+    if (item.status === 'EXPIRED' || item.remainingHours === 0) return '#FF4757'; // Crimson
+    if (item.remainingHours <= 12) return '#FF4757'; // Crimson urgent
+    if (item.remainingHours <= 24) return '#FFA502'; // Amber warning
+    if (item.status === 'QUEUED_CAPACITY') return '#64748B'; // Muted slate queue
+    return '#2ED573'; // Emerald fresh
+  };
+
+  const activeRuleOfFiveMatches = useMemo(() => {
+    return matches
+      .filter((m) => m.status === 'ACTIVE_CHAT' || m.status === 'PENDING_ICEBREAKER' || m.status === 'EXPIRED')
+      .sort((a, b) => {
+        // Prioritize EXPIRED matches first, then lowest remaining hours
+        if (a.status === 'EXPIRED' && b.status !== 'EXPIRED') return -1;
+        if (b.status === 'EXPIRED' && a.status !== 'EXPIRED') return 1;
+        return a.remainingHours - b.remainingHours;
+      });
+  }, [matches]);
+
+  const handleResolveSlotAndUnlock = async (matchToResolve: MatchItem, action: 'PLAN_DATE' | 'FAREWELL') => {
+    if (!pendingQueuedMatch) return;
+    setIsFreeingSlot(true);
+    hapticFeedback.medium();
+    try {
+      let ok = false;
+      if (action === 'PLAN_DATE') {
+        ok = await api.markDatePlanned(matchToResolve.id, 'Planned Date', 'Scheduled real meet');
+      } else {
+        ok = await api.gracefulExit(matchToResolve.id, 'Thank you for the conversation! Wishing you the very best.');
+      }
+
+      if (!ok) {
+        Alert.alert('Error', 'Unable to resolve conversation. Please try again.');
+        setIsFreeingSlot(false);
+        return;
+      }
+
+      // Unlock the queued match specifically
+      await api.unlockQueuedMatch(pendingQueuedMatch.id);
+      await loadMatches(true);
+      setShowSlotManagerModal(false);
+      setIsFreeingSlot(false);
+
+      hapticFeedback.success();
+      Alert.alert(
+        '🎉 Slot Freed!',
+        action === 'PLAN_DATE'
+          ? `Date planned with ${matchToResolve.otherUserName}! Your active slot has been freed and ${pendingQueuedMatch.otherUserName} is unlocked.`
+          : `Farewell sent to ${matchToResolve.otherUserName}. Your active slot has been freed and ${pendingQueuedMatch.otherUserName} is unlocked.`,
+        [
+          {
+            text: 'Start Chatting 💬',
+            onPress: () => {
+              router.push({
+                pathname: '/chat/[id]',
+                params: { id: pendingQueuedMatch.id, name: pendingQueuedMatch.otherUserName },
+              });
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.warn('handleResolveSlotAndUnlock error:', err);
+      Alert.alert('Error', 'Failed to unlock connection.');
+      setIsFreeingSlot(false);
+    }
+  };
 
   const loadMatches = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [list, profile, likes] = await Promise.all([
+      const [list, profile, likes, cap] = await Promise.all([
         api.getMatches(),
         api.getMyProfile().catch(() => null),
         api.getLikesReceived().catch(() => []),
+        api.getMatchCapacity().catch(() => null),
       ]);
       setMatches(list);
       if (profile) setUserProfile(profile);
       if (Array.isArray(likes)) setLikesReceived(likes);
+      if (cap) setCapacity(cap);
     } catch (err) {
       console.warn('[MatchesScreen] Failed to load matches:', err);
     } finally {
@@ -118,9 +214,10 @@ export default function MatchesScreen() {
 
   const counts = useMemo(() => ({
     all: matches.length,
+    active: matches.filter((m) => m.status === 'ACTIVE_CHAT' || (m.status === 'PENDING_ICEBREAKER' && (m.icebreakerQuiz?.hasAnswered || m.icebreakerQuiz?.isCompleted))).length,
     quiz: matches.filter((m) => m.status === 'PENDING_ICEBREAKER' && !m.icebreakerQuiz?.hasAnswered && !m.icebreakerQuiz?.isCompleted).length,
-    expiring: matches.filter((m) => m.remainingHours <= 24).length,
-    active: matches.filter((m) => m.status === 'ACTIVE_CHAT' || m.icebreakerQuiz?.hasAnswered || m.icebreakerQuiz?.isCompleted).length,
+    expiring: matches.filter((m) => m.remainingHours <= 24 && m.status !== 'DATE_PLANNED').length,
+    datesPlanned: matches.filter((m) => m.status === 'DATE_PLANNED').length,
   }), [matches]);
 
   const filteredMatches = useMemo(() => {
@@ -131,9 +228,10 @@ export default function MatchesScreen() {
 
       const isQuizPending = item.status === 'PENDING_ICEBREAKER' && !item.icebreakerQuiz?.hasAnswered && !item.icebreakerQuiz?.isCompleted;
 
-      if (filterType === 'QUIZ') return isQuizPending;
-      if (filterType === 'EXPIRING') return item.remainingHours <= 24;
-      if (filterType === 'ACTIVE') return !isQuizPending;
+      if (filterType === 'DATES_PLANNED') return item.status === 'DATE_PLANNED';
+      if (filterType === 'QUIZ') return isQuizPending && item.status !== 'DATE_PLANNED';
+      if (filterType === 'EXPIRING') return item.remainingHours <= 24 && item.status !== 'DATE_PLANNED';
+      if (filterType === 'ACTIVE') return !isQuizPending && item.status !== 'DATE_PLANNED';
       return true;
     });
   }, [matches, searchQuery, filterType]);
@@ -190,7 +288,18 @@ export default function MatchesScreen() {
       <TouchableOpacity
         style={styles.matchCard}
         onPress={() => {
-          if (FEATURE_FLAGS.ENABLE_STORE && item.remainingHours <= 0 && !userProfile?.hasActivePass) {
+          if (FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry) {
+            hapticFeedback.warning();
+            setShowLivenessRetakeModal(true);
+            return;
+          }
+          if (item.status === 'QUEUED_CAPACITY') {
+            hapticFeedback.medium();
+            setPendingQueuedMatch(item);
+            setShowSlotManagerModal(true);
+            return;
+          }
+          if (FEATURE_FLAGS.ENABLE_STORE && (item.status === 'EXPIRED' || item.remainingHours <= 0) && item.status !== 'DATE_PLANNED' && !userProfile?.hasActivePass) {
             hapticFeedback.warning();
             setGatingFeature('REVIVE');
             setGatingModalVisible(true);
@@ -211,13 +320,39 @@ export default function MatchesScreen() {
         <TouchableOpacity
           style={styles.avatarContainer}
           onPress={() => setSelectedMatch(item)}>
-          <ExpoImage
-            source={{ uri: item.otherUserPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75' }}
-            style={styles.avatar}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={150}
-          />
+          {/* Urgency Color-Coded Ring */}
+          <View
+            style={[
+              styles.avatarRing,
+              { borderColor: getUrgencyRingColor(item) },
+              item.status === 'DATE_PLANNED' && styles.avatarRingGold,
+            ]}>
+            <ExpoImage
+              source={{ uri: item.otherUserPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75' }}
+              style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
+            />
+          </View>
+
+          {/* Pulsing Breathing Ring Glow for < 12h or Expired */}
+          {(item.remainingHours <= 12 || item.status === 'EXPIRED') && item.status !== 'DATE_PLANNED' && item.status !== 'QUEUED_CAPACITY' && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.pulsingGlowRing,
+                { opacity: pulseAnim },
+              ]}
+            />
+          )}
+
+          {item.status === 'DATE_PLANNED' && (
+            <View style={styles.datePlannedAvatarBadge}>
+              <Text style={{ fontSize: 10 }}>🥂</Text>
+            </View>
+          )}
+
           {item.isDigilockerVerified && (
             <View style={styles.goldBadgeDot}>
               <Text style={styles.goldBadgeDotText}>🛡️</Text>
@@ -228,31 +363,41 @@ export default function MatchesScreen() {
         <View style={styles.matchInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.matchName}>{item.otherUserName}, {item.otherUserAge}</Text>
-            <View
-              style={[
-                styles.timerBadge,
-                item.remainingHours <= 12
-                  ? styles.timerBadgeUrgent
-                  : item.remainingHours <= 24
-                  ? styles.timerBadgeWarning
-                  : isPending
-                  ? styles.timerBadgePending
-                  : styles.timerBadgeNormal,
-              ]}>
-              <Text
+            {item.status === 'DATE_PLANNED' ? (
+              <View style={styles.datePlannedBadge}>
+                <Text style={styles.datePlannedText}>☕ Date Planned</Text>
+              </View>
+            ) : item.status === 'QUEUED_CAPACITY' ? (
+              <View style={styles.queuedBadge}>
+                <Text style={styles.queuedBadgeText}>🔒 Queued (5/5)</Text>
+              </View>
+            ) : (
+              <View
                 style={[
-                  styles.timerText,
-                  item.remainingHours <= 12
-                    ? styles.timerTextUrgent
+                  styles.timerBadge,
+                  (item.remainingHours <= 12 || item.status === 'EXPIRED')
+                    ? styles.timerBadgeUrgent
                     : item.remainingHours <= 24
-                    ? styles.timerTextWarning
+                    ? styles.timerBadgeWarning
                     : isPending
-                    ? styles.timerTextPending
-                    : styles.timerTextNormal,
+                    ? styles.timerBadgePending
+                    : styles.timerBadgeNormal,
                 ]}>
-                ⏳ {item.remainingHours === 0 ? 'Expired' : `${item.remainingHours}h left`}
-              </Text>
-            </View>
+                <Text
+                  style={[
+                    styles.timerText,
+                    (item.remainingHours <= 12 || item.status === 'EXPIRED')
+                      ? styles.timerTextUrgent
+                      : item.remainingHours <= 24
+                      ? styles.timerTextWarning
+                      : isPending
+                      ? styles.timerTextPending
+                      : styles.timerTextNormal,
+                  ]}>
+                  ⏳ {item.status === 'EXPIRED' || item.remainingHours === 0 ? 'Expired' : `${item.remainingHours}h left`}
+                </Text>
+              </View>
+            )}
           </View>
 
           {isPending ? (
@@ -337,6 +482,75 @@ export default function MatchesScreen() {
         </View>
       )}
 
+      {/* Surface 2: Matches Messaging Safely Locked Banner (Single Flag) */}
+      {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && (
+        <TouchableOpacity
+          style={styles.matchesLivenessGateCard}
+          onPress={() => {
+            hapticFeedback.light();
+            setShowLivenessRetakeModal(true);
+          }}
+          activeOpacity={0.85}>
+          <View style={styles.matchesLivenessIconWrap}>
+            <Text style={{ fontSize: 18 }}>🔒</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.matchesLivenessTitle}>Messaging Safely Locked</Text>
+            <Text style={styles.matchesLivenessSub}>
+              Your matches are waiting! Snap a quick well-lit selfie to start chatting.
+            </Text>
+          </View>
+          <View style={styles.matchesLivenessBtn}>
+            <Text style={styles.matchesLivenessBtnText}>Unlock 📸</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Rule of 5 Active Match Capacity Bar */}
+      <TouchableOpacity
+        style={[styles.ruleOfFiveCard, capacity?.isAtCapacity && styles.ruleOfFiveCardCapacity]}
+        onPress={() => {
+          hapticFeedback.light();
+          setShowRuleOfFiveModal(true);
+        }}
+        activeOpacity={0.85}>
+        <View style={styles.ruleOfFiveLeft}>
+          <View style={[styles.ruleOfFiveIconBadge, capacity?.isAtCapacity && styles.ruleOfFiveIconBadgeCapacity]}>
+            <Text style={{ fontSize: 13 }}>{capacity?.isAtCapacity ? '⚡' : '🎯'}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={styles.ruleOfFiveTitleRow}>
+              <Text style={styles.ruleOfFiveTitle}>Rule of 5 Focus</Text>
+              <Text style={[styles.ruleOfFiveCount, capacity?.isAtCapacity && styles.ruleOfFiveCountCapacity]}>
+                {capacity?.activeMatchesCount ?? matches.filter((m) => m.status === 'ACTIVE_CHAT' || m.status === 'PENDING_ICEBREAKER').length}/5 Active
+              </Text>
+            </View>
+            <Text style={styles.ruleOfFiveSub} numberOfLines={1}>
+              {capacity?.isAtCapacity
+                ? 'Focus limit reached • Plan a date to free a slot'
+                : `${5 - (capacity?.activeMatchesCount ?? matches.filter((m) => m.status === 'ACTIVE_CHAT' || m.status === 'PENDING_ICEBREAKER').length)} slots open • Zero ghosting culture`}
+            </Text>
+          </View>
+        </View>
+
+        {/* 5 Slot Dots */}
+        <View style={styles.ruleOfFiveDotsRow}>
+          {[1, 2, 3, 4, 5].map((slot) => {
+            const currentActive = capacity?.activeMatchesCount ?? matches.filter((m) => m.status === 'ACTIVE_CHAT' || m.status === 'PENDING_ICEBREAKER').length;
+            const isFilled = slot <= currentActive;
+            return (
+              <View
+                key={slot}
+                style={[
+                  styles.slotDot,
+                  isFilled ? (currentActive >= 5 ? styles.slotDotCapacity : styles.slotDotFilled) : styles.slotDotEmpty,
+                ]}
+              />
+            );
+          })}
+        </View>
+      </TouchableOpacity>
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Text style={styles.searchIcon}>🔍</Text>
@@ -369,6 +583,24 @@ export default function MatchesScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.filterChip, filterType === 'ACTIVE' && styles.filterChipActive]}
+            onPress={() => handleSelectFilter('ACTIVE')}
+            activeOpacity={0.8}>
+            <Text style={[styles.filterChipText, filterType === 'ACTIVE' && styles.filterChipTextActive]}>
+              💬 Active Lounge ({counts.active})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, filterType === 'DATES_PLANNED' && styles.filterChipActive]}
+            onPress={() => handleSelectFilter('DATES_PLANNED')}
+            activeOpacity={0.8}>
+            <Text style={[styles.filterChipText, filterType === 'DATES_PLANNED' && styles.filterChipTextActive]}>
+              ☕ Planned Dates ({counts.datesPlanned})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.filterChip, filterType === 'QUIZ' && styles.filterChipActive]}
             onPress={() => handleSelectFilter('QUIZ')}
             activeOpacity={0.8}>
@@ -383,15 +615,6 @@ export default function MatchesScreen() {
             activeOpacity={0.8}>
             <Text style={[styles.filterChipText, filterType === 'EXPIRING' && styles.filterChipTextActive]}>
               ⏳ Expiring Soon ({counts.expiring})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.filterChip, filterType === 'ACTIVE' && styles.filterChipActive]}
-            onPress={() => handleSelectFilter('ACTIVE')}
-            activeOpacity={0.8}>
-            <Text style={[styles.filterChipText, filterType === 'ACTIVE' && styles.filterChipTextActive]}>
-              💬 Active Lounge ({counts.active})
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -498,6 +721,182 @@ export default function MatchesScreen() {
         }}
         onPass={() => {
           if (selectedLikeCandidate) handlePassCandidate(selectedLikeCandidate);
+        }}
+      />
+
+      {/* Rule of 5 Explainer Modal */}
+      <Modal
+        visible={showRuleOfFiveModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRuleOfFiveModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.ruleModalContent}>
+            <View style={styles.ruleModalIconWrapper}>
+              <Text style={{ fontSize: 32 }}>🎯</Text>
+            </View>
+
+            <Text style={styles.ruleModalTitle}>The Rule of 5</Text>
+            <Text style={styles.ruleModalSubtitle}>Why BlunderR caps active chats at 5</Text>
+
+            <View style={styles.ruleModalPillars}>
+              <View style={styles.rulePillarRow}>
+                <Text style={styles.rulePillarIcon}>🚫</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rulePillarHeading}>Zero Ghosting Graveyards</Text>
+                  <Text style={styles.rulePillarText}>
+                    Other apps let people collect 100 dead matches. Here, every match gets your genuine focus and respect.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.rulePillarRow}>
+                <Text style={styles.rulePillarIcon}>☕</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rulePillarHeading}>Plan a Date to Free a Slot</Text>
+                  <Text style={styles.rulePillarText}>
+                    When you schedule a date or exchange numbers, the chat moves to your Date Book and opens a fresh slot!
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.rulePillarRow}>
+                <Text style={styles.rulePillarIcon}>✨</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rulePillarHeading}>300% Higher Reply Rate</Text>
+                  <Text style={styles.rulePillarText}>
+                    Because everyone has a 5-match cap, your messages actually get read, appreciated, and replied to.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.ruleModalBtn}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowRuleOfFiveModal(false);
+              }}
+              activeOpacity={0.85}>
+              <Text style={styles.ruleModalBtnText}>Got it, let's connect!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 5-Slot Capacity Manager Modal (User-Choice Slot Freeing) */}
+      <Modal
+        visible={showSlotManagerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!isFreeingSlot) setShowSlotManagerModal(false);
+        }}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.slotManagerContent}>
+            <View style={styles.slotManagerHeader}>
+              <View style={styles.slotManagerBadge}>
+                <Text style={{ fontSize: 18 }}>🎯</Text>
+                <Text style={styles.slotManagerBadgeText}>Active Limit Reached (5/5)</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowSlotManagerModal(false)}
+                disabled={isFreeingSlot}
+                style={styles.slotManagerCloseBtn}>
+                <Text style={styles.slotManagerCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.slotManagerTitle}>
+              Unlock chat with {pendingQueuedMatch?.otherUserName || 'your match'}
+            </Text>
+            <Text style={styles.slotManagerSub}>
+              Under the Rule of 5, you can have up to 5 active chats. Choose one of your existing conversations below to resolve so you can start chatting:
+            </Text>
+
+            {isFreeingSlot ? (
+              <View style={styles.slotManagerLoading}>
+                <ActivityIndicator size="large" color="#FF385C" />
+                <Text style={styles.slotManagerLoadingText}>Freeing active slot & unlocking conversation...</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.slotManagerList} showsVerticalScrollIndicator={false}>
+                {activeRuleOfFiveMatches.length === 0 ? (
+                  <Text style={styles.slotManagerEmptyText}>No active conversations to resolve.</Text>
+                ) : (
+                  activeRuleOfFiveMatches.map((m) => {
+                    const isExp = m.status === 'EXPIRED' || m.remainingHours === 0;
+                    return (
+                      <View key={m.id} style={[styles.slotMatchCard, isExp && styles.slotMatchCardExpired]}>
+                        <View style={styles.slotMatchCardLeft}>
+                          <ExpoImage
+                            source={{ uri: m.otherUserPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75' }}
+                            style={[
+                              styles.slotMatchAvatar,
+                              { borderColor: getUrgencyRingColor(m) },
+                            ]}
+                            contentFit="cover"
+                          />
+                          <View style={{ flex: 1 }}>
+                            <View style={styles.slotMatchNameRow}>
+                              <Text style={styles.slotMatchName}>{m.otherUserName}, {m.otherUserAge}</Text>
+                              <View
+                                style={[
+                                  styles.slotStatusPill,
+                                  isExp ? styles.slotStatusPillExpired : styles.slotStatusPillActive,
+                                ]}>
+                                <Text
+                                  style={[
+                                    styles.slotStatusPillText,
+                                    isExp ? styles.slotStatusPillTextExpired : styles.slotStatusPillTextActive,
+                                  ]}>
+                                  {isExp ? '⏳ Expired' : `⏳ ${m.remainingHours}h left`}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text style={styles.slotMatchSnippet} numberOfLines={1}>
+                              {m.lastMessage || 'Recent connection'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Action buttons to free slot */}
+                        <View style={styles.slotActionRow}>
+                          <TouchableOpacity
+                            style={styles.slotPlanDateBtn}
+                            onPress={() => handleResolveSlotAndUnlock(m, 'PLAN_DATE')}>
+                            <Text style={styles.slotPlanDateBtnText}>Plan Date ☕</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.slotFarewellBtn}
+                            onPress={() => handleResolveSlotAndUnlock(m, 'FAREWELL')}>
+                            <Text style={styles.slotFarewellBtnText}>Farewell 🕊️</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </ScrollView>
+            )}
+
+            <TouchableOpacity
+              style={styles.slotManagerDismissBtn}
+              onPress={() => setShowSlotManagerModal(false)}
+              disabled={isFreeingSlot}>
+              <Text style={styles.slotManagerDismissBtnText}>Keep Current 5 Chats</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 3D Liveness Retake Recovery Modal (Single-Flag System) */}
+      <LivenessRetakeModal
+        visible={showLivenessRetakeModal}
+        onClose={() => setShowLivenessRetakeModal(false)}
+        referrer="Matches & Chats"
+        onSuccess={() => {
+          loadMatches(true);
         }}
       />
     </SafeAreaView>
@@ -862,4 +1261,468 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
   },
+  // Rule of 5 Capacity Card
+  ruleOfFiveCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#141724',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.25)',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+  },
+  ruleOfFiveCardCapacity: {
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+  },
+  ruleOfFiveLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  ruleOfFiveIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ruleOfFiveIconBadgeCapacity: {
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+  },
+  ruleOfFiveTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ruleOfFiveTitle: {
+    color: '#F8FAFC',
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  ruleOfFiveCount: {
+    color: '#FF385C',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  ruleOfFiveCountCapacity: {
+    color: '#F59E0B',
+  },
+  ruleOfFiveSub: {
+    color: '#94A3B8',
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+  ruleOfFiveDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingLeft: 8,
+  },
+  slotDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  slotDotFilled: {
+    backgroundColor: '#FF385C',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.6,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  slotDotEmpty: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  slotDotCapacity: {
+    backgroundColor: '#F59E0B',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.6,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  // Date Planned Badge
+  datePlannedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 230, 118, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 230, 118, 0.35)',
+  },
+  datePlannedText: {
+    color: '#00E676',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  // Rule of 5 Modal Styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  ruleModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#0E111A',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: 24,
+    alignItems: 'center',
+  },
+  ruleModalIconWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  ruleModalTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  ruleModalSubtitle: {
+    color: '#94A3B8',
+    fontSize: 12.5,
+    marginTop: 4,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  ruleModalPillars: {
+    width: '100%',
+    gap: 14,
+    marginBottom: 22,
+  },
+  rulePillarRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  rulePillarIcon: {
+    fontSize: 18,
+    marginTop: 1,
+  },
+  rulePillarHeading: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  rulePillarText: {
+    color: '#CBD5E1',
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  ruleModalBtn: {
+    width: '100%',
+    backgroundColor: '#FF385C',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  ruleModalBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  matchesLivenessGateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 16,
+    gap: 12,
+  },
+  matchesLivenessIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchesLivenessTitle: {
+    color: '#FCA5A5',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  matchesLivenessSub: {
+    color: '#FECACA',
+    fontSize: 11,
+    marginTop: 1,
+    lineHeight: 15,
+  },
+  matchesLivenessBtn: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  matchesLivenessBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  // Urgency Rings & Avatar Badges
+  avatarRing: {
+    borderRadius: 32,
+    borderWidth: 2.5,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarRingGold: {
+    borderColor: '#FFD700',
+    borderWidth: 2.5,
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  pulsingGlowRing: {
+    position: 'absolute',
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    borderRadius: 35,
+    borderWidth: 2,
+    borderColor: '#FF4757',
+    backgroundColor: 'rgba(255, 71, 87, 0.12)',
+  },
+  datePlannedAvatarBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#0E111A',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  queuedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(100, 116, 139, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.35)',
+  },
+  queuedBadgeText: {
+    color: '#94A3B8',
+    fontSize: 10.5,
+    fontWeight: '800',
+  },
+  // 5-Slot Capacity Manager Modal Styles
+  slotManagerContent: {
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '85%',
+    backgroundColor: '#0E111A',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: 20,
+  },
+  slotManagerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  slotManagerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  slotManagerBadgeText: {
+    color: '#FF6584',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  slotManagerCloseBtn: {
+    padding: 6,
+  },
+  slotManagerCloseText: {
+    color: '#8A8D98',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  slotManagerTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  slotManagerSub: {
+    color: '#94A3B8',
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 16,
+  },
+  slotManagerLoading: {
+    paddingVertical: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotManagerLoadingText: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    marginTop: 12,
+    fontWeight: '600',
+  },
+  slotManagerList: {
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  slotManagerEmptyText: {
+    color: '#64748B',
+    fontSize: 12,
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+  slotMatchCard: {
+    backgroundColor: '#161924',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#262934',
+    padding: 12,
+    marginBottom: 10,
+  },
+  slotMatchCardExpired: {
+    borderColor: 'rgba(255, 71, 87, 0.4)',
+    backgroundColor: 'rgba(255, 71, 87, 0.05)',
+  },
+  slotMatchCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  slotMatchAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+  },
+  slotMatchNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  slotMatchName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  slotStatusPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  slotStatusPillActive: {
+    backgroundColor: 'rgba(46, 213, 115, 0.15)',
+  },
+  slotStatusPillExpired: {
+    backgroundColor: 'rgba(255, 71, 87, 0.2)',
+  },
+  slotStatusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  slotStatusPillTextActive: {
+    color: '#2ED573',
+  },
+  slotStatusPillTextExpired: {
+    color: '#FF4757',
+  },
+  slotMatchSnippet: {
+    color: '#64748B',
+    fontSize: 11,
+  },
+  slotActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  slotPlanDateBtn: {
+    flex: 1,
+    backgroundColor: '#00E676',
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotPlanDateBtnText: {
+    color: '#0A0C12',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  slotFarewellBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotFarewellBtnText: {
+    color: '#CBD5E1',
+    fontSize: 11.5,
+    fontWeight: '700',
+  },
+  slotManagerDismissBtn: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  slotManagerDismissBtnText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });
+

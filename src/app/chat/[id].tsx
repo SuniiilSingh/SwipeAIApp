@@ -38,6 +38,8 @@ import { useCall } from '@/context/call-context';
 import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import { FEATURE_FLAGS } from '@/config/features';
+import { useLivenessRecovery } from '@/services/liveness-recovery';
+import LivenessRetakeModal from '@/components/liveness-retake-modal';
 import { getOrDeriveMatchKey, encryptMessage, decryptMessage } from '@/services/e2ee';
 import { dismissNotificationsForMatch } from '@/services/notifications';
 import { playMessageReceivedSound } from '@/services/sound-service';
@@ -48,6 +50,8 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   const aesKeyRef = useRef<AESEncryptionKey | null>(null);
+  const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
+  const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
   const { id: matchId, name: candidateName, initialText } = useLocalSearchParams<{
     id: string;
     name?: string;
@@ -63,12 +67,16 @@ export default function ChatScreen() {
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showKundaliModal, setShowKundaliModal] = useState(false);
+  const [showDatePlanModal, setShowDatePlanModal] = useState(false);
+  const [dateVenue, setDateVenue] = useState('');
+  const [dateNote, setDateNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [mutualSparks, setMutualSparks] = useState<string[]>([]);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [showIcebreakerRecap, setShowIcebreakerRecap] = useState(true);
   const [isQuizExpanded, setIsQuizExpanded] = useState(false);
   const [showSafeSpot, setShowSafeSpot] = useState(false);
+  const [dismissedMilestone, setDismissedMilestone] = useState<number>(0);
 
   const { startCall, subscribeToWebSocket, sendWsMessage, connectionStatus, setActiveChatMatchId } = useCall();
   const [unblurredImages, setUnblurredImages] = useState<Record<string, boolean>>({});
@@ -162,6 +170,8 @@ export default function ChatScreen() {
 
         if (matchData) {
           setMatchDetails(matchData);
+          if (matchData.dateVenue) setDateVenue(matchData.dateVenue);
+          if (matchData.dateNote) setDateNote(matchData.dateNote);
           if (matchData.otherProfile) {
             setMatchProfile({
               ...matchData.otherProfile,
@@ -363,6 +373,12 @@ export default function ChatScreen() {
     const rawContent = (textToSend || inputText).trim();
     if (!rawContent || !matchId) return;
 
+    if (FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry) {
+      hapticFeedback.warning();
+      setShowLivenessRetakeModal(true);
+      return;
+    }
+
     setInputText('');
 
     // Instant Optimistic Bubble (0ms UI latency!)
@@ -514,6 +530,54 @@ export default function ChatScreen() {
     { key: 'EXPLICIT', emoji: '🔞', label: 'Unsolicited Inappropriate Media', desc: 'Explicit photos or unsolicited sexual content.' },
     { key: 'SCAM', emoji: '💸', label: 'Commercial Spam or Financial Scam', desc: 'Promoting services, asking for money, or spamming links.' },
   ];
+
+  const handleConfirmDatePlan = async () => {
+    if (!matchId) return;
+    setActionLoading(true);
+    hapticFeedback.success();
+    const ok = await api.markDatePlanned(matchId, dateVenue.trim() || undefined, dateNote.trim() || undefined);
+    setActionLoading(false);
+    if (ok) {
+      setShowDatePlanModal(false);
+      setMatchDetails((prev) => (prev ? { ...prev, status: 'DATE_PLANNED', dateVenue, dateNote } : prev));
+      Alert.alert(
+        '☕ Real Date Planned!',
+        'Awesome! This connection has been saved in your Date Book and your active Rule of 5 slot is now freed up for new connections.',
+        [{ text: 'Great! 🎉' }]
+      );
+    } else {
+      Alert.alert('Error', 'Unable to mark date as planned. Please check your network and try again.');
+    }
+  };
+
+  const handleGracefulExit = () => {
+    setShowSafetyModal(false);
+    hapticFeedback.light();
+    Alert.alert(
+      '🕊️ Respectful Farewell',
+      `Send a warm farewell note to ${matchProfile?.displayName || candidateName || 'your match'} and gracefully exit. This frees active Rule of 5 slots for both of you with zero negative impact.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Graceful Exit',
+          style: 'default',
+          onPress: async () => {
+            if (!matchId) return;
+            setActionLoading(true);
+            hapticFeedback.medium();
+            const ok = await api.gracefulExit(matchId, 'Thank you for the conversation! Wishing you the best.');
+            setActionLoading(false);
+            if (ok) {
+              Alert.alert('Graceful Farewell', 'Conversation closed respectfully. Your active Rule of 5 slot has been freed.');
+              router.replace('/(tabs)/matches');
+            } else {
+              Alert.alert('Error', 'Failed to exit gracefully. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleUnmatch = () => {
     setShowSafetyModal(false);
@@ -842,6 +906,21 @@ export default function ChatScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerCallActionRow}>
+            {/* Plan Real Date (Rule of 5 Slot Freer) */}
+            <TouchableOpacity
+              style={[
+                styles.headerIconBtn,
+                matchDetails?.status === 'DATE_PLANNED' && styles.headerIconBtnActiveDate,
+              ]}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowDatePlanModal(true);
+              }}
+              activeOpacity={0.75}
+              accessibilityLabel="Plan Real Date">
+              <Text style={{ fontSize: 16 }}>☕</Text>
+            </TouchableOpacity>
+
             {/* Cosmic Kundali Astrological Synergy Button */}
             <TouchableOpacity
               style={styles.headerIconBtn}
@@ -892,8 +971,24 @@ export default function ChatScreen() {
           </View>
         </View>
 
-        {/* Match Ephemeral Expiry Alert Banner (Slim 1-line urgency if < 24h) */}
-        {remainingHours !== null && remainingHours < 24 && (
+        {/* Date Planned Banner OR Ephemeral Expiry Alert Banner */}
+        {matchDetails?.status === 'DATE_PLANNED' ? (
+          <View style={styles.datePlannedBanner}>
+            <Text style={styles.datePlannedIcon}>☕</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.datePlannedTitle}>Real Date Planned!</Text>
+              <Text style={styles.datePlannedSub}>
+                {matchDetails.dateVenue ? `Meeting at ${matchDetails.dateVenue} • ` : ''}Active Rule of 5 slot unlocked
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.datePlannedDetailsBtn}
+              onPress={() => setShowDatePlanModal(true)}
+              activeOpacity={0.8}>
+              <Text style={styles.datePlannedDetailsText}>Details</Text>
+            </TouchableOpacity>
+          </View>
+        ) : remainingHours !== null && remainingHours < 24 ? (
           <View style={[styles.expiryBanner, remainingHours < 12 ? styles.expiryUrgent : styles.expiryWarning]}>
             <Text style={styles.expiryIcon}>⏳</Text>
             <Text style={styles.expiryText}>
@@ -902,7 +997,7 @@ export default function ChatScreen() {
                 : `${remainingHours}h left before match expires • Keep the chemistry alive!`}
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Compact 10s Icebreaker Quiz Pill (Collapsible, space-efficient) */}
         {matchDetails?.icebreakerQuiz?.isCompleted && showIcebreakerRecap && (
@@ -947,6 +1042,51 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* High-Chemistry Milestone Celebration Strip (20, 50, 100 messages) */}
+        {(() => {
+          const count = messages.length;
+          const milestone = count >= 100 ? 100 : count >= 50 ? 50 : count >= 20 ? 20 : 0;
+          const showPrompt = milestone > 0 && dismissedMilestone !== milestone && matchDetails?.status !== 'DATE_PLANNED';
+          if (!showPrompt) return null;
+          return (
+            <View style={styles.milestonePromptCard}>
+              <View style={styles.milestonePromptTopRow}>
+                <View style={styles.milestoneBadge}>
+                  <Text style={styles.milestoneBadgeIcon}>🥂</Text>
+                  <Text style={styles.milestoneBadgeText}>{milestone}+ Messages Exchanged!</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setDismissedMilestone(milestone)}
+                  style={styles.milestoneCloseBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.compactQuizCloseText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.milestoneSubText}>
+                Serious chemistry detected! Ready to turn this conversation into a real coffee or cocktail date?
+              </Text>
+              <View style={styles.milestoneActionRow}>
+                <TouchableOpacity
+                  style={styles.proposeDateBtn}
+                  onPress={() => {
+                    hapticFeedback.success();
+                    setShowDatePlanModal(true);
+                  }}>
+                  <Text style={styles.proposeDateBtnText}>Propose a Real Date ☕</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.keepChattingBtn}
+                  onPress={() => {
+                    hapticFeedback.light();
+                    setDismissedMilestone(milestone);
+                  }}>
+                  <Text style={styles.keepChattingBtnText}>Keep Chatting 💬</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()}
 
         {/* Chat Messages */}
         <FlatList
@@ -1009,7 +1149,31 @@ export default function ChatScreen() {
         )}
 
         {/* Bottom Message & Voice Note Input Bar */}
-        {isRecording ? (
+        {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry ? (
+          <TouchableOpacity
+            style={[
+              styles.chatLivenessLockedBar,
+              { paddingBottom: Math.max(insets.bottom, 12) },
+            ]}
+            onPress={() => {
+              hapticFeedback.medium();
+              setShowLivenessRetakeModal(true);
+            }}
+            activeOpacity={0.85}>
+            <View style={styles.chatLivenessIconWrap}>
+              <Text style={{ fontSize: 16 }}>🔒</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.chatLivenessLockedTitle}>Messaging Safely Locked</Text>
+              <Text style={styles.chatLivenessLockedSub} numberOfLines={1}>
+                Complete 3s selfie check to chat with {matchProfile?.displayName || candidateName || 'this match'}
+              </Text>
+            </View>
+            <View style={styles.chatLivenessUnlockBtn}>
+              <Text style={styles.chatLivenessUnlockText}>Verify 📸</Text>
+            </View>
+          </TouchableOpacity>
+        ) : isRecording ? (
           <View
             style={[
               styles.inputBar,
@@ -1149,6 +1313,19 @@ export default function ChatScreen() {
             <View style={styles.safetyOptionsList}>
               <TouchableOpacity
                 style={styles.safetyOptionItem}
+                onPress={handleGracefulExit}
+                activeOpacity={0.7}>
+                <View style={[styles.safetyOptionIconBox, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                  <Text style={styles.safetyOptionIcon}>🕊️</Text>
+                </View>
+                <View style={styles.safetyOptionTextBox}>
+                  <Text style={styles.safetyOptionTitle}>Graceful Farewell (Respectful Exit)</Text>
+                  <Text style={styles.safetyOptionSub}>End conversation respectfully • Frees Rule of 5 slot with 0 penalty</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.safetyOptionItem}
                 onPress={handleUnmatch}
                 activeOpacity={0.7}>
                 <View style={[styles.safetyOptionIconBox, { backgroundColor: 'rgba(239, 68, 68, 0.15)' }]}>
@@ -1241,6 +1418,87 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Date Plan Modal (Rule of 5 Slot Freer) */}
+      <Modal
+        visible={showDatePlanModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePlanModal(false)}>
+        <TouchableOpacity
+          style={styles.safetyModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDatePlanModal(false)}>
+          <View style={styles.datePlanSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.safetyHandle} />
+            <View style={styles.safetyHeader}>
+              <Text style={styles.safetyHeaderIcon}>☕</Text>
+              <Text style={styles.safetyHeaderTitle}>
+                {matchDetails?.status === 'DATE_PLANNED' ? 'Real Date Scheduled!' : 'Plan a Real Date'}
+              </Text>
+              <Text style={styles.safetyHeaderSub}>
+                {matchDetails?.status === 'DATE_PLANNED'
+                  ? `You and ${matchProfile?.displayName || candidateName || 'your match'} have scheduled to meet up! Your Rule of 5 active slot has been freed.`
+                  : `BlunderR is built for real-world chemistry. Once you set a date, this chat is preserved in your Date Book and your active match slot is freed for new connections.`}
+              </Text>
+            </View>
+
+            <View style={styles.datePlanForm}>
+              <Text style={styles.datePlanInputLabel}>Venue or Safe Spot (Optional)</Text>
+              <TextInput
+                style={styles.datePlanInput}
+                placeholder="e.g. Blue Tokai, Third Wave, or Rooftop Lounge"
+                placeholderTextColor="#6B7280"
+                value={dateVenue}
+                onChangeText={setDateVenue}
+                editable={matchDetails?.status !== 'DATE_PLANNED'}
+              />
+
+              <Text style={styles.datePlanInputLabel}>Date & Time or Notes (Optional)</Text>
+              <TextInput
+                style={[styles.datePlanInput, { height: 60, textAlignVertical: 'top' }]}
+                placeholder="e.g. Saturday 5:30 PM for cold brew & banter"
+                placeholderTextColor="#6B7280"
+                value={dateNote}
+                onChangeText={setDateNote}
+                multiline
+                editable={matchDetails?.status !== 'DATE_PLANNED'}
+              />
+            </View>
+
+            {matchDetails?.status !== 'DATE_PLANNED' ? (
+              <TouchableOpacity
+                style={[styles.confirmDateBtn, actionLoading && { opacity: 0.6 }]}
+                onPress={handleConfirmDatePlan}
+                disabled={actionLoading}
+                activeOpacity={0.85}>
+                {actionLoading ? (
+                  <ActivityIndicator color="#0E0F13" />
+                ) : (
+                  <Text style={styles.confirmDateBtnText}>Confirm Real Date 🥂</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.alreadyPlannedBadge}>
+                <Text style={styles.alreadyPlannedText}>✓ Status: Real Date Scheduled & Active Slot Freed</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.safetyCancelBtn}
+              onPress={() => setShowDatePlanModal(false)}>
+              <Text style={styles.safetyCancelBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* 3D Liveness Retake Recovery Modal (Single-Flag System) */}
+      <LivenessRetakeModal
+        visible={showLivenessRetakeModal}
+        onClose={() => setShowLivenessRetakeModal(false)}
+        referrer="Chat Lounge"
+      />
     </SafeAreaView>
   );
 }
@@ -1505,6 +1763,76 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 12,
     fontWeight: '800',
+  },
+  milestonePromptCard: {
+    backgroundColor: 'rgba(255, 56, 92, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.3)',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 6,
+    padding: 12,
+  },
+  milestonePromptTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  milestoneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  milestoneBadgeIcon: {
+    fontSize: 14,
+  },
+  milestoneBadgeText: {
+    color: '#FF6584',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  milestoneCloseBtn: {
+    padding: 4,
+  },
+  milestoneSubText: {
+    color: '#C3C7D4',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  milestoneActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proposeDateBtn: {
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proposeDateBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  keepChattingBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  keepChattingBtnText: {
+    color: '#8A8D98',
+    fontSize: 11,
+    fontWeight: '700',
   },
   compactSafeSpotClose: {
     paddingLeft: 6,
@@ -1987,5 +2315,150 @@ const styles = StyleSheet.create({
     color: '#E94057',
     fontSize: 16,
     fontWeight: '700',
+  },
+  headerIconBtnActiveDate: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.6)',
+  },
+  datePlannedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    gap: 10,
+  },
+  datePlannedIcon: {
+    fontSize: 18,
+  },
+  datePlannedTitle: {
+    color: '#34D399',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  datePlannedSub: {
+    color: '#A7F3D0',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  datePlannedDetailsBtn: {
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+  },
+  datePlannedDetailsText: {
+    color: '#6EE7B7',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  datePlanSheet: {
+    backgroundColor: '#161822',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 22,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    borderWidth: 1,
+    borderColor: '#262A3C',
+  },
+  datePlanForm: {
+    marginTop: 14,
+    marginBottom: 16,
+    gap: 8,
+  },
+  datePlanInputLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 6,
+  },
+  datePlanInput: {
+    backgroundColor: '#0F1118',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2D3248',
+    color: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  confirmDateBtn: {
+    backgroundColor: '#10B981',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  confirmDateBtnText: {
+    color: '#0E0F13',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  alreadyPlannedBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  alreadyPlannedText: {
+    color: '#34D399',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  chatLivenessLockedBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(239, 68, 68, 0.35)',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 10,
+  },
+  chatLivenessIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatLivenessLockedTitle: {
+    color: '#FCA5A5',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  chatLivenessLockedSub: {
+    color: '#FECACA',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  chatLivenessUnlockBtn: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+  },
+  chatLivenessUnlockText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });

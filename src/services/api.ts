@@ -9,6 +9,7 @@ import {
   IcebreakerQuiz,
   LivingStatus,
   MatchItem,
+  MatchCapacityInfo,
   MicroCircle,
   SafeDateSpot,
   SkuCatalogItem,
@@ -578,6 +579,8 @@ export const api = {
   },
 
   // Profiles
+  getCachedProfile: (): UserProfile => cachedProfile,
+
   getMyProfile: async (): Promise<UserProfile> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/me`, {
@@ -1240,6 +1243,71 @@ export const api = {
     } catch (e) {
       console.warn('Unmatch error:', e);
       return false;
+    }
+  },
+
+  getMatchCapacity: async (): Promise<MatchCapacityInfo> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/capacity`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('getMatchCapacity error:', e);
+    }
+    return {
+      activeMatchesCount: 0,
+      maxLimit: 5,
+      isAtCapacity: false,
+      queuedMatchesCount: 0,
+      plannedDatesCount: 0,
+      message: '5 slots open for high-intent connections.',
+    };
+  },
+
+  markDatePlanned: async (matchId: string, venueName?: string, note?: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/plan-date`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ venueName, note }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('markDatePlanned error:', e);
+      return false;
+    }
+  },
+
+  gracefulExit: async (matchId: string, note?: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/graceful-exit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ note }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('gracefulExit error:', e);
+      return false;
+    }
+  },
+
+  unlockQueuedMatch: async (matchId: string): Promise<MatchItem | null> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/unlock-queued`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
+    } catch (e) {
+      console.warn('unlockQueuedMatch error:', e);
+      return null;
     }
   },
 

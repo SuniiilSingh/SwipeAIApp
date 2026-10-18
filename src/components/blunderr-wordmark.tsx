@@ -2,58 +2,48 @@ import React from 'react';
 import { View, Text, StyleSheet, Platform, StyleProp, ViewStyle, TextStyle } from 'react-native';
 
 export interface BlunderRWordmarkProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | number;
   slant?: boolean;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   rStyle?: StyleProp<TextStyle>;
   showCommunityPill?: boolean;
   communityName?: string;
+  lightMode?: boolean;
 }
 
 /**
- * Letter-by-letter calibrated gradient stops across the full word 'BlunderR'.
- * Flows seamlessly from Electric Coral Flame (#FF385C) -> Sunset Rose (#FF6584) -> Sunburst Amber (#F59E0B).
- * Guarantees 100% native smooth gradient rendering across iOS, Android, and Web without white text.
- */
-const FULL_FLOW_LETTERS: Array<{ char: string; color: string; isAccent?: boolean }> = [
-  { char: 'B', color: '#FF385C' },
-  { char: 'l', color: '#FF4767' },
-  { char: 'u', color: '#FF5773' },
-  { char: 'n', color: '#FF687F' },
-  { char: 'd', color: '#FF798C' },
-  { char: 'e', color: '#FF8A98' },
-  { char: 'r', color: '#FE9A74' },
-  { char: 'R', color: '#F59E0B', isAccent: true },
-];
-
-/**
- * BlunderR Official Brand Wordmark (Option A: Full Flow Slant ⚡ - Full Word Gradient Edition)
- * Every letter flows through the signature Sunset/Coral palette (NO WHITE).
- * Features uniform kinetic forward slant and a prominent, taller capital 'R' with a glowing finish.
+ * BlunderR Official Brand Wordmark (The Flipped R Luxury Direction ⚡)
+ * Features tight, bold Swiss/grotesk typography with 'BLUNDER' in pristine cream (#FAF7F2)
+ * and the iconic signature mirrored 'R' in Electric Coral (#FF385C).
  */
 export const BlunderRWordmark: React.FC<BlunderRWordmarkProps> = ({
   size = 'md',
-  slant = true,
+  slant = false,
   style,
   textStyle,
   rStyle,
   showCommunityPill = false,
   communityName,
+  lightMode = false,
 }) => {
   const getFontSizes = () => {
+    if (typeof size === 'number') {
+      return { root: size, accent: size, pill: Math.max(9, Math.round(size * 0.45)) };
+    }
     switch (size) {
       case 'sm':
-        return { root: 16, accent: 20, pill: 9 };
+        return { root: 17, accent: 17, pill: 9 };
       case 'lg':
-        return { root: 28, accent: 35, pill: 11 };
+        return { root: 28, accent: 28, pill: 11 };
       case 'md':
       default:
-        return { root: 22, accent: 27, pill: 10 };
+        return { root: 22, accent: 22, pill: 10 };
     }
   };
 
   const { root: rootSize, accent: accentSize, pill: pillSize } = getFontSizes();
+  const baseColor = lightMode ? '#08080C' : '#FAF7F2';
 
   return (
     <View style={[styles.container, style]}>
@@ -61,29 +51,23 @@ export const BlunderRWordmark: React.FC<BlunderRWordmarkProps> = ({
         <Text
           style={[
             styles.baseText,
-            slant && styles.italicText,
-            Platform.select({
-              web: styles.webGradientWordmark,
-            }),
+            { fontSize: rootSize, color: baseColor },
+            textStyle,
           ]}
           numberOfLines={1}>
-          {FULL_FLOW_LETTERS.map((item, idx) => (
-            <Text
-              key={`${item.char}-${idx}`}
-              style={[
-                styles.charText,
-                {
-                  fontSize: item.isAccent ? accentSize : rootSize,
-                  color: item.color,
-                },
-                item.isAccent && styles.accentR,
-                item.isAccent && rStyle,
-                !item.isAccent && textStyle,
-              ]}>
-              {item.char}
-            </Text>
-          ))}
+          BLUNDER
         </Text>
+        <View style={styles.flippedRContainer}>
+          <Text
+            style={[
+              styles.flippedRText,
+              { fontSize: accentSize },
+              rStyle,
+            ]}
+            numberOfLines={1}>
+            R
+          </Text>
+        </View>
       </View>
 
       {showCommunityPill && !!communityName && (
@@ -106,54 +90,44 @@ const styles = StyleSheet.create({
   },
   wordmarkRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexShrink: 0,
   },
   slantedLockup: {
-    transform: [{ skewX: '-5deg' }],
-  },
-  italicText: {
-    fontStyle: 'italic',
+    transform: [{ skewX: '-4deg' }],
   },
   baseText: {
     fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-  charText: {
-    fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     ...Platform.select({
       web: {
-        textShadow: '0 0 16px rgba(255, 56, 92, 0.45), 0 2px 8px rgba(0, 0, 0, 0.5)',
-      },
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Arial Black", Arial, sans-serif',
+        userSelect: 'none',
+      } as any,
+      default: {},
+    }),
+  },
+  flippedRContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 0.5,
+    transform: [{ scaleX: -1 }],
+  },
+  flippedRText: {
+    fontWeight: '900',
+    color: '#FF385C',
+    letterSpacing: -0.6,
+    ...Platform.select({
+      web: {
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Arial Black", Arial, sans-serif',
+        textShadow: '0 0 20px rgba(255, 56, 92, 0.45)',
+        userSelect: 'none',
+      } as any,
       default: {
         textShadowColor: 'rgba(255, 56, 92, 0.55)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 8,
       },
-    }),
-  },
-  accentR: {
-    marginLeft: 1,
-    letterSpacing: -0.5,
-    ...Platform.select({
-      web: {
-        textShadow: '0 0 20px rgba(245, 158, 11, 0.55), 0 0 12px rgba(255, 56, 92, 0.6)',
-      },
-      default: {
-        textShadowColor: 'rgba(245, 158, 11, 0.65)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 10,
-      },
-    }),
-  },
-  webGradientWordmark: {
-    ...Platform.select({
-      web: {
-        backgroundImage: 'linear-gradient(135deg, #FF385C 0%, #FF6584 55%, #F59E0B 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-      } as any,
     }),
   },
   communityPill: {

@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,11 +11,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { DietaryPreference, Gender, MicroCircle } from '@/types';
@@ -24,12 +25,12 @@ import { hapticFeedback } from '@/utils/haptics';
 import SelfieCameraModal from '@/components/selfie-camera-modal';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 import MicroCommunityModal from '@/components/micro-community-modal';
+import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 import {
   GENDER_PRESETS,
   GENDER_PREFERENCE_PRESETS,
+  SEXUAL_ORIENTATION_PRESETS,
 } from '@/constants/profile-presets';
-
-const { width, height } = Dimensions.get('window');
 
 const TRIBE_CITIES = [
   'All Cities',
@@ -43,6 +44,120 @@ const TRIBE_CITIES = [
   'Goa',
   'Kolkata',
   'Chennai',
+];
+
+interface MetroHub {
+  id: string;
+  city: string;
+  hubs: string;
+  vibe: string;
+  photo: string;
+  lat: number;
+  lng: number;
+}
+
+const METRO_HUBS: MetroHub[] = [
+  {
+    id: 'bengaluru',
+    city: 'Bengaluru',
+    hubs: 'Indiranagar • Koramangala • HSR',
+    vibe: '☕ Tech & Rooftops',
+    photo: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=600&auto=format&fit=crop&q=80',
+    lat: 12.9716,
+    lng: 77.5946,
+  },
+  {
+    id: 'mumbai',
+    city: 'Mumbai',
+    hubs: 'Bandra West • Lower Parel • Juhu',
+    vibe: '🌊 Sunset & Cinema',
+    photo: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=600&auto=format&fit=crop&q=80',
+    lat: 19.076,
+    lng: 72.8777,
+  },
+  {
+    id: 'delhi-ncr',
+    city: 'Delhi NCR',
+    hubs: 'Hauz Khas • CyberHub • Khan Market',
+    vibe: '🍸 Heritage & Nightlife',
+    photo: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&auto=format&fit=crop&q=80',
+    lat: 28.6139,
+    lng: 77.209,
+  },
+  {
+    id: 'pune',
+    city: 'Pune',
+    hubs: 'Koregaon Park • Baner • Kalyani Nagar',
+    vibe: '🌿 Cafes & Indie Music',
+    photo: 'https://images.unsplash.com/photo-1566552881560-0be862a7c445?w=600&auto=format&fit=crop&q=80',
+    lat: 18.5204,
+    lng: 73.8567,
+  },
+  {
+    id: 'hyderabad',
+    city: 'Hyderabad',
+    hubs: 'Jubilee Hills • Banjara Hills • Gachibowli',
+    vibe: '👑 Royal & High-Tech',
+    photo: 'https://images.unsplash.com/photo-1626014303757-6366ef55c4ab?w=600&auto=format&fit=crop&q=80',
+    lat: 17.385,
+    lng: 78.4867,
+  },
+  {
+    id: 'goa',
+    city: 'Goa',
+    hubs: 'Assagao • Anjuna • Panjim',
+    vibe: '🏖️ Slow Life & Creators',
+    photo: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=600&auto=format&fit=crop&q=80',
+    lat: 15.2993,
+    lng: 74.124,
+  },
+  {
+    id: 'chennai',
+    city: 'Chennai',
+    hubs: 'ECR • Besant Nagar • Alwarpet',
+    vibe: '🌊 Coast & Culture',
+    photo: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&auto=format&fit=crop&q=80',
+    lat: 13.0827,
+    lng: 80.2707,
+  },
+  {
+    id: 'kolkata',
+    city: 'Kolkata',
+    hubs: 'Park Street • Salt Lake • Ballygunge',
+    vibe: '🎭 Art & Old Charm',
+    photo: 'https://images.unsplash.com/photo-1558431382-27e303142255?w=600&auto=format&fit=crop&q=80',
+    lat: 22.5726,
+    lng: 88.3639,
+  },
+];
+
+const ALL_INDIAN_CITIES: { city: string; area: string; lat: number; lng: number }[] = [
+  { city: 'Bengaluru', area: 'Indiranagar,Bengaluru', lat: 12.9784, lng: 77.6408 },
+  { city: 'Bengaluru', area: 'Koramangala,Bengaluru', lat: 12.9352, lng: 77.6245 },
+  { city: 'Bengaluru', area: 'HSR Layout,Bengaluru', lat: 12.9121, lng: 77.6446 },
+  { city: 'Bengaluru', area: 'Whitefield,Bengaluru', lat: 12.9698, lng: 77.75 },
+  { city: 'Mumbai', area: 'Bandra West,Mumbai', lat: 19.0596, lng: 72.8295 },
+  { city: 'Mumbai', area: 'Andheri West,Mumbai', lat: 19.1363, lng: 72.8277 },
+  { city: 'Mumbai', area: 'Lower Parel,Mumbai', lat: 18.9953, lng: 72.83 },
+  { city: 'Mumbai', area: 'Powai,Mumbai', lat: 19.1176, lng: 72.906 },
+  { city: 'Delhi NCR', area: 'Hauz Khas,New Delhi', lat: 28.5494, lng: 77.2001 },
+  { city: 'Delhi NCR', area: 'South Extension,New Delhi', lat: 28.5684, lng: 77.2207 },
+  { city: 'Gurgaon', area: 'DLF CyberHub,Gurgaon', lat: 28.495, lng: 77.0895 },
+  { city: 'Gurgaon', area: 'Golf Course Road,Gurgaon', lat: 28.4595, lng: 77.0988 },
+  { city: 'Noida', area: 'Sector 62,Noida', lat: 28.6279, lng: 77.3649 },
+  { city: 'Pune', area: 'Koregaon Park,Pune', lat: 18.5362, lng: 73.894 },
+  { city: 'Pune', area: 'Baner,Pune', lat: 18.559, lng: 73.7868 },
+  { city: 'Hyderabad', area: 'Jubilee Hills,Hyderabad', lat: 17.4326, lng: 78.4071 },
+  { city: 'Hyderabad', area: 'Gachibowli,Hyderabad', lat: 17.4401, lng: 78.3489 },
+  { city: 'Goa', area: 'Assagao,North Goa', lat: 15.6001, lng: 73.7848 },
+  { city: 'Chennai', area: 'Besant Nagar,Chennai', lat: 13.0002, lng: 80.2668 },
+  { city: 'Kolkata', area: 'Park Street,Kolkata', lat: 22.5551, lng: 88.3524 },
+  { city: 'Jaipur', area: 'C-Scheme,Jaipur', lat: 26.9124, lng: 75.7873 },
+  { city: 'Chandigarh', area: 'Sector 17,Chandigarh', lat: 30.7398, lng: 76.7827 },
+  { city: 'Ahmedabad', area: 'SG Highway,Ahmedabad', lat: 23.0225, lng: 72.5714 },
+  { city: 'Kochi', area: 'Fort Kochi,Kochi', lat: 9.9658, lng: 76.2421 },
+  { city: 'Indore', area: 'Vijay Nagar,Indore', lat: 22.7533, lng: 75.8937 },
+  { city: 'Lucknow', area: 'Gomti Nagar,Lucknow', lat: 26.8467, lng: 80.9462 },
 ];
 
 export interface BioArchetype {
@@ -153,36 +268,134 @@ const WITTY_BIOS: BioArchetype[] = [
   },
 ];
 
+const DECK_STRIP_ITEMS = [
+  { id: 1, label: '01 • Spark' },
+  { id: 2, label: '02 • Vibe' },
+  { id: 3, label: '03 • Tribe' },
+  { id: 4, label: '04 • Bio' },
+  { id: 5, label: '05 • Rhythm' },
+  { id: 6, label: '06 • Photos' },
+  { id: 7, label: '07 • Vedic' },
+];
+
 export default function OnboardingDecksScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const isCompactPhone = screenWidth < 370 || screenHeight < 710;
 
   const [activeDeck, setActiveDeck] = useState<number>(1);
-  const [turboMode, setTurboMode] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Deck 1: Identity & Selfie
+  // Deck 1: Identity, Liveness Selfie & Primary Residence (Zero Prefill)
   const [fullName, setFullName] = useState<string>('');
-  const [dobYear, setDobYear] = useState<string>('2000');
-  const [dobMonth, setDobMonth] = useState<string>('08');
-  const [dobDay, setDobDay] = useState<string>('14');
+  const [dobYear, setDobYear] = useState<string>('');
+  const [dobMonth, setDobMonth] = useState<string>('');
+  const [dobDay, setDobDay] = useState<string>('');
+  const dobDayRef = useRef<TextInput>(null);
+  const dobMonthRef = useRef<TextInput>(null);
+  const dobYearRef = useRef<TextInput>(null);
+
+  const handleDobDayChange = (text: string) => {
+    const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setDobDay(clean);
+    if (clean.length === 2) {
+      dobMonthRef.current?.focus();
+    }
+  };
+
+  const handleDobMonthChange = (text: string) => {
+    const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
+    setDobMonth(clean);
+    if (clean.length === 2) {
+      dobYearRef.current?.focus();
+    }
+  };
+
+  const handleDobYearChange = (text: string) => {
+    const clean = text.replace(/[^0-9]/g, '').slice(0, 4);
+    setDobYear(clean);
+  };
+
+  const handleMonthKeyPress = ({ nativeEvent }: any) => {
+    if (nativeEvent.key === 'Backspace' && dobMonth.length === 0) {
+      dobDayRef.current?.focus();
+    }
+  };
+
+  const handleYearKeyPress = ({ nativeEvent }: any) => {
+    if (nativeEvent.key === 'Backspace' && dobYear.length === 0) {
+      dobMonthRef.current?.focus();
+    }
+  };
+
+  const calculatedAge = useMemo(() => {
+    const yr = parseInt(dobYear, 10);
+    const mo = parseInt(dobMonth, 10);
+    const dy = parseInt(dobDay, 10);
+    const currentYr = new Date().getFullYear();
+    if (isNaN(yr) || yr < 1920 || yr > currentYr) return null;
+    let age = currentYr - yr;
+    if (!isNaN(mo) && mo >= 1 && mo <= 12 && !isNaN(dy) && dy >= 1 && dy <= 31) {
+      const today = new Date();
+      const m = today.getMonth() - (mo - 1);
+      if (m < 0 || (m === 0 && today.getDate() < dy)) {
+        age--;
+      }
+    }
+    return age;
+  }, [dobYear, dobMonth, dobDay]);
+
+  const handleBirthTimeChange = (text: string) => {
+    const digits = text.replace(/[^0-9]/g, '');
+    if (!digits) {
+      setBirthTime('');
+      return;
+    }
+    const cleanDigits = digits.slice(0, 4);
+    if (cleanDigits.length <= 2) {
+      if (text.endsWith(':') || text.length === 3) {
+        setBirthTime(cleanDigits);
+      } else if (cleanDigits.length === 2 && !birthTime.includes(':')) {
+        setBirthTime(`${cleanDigits}:`);
+      } else {
+        setBirthTime(cleanDigits);
+      }
+    } else {
+      const hh = cleanDigits.slice(0, 2);
+      const mm = cleanDigits.slice(2, 4);
+      setBirthTime(`${hh}:${mm}`);
+    }
+  };
   const [selfieUrl, setSelfieUrl] = useState<string>('');
   const [showSelfieModal, setShowSelfieModal] = useState<boolean>(false);
   const [isLivenessVerified, setIsLivenessVerified] = useState<boolean>(false);
   const [verificationStatus, setVerificationStatus] = useState<'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('UNVERIFIED');
 
-  // Deck 2: Frequency
+  // Primary Residence (Live GPS + Universal Search + Metro Hub Cards)
+  const [primaryCity, setPrimaryCity] = useState<string>('');
+  const [primaryLocation, setPrimaryLocation] = useState<string>('');
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [citySearchQuery, setCitySearchQuery] = useState<string>('');
+  const [isDetectingGps, setIsDetectingGps] = useState<boolean>(false);
+  const [gpsStatusText, setGpsStatusText] = useState<string>('');
+
+  // Deck 2: Mutual Frequency (Zero Prefill + Inline 3rd/4th Custom Selector Card)
   const [gender, setGender] = useState<Gender>('MALE');
-  const [genderDisplay, setGenderDisplay] = useState<string>('Man');
-  const [tempGenderDisplay, setTempGenderDisplay] = useState<string>('Man');
-  const [lookingFor, setLookingFor] = useState<string>('Women');
-  const [tempLookingFor, setTempLookingFor] = useState<string>('Women');
-  const [orientation, setOrientation] = useState<string>('Straight');
+  const [genderDisplay, setGenderDisplay] = useState<string>('');
+  const [tempGenderDisplay, setTempGenderDisplay] = useState<string>('');
+  const [customGenderInput, setCustomGenderInput] = useState<string>('');
+  const [lookingFor, setLookingFor] = useState<string>('');
+  const [tempLookingFor, setTempLookingFor] = useState<string>('');
+  const [customLookingForInput, setCustomLookingForInput] = useState<string>('');
+  const [orientation, setOrientation] = useState<string>('');
+  const [tempOrientation, setTempOrientation] = useState<string>('');
+  const [customOrientationInput, setCustomOrientationInput] = useState<string>('');
   const [showGenderModal, setShowGenderModal] = useState<boolean>(false);
   const [showPreferenceModal, setShowPreferenceModal] = useState<boolean>(false);
+  const [showOrientationModal, setShowOrientationModal] = useState<boolean>(false);
 
-  // Deck 3: Neighborhood Tribe (Search + City-Wise Filter + Micro-Circles)
-  const [microCircle, setMicroCircle] = useState<string>('🚀 Koramangala Tech Founders');
+  // Deck 3: Neighborhood Tribe & Career (Zero Prefill)
+  const [microCircle, setMicroCircle] = useState<string>('');
   const [tribeCircles, setTribeCircles] = useState<MicroCircle[]>([]);
   const [tribeCityFilter, setTribeCityFilter] = useState<string>('All Cities');
   const [tribeSearchQuery, setTribeSearchQuery] = useState<string>('');
@@ -191,29 +404,28 @@ export default function OnboardingDecksScreen() {
   const [job, setJob] = useState<string>('');
   const [institute, setInstitute] = useState<string>('');
 
-  // Deck 4: Bio Archetype
-  const [bio, setBio] = useState<string>(WITTY_BIOS[0].bioText);
+  // Deck 4: Bio Archetype (Zero Prefill)
+  const [bio, setBio] = useState<string>('');
   const [bioIdx, setBioIdx] = useState<number>(0);
   const [selectedBioCategory, setSelectedBioCategory] = useState<string>('All');
 
-  // Deck 5: Lifestyle & Height
-  const [heightCm, setHeightCm] = useState<number>(178);
-  const [dietaryPref, setDietaryPref] = useState<DietaryPreference>('PURE_VEG');
-  const [drinkingHabit, setDrinkingHabit] = useState<string>('Socially');
+  // Deck 5: Lifestyle & Stature (Zero Prefill for pills, 175cm stepper baseline)
+  const [heightCm, setHeightCm] = useState<number>(175);
+  const [dietaryPref, setDietaryPref] = useState<DietaryPreference | ''>('');
+  const [drinkingHabit, setDrinkingHabit] = useState<string>('');
 
-  // Deck 7: Vedic Birth Details (Moved to Deck 7)
-  const [birthTime, setBirthTime] = useState<string>('00:00');
-  const [birthCity, setBirthCity] = useState<string>('');
-
-  // Deck 7: 6-Slot Photo Showcase (Minimum 2 required, up to 6 optional)
+  // Deck 6: Asymmetric Editorial 6-Slot Photo Showcase (Minimum 2 required, up to 6 optional)
   const [photoSlots, setPhotoSlots] = useState<string[]>(['', '', '', '', '', '']);
   const photoSlotsRef = useRef<string[]>(['', '', '', '', '', '']);
   const [uploadingSlots, setUploadingSlots] = useState<Record<number, boolean>>({});
   const [activePhotoSlotModal, setActivePhotoSlotModal] = useState<number | null>(null);
 
+  // Deck 7 (Final Step): Vedic Janampatri (Zero Prefill)
+  const [birthTime, setBirthTime] = useState<string>('');
+  const [birthCity, setBirthCity] = useState<string>('');
+
   // Animations
   const deckAnim = useRef(new Animated.Value(1)).current;
-  const pulseScale = useRef(new Animated.Value(1)).current;
 
   const loadTribeCircles = async (city?: string) => {
     setLoadingTribes(true);
@@ -232,6 +444,103 @@ export default function OnboardingDecksScreen() {
     setTribeCityFilter(city);
     loadTribeCircles(city);
   };
+
+  const handleSelectPrimaryCity = (city: string, locationLabel?: string, lat?: number, lng?: number) => {
+    hapticFeedback.light();
+    const cleanCity = city.trim();
+    const cleanLoc = (locationLabel || cleanCity).trim();
+    setPrimaryCity(cleanCity);
+    setPrimaryLocation(cleanLoc);
+    setCitySearchQuery('');
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      setCoords({ lat, lng });
+      api.updateLocation(lat, lng, cleanCity, cleanLoc).catch(() => {});
+    }
+    // Automatically sync Deck 3 Neighborhood Tribe city filter if it matches one of our tribe cities
+    const matchedTribeCity = TRIBE_CITIES.find(
+      (tc) =>
+        tc.toLowerCase() === cleanCity.toLowerCase() ||
+        (cleanCity.toLowerCase().includes('delhi') && tc === 'Delhi NCR') ||
+        (cleanCity.toLowerCase().includes('gurugram') && tc === 'Gurgaon') ||
+        (cleanCity.toLowerCase().includes('bangalore') && tc === 'Bengaluru')
+    );
+    if (matchedTribeCity) {
+      setTribeCityFilter(matchedTribeCity);
+      loadTribeCircles(matchedTribeCity);
+    }
+  };
+
+  const handleDetectLiveGps = async () => {
+    hapticFeedback.medium();
+    setIsDetectingGps(true);
+    setGpsStatusText('Requesting satellite lock...');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setIsDetectingGps(false);
+        setGpsStatusText('Permission denied — select city below');
+        Alert.alert(
+          'Location Permission',
+          'Please enable location access or pick your city using the search bar or Metro Hub cards below.'
+        );
+        return;
+      }
+
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = pos.coords;
+
+      let resolvedCity = '';
+      let resolvedArea = '';
+
+      try {
+        const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (geo && geo.length > 0) {
+          const place = geo[0];
+          resolvedCity = place.city || place.subregion || place.region || '';
+          const district = place.district || place.name || place.street || '';
+          resolvedArea = district && resolvedCity && district !== resolvedCity
+            ? `${district}, ${resolvedCity}`
+            : resolvedCity;
+        }
+      } catch (geoErr) {
+        // Fallback for web or if native reverseGeocode fails
+      }
+
+      if (!resolvedCity && Platform.OS === 'web') {
+        try {
+          const resp = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await resp.json();
+          const addr = data?.address || {};
+          resolvedCity = addr.city || addr.town || addr.state_district || addr.state || 'Bengaluru';
+          const suburb = addr.suburb || addr.neighbourhood || '';
+          resolvedArea = suburb ? `${suburb}, ${resolvedCity}` : resolvedCity;
+        } catch (e) {}
+      }
+
+      const finalCity = resolvedCity || 'Bengaluru';
+      const finalArea = resolvedArea || finalCity;
+
+      handleSelectPrimaryCity(finalCity, finalArea, latitude, longitude);
+      setGpsStatusText(`Locked: ${finalArea}`);
+      hapticFeedback.success();
+    } catch (err) {
+      setGpsStatusText('Could not auto-detect — pick city below');
+    } finally {
+      setIsDetectingGps(false);
+    }
+  };
+
+  const citySuggestions = citySearchQuery.trim().length > 0
+    ? ALL_INDIAN_CITIES.filter(
+        (c) =>
+          c.city.toLowerCase().includes(citySearchQuery.trim().toLowerCase()) ||
+          c.area.toLowerCase().includes(citySearchQuery.trim().toLowerCase())
+      ).slice(0, 5)
+    : [];
 
   const filteredTribeCircles = tribeCircles.filter((item) => {
     const matchesCity = (() => {
@@ -259,14 +568,17 @@ export default function OnboardingDecksScreen() {
     );
   });
 
-  // Load existing user profile & micro-circles if available
+  // Load existing user profile & micro-circles if available (without fake prefilled defaults)
   useEffect(() => {
     loadTribeCircles();
     (async () => {
       try {
         const prof = await api.getMyProfile();
         if (prof?.displayName || prof?.fullName) {
-          setFullName(prof.displayName || prof.fullName || '');
+          const existingName = prof.displayName || prof.fullName || '';
+          if (existingName && existingName !== 'New User' && existingName !== 'BlunderR Star') {
+            setFullName(existingName);
+          }
         }
         if (prof?.birthDate) {
           const parts = prof.birthDate.split('-');
@@ -275,6 +587,14 @@ export default function OnboardingDecksScreen() {
             setDobMonth(parts[1]);
             setDobDay(parts[2]);
           }
+        }
+        if (prof?.city || prof?.location) {
+          const c = prof.city || prof.location || '';
+          setPrimaryCity(c);
+          setPrimaryLocation(prof.location || c);
+        }
+        if (typeof prof?.latitude === 'number' && typeof prof?.longitude === 'number') {
+          setCoords({ lat: prof.latitude, lng: prof.longitude });
         }
         if (prof?.gender) setGender(prof.gender);
         if (prof?.genderDisplay) {
@@ -285,10 +605,11 @@ export default function OnboardingDecksScreen() {
           setLookingFor(prof.genderPreferenceDisplay);
           setTempLookingFor(prof.genderPreferenceDisplay);
         }
-        if (prof?.microCircle) setMicroCircle(prof.microCircle);
-        if (prof?.city || prof?.location) {
-          setBirthCity(prof.city || prof.location || '');
+        if (prof?.sexualOrientation) {
+          setOrientation(prof.sexualOrientation);
+          setTempOrientation(prof.sexualOrientation);
         }
+        if (prof?.microCircle) setMicroCircle(prof.microCircle);
         if (prof?.job || prof?.occupation) setJob(prof.job || prof.occupation || '');
         if (prof?.institute || prof?.education) setInstitute(prof.institute || prof.education || '');
         if (prof?.bio) setBio(prof.bio);
@@ -350,17 +671,14 @@ export default function OnboardingDecksScreen() {
       case 3: return 48;
       case 4: return 64;
       case 5: return 78;
-      case 6: return 90;
+      case 6: return 92;
       case 7: return 100;
-      case 8: return 100;
       default: return 16;
     }
   };
 
   const getEstimatedAge = () => {
-    const yr = parseInt(dobYear, 10);
-    if (isNaN(yr) || yr < 1920 || yr > 2015) return 24;
-    return new Date().getFullYear() - yr;
+    return calculatedAge;
   };
 
   const feetAndInches = () => {
@@ -373,16 +691,35 @@ export default function OnboardingDecksScreen() {
     switch (deck) {
       case 1: {
         if (!fullName || fullName.trim().length < 2) {
-          return { valid: false, message: 'Please enter your name (at least 2 characters) to continue.' };
+          return { valid: false, message: 'Please enter your first name (at least 2 characters) to continue.' };
         }
+        const dy = parseInt(dobDay, 10);
+        const mo = parseInt(dobMonth, 10);
         const yr = parseInt(dobYear, 10);
         const currentYr = new Date().getFullYear();
-        const age = currentYr - yr;
-        if (isNaN(yr) || yr < 1920 || yr > currentYr || age < 18) {
-          return { valid: false, message: 'You must be at least 18 years old to join BlunderR.' };
+        if (isNaN(dy) || dy < 1 || dy > 31) {
+          return { valid: false, message: 'Please enter a valid birth day (01 to 31).' };
+        }
+        if (isNaN(mo) || mo < 1 || mo > 12) {
+          return { valid: false, message: 'Please enter a valid birth month (01 to 12).' };
+        }
+        if (isNaN(yr) || yr < 1920 || yr > currentYr) {
+          return { valid: false, message: 'Please enter a valid birth year (YYYY, e.g. 1999).' };
+        }
+        const today = new Date();
+        let age = today.getFullYear() - yr;
+        const m = today.getMonth() - (mo - 1);
+        if (m < 0 || (m === 0 && today.getDate() < dy)) {
+          age--;
+        }
+        if (age < 18) {
+          return { valid: false, message: `You are currently ${age} years old. You must be at least 18 years old to join BlunderR.` };
         }
         if (!selfieUrl || selfieUrl.trim().length === 0) {
           return { valid: false, message: 'Please take or upload your verification selfie to continue.' };
+        }
+        if (!primaryCity || !primaryCity.trim()) {
+          return { valid: false, message: 'Please select or auto-detect your primary residence city for local matching.' };
         }
         return { valid: true };
       }
@@ -393,37 +730,39 @@ export default function OnboardingDecksScreen() {
         if (!lookingFor || !lookingFor.trim()) {
           return { valid: false, message: 'Please select who you are looking to meet.' };
         }
+        if (!orientation || !orientation.trim()) {
+          return { valid: false, message: 'Please select your sexual orientation.' };
+        }
         return { valid: true };
       }
       case 3: {
         if (!microCircle || !microCircle.trim()) {
-          return { valid: false, message: 'Please select your neighborhood micro-circle.' };
+          return { valid: false, message: 'Please join a neighborhood micro-circle.' };
         }
         if (!job || !job.trim()) {
-          return { valid: false, message: 'Please enter what pays your bills (career / profession) to continue.' };
+          return { valid: false, message: 'Please enter your career / profession to continue.' };
         }
         return { valid: true };
       }
       case 4: {
         if (!bio || bio.trim().length < 10) {
-          return { valid: false, message: 'Please enter or select a bio with at least 10 characters.' };
+          return { valid: false, message: 'Please select an archetype or write a bio (at least 10 characters).' };
         }
         return { valid: true };
       }
       case 5: {
         if (!heightCm || heightCm < 100) {
-          return { valid: false, message: 'Please select your height to continue.' };
+          return { valid: false, message: 'Please set your height to continue.' };
         }
         if (!dietaryPref) {
-          return { valid: false, message: 'Please select your dietary preference.' };
+          return { valid: false, message: 'Please select your food preference.' };
         }
         if (!drinkingHabit) {
-          return { valid: false, message: 'Please select your drinking habit.' };
+          return { valid: false, message: 'Please select your social drinking preference.' };
         }
         return { valid: true };
       }
       case 6: {
-        // Deck 6 is Photo Showcase (Min 2 required)
         const validPhotos = photoSlotsRef.current.filter((u) => u && u.trim().length > 0);
         if (validPhotos.length < 2) {
           return {
@@ -434,12 +773,16 @@ export default function OnboardingDecksScreen() {
         return { valid: true };
       }
       case 7: {
-        // Deck 7 is Vedic Janampatri (Exact Birth Time & Birth City)
-        if (!birthTime || !birthTime.trim()) {
-          return { valid: false, message: 'Please enter your exact birth time (HH:MM) to calibrate your chart.' };
-        }
-        if (!birthCity || !birthCity.trim()) {
-          return { valid: false, message: 'Please enter your birth city / town to calibrate your Vedic Kundali.' };
+        // Cosmic Chemistry / Vedic Janampatri is completely optional
+        if (birthTime && birthTime.trim().length > 0) {
+          const cleanTime = birthTime.trim();
+          const timeRegex = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+          if (!timeRegex.test(cleanTime)) {
+            return {
+              valid: false,
+              message: 'Birth time format should be HH:MM in 24-hr format (e.g. 14:30), or leave blank to skip.',
+            };
+          }
         }
         return { valid: true };
       }
@@ -449,6 +792,7 @@ export default function OnboardingDecksScreen() {
   };
 
   const advanceToDeck = (targetDeck: number) => {
+    if (targetDeck < 1 || targetDeck > 7) return;
     if (targetDeck > activeDeck) {
       for (let d = activeDeck; d < targetDeck; d++) {
         const validation = validateDeck(d);
@@ -463,13 +807,13 @@ export default function OnboardingDecksScreen() {
     hapticFeedback.medium();
     Animated.sequence([
       Animated.timing(deckAnim, {
-        toValue: 0.94,
-        duration: 120,
+        toValue: 0.96,
+        duration: 110,
         useNativeDriver: true,
       }),
       Animated.timing(deckAnim, {
         toValue: 1,
-        duration: 180,
+        duration: 170,
         useNativeDriver: true,
       }),
     ]).start();
@@ -491,12 +835,10 @@ export default function OnboardingDecksScreen() {
   const handleSelfieCaptured = async (capturedUri: string, capturedBase64?: string) => {
     setShowSelfieModal(false);
     hapticFeedback.success();
-    // Immediately mark verification as PENDING while backend verifies in background
     setVerificationStatus('PENDING');
     setIsLivenessVerified(false);
     if (capturedUri) {
       setSelfieUrl(capturedUri);
-      // Upload & submit asynchronously in background without blocking user
       (async () => {
         try {
           const uploadedUrl = await api.uploadImage(capturedUri, capturedBase64);
@@ -513,11 +855,9 @@ export default function OnboardingDecksScreen() {
   };
 
   const uploadedPhotosList = photoSlots.filter((u) => u && u.trim().length > 0);
-  const isAnySlotUploading = Object.values(uploadingSlots).some(Boolean);
 
   const uploadSingleAssetToSlot = async (slotIndex: number, localUri: string, directBase64?: string | null) => {
     setUploadingSlots((prev) => ({ ...prev, [slotIndex]: true }));
-    // Optimistically show selected photo in slot using functional state update so concurrent picks never overwrite
     setPhotoSlots((prev) => {
       const next = [...prev];
       next[slotIndex] = localUri;
@@ -605,7 +945,6 @@ export default function OnboardingDecksScreen() {
 
       if (result.canceled || !result.assets || result.assets.length === 0) return;
 
-      // If multiple assets were picked (or if user selected multiple photos at once), assign each to a slot
       if (result.assets.length > 1) {
         const currentSlots = [...photoSlotsRef.current];
         const tasks: Promise<void>[] = [];
@@ -613,7 +952,6 @@ export default function OnboardingDecksScreen() {
 
         for (const asset of result.assets) {
           if (!asset?.uri) continue;
-          // Find next empty slot if cursor already filled (except the starting slotIndex for the first asset)
           let targetSlot = cursor;
           if (targetSlot >= 6) {
             const emptyIdx = currentSlots.findIndex((s) => !s || !s.trim());
@@ -622,7 +960,6 @@ export default function OnboardingDecksScreen() {
           }
           currentSlots[targetSlot] = asset.uri;
           tasks.push(uploadSingleAssetToSlot(targetSlot, asset.uri, asset.base64));
-          // Advance cursor to next empty slot or next index
           const nextEmpty = currentSlots.findIndex((s, i) => i > targetSlot && (!s || !s.trim()));
           cursor = nextEmpty !== -1 ? nextEmpty : targetSlot + 1;
         }
@@ -631,8 +968,6 @@ export default function OnboardingDecksScreen() {
         return;
       }
 
-      // Single asset selected: if the tapped slot already has a photo AND user only has 1 photo so far,
-      // check if they meant to fill the next required slot or replace this slot
       const asset = result.assets[0];
       await uploadSingleAssetToSlot(slotIndex, asset.uri, asset.base64);
       hapticFeedback.success();
@@ -660,25 +995,25 @@ export default function OnboardingDecksScreen() {
   };
 
   const handleCompileAndLaunch = async () => {
-    const currentList = photoSlotsRef.current.filter((u) => u && u.trim().length > 0);
-    if (currentList.length < 2) {
-      hapticFeedback.warning();
-      Alert.alert(
-        'Upload At Least 2 Photos 📸',
-        'Please upload at least 2 profile photos on Deck 6 before launching your profile. You can also upload all 6 photos!'
-      );
-      advanceToDeck(6);
-      return;
+    // Validate all 7 decks before launching Discovery
+    for (let d = 1; d <= 7; d++) {
+      const check = validateDeck(d);
+      if (!check.valid) {
+        hapticFeedback.warning();
+        Alert.alert('Incomplete Step ⚠️', check.message);
+        advanceToDeck(d);
+        return;
+      }
     }
+
     if (isSubmitting) return;
     setIsSubmitting(true);
     hapticFeedback.success();
 
-    const formattedDob = `${dobYear}-${dobMonth.padStart(2, '0')}-${dobDay.padStart(2, '0')}`;
-    const cleanName = fullName.trim() || 'BlunderR Star';
+    const formattedDob = `${dobYear.trim()}-${dobMonth.trim().padStart(2, '0')}-${dobDay.trim().padStart(2, '0')}`;
+    const cleanName = fullName.trim();
 
     try {
-      // Ensure any remaining local/data URIs in photoSlots are uploaded first
       const resolvedSlots = [...photoSlotsRef.current];
       for (let i = 0; i < 6; i++) {
         const uri = resolvedSlots[i];
@@ -696,11 +1031,25 @@ export default function OnboardingDecksScreen() {
         (p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
       );
 
-      // 1. Update Core Profile (triggers backend async selfie verification against uploaded photos)
+      // 1. Persist GPS / Primary Residence Location for Discovery Matching Engine
+      if (coords) {
+        await api.updateLocation(
+          coords.lat,
+          coords.lng,
+          primaryCity.trim(),
+          (primaryLocation || primaryCity).trim()
+        ).catch(() => {});
+      }
+
+      // 2. Update Core Profile (including city, location, gender, preference, orientation, tribe, career, bio, lifestyle & photos)
       await api.updateMyProfile({
         displayName: cleanName,
         fullName: cleanName,
         birthDate: formattedDob,
+        city: primaryCity.trim(),
+        location: (primaryLocation || primaryCity).trim(),
+        latitude: coords?.lat,
+        longitude: coords?.lng,
         gender,
         genderDisplay,
         genderPreferenceDisplay: lookingFor,
@@ -712,7 +1061,7 @@ export default function OnboardingDecksScreen() {
         institute,
         bio,
         height: heightCm,
-        dietaryPref,
+        dietaryPref: (dietaryPref || 'PURE_VEG') as DietaryPreference,
         drinkingHabit,
         photo1: resolvedSlots[0] || '',
         photo2: resolvedSlots[1] || '',
@@ -725,16 +1074,20 @@ export default function OnboardingDecksScreen() {
         verificationStatus: selfieUrl ? (verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING') : undefined,
       });
 
-      // 2. Update Vedic Janampatri
-      await api.updateMyBirthDetails({
-        birthTime: birthTime || '00:00',
-        birthCity: birthCity || 'New Delhi',
-      });
+      // 3. Update Vedic Janampatri (optional)
+      if (birthTime.trim() || birthCity.trim()) {
+        try {
+          await api.updateMyBirthDetails({
+            birthTime: birthTime.trim(),
+            birthCity: birthCity.trim(),
+          });
+        } catch (e) {
+          console.warn('[onboarding] Optional Vedic birth details update skipped/failed:', e);
+        }
+      }
 
-      // 3. Mark Onboarding Complete
+      // 4. Mark Onboarding Complete & Launch Discovery
       await api.setOnboardingCompleted(true);
-
-      // Smoothly navigate into Discovery Tabs
       router.replace('/(tabs)');
     } catch (err: any) {
       setIsSubmitting(false);
@@ -742,18 +1095,93 @@ export default function OnboardingDecksScreen() {
     }
   };
 
+  const renderPhotoSlotBox = (idx: number, customStyle?: any, isHeroCover?: boolean) => {
+    const uri = photoSlots[idx];
+    const isRequired = idx < 2;
+    const isUploadingThis = Boolean(uploadingSlots[idx]);
+    return (
+      <TouchableOpacity
+        key={idx}
+        style={[
+          styles.photoSlotCard,
+          customStyle,
+          isHeroCover && styles.photoSlotHeroCover,
+          isRequired && !uri && !isHeroCover && styles.photoSlotCardRequired,
+          !!uri && styles.photoSlotCardFilled,
+        ]}
+        activeOpacity={0.85}
+        onPress={() => {
+          hapticFeedback.light();
+          setActivePhotoSlotModal(idx);
+        }}>
+        {uri ? (
+          <>
+            <Image source={{ uri }} style={styles.photoSlotImage} contentFit="cover" />
+            <View style={[styles.photoSlotTopTag, isHeroCover && styles.photoSlotHeroBadge]}>
+              <Text style={[styles.photoSlotTopTagText, isHeroCover && { color: '#05060A', fontWeight: '900' }]}>
+                {idx === 0 ? '★ 1 COVER SHOT' : idx === 1 ? '★ 2 REQUIRED' : `#${idx + 1}`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.photoSlotRemoveBtn}
+              onPress={() => handleRemovePhotoSlot(idx)}>
+              <Text style={styles.photoSlotRemoveText}>✕</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.photoSlotEmptyInner}>
+            {isHeroCover && (
+              <View style={styles.heroCoverTopPill}>
+                <Text style={styles.heroCoverTopPillText}>★ 1 COVER SHOT</Text>
+              </View>
+            )}
+            <Text style={[styles.photoSlotPlusIcon, isHeroCover && { fontSize: 28, color: '#FCD34D' }]}>
+              {isHeroCover ? '👑' : isRequired ? '📸' : '＋'}
+            </Text>
+            <Text
+              style={[
+                styles.photoSlotLabel,
+                isHeroCover && { color: '#FDE68A', fontWeight: '900', fontSize: 13 },
+                isRequired && !isHeroCover && { color: '#FF6B8B', fontWeight: '900' },
+              ]}>
+              {isHeroCover ? 'Main Portrait *' : isRequired ? `Photo ${idx + 1} *` : `Photo ${idx + 1}`}
+            </Text>
+            <Text style={[styles.photoSlotReqSub, isHeroCover && { color: '#FCD34D' }]}>
+              {isHeroCover ? 'GOLDEN FRAME • REQUIRED' : isRequired ? 'REQUIRED' : 'OPTIONAL'}
+            </Text>
+          </View>
+        )}
+
+        {isUploadingThis && (
+          <View style={styles.photoSlotLoadingOverlay}>
+            <ActivityIndicator color="#FF385C" size="small" />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const isCustomGenderSelected = Boolean(
+    genderDisplay && genderDisplay !== 'Man' && genderDisplay !== 'Woman'
+  );
+  const isCustomLookingForSelected = Boolean(
+    lookingFor && lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone'
+  );
+  const isCustomOrientationSelected = Boolean(
+    orientation && orientation !== 'Straight' && orientation !== 'Bisexual' && orientation !== 'Queer'
+  );
+
+  const estimatedAge = getEstimatedAge();
+
   return (
     <SafeAreaView style={styles.container}>
       {/* ========================================================
-          TOP DYNAMIC HUD ISLAND (MAGNETISM TRACKER & STEPPER)
+          TOP DYNAMIC HUD ISLAND (MAGNETISM TRACKER & DECK STRIP)
           ======================================================== */}
-      <View style={styles.topHud}>
+      <View style={[styles.topHud, isCompactPhone && { paddingHorizontal: 12, paddingVertical: 6 }]}>
         <View style={styles.hudRowTop}>
           <View style={styles.brandRow}>
-            <Text style={styles.brandText}>
-              Blunder<Text style={styles.brandAccent}>R</Text>
-            </Text>
-            <View style={styles.brandDot} />
+            <BlunderRWordmark size="sm" />
           </View>
 
           <View style={styles.magnetismPill}>
@@ -763,28 +1191,71 @@ export default function OnboardingDecksScreen() {
           </View>
         </View>
 
-        {/* 7-Deck Segmented Stepper */}
+        {/* 7-Deck Interactive Segmented Progress Bar */}
         <View style={styles.stepperTrack}>
           {[1, 2, 3, 4, 5, 6, 7].map((i) => {
             const isPassed = activeDeck > i;
-            const isActive = activeDeck === i || (activeDeck === 8 && i === 7);
+            const isActive = activeDeck === i;
             return (
-              <View
+              <TouchableOpacity
                 key={i}
-                style={[
-                  styles.stepperBar,
-                  isPassed && styles.stepperBarPassed,
-                  isActive && styles.stepperBarActive,
-                ]}
-              />
+                style={{ flex: 1, paddingVertical: 3 }}
+                activeOpacity={0.8}
+                onPress={() => advanceToDeck(i)}>
+                <View
+                  style={[
+                    styles.stepperBar,
+                    isPassed && styles.stepperBarPassed,
+                    isActive && styles.stepperBarActive,
+                  ]}
+                />
+              </TouchableOpacity>
             );
           })}
         </View>
 
-        {/* Live Identity Ribbon */}
+        {/* Interactive 7-Deck Quick-Jump Strip */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.deckStripScroll}
+          contentContainerStyle={styles.deckStripContent}>
+          {DECK_STRIP_ITEMS.map((item) => {
+            const isCurr = activeDeck === item.id;
+            const isDone = activeDeck > item.id;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.deckStripPill,
+                  isCurr && styles.deckStripPillActive,
+                  isDone && styles.deckStripPillDone,
+                ]}
+                activeOpacity={0.8}
+                onPress={() => advanceToDeck(item.id)}>
+                <Text
+                  style={[
+                    styles.deckStripPillText,
+                    isCurr && styles.deckStripPillTextActive,
+                    isDone && styles.deckStripPillTextDone,
+                  ]}>
+                  {isDone ? `✓ ${item.label}` : item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Live Identity Status Ribbon */}
         <View style={styles.identityRibbon}>
-          <Text style={styles.ribbonItem}>
-            User: <Text style={styles.ribbonBold}>{fullName.trim() || 'Aryan'}, {getEstimatedAge()}</Text>
+          <Text style={styles.ribbonItem} numberOfLines={1}>
+            Name:{' '}
+            <Text style={styles.ribbonBold}>
+              {fullName.trim() ? `${fullName.trim()}${estimatedAge ? `, ${estimatedAge}` : ''}` : 'Not set'}
+            </Text>
+          </Text>
+          <Text style={styles.ribbonItem} numberOfLines={1}>
+            City: <Text style={styles.ribbonBold}>{primaryCity || 'Not set'}</Text>
           </Text>
           <Text style={styles.ribbonItem}>
             Photos: <Text style={styles.ribbonBold}>{uploadedPhotosList.length}/6</Text>
@@ -824,24 +1295,33 @@ export default function OnboardingDecksScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={styles.scrollArena}
+          contentContainerStyle={[
+            styles.scrollArena,
+            isCompactPhone && { paddingHorizontal: 8, paddingVertical: 6 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled">
-          
-          {/* Card Stack Illusion Underneath (Native Only) */}
           {Platform.OS !== 'web' && <View style={styles.stackShadowCard} />}
 
-          <Animated.View style={[styles.deckCard, { transform: [{ scale: deckAnim }] }]}>
-            
-            {/* ==================== DECK 1: IDENTITY SPARK ==================== */}
+          <Animated.View
+            style={[
+              styles.deckCard,
+              isCompactPhone && { padding: 13, borderRadius: 22 },
+              { transform: [{ scale: deckAnim }] },
+            ]}>
+            {/* ==================== DECK 1: ORIGIN & LIVENESS ==================== */}
             {activeDeck === 1 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
                   <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>✨ DECK 1 OF 7 • IDENTITY SPARK</Text>
+                    <Text style={styles.deckBadgeText}>✨ DECK 1 OF 7 • ORIGIN & LIVENESS</Text>
                   </View>
-                  <Text style={styles.deckTitle}>Who is making waves today?</Text>
-                  <Text style={styles.deckSub}>Enter your genuine self. Verified humans only.</Text>
+                  <Text style={[styles.deckTitle, isCompactPhone && { fontSize: 20 }]}>
+                    Who is making waves today?
+                  </Text>
+                  <Text style={styles.deckSub}>
+                    Enter your real identity, selfie, and primary residence city.
+                  </Text>
                 </View>
 
                 <View style={styles.deckBody}>
@@ -849,7 +1329,7 @@ export default function OnboardingDecksScreen() {
                     <Text style={styles.fieldLabel}>FIRST NAME / DISPLAY NAME</Text>
                     <TextInput
                       style={styles.glowInput}
-                      placeholder="e.g. Aryan"
+                      placeholder="Enter your first name..."
                       placeholderTextColor="#64748B"
                       value={fullName}
                       onChangeText={setFullName}
@@ -857,33 +1337,74 @@ export default function OnboardingDecksScreen() {
                   </View>
 
                   <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>DATE OF BIRTH (YYYY-MM-DD)</Text>
-                    <View style={styles.dobRow}>
-                      <TextInput
-                        style={[styles.glowInput, { flex: 1.4, textAlign: 'center' }]}
-                        value={dobYear}
-                        onChangeText={setDobYear}
-                        keyboardType="number-pad"
-                        maxLength={4}
-                      />
-                      <TextInput
-                        style={[styles.glowInput, { flex: 1, textAlign: 'center' }]}
-                        value={dobMonth}
-                        onChangeText={setDobMonth}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                      />
-                      <TextInput
-                        style={[styles.glowInput, { flex: 1, textAlign: 'center' }]}
-                        value={dobDay}
-                        onChangeText={setDobDay}
-                        keyboardType="number-pad"
-                        maxLength={2}
-                      />
+                    <View style={styles.dobHeaderRow}>
+                      <Text style={styles.fieldLabel}>DATE OF BIRTH (DD / MM / YYYY)</Text>
+                      {calculatedAge !== null && (
+                        <View style={[styles.agePill, calculatedAge >= 18 ? styles.agePillValid : styles.agePillInvalid]}>
+                          <Text style={[styles.agePillText, calculatedAge >= 18 ? styles.agePillTextValid : styles.agePillTextInvalid]}>
+                            {calculatedAge >= 18 ? `✓ ${calculatedAge} yrs (18+)` : `⚠️ Under 18 (${calculatedAge})`}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.dobSegmentContainer}>
+                      {/* DAY */}
+                      <View style={styles.dobBlock}>
+                        <Text style={styles.dobBlockSub}>DAY</Text>
+                        <TextInput
+                          ref={dobDayRef}
+                          style={[styles.glowInput, styles.dobInputSegment, dobDay.length === 2 && styles.dobInputFilled]}
+                          placeholder="DD"
+                          placeholderTextColor="#64748B"
+                          value={dobDay}
+                          onChangeText={handleDobDayChange}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          selectTextOnFocus
+                        />
+                      </View>
+
+                      <Text style={styles.dobSlash}>/</Text>
+
+                      {/* MONTH */}
+                      <View style={styles.dobBlock}>
+                        <Text style={styles.dobBlockSub}>MONTH</Text>
+                        <TextInput
+                          ref={dobMonthRef}
+                          style={[styles.glowInput, styles.dobInputSegment, dobMonth.length === 2 && styles.dobInputFilled]}
+                          placeholder="MM"
+                          placeholderTextColor="#64748B"
+                          value={dobMonth}
+                          onChangeText={handleDobMonthChange}
+                          onKeyPress={handleMonthKeyPress}
+                          keyboardType="number-pad"
+                          maxLength={2}
+                          selectTextOnFocus
+                        />
+                      </View>
+
+                      <Text style={styles.dobSlash}>/</Text>
+
+                      {/* YEAR */}
+                      <View style={[styles.dobBlock, { flex: 1.4 }]}>
+                        <Text style={styles.dobBlockSub}>YEAR</Text>
+                        <TextInput
+                          ref={dobYearRef}
+                          style={[styles.glowInput, styles.dobInputSegment, dobYear.length === 4 && styles.dobInputFilled]}
+                          placeholder="YYYY"
+                          placeholderTextColor="#64748B"
+                          value={dobYear}
+                          onChangeText={handleDobYearChange}
+                          onKeyPress={handleYearKeyPress}
+                          keyboardType="number-pad"
+                          maxLength={4}
+                          selectTextOnFocus
+                        />
+                      </View>
                     </View>
                   </View>
 
-                  {/* Selfie Upload / Capture Button with Async Pending Status */}
+                  {/* Selfie Upload / Capture Button */}
                   <TouchableOpacity
                     style={[
                       styles.selfieScanCard,
@@ -909,12 +1430,12 @@ export default function OnboardingDecksScreen() {
                           verificationStatus === 'REJECTED' && { color: '#FCA5A5' },
                         ]}>
                         {verificationStatus === 'VERIFIED'
-                          ? 'Selfie Verified'
+                          ? 'Selfie Verified ✓'
                           : verificationStatus === 'PENDING'
-                          ? 'Selfie Verification Pending'
+                          ? 'Selfie Uploaded • Verifying in Background'
                           : verificationStatus === 'REJECTED'
                           ? 'Verification Failed • Tap to Retake'
-                          : 'Take / Upload Your Selfie'}
+                          : 'Take / Upload Your Liveness Selfie'}
                       </Text>
                       <Text
                         style={[
@@ -923,15 +1444,148 @@ export default function OnboardingDecksScreen() {
                           verificationStatus === 'REJECTED' && { color: '#FECACA' },
                         ]}>
                         {verificationStatus === 'VERIFIED'
-                          ? 'Verified by backend AI • Authenticity badge active'
+                          ? 'Verified by backend AI • Authenticity shield active'
                           : verificationStatus === 'PENDING'
-                          ? 'Selfie uploaded! Backend AI is verifying in the background...'
-                          : verificationStatus === 'REJECTED'
-                          ? 'Face did not match or was unclear. Tap to take selfie again.'
-                          : 'Tap to take or upload selfie • Verified in background'}
+                          ? 'You can continue filling decks while AI verifies your selfie'
+                          : 'Required for 100% human verification badge'}
                       </Text>
                     </View>
                   </TouchableOpacity>
+
+                  {/* 3-LAYER PRIMARY RESIDENCE SELECTOR */}
+                  <View style={[styles.fieldBox, { marginTop: 4 }]}>
+                    <View style={styles.residenceHeaderRow}>
+                      <Text style={styles.fieldLabel}>📍 PRIMARY RESIDENCE (FOR MATCHING)</Text>
+                      {!!primaryCity && (
+                        <View style={styles.activeResidenceBadge}>
+                          <Text style={styles.activeResidenceBadgeText}>
+                            ✓ {primaryLocation || primaryCity}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Layer 1: Live GPS Auto-Detect Bar */}
+                    <TouchableOpacity
+                      style={[
+                        styles.gpsDetectBar,
+                        !!coords && styles.gpsDetectBarActive,
+                      ]}
+                      activeOpacity={0.85}
+                      disabled={isDetectingGps}
+                      onPress={handleDetectLiveGps}>
+                      <View style={styles.gpsPulseCircle}>
+                        {isDetectingGps ? (
+                          <ActivityIndicator size="small" color="#00E5FF" />
+                        ) : (
+                          <Text style={{ fontSize: 16 }}>🛰️</Text>
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.gpsDetectTitle}>
+                          {isDetectingGps
+                            ? 'Triangulating GPS Coordinates...'
+                            : coords && primaryCity
+                            ? `Live GPS Locked: ${primaryLocation || primaryCity}`
+                            : 'Auto-Detect My Live Location (GPS)'}
+                        </Text>
+                        <Text style={styles.gpsDetectSub}>
+                          {gpsStatusText || '1-tap reverse geocoding for hyper-local discovery'}
+                        </Text>
+                      </View>
+                      <View style={styles.gpsDetectActionPill}>
+                        <Text style={styles.gpsDetectActionText}>
+                          {coords ? 'Refresh' : 'Detect'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Layer 2: Universal City / Neighborhood Search */}
+                    <View style={styles.citySearchInputWrap}>
+                      <Text style={{ fontSize: 14 }}>🔍</Text>
+                      <TextInput
+                        style={styles.citySearchInput}
+                        placeholder="Or type any city / area (e.g. Jaipur, Bandra, HSR)..."
+                        placeholderTextColor="#64748B"
+                        value={citySearchQuery}
+                        onChangeText={setCitySearchQuery}
+                        onSubmitEditing={() => {
+                          if (citySearchQuery.trim().length >= 2) {
+                            handleSelectPrimaryCity(citySearchQuery.trim(), citySearchQuery.trim());
+                          }
+                        }}
+                      />
+                      {citySearchQuery.trim().length >= 2 && (
+                        <TouchableOpacity
+                          style={styles.citySearchUseBtn}
+                          onPress={() =>
+                            handleSelectPrimaryCity(citySearchQuery.trim(), citySearchQuery.trim())
+                          }>
+                          <Text style={styles.citySearchUseBtnText}>Set ✓</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Instant Search Autocomplete Suggestions */}
+                    {citySuggestions.length > 0 && (
+                      <View style={styles.citySuggestionDropdown}>
+                        {citySuggestions.map((sug, idx) => (
+                          <TouchableOpacity
+                            key={`${sug.area}-${idx}`}
+                            style={styles.citySuggestionRow}
+                            onPress={() =>
+                              handleSelectPrimaryCity(sug.city, sug.area, sug.lat, sug.lng)
+                            }>
+                            <Text style={styles.citySuggestionTitle}>📍 {sug.area}</Text>
+                            <Text style={styles.citySuggestionTag}>{sug.city}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Layer 3: Photographic Metro Hub Carousel */}
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.metroCarouselScroll}
+                      contentContainerStyle={styles.metroCarouselContent}>
+                      {METRO_HUBS.map((hub) => {
+                        const isHubSelected =
+                          primaryCity.toLowerCase() === hub.city.toLowerCase();
+                        return (
+                          <TouchableOpacity
+                            key={hub.id}
+                            style={[
+                              styles.metroHubCard,
+                              isHubSelected && styles.metroHubCardSelected,
+                            ]}
+                            activeOpacity={0.85}
+                            onPress={() =>
+                              handleSelectPrimaryCity(hub.city, hub.city, hub.lat, hub.lng)
+                            }>
+                            <Image
+                              source={{ uri: hub.photo }}
+                              style={styles.metroHubImage}
+                              contentFit="cover"
+                            />
+                            <View style={styles.metroHubOverlay} />
+                            {isHubSelected && (
+                              <View style={styles.metroHubCheckBadge}>
+                                <Text style={styles.metroHubCheckBadgeText}>✓ ACTIVE</Text>
+                              </View>
+                            )}
+                            <View style={styles.metroHubTextWrap}>
+                              <Text style={styles.metroHubVibeTag}>{hub.vibe}</Text>
+                              <Text style={styles.metroHubCityTitle}>{hub.city}</Text>
+                              <Text style={styles.metroHubSubText} numberOfLines={1}>
+                                {hub.hubs}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
                 </View>
 
                 <View style={styles.deckFooter}>
@@ -946,158 +1600,237 @@ export default function OnboardingDecksScreen() {
               </View>
             )}
 
-            {/* ==================== DECK 2: ATTRACTION FREQUENCY ==================== */}
+            {/* ==================== DECK 2: MUTUAL FREQUENCY ==================== */}
             {activeDeck === 2 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
-                  <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>💫 DECK 2 OF 7 • MUTUAL FREQUENCY</Text>
+                  <View style={styles.deckHeaderTopBar}>
+                    <View style={styles.deckBadge}>
+                      <Text style={styles.deckBadgeText}>💫 DECK 2 OF 7 • MUTUAL FREQUENCY</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.headerPrevPill}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(1)}>
+                      <Text style={styles.headerPrevPillText}>‹ Previous</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.deckTitle}>Who are you looking to meet?</Text>
-                  <Text style={styles.deckSub}>Calibrates discovery radar instantaneously.</Text>
+                  <Text style={[styles.deckTitle, isCompactPhone && { fontSize: 20 }]}>
+                    Who are you looking to meet?
+                  </Text>
+                  <Text style={styles.deckSub}>
+                    Calibrates your discovery radar instantaneously.
+                  </Text>
                 </View>
 
                 <View style={styles.deckBody}>
-                  {/* Field 1: I IDENTIFY AS with Edit Pen */}
-                  <View style={styles.fieldHeaderWithEdit}>
-                    <Text style={styles.fieldLabel}>I IDENTIFY AS</Text>
-                    <TouchableOpacity
-                      style={styles.fieldEditPenBtn}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        hapticFeedback.light();
-                        setTempGenderDisplay(genderDisplay);
-                        setShowGenderModal(true);
-                      }}>
-                      <Text style={styles.fieldEditPenIcon}>✏️</Text>
-                      <Text style={styles.fieldEditPenLabel}>
-                        {genderDisplay !== 'Man' && genderDisplay !== 'Woman' ? genderDisplay : 'More Options'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
+                  {/* Row 1: I IDENTIFY AS (3 Inline Selector Cards — 3rd Card opens Spectrum/Custom Modal & highlights directly) */}
+                  <Text style={styles.fieldLabel}>I IDENTIFY AS</Text>
                   <View style={styles.rapidRow}>
                     <TouchableOpacity
                       style={[styles.rapidCard, genderDisplay === 'Man' && styles.rapidCardSelected]}
+                      activeOpacity={0.85}
                       onPress={() => {
                         hapticFeedback.light();
                         setGender('MALE');
                         setGenderDisplay('Man');
                       }}>
+                      {genderDisplay === 'Man' && (
+                        <View style={styles.rapidCheckDot}>
+                          <Text style={styles.rapidCheckDotText}>✓</Text>
+                        </View>
+                      )}
                       <Text style={styles.rapidEmoji}>⚡</Text>
                       <Text style={styles.rapidTitle}>Man</Text>
-                      <Text style={styles.rapidSub}>Single & verified</Text>
+                      <Text style={styles.rapidSub}>He / Him</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={[styles.rapidCard, genderDisplay === 'Woman' && styles.rapidCardSelected]}
+                      activeOpacity={0.85}
                       onPress={() => {
                         hapticFeedback.light();
                         setGender('FEMALE');
                         setGenderDisplay('Woman');
                       }}>
+                      {genderDisplay === 'Woman' && (
+                        <View style={styles.rapidCheckDot}>
+                          <Text style={styles.rapidCheckDotText}>✓</Text>
+                        </View>
+                      )}
                       <Text style={styles.rapidEmoji}>🌸</Text>
                       <Text style={styles.rapidTitle}>Woman</Text>
-                      <Text style={styles.rapidSub}>Single & verified</Text>
+                      <Text style={styles.rapidSub}>She / Her</Text>
                     </TouchableOpacity>
-                  </View>
 
-                  {/* If custom or non-binary gender selected via modal, show quick active badge */}
-                  {genderDisplay !== 'Man' && genderDisplay !== 'Woman' && (
                     <TouchableOpacity
-                      style={styles.activeCustomIdentityPill}
-                      onPress={() => {
-                        setTempGenderDisplay(genderDisplay);
-                        setShowGenderModal(true);
-                      }}>
-                      <Text style={styles.activeCustomIdentityText}>
-                        🌈 Selected: <Text style={{ fontWeight: '900', color: '#FFF' }}>{genderDisplay}</Text> (Tap to change)
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {/* Field 2: LOOKING TO MEET with Edit Pen */}
-                  <View style={[styles.fieldHeaderWithEdit, { marginTop: 14 }]}>
-                    <Text style={styles.fieldLabel}>LOOKING TO MEET</Text>
-                    <TouchableOpacity
-                      style={styles.fieldEditPenBtn}
-                      activeOpacity={0.7}
+                      style={[
+                        styles.rapidCard,
+                        isCustomGenderSelected && styles.rapidCardSelected,
+                      ]}
+                      activeOpacity={0.85}
                       onPress={() => {
                         hapticFeedback.light();
-                        setTempLookingFor(lookingFor);
-                        setShowPreferenceModal(true);
+                        setTempGenderDisplay(isCustomGenderSelected ? genderDisplay : 'Non-binary');
+                        setCustomGenderInput(isCustomGenderSelected ? genderDisplay : '');
+                        setShowGenderModal(true);
                       }}>
-                      <Text style={styles.fieldEditPenIcon}>✏️</Text>
-                      <Text style={styles.fieldEditPenLabel}>
-                        {lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone' ? lookingFor : 'All Choices'}
+                      {isCustomGenderSelected && (
+                        <View style={styles.rapidCheckDot}>
+                          <Text style={styles.rapidCheckDotText}>✓</Text>
+                        </View>
+                      )}
+                      <Text style={styles.rapidEmoji}>🌈</Text>
+                      <Text style={styles.rapidTitle} numberOfLines={1}>
+                        {isCustomGenderSelected ? genderDisplay : 'More'}
+                      </Text>
+                      <Text style={styles.rapidSub} numberOfLines={1}>
+                        {isCustomGenderSelected ? 'Selected • Edit' : 'Custom / +'}
                       </Text>
                     </TouchableOpacity>
                   </View>
 
-                  <View style={styles.rapidRow}>
+                  {/* Row 2: LOOKING TO MEET (4 Inline Selector Cards — 4th Card opens Specific/Custom Modal & highlights directly) */}
+                  <Text style={[styles.fieldLabel, { marginTop: 10 }]}>LOOKING TO MEET</Text>
+                  <View style={styles.rapidRowWrap}>
                     <TouchableOpacity
-                      style={[styles.rapidCard, lookingFor === 'Women' && styles.rapidCardSelected]}
+                      style={[styles.rapidCardCompact, lookingFor === 'Women' && styles.rapidCardSelected]}
+                      activeOpacity={0.85}
                       onPress={() => {
                         hapticFeedback.light();
                         setLookingFor('Women');
-                        if (turboMode) advanceToDeck(3);
                       }}>
+                      {lookingFor === 'Women' && (
+                        <View style={styles.rapidCheckDot}>
+                          <Text style={styles.rapidCheckDotText}>✓</Text>
+                        </View>
+                      )}
                       <Text style={styles.rapidEmoji}>🌸</Text>
                       <Text style={styles.rapidTitle}>Women</Text>
-                      <Text style={styles.rapidSub}>Primary discovery</Text>
+                      <Text style={styles.rapidSub}>Discovery</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.rapidCard, lookingFor === 'Men' && styles.rapidCardSelected]}
+                      style={[styles.rapidCardCompact, lookingFor === 'Men' && styles.rapidCardSelected]}
+                      activeOpacity={0.85}
                       onPress={() => {
                         hapticFeedback.light();
                         setLookingFor('Men');
-                        if (turboMode) advanceToDeck(3);
                       }}>
+                      {lookingFor === 'Men' && (
+                        <View style={styles.rapidCheckDot}>
+                          <Text style={styles.rapidCheckDotText}>✓</Text>
+                        </View>
+                      )}
                       <Text style={styles.rapidEmoji}>⚡</Text>
                       <Text style={styles.rapidTitle}>Men</Text>
-                      <Text style={styles.rapidSub}>Primary discovery</Text>
+                      <Text style={styles.rapidSub}>Discovery</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.rapidCard, lookingFor === 'Everyone' && styles.rapidCardSelected]}
+                      style={[styles.rapidCardCompact, lookingFor === 'Everyone' && styles.rapidCardSelected]}
+                      activeOpacity={0.85}
                       onPress={() => {
                         hapticFeedback.light();
                         setLookingFor('Everyone');
-                        if (turboMode) advanceToDeck(3);
                       }}>
+                      {lookingFor === 'Everyone' && (
+                        <View style={styles.rapidCheckDot}>
+                          <Text style={styles.rapidCheckDotText}>✓</Text>
+                        </View>
+                      )}
                       <Text style={styles.rapidEmoji}>✨</Text>
                       <Text style={styles.rapidTitle}>Everyone</Text>
-                      <Text style={styles.rapidSub}>Open spectrum</Text>
+                      <Text style={styles.rapidSub}>All vibes</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.rapidCardCompact,
+                        isCustomLookingForSelected && styles.rapidCardSelected,
+                      ]}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setTempLookingFor(isCustomLookingForSelected ? lookingFor : 'Non-binary');
+                        setCustomLookingForInput(isCustomLookingForSelected ? lookingFor : '');
+                        setShowPreferenceModal(true);
+                      }}>
+                      {isCustomLookingForSelected && (
+                        <View style={styles.rapidCheckDot}>
+                          <Text style={styles.rapidCheckDotText}>✓</Text>
+                        </View>
+                      )}
+                      <Text style={styles.rapidEmoji}>💫</Text>
+                      <Text style={styles.rapidTitle} numberOfLines={1}>
+                        {isCustomLookingForSelected ? lookingFor : 'Specific'}
+                      </Text>
+                      <Text style={styles.rapidSub} numberOfLines={1}>
+                        {isCustomLookingForSelected ? 'Selected • Edit' : 'Custom / +'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
 
-                  {/* If custom preference selected via modal, show quick active badge */}
-                  {lookingFor !== 'Women' && lookingFor !== 'Men' && lookingFor !== 'Everyone' && (
+                  {/* Row 3: SEXUAL ORIENTATION (Inline Pills + 4th Custom Selector Pill) */}
+                  <Text style={[styles.fieldLabel, { marginTop: 10 }]}>SEXUAL ORIENTATION</Text>
+                  <View style={styles.pillCluster}>
+                    {['Straight', 'Bisexual', 'Queer'].map((ori) => {
+                      const isSel = orientation === ori;
+                      return (
+                        <TouchableOpacity
+                          key={ori}
+                          style={[styles.microPill, isSel && styles.rapidCardSelected]}
+                          activeOpacity={0.85}
+                          onPress={() => {
+                            hapticFeedback.light();
+                            setOrientation(ori);
+                          }}>
+                          <Text style={[styles.microPillText, isSel && styles.microPillTextSelected]}>
+                            {ori} {isSel ? '✓' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+
                     <TouchableOpacity
-                      style={styles.activeCustomIdentityPill}
+                      style={[
+                        styles.microPill,
+                        isCustomOrientationSelected && styles.rapidCardSelected,
+                      ]}
+                      activeOpacity={0.85}
                       onPress={() => {
-                        setTempLookingFor(lookingFor);
-                        setShowPreferenceModal(true);
+                        hapticFeedback.light();
+                        setTempOrientation(isCustomOrientationSelected ? orientation : 'Pansexual');
+                        setCustomOrientationInput(isCustomOrientationSelected ? orientation : '');
+                        setShowOrientationModal(true);
                       }}>
-                      <Text style={styles.activeCustomIdentityText}>
-                        💫 Target: <Text style={{ fontWeight: '900', color: '#FFF' }}>{lookingFor}</Text> (Tap to change)
+                      <Text
+                        style={[
+                          styles.microPillText,
+                          isCustomOrientationSelected && styles.microPillTextSelected,
+                        ]}>
+                        {isCustomOrientationSelected ? `✨ ${orientation} ✓` : '＋ More / Custom'}
                       </Text>
                     </TouchableOpacity>
-                  )}
+                  </View>
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>🎯 Frequency tuned! 5 rapid cards left</Text>
-                  <TouchableOpacity
-                    style={styles.btnPrimary}
-                    activeOpacity={0.85}
-                    onPress={() => advanceToDeck(3)}>
-                    <Text style={styles.btnPrimaryText}>Next: Neighborhood Circle ➔</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(1)}>
-                    <Text style={styles.btnBackText}>← Back to Spark</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.paceCue}>🎯 +32% Magnetism! 5 rapid decks left</Text>
+                  <View style={styles.footerActionRow}>
+                    <TouchableOpacity
+                      style={styles.btnPreviousFooter}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(1)}>
+                      <Text style={styles.btnPreviousFooterText}>‹ Previous</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btnPrimary, { flex: 1 }]}
+                      activeOpacity={0.85}
+                      onPress={() => advanceToDeck(3)}>
+                      <Text style={styles.btnPrimaryText}>Next: Neighborhood Tribe ➔</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
@@ -1106,12 +1839,22 @@ export default function OnboardingDecksScreen() {
             {activeDeck === 3 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
-                  <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>🏙️ DECK 3 OF 7 • NEIGHBORHOOD TRIBE</Text>
+                  <View style={styles.deckHeaderTopBar}>
+                    <View style={styles.deckBadge}>
+                      <Text style={styles.deckBadgeText}>🏙️ DECK 3 OF 7 • NEIGHBORHOOD TRIBE</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.headerPrevPill}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(2)}>
+                      <Text style={styles.headerPrevPillText}>‹ Previous</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.deckTitle}>Your everyday stomping ground</Text>
+                  <Text style={[styles.deckTitle, isCompactPhone && { fontSize: 20 }]}>
+                    Your everyday stomping ground
+                  </Text>
                   <Text style={styles.deckSub}>
-                    Search & filter tribes city-wise — never match someone 2 hours away in traffic.
+                    Join a hyper-local micro-circle & share what you build.
                   </Text>
                 </View>
 
@@ -1125,13 +1868,19 @@ export default function OnboardingDecksScreen() {
                         hapticFeedback.light();
                         setShowTribeModal(true);
                       }}>
-                      <Text style={styles.tribeBrowseModalBtnText}>✏️ Browse Full Directory</Text>
+                      <Text style={styles.tribeBrowseModalBtnText}>🔍 Full Directory</Text>
                     </TouchableOpacity>
                   </View>
 
-                  {/* Selected Tribe Pill Box (Pen Edit Trigger) */}
+                  {/* Selected Tribe Pill Box */}
                   <TouchableOpacity
-                    style={styles.selectedTribeBanner}
+                    style={[
+                      styles.selectedTribeBanner,
+                      !microCircle && {
+                        borderColor: 'rgba(255,255,255,0.16)',
+                        backgroundColor: 'rgba(255,255,255,0.04)',
+                      },
+                    ]}
                     activeOpacity={0.85}
                     onPress={() => {
                       hapticFeedback.light();
@@ -1140,11 +1889,13 @@ export default function OnboardingDecksScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.selectedTribeLabel}>ACTIVE TRIBE / CIRCLE</Text>
                       <Text style={styles.selectedTribeValue} numberOfLines={1}>
-                        📍 {microCircle || 'Select your neighborhood tribe'}
+                        {microCircle ? `📍 ${microCircle}` : 'Tap a circle below or browse directory...'}
                       </Text>
                     </View>
                     <View style={styles.selectedTribeEditBadge}>
-                      <Text style={styles.selectedTribeEditText}>✏️ Edit</Text>
+                      <Text style={styles.selectedTribeEditText}>
+                        {microCircle ? 'Change' : 'Select'}
+                      </Text>
                     </View>
                   </TouchableOpacity>
 
@@ -1275,11 +2026,11 @@ export default function OnboardingDecksScreen() {
                     </ScrollView>
                   )}
 
-                  <View style={[styles.fieldBox, { marginTop: 10 }]}>
+                  <View style={[styles.fieldBox, { marginTop: 8 }]}>
                     <Text style={styles.fieldLabel}>CAREER / WHAT PAYS THE BILLS?</Text>
                     <TextInput
                       style={styles.glowInput}
-                      placeholder="e.g. Founding Engineer @ AI Startup"
+                      placeholder="e.g. Product Designer, Founder, Architect..."
                       placeholderTextColor="#64748B"
                       value={job}
                       onChangeText={setJob}
@@ -1287,10 +2038,10 @@ export default function OnboardingDecksScreen() {
                   </View>
 
                   <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>COLLEGE / ALMA MATER</Text>
+                    <Text style={styles.fieldLabel}>COLLEGE / ALMA MATER (OPTIONAL)</Text>
                     <TextInput
                       style={styles.glowInput}
-                      placeholder="e.g. BITS Pilani"
+                      placeholder="e.g. IIT Delhi, BITS Pilani, NID, St. Xavier's..."
                       placeholderTextColor="#64748B"
                       value={institute}
                       onChangeText={setInstitute}
@@ -1300,15 +2051,20 @@ export default function OnboardingDecksScreen() {
 
                 <View style={styles.deckFooter}>
                   <Text style={styles.paceCue}>🔥 48% Magnetism! Halfway milestone unlocked</Text>
-                  <TouchableOpacity
-                    style={styles.btnPrimary}
-                    activeOpacity={0.85}
-                    onPress={() => advanceToDeck(4)}>
-                    <Text style={styles.btnPrimaryText}>Next: 1-Tap Bio Energy ➔</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(2)}>
-                    <Text style={styles.btnBackText}>← Back</Text>
-                  </TouchableOpacity>
+                  <View style={styles.footerActionRow}>
+                    <TouchableOpacity
+                      style={styles.btnPreviousFooter}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(2)}>
+                      <Text style={styles.btnPreviousFooterText}>‹ Previous</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btnPrimary, { flex: 1 }]}
+                      activeOpacity={0.85}
+                      onPress={() => advanceToDeck(4)}>
+                      <Text style={styles.btnPrimaryText}>Next: 1-Tap Bio Energy ➔</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
@@ -1317,11 +2073,23 @@ export default function OnboardingDecksScreen() {
             {activeDeck === 4 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
-                  <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>🎭 DECK 4 OF 7 • 1-TAP BIO SPARK</Text>
+                  <View style={styles.deckHeaderTopBar}>
+                    <View style={styles.deckBadge}>
+                      <Text style={styles.deckBadgeText}>🎭 DECK 4 OF 7 • 1-TAP BIO SPARK</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.headerPrevPill}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(3)}>
+                      <Text style={styles.headerPrevPillText}>‹ Previous</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.deckTitle}>Pick your energy persona</Text>
-                  <Text style={styles.deckSub}>Zero typing dread. Tap an archetype to generate!</Text>
+                  <Text style={[styles.deckTitle, isCompactPhone && { fontSize: 20 }]}>
+                    Pick your energy persona
+                  </Text>
+                  <Text style={styles.deckSub}>
+                    Tap an archetype to populate your bio or customize it below.
+                  </Text>
                 </View>
 
                 <View style={styles.deckBody}>
@@ -1338,17 +2106,32 @@ export default function OnboardingDecksScreen() {
                     showsHorizontalScrollIndicator={false}
                     style={styles.categoryFilterScroll}
                     contentContainerStyle={styles.categoryFilterRow}>
-                    {['All', 'Work & Ambition', 'Wholesome & Chaos', 'Art & Deep Talks', 'Witty & Playful', 'Foodie Purist', 'Travel & Outdoors'].map((cat) => {
+                    {[
+                      'All',
+                      'Work & Ambition',
+                      'Wholesome & Chaos',
+                      'Art & Deep Talks',
+                      'Witty & Playful',
+                      'Foodie Purist',
+                      'Travel & Outdoors',
+                    ].map((cat) => {
                       const isCatSel = selectedBioCategory === cat;
                       return (
                         <TouchableOpacity
                           key={cat}
-                          style={[styles.categoryFilterPill, isCatSel && styles.categoryFilterPillActive]}
+                          style={[
+                            styles.categoryFilterPill,
+                            isCatSel && styles.categoryFilterPillActive,
+                          ]}
                           onPress={() => {
                             hapticFeedback.light();
                             setSelectedBioCategory(cat);
                           }}>
-                          <Text style={[styles.categoryFilterText, isCatSel && styles.categoryFilterTextActive]}>
+                          <Text
+                            style={[
+                              styles.categoryFilterText,
+                              isCatSel && styles.categoryFilterTextActive,
+                            ]}>
                             {cat}
                           </Text>
                         </TouchableOpacity>
@@ -1361,45 +2144,47 @@ export default function OnboardingDecksScreen() {
                     style={styles.bioArchetypeScroller}
                     showsVerticalScrollIndicator={true}
                     nestedScrollEnabled={true}>
-                    {WITTY_BIOS
-                      .filter((item) => selectedBioCategory === 'All' || item.category === selectedBioCategory)
-                      .map((item) => {
-                        const isSelected = bio === item.bioText;
-                        return (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={[styles.personaCard, isSelected && styles.personaCardSelected]}
-                            activeOpacity={0.8}
-                            onPress={() => {
-                              hapticFeedback.light();
-                              setBio(item.bioText);
-                            }}>
-                            <View style={styles.personaHeaderRow}>
-                              <Text style={styles.personaTitle}>
-                                {item.emoji} {item.title}
-                              </Text>
-                              <View style={styles.personaTagBadge}>
-                                <Text style={styles.personaTagBadgeText}>{item.category}</Text>
-                              </View>
-                            </View>
-                            <Text style={styles.personaDesc} numberOfLines={2}>
-                              {item.bioText}
+                    {WITTY_BIOS.filter(
+                      (item) => selectedBioCategory === 'All' || item.category === selectedBioCategory
+                    ).map((item) => {
+                      const isSelected = bio === item.bioText;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[styles.personaCard, isSelected && styles.personaCardSelected]}
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            hapticFeedback.light();
+                            setBio(item.bioText);
+                          }}>
+                          <View style={styles.personaHeaderRow}>
+                            <Text style={styles.personaTitle}>
+                              {item.emoji} {item.title}
                             </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                            <View style={styles.personaTagBadge}>
+                              <Text style={styles.personaTagBadgeText}>{item.category}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.personaDesc} numberOfLines={2}>
+                            {item.bioText}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </ScrollView>
 
                   {/* Bio Editor with Reroll */}
                   <View style={styles.bioEditorBox}>
                     <View style={styles.bioEditorHeader}>
-                      <Text style={styles.bioEditorLabel}>ACTIVE BIO</Text>
+                      <Text style={styles.bioEditorLabel}>YOUR BIO</Text>
                       <TouchableOpacity style={styles.rerollBtn} onPress={handleRerollBio}>
                         <Text style={styles.rerollBtnText}>🎲 Reroll Magic</Text>
                       </TouchableOpacity>
                     </View>
                     <TextInput
                       style={styles.bioTextInput}
+                      placeholder="Tap an archetype card above or type your own witty bio here..."
+                      placeholderTextColor="#64748B"
                       value={bio}
                       onChangeText={setBio}
                       multiline
@@ -1409,16 +2194,21 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>✨ 64% Magnetism! 3 quick final cards</Text>
-                  <TouchableOpacity
-                    style={styles.btnPrimary}
-                    activeOpacity={0.85}
-                    onPress={() => advanceToDeck(5)}>
-                    <Text style={styles.btnPrimaryText}>Next: Lifestyle & Stature ➔</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(3)}>
-                    <Text style={styles.btnBackText}>← Back</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.paceCue}>✨ 64% Magnetism! 3 quick decks left</Text>
+                  <View style={styles.footerActionRow}>
+                    <TouchableOpacity
+                      style={styles.btnPreviousFooter}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(3)}>
+                      <Text style={styles.btnPreviousFooterText}>‹ Previous</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btnPrimary, { flex: 1 }]}
+                      activeOpacity={0.85}
+                      onPress={() => advanceToDeck(5)}>
+                      <Text style={styles.btnPrimaryText}>Next: Lifestyle & Stature ➔</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
@@ -1427,11 +2217,21 @@ export default function OnboardingDecksScreen() {
             {activeDeck === 5 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
-                  <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>☕ DECK 5 OF 7 • LIFESTYLE RHYTHM</Text>
+                  <View style={styles.deckHeaderTopBar}>
+                    <View style={styles.deckBadge}>
+                      <Text style={styles.deckBadgeText}>☕ DECK 5 OF 7 • LIFESTYLE RHYTHM</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.headerPrevPill}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(4)}>
+                      <Text style={styles.headerPrevPillText}>‹ Previous</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.deckTitle}>Your height & everyday vibe</Text>
-                  <Text style={styles.deckSub}>Clear mutual honesty from Day 1.</Text>
+                  <Text style={[styles.deckTitle, isCompactPhone && { fontSize: 20 }]}>
+                    Your height & everyday vibe
+                  </Text>
+                  <Text style={styles.deckSub}>Clear mutual compatibility from Day 1.</Text>
                 </View>
 
                 <View style={styles.deckBody}>
@@ -1466,15 +2266,23 @@ export default function OnboardingDecksScreen() {
                       { key: 'NON_VEG', label: '🍗 Non-Vegetarian' },
                       { key: 'VEGAN', label: '🌱 Vegan' },
                       { key: 'EGGETARIAN', label: '🥚 Eggetarian' },
+                      { key: 'STRICT_JAIN', label: '🪷 Strict Jain' },
                     ].map((d) => (
                       <TouchableOpacity
                         key={d.key}
-                        style={[styles.microPill, dietaryPref === d.key && styles.microPillSelected]}
+                        style={[
+                          styles.microPill,
+                          dietaryPref === d.key && styles.microPillSelected,
+                        ]}
                         onPress={() => {
                           hapticFeedback.light();
                           setDietaryPref(d.key as DietaryPreference);
                         }}>
-                        <Text style={[styles.microPillText, dietaryPref === d.key && styles.microPillTextSelected]}>
+                        <Text
+                          style={[
+                            styles.microPillText,
+                            dietaryPref === d.key && styles.microPillTextSelected,
+                          ]}>
                           {d.label}
                         </Text>
                       </TouchableOpacity>
@@ -1483,15 +2291,22 @@ export default function OnboardingDecksScreen() {
 
                   <Text style={[styles.fieldLabel, { marginTop: 12 }]}>SOCIAL DRINKING</Text>
                   <View style={styles.pillCluster}>
-                    {['Socially / Weekends', 'Teetotaler / Never'].map((dr) => (
+                    {['Socially / Weekends', 'Teetotaler / Never', 'Sober / Mindful'].map((dr) => (
                       <TouchableOpacity
                         key={dr}
-                        style={[styles.microPill, drinkingHabit === dr && styles.microPillSelected]}
+                        style={[
+                          styles.microPill,
+                          drinkingHabit === dr && styles.microPillSelected,
+                        ]}
                         onPress={() => {
                           hapticFeedback.light();
                           setDrinkingHabit(dr);
                         }}>
-                        <Text style={[styles.microPillText, drinkingHabit === dr && styles.microPillTextSelected]}>
+                        <Text
+                          style={[
+                            styles.microPillText,
+                            drinkingHabit === dr && styles.microPillTextSelected,
+                          ]}>
                           {dr}
                         </Text>
                       </TouchableOpacity>
@@ -1500,30 +2315,45 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckFooter}>
-                  <Text style={styles.paceCue}>🚀 78% Magnetism! Photo & Cosmic decks ahead</Text>
-                  <TouchableOpacity
-                    style={styles.btnPrimary}
-                    activeOpacity={0.85}
-                    onPress={() => advanceToDeck(6)}>
-                    <Text style={styles.btnPrimaryText}>Next: Photo Showcase (Min 2) ➔</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(4)}>
-                    <Text style={styles.btnBackText}>← Back</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.paceCue}>🚀 78% Magnetism! Editorial Photo Deck ahead</Text>
+                  <View style={styles.footerActionRow}>
+                    <TouchableOpacity
+                      style={styles.btnPreviousFooter}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(4)}>
+                      <Text style={styles.btnPreviousFooterText}>‹ Previous</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btnPrimary, { flex: 1 }]}
+                      activeOpacity={0.85}
+                      onPress={() => advanceToDeck(6)}>
+                      <Text style={styles.btnPrimaryText}>Next: Editorial Portfolio ➔</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
 
-            {/* ==================== DECK 6: 6-SLOT PHOTO SHOWCASE ==================== */}
+            {/* ==================== DECK 6: ASYMMETRIC EDITORIAL PORTFOLIO ==================== */}
             {activeDeck === 6 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
-                  <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>📸 DECK 6 OF 7 • PHOTO SHOWCASE</Text>
+                  <View style={styles.deckHeaderTopBar}>
+                    <View style={styles.deckBadge}>
+                      <Text style={styles.deckBadgeText}>📸 DECK 6 OF 7 • THE VISUAL STORY</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.headerPrevPill}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(5)}>
+                      <Text style={styles.headerPrevPillText}>‹ Previous</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.deckTitle}>Upload at least 2 photos</Text>
+                  <Text style={[styles.deckTitle, isCompactPhone && { fontSize: 20 }]}>
+                    Curate your editorial portfolio
+                  </Text>
                   <Text style={styles.deckSub}>
-                    Please upload at least 2 photos to continue — or upload all 6 photos for 3x more matches!
+                    Upload at least 2 photos (Cover Shot + 1 more) — or fill all 6 for 3x matches.
                   </Text>
                 </View>
 
@@ -1533,13 +2363,15 @@ export default function OnboardingDecksScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.photoCounterTitle}>
                         {uploadedPhotosList.length >= 2
-                          ? `✅ ${uploadedPhotosList.length} of 6 Photos Ready`
+                          ? `✅ ${uploadedPhotosList.length} of 6 Editorial Photos Ready`
                           : `📸 ${uploadedPhotosList.length} of 2 Required Photos Uploaded`}
                       </Text>
                       <Text style={styles.photoCounterSub}>
                         {uploadedPhotosList.length < 2
-                          ? `Upload ${2 - uploadedPhotosList.length} more photo${2 - uploadedPhotosList.length === 1 ? '' : 's'} (or fill all 6 slots)`
-                          : 'Minimum 2 met! Add up to 6 photos anytime'}
+                          ? `Upload ${2 - uploadedPhotosList.length} more photo${
+                              2 - uploadedPhotosList.length === 1 ? '' : 's'
+                            } to unlock the final Vedic step`
+                          : 'Minimum 2 met! Tap any frame to add or replace photos'}
                       </Text>
                     </View>
                     <View
@@ -1564,67 +2396,28 @@ export default function OnboardingDecksScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* 6-Slot Interactive Grid (2 Required + 4 Optional) */}
-                  <View style={styles.photoGrid6}>
-                    {[0, 1, 2, 3, 4, 5].map((idx) => {
-                      const uri = photoSlots[idx];
-                      const isRequired = idx < 2;
-                      const isUploadingThis = Boolean(uploadingSlots[idx]);
-                      return (
-                        <TouchableOpacity
-                          key={idx}
-                          style={[
-                            styles.photoSlotCard,
-                            isRequired && !uri && styles.photoSlotCardRequired,
-                            !!uri && styles.photoSlotCardFilled,
-                          ]}
-                          activeOpacity={0.85}
-                          onPress={() => {
-                            hapticFeedback.light();
-                            setActivePhotoSlotModal(idx);
-                          }}>
-                          {uri ? (
-                            <>
-                              <Image
-                                source={{ uri }}
-                                style={styles.photoSlotImage}
-                                contentFit="cover"
-                              />
-                              <View style={styles.photoSlotTopTag}>
-                                <Text style={styles.photoSlotTopTagText}>
-                                   {idx === 0 ? '★ MAIN' : `#${idx + 1}`}
-                                </Text>
-                              </View>
-                              <TouchableOpacity
-                                style={styles.photoSlotRemoveBtn}
-                                onPress={() => handleRemovePhotoSlot(idx)}>
-                                <Text style={styles.photoSlotRemoveText}>✕</Text>
-                              </TouchableOpacity>
-                            </>
-                          ) : (
-                            <View style={styles.photoSlotEmptyInner}>
-                              <Text style={styles.photoSlotPlusIcon}>{isRequired ? '📸' : '＋'}</Text>
-                              <Text
-                                style={[
-                                  styles.photoSlotLabel,
-                                  isRequired && { color: '#FF6B8B', fontWeight: '900' },
-                                ]}>
-                                {isRequired ? `Photo ${idx + 1} *` : `Photo ${idx + 1}`}
-                              </Text>
-                              <Text style={styles.photoSlotReqSub}>
-                                {isRequired ? 'REQUIRED' : 'OPTIONAL'}
-                              </Text>
-                            </View>
-                          )}
+                  {/* ASYMMETRIC EDITORIAL PORTFOLIO GRID:
+                      Top Row: Slot 0 (2x2 Hero Cover Shot) on Left + Slots 1 & 2 stacked on Right
+                      Bottom Row: Slots 3, 4, 5 in 3 equal columns */}
+                  <View style={styles.editorialPortfolioContainer}>
+                    <View style={styles.editorialTopRow}>
+                      {/* Left 2x2 Hero Cover Shot (Slot 0) */}
+                      <View style={styles.editorialHeroCol}>
+                        {renderPhotoSlotBox(0, styles.editorialHeroSlot, true)}
+                      </View>
+                      {/* Right Stacked Slots 1 & 2 */}
+                      <View style={styles.editorialRightStackCol}>
+                        {renderPhotoSlotBox(1, styles.editorialStackedSlot, false)}
+                        {renderPhotoSlotBox(2, styles.editorialStackedSlot, false)}
+                      </View>
+                    </View>
 
-                          {isUploadingThis && (
-                            <View style={styles.photoSlotLoadingOverlay}>
-                              <ActivityIndicator color="#FF385C" size="small" />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
+                    {/* Bottom Row: Slots 3, 4, 5 */}
+                    <View style={styles.editorialBottomRow}>
+                      {renderPhotoSlotBox(3, styles.editorialBottomSlot, false)}
+                      {renderPhotoSlotBox(4, styles.editorialBottomSlot, false)}
+                      {renderPhotoSlotBox(5, styles.editorialBottomSlot, false)}
+                    </View>
                   </View>
 
                   {/* Live Background Selfie Verification Status Pill */}
@@ -1668,47 +2461,60 @@ export default function OnboardingDecksScreen() {
 
                 <View style={styles.deckFooter}>
                   <Text style={[styles.paceCue, { color: '#FCD34D' }]}>
-                    🌟 {uploadedPhotosList.length >= 2 ? '90% Magnetism! Final Vedic Kundali deck ahead' : 'Upload at least 2 photos to unlock final step'}
+                    🌟{' '}
+                    {uploadedPhotosList.length >= 2
+                      ? '92% Magnetism! Final Vedic Kundali deck ahead'
+                      : 'Upload at least 2 photos to unlock the final deck'}
                   </Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.btnPrimary,
-                      uploadedPhotosList.length >= 2 ? styles.btnLaunch : { opacity: 0.65 },
-                    ]}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      if (uploadedPhotosList.length < 2) {
-                        hapticFeedback.warning();
-                        Alert.alert(
-                          'Please Upload At Least 2 Photos 📸',
-                          'Please upload at least 2 photos in the required slots (you can also upload all 6 photos) before continuing.'
-                        );
-                        return;
-                      }
-                      advanceToDeck(7);
-                    }}>
-                    <Text style={styles.btnPrimaryText}>
-                      {uploadedPhotosList.length >= 2
-                        ? 'Next: Vedic Janampatri (Last Step) ➔'
-                        : `Upload ${2 - uploadedPhotosList.length} More Photo${2 - uploadedPhotosList.length === 1 ? '' : 's'} to Continue`}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(5)}>
-                    <Text style={styles.btnBackText}>← Back</Text>
-                  </TouchableOpacity>
+                  <View style={styles.footerActionRow}>
+                    <TouchableOpacity
+                      style={styles.btnPreviousFooter}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(5)}>
+                      <Text style={styles.btnPreviousFooterText}>‹ Previous</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.btnPrimary,
+                        { flex: 1 },
+                        uploadedPhotosList.length < 2 && { opacity: 0.65 },
+                      ]}
+                      activeOpacity={0.85}
+                      onPress={() => advanceToDeck(7)}>
+                      <Text style={styles.btnPrimaryText}>
+                        {uploadedPhotosList.length >= 2
+                          ? 'Next: Vedic Janampatri ➔'
+                          : `Upload ${2 - uploadedPhotosList.length} More Photo${
+                              2 - uploadedPhotosList.length === 1 ? '' : 's'
+                            }`}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
 
-            {/* ==================== DECK 7: VEDIC JANAMPATRI ==================== */}
+            {/* ==================== DECK 7 (FINAL STEP): VEDIC JANAMPATRI -> LAUNCH DISCOVERY ==================== */}
             {activeDeck === 7 && (
               <View style={styles.deckInner}>
                 <View style={styles.deckHeader}>
-                  <View style={styles.deckBadge}>
-                    <Text style={styles.deckBadgeText}>🪐 DECK 7 OF 7 • VEDIC JANAMPATRI</Text>
+                  <View style={styles.deckHeaderTopBar}>
+                    <View style={styles.deckBadge}>
+                      <Text style={styles.deckBadgeText}>🪐 DECK 7 OF 7 • COSMIC CHEMISTRY</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.headerPrevPill}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(6)}>
+                      <Text style={styles.headerPrevPillText}>‹ Previous</Text>
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.deckTitle}>Calibrate your birth chart</Text>
-                  <Text style={styles.deckSub}>Sidereal Swiss Ephemeris for 36-point Guna Milan.</Text>
+                  <Text style={[styles.deckTitle, isCompactPhone && { fontSize: 20 }]}>
+                    Calibrate your birth chart
+                  </Text>
+                  <Text style={styles.deckSub}>
+                    Sidereal Swiss Ephemeris for 36-point Ashta-Koota Guna Milan. (Optional — can be added later)
+                  </Text>
                 </View>
 
                 <View style={styles.deckBody}>
@@ -1718,23 +2524,31 @@ export default function OnboardingDecksScreen() {
                   </View>
 
                   <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>EXACT BIRTH TIME (HH:MM)</Text>
+                    <View style={styles.fieldLabelRow}>
+                      <Text style={styles.fieldLabel}>EXACT BIRTH TIME (HH:MM)</Text>
+                      <Text style={styles.optionalBadgeText}>OPTIONAL</Text>
+                    </View>
                     <TextInput
                       style={styles.glowInput}
                       value={birthTime}
-                      onChangeText={setBirthTime}
-                      placeholder="00:00"
+                      onChangeText={handleBirthTimeChange}
+                      placeholder="HH:MM (e.g. 14:30 or 08:15)"
                       placeholderTextColor="#64748B"
+                      keyboardType="number-pad"
+                      maxLength={5}
                     />
                   </View>
 
                   <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>BIRTH CITY / TOWN</Text>
+                    <View style={styles.fieldLabelRow}>
+                      <Text style={styles.fieldLabel}>BIRTH CITY / TOWN</Text>
+                      <Text style={styles.optionalBadgeText}>OPTIONAL</Text>
+                    </View>
                     <TextInput
                       style={styles.glowInput}
                       value={birthCity}
                       onChangeText={setBirthCity}
-                      placeholder="e.g. New Delhi, Mumbai, Jaipur"
+                      placeholder="e.g. New Delhi, Mumbai, Jaipur..."
                       placeholderTextColor="#64748B"
                     />
                   </View>
@@ -1742,131 +2556,42 @@ export default function OnboardingDecksScreen() {
 
                 <View style={styles.deckFooter}>
                   <Text style={[styles.paceCue, { color: '#FCD34D' }]}>
-                    👑 100% Top-Tier Profile Magnetism! Cosmic calibration ready
+                    👑 100% Profile Magnetism! Ready to enter Discovery
                   </Text>
-                  <TouchableOpacity
-                    style={styles.btnPrimary}
-                    activeOpacity={0.85}
-                    onPress={() => advanceToDeck(8)}>
-                    <Text style={styles.btnPrimaryText}>Review Synthesized Profile ➔</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(6)}>
-                    <Text style={styles.btnBackText}>← Back to Photos</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* ==================== FINAL REVEAL CARD (DECK 8) ==================== */}
-            {activeDeck === 8 && (
-              <View style={styles.deckInner}>
-                <View style={styles.deckHeader}>
-                  <Text style={styles.trophyIcon}>💎</Text>
-                  <Text style={styles.deckTitle}>Profile Synthesized!</Text>
-                  <Text style={styles.deckSub}>
-                    All 7 decks compiled with {uploadedPhotosList.length} photo{uploadedPhotosList.length === 1 ? '' : 's'}. You are ready for Discovery!
-                  </Text>
-                </View>
-
-                <View style={styles.deckBody}>
-                  {/* Holographic Mini Profile Preview */}
-                  <View style={styles.miniPreviewCard}>
-                    <View style={styles.miniPreviewHeader}>
-                      <Text style={styles.miniPreviewName}>{fullName.trim() || 'Aryan'}, {getEstimatedAge()}</Text>
-                      <View
-                        style={[
-                          styles.verifiedBadge,
-                          verificationStatus === 'PENDING' && {
-                            backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                            borderColor: 'rgba(245, 158, 11, 0.5)',
-                          },
-                        ]}>
-                        <Text
-                          style={[
-                            styles.verifiedBadgeText,
-                            verificationStatus === 'PENDING' && { color: '#FCD34D' },
-                          ]}>
-                          {verificationStatus === 'VERIFIED'
-                            ? '✓ Selfie Verified'
-                            : verificationStatus === 'PENDING'
-                            ? '⏳ Verification Pending'
-                            : '📸 Unverified'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Uploaded Photos Strip Preview so all 2..6 uploaded photos show clearly */}
-                    {uploadedPhotosList.length > 0 && (
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.miniPhotosStripScroll}
-                        contentContainerStyle={styles.miniPhotosStripRow}>
-                        {uploadedPhotosList.map((uri, pIdx) => (
-                          <View key={`${uri}-${pIdx}`} style={styles.miniPhotoThumbWrap}>
-                            <Image
-                              source={{ uri }}
-                              style={styles.miniPhotoThumb}
-                              contentFit="cover"
-                            />
-                            <View style={styles.miniPhotoThumbBadge}>
-                              <Text style={styles.miniPhotoThumbBadgeText}>
-                                {pIdx === 0 ? '★ 1' : `#${pIdx + 1}`}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                      </ScrollView>
-                    )}
-
-                    <Text style={styles.miniPreviewBio} numberOfLines={2}>
-                      {bio}
-                    </Text>
-                    <View style={styles.miniPillsRow}>
-                      <View style={styles.miniTag}>
-                        <Text style={styles.miniTagText}>{microCircle}</Text>
-                      </View>
-                      <View style={styles.miniTag}>
-                        <Text style={styles.miniTagText}>{heightCm} cm • {dietaryPref}</Text>
-                      </View>
-                      <View style={styles.miniTag}>
-                        <Text style={styles.miniTagText}>📸 {uploadedPhotosList.length}/6 Photos</Text>
-                      </View>
-                      <View style={[styles.miniTag, { backgroundColor: 'rgba(16,185,129,0.2)' }]}>
-                        <Text style={[styles.miniTagText, { color: '#6EE7B7' }]}>Taurus • Rohini</Text>
-                      </View>
-                    </View>
+                  <View style={styles.footerActionRow}>
+                    <TouchableOpacity
+                      style={styles.btnPreviousFooter}
+                      activeOpacity={0.8}
+                      onPress={() => advanceToDeck(6)}>
+                      <Text style={styles.btnPreviousFooterText}>‹ Previous</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btnPrimary, styles.btnLaunch, { flex: 1 }]}
+                      activeOpacity={0.85}
+                      disabled={isSubmitting}
+                      onPress={handleCompileAndLaunch}>
+                      {isSubmitting ? (
+                        <ActivityIndicator color="#FFF" />
+                      ) : (
+                        <Text style={styles.btnPrimaryText}>🚀 Launch Discovery Deck</Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
-
-                  <Text style={styles.editProfileNotice}>
-                    💡 Need to adjust anything later? Your standard <Text style={{ fontWeight: '800', color: '#FFF' }}>Edit Profile</Text> tab remains completely unchanged and accessible anytime.
-                  </Text>
-                </View>
-
-                <View style={styles.deckFooter}>
                   <TouchableOpacity
-                    style={[styles.btnPrimary, styles.btnLaunch]}
-                    activeOpacity={0.85}
+                    style={styles.skipDeck7Btn}
+                    activeOpacity={0.75}
                     disabled={isSubmitting}
                     onPress={handleCompileAndLaunch}>
-                    {isSubmitting ? (
-                      <ActivityIndicator color="#FFF" />
-                    ) : (
-                      <Text style={styles.btnPrimaryText}>🚀 Compile & Launch Discovery Deck</Text>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.btnBack} onPress={() => advanceToDeck(7)}>
-                    <Text style={styles.btnBackText}>← Back to Vedic Janampatri</Text>
+                    <Text style={styles.skipDeck7BtnText}>Skip Vedic Chart for Now ›</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             )}
-
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Selfie Camera / Upload Modal (Standard Selfie, NOT 3D Biometric) */}
+      {/* Selfie Camera / Upload Modal */}
       {showSelfieModal && (
         <SelfieCameraModal
           visible={showSelfieModal}
@@ -1875,7 +2600,7 @@ export default function OnboardingDecksScreen() {
         />
       )}
 
-      {/* Full-Screen Micro-Community Directory Modal (Search + City-Wise Filter) */}
+      {/* Full-Screen Micro-Community Directory Modal */}
       {showTribeModal && (
         <MicroCommunityModal
           visible={showTribeModal}
@@ -1896,16 +2621,20 @@ export default function OnboardingDecksScreen() {
         />
       )}
 
-      {/* Gender Selection Modal (Cancel on Top-Right, Done at Bottom) */}
+      {/* Identity Spectrum & Custom Input Modal (Triggered by 3rd Card on Deck 2) */}
       {showGenderModal && (
-        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowGenderModal(false)}>
+        <Modal
+          visible={true}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowGenderModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalTopRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalHeaderTitleLeft}>👤 Select Gender</Text>
+                  <Text style={styles.modalHeaderTitleLeft}>🌈 Identity Spectrum</Text>
                   <Text style={styles.modalHeaderSubLeft}>
-                    All authentic identities and spectrums are welcome.
+                    Pick an identity below or type your exact identity.
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -1916,8 +2645,21 @@ export default function OnboardingDecksScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 8 }}>
-                {GENDER_PRESETS.map((item) => {
+              <View style={styles.customModalInputBox}>
+                <TextInput
+                  style={styles.customModalTextInput}
+                  placeholder="Or type custom identity (e.g. Non-binary, Trans Man)..."
+                  placeholderTextColor="#64748B"
+                  value={customGenderInput}
+                  onChangeText={(txt) => {
+                    setCustomGenderInput(txt);
+                    if (txt.trim()) setTempGenderDisplay(txt.trim());
+                  }}
+                />
+              </View>
+
+              <ScrollView style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}>
+                {GENDER_PRESETS.filter((g) => g !== 'Other').map((item) => {
                   const isSel = tempGenderDisplay === item;
                   return (
                     <TouchableOpacity
@@ -1926,6 +2668,7 @@ export default function OnboardingDecksScreen() {
                       onPress={() => {
                         hapticFeedback.light();
                         setTempGenderDisplay(item);
+                        setCustomGenderInput(item);
                       }}>
                       <Text style={[styles.pickerOptionText, isSel && styles.pickerOptionTextActive]}>
                         {item} {isSel ? '✓' : ''}
@@ -1939,34 +2682,41 @@ export default function OnboardingDecksScreen() {
                 style={styles.modalDoneBottomBtn}
                 activeOpacity={0.85}
                 onPress={() => {
+                  const chosen = (customGenderInput.trim() || tempGenderDisplay || 'Non-binary').trim();
                   hapticFeedback.success();
-                  if (tempGenderDisplay === 'Man') {
+                  if (chosen === 'Man') {
                     setGender('MALE');
-                  } else if (tempGenderDisplay === 'Woman') {
+                  } else if (chosen === 'Woman') {
                     setGender('FEMALE');
                   } else {
                     setGender('NON_BINARY');
                   }
-                  setGenderDisplay(tempGenderDisplay);
+                  setGenderDisplay(chosen);
                   setShowGenderModal(false);
                 }}>
-                <Text style={styles.modalDoneBottomBtnText}>✓ Done</Text>
+                <Text style={styles.modalDoneBottomBtnText}>
+                  ✓ Select & Highlight &quot;{customGenderInput.trim() || tempGenderDisplay || 'Identity'}&quot;
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
       )}
 
-      {/* Looking To Meet Modal (Cancel on Top-Right, Done at Bottom) */}
+      {/* Looking To Meet Specific / Custom Modal (Triggered by 4th Card on Deck 2) */}
       {showPreferenceModal && (
-        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowPreferenceModal(false)}>
+        <Modal
+          visible={true}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowPreferenceModal(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalTopRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.modalHeaderTitleLeft}>👥 Looking To Meet</Text>
+                  <Text style={styles.modalHeaderTitleLeft}>💫 Specific Desire / Preference</Text>
                   <Text style={styles.modalHeaderSubLeft}>
-                    Calibrate who you want to discover in your deck.
+                    Choose or type exactly who you want to discover.
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -1977,8 +2727,27 @@ export default function OnboardingDecksScreen() {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 320, width: '100%', marginVertical: 8 }}>
-                {[...GENDER_PREFERENCE_PRESETS, 'Non-binary & Expansive', 'Transgender folks'].map((item) => {
+              <View style={styles.customModalInputBox}>
+                <TextInput
+                  style={styles.customModalTextInput}
+                  placeholder="Or type specific preference (e.g. Non-binary, Trans Women)..."
+                  placeholderTextColor="#64748B"
+                  value={customLookingForInput}
+                  onChangeText={(txt) => {
+                    setCustomLookingForInput(txt);
+                    if (txt.trim()) setTempLookingFor(txt.trim());
+                  }}
+                />
+              </View>
+
+              <ScrollView style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}>
+                {[
+                  ...GENDER_PREFERENCE_PRESETS.filter((p) => p !== 'Other'),
+                  'Non-binary',
+                  'Transgender Women',
+                  'Transgender Men',
+                  'Queer & Expansive',
+                ].map((item) => {
                   const isSel = tempLookingFor === item;
                   return (
                     <TouchableOpacity
@@ -1987,6 +2756,7 @@ export default function OnboardingDecksScreen() {
                       onPress={() => {
                         hapticFeedback.light();
                         setTempLookingFor(item);
+                        setCustomLookingForInput(item);
                       }}>
                       <Text style={[styles.pickerOptionText, isSel && styles.pickerOptionTextActive]}>
                         {item} {isSel ? '✓' : ''}
@@ -2000,18 +2770,96 @@ export default function OnboardingDecksScreen() {
                 style={styles.modalDoneBottomBtn}
                 activeOpacity={0.85}
                 onPress={() => {
+                  const chosen = (customLookingForInput.trim() || tempLookingFor || 'Everyone').trim();
                   hapticFeedback.success();
-                  setLookingFor(tempLookingFor);
+                  setLookingFor(chosen);
                   setShowPreferenceModal(false);
                 }}>
-                <Text style={styles.modalDoneBottomBtnText}>✓ Done</Text>
+                <Text style={styles.modalDoneBottomBtnText}>
+                  ✓ Select & Highlight &quot;{customLookingForInput.trim() || tempLookingFor || 'Preference'}&quot;
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
       )}
 
-      {/* Upload Photo Slot Modal (with Cancel button on Top-Right and Bottom) */}
+      {/* Sexual Orientation Modal (Triggered by 4th Pill on Deck 2) */}
+      {showOrientationModal && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowOrientationModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalTopRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalHeaderTitleLeft}>✨ Sexual Orientation</Text>
+                  <Text style={styles.modalHeaderSubLeft}>
+                    Select or write your sexual orientation.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalTopRightCancelBtn}
+                  activeOpacity={0.8}
+                  onPress={() => setShowOrientationModal(false)}>
+                  <Text style={styles.modalTopRightCancelText}>✕ Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.customModalInputBox}>
+                <TextInput
+                  style={styles.customModalTextInput}
+                  placeholder="Or type custom orientation (e.g. Demisexual, Pansexual)..."
+                  placeholderTextColor="#64748B"
+                  value={customOrientationInput}
+                  onChangeText={(txt) => {
+                    setCustomOrientationInput(txt);
+                    if (txt.trim()) setTempOrientation(txt.trim());
+                  }}
+                />
+              </View>
+
+              <ScrollView style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}>
+                {SEXUAL_ORIENTATION_PRESETS.filter((o) => o !== 'Other').map((item) => {
+                  const isSel = tempOrientation === item;
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[styles.pickerOptionItem, isSel && styles.pickerOptionActive]}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setTempOrientation(item);
+                        setCustomOrientationInput(item);
+                      }}>
+                      <Text style={[styles.pickerOptionText, isSel && styles.pickerOptionTextActive]}>
+                        {item} {isSel ? '✓' : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalDoneBottomBtn}
+                activeOpacity={0.85}
+                onPress={() => {
+                  const chosen = (customOrientationInput.trim() || tempOrientation || 'Straight').trim();
+                  hapticFeedback.success();
+                  setOrientation(chosen);
+                  setShowOrientationModal(false);
+                }}>
+                <Text style={styles.modalDoneBottomBtnText}>
+                  ✓ Select & Highlight &quot;{customOrientationInput.trim() || tempOrientation || 'Orientation'}&quot;
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Upload Photo Slot Modal */}
       {activePhotoSlotModal !== null && (
         <Modal
           visible={true}
@@ -2023,12 +2871,12 @@ export default function OnboardingDecksScreen() {
               <View style={styles.modalTopRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.modalHeaderTitleLeft}>
-                    📸 Upload Photo #{activePhotoSlotModal + 1}
+                    📸 {activePhotoSlotModal === 0 ? 'Hero Cover Shot (#1)' : `Portfolio Slot #${activePhotoSlotModal + 1}`}
                   </Text>
                   <Text style={styles.modalHeaderSubLeft}>
                     {activePhotoSlotModal < 2
-                      ? 'Required profile photo (at least 2 photos needed)'
-                      : 'Optional showcase photo'}
+                      ? 'Required profile photo (minimum 2 photos required)'
+                      : 'Optional editorial showcase photo'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -2104,7 +2952,7 @@ const styles = StyleSheet.create({
   },
   topHud: {
     width: '100%',
-    maxWidth: 460,
+    maxWidth: 480,
     alignSelf: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -2116,7 +2964,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   brandRow: {
     flexDirection: 'row',
@@ -2167,10 +3015,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     width: '100%',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   stepperBar: {
-    flex: 1,
+    width: '100%',
     height: 4,
     borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -2185,6 +3033,44 @@ const styles = StyleSheet.create({
   stepperBarPassed: {
     backgroundColor: '#10B981',
   },
+  deckStripScroll: {
+    maxHeight: 30,
+    marginBottom: 6,
+  },
+  deckStripContent: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  deckStripPill: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  deckStripPillActive: {
+    backgroundColor: 'rgba(255, 56, 92, 0.18)',
+    borderColor: '#FF385C',
+  },
+  deckStripPillDone: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  deckStripPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  deckStripPillTextActive: {
+    color: '#FFF',
+    fontWeight: '900',
+  },
+  deckStripPillTextDone: {
+    color: '#6EE7B7',
+    fontWeight: '800',
+  },
   identityRibbon: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -2195,10 +3081,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
+    gap: 6,
   },
   ribbonItem: {
     fontSize: 10,
     color: '#8E95AA',
+    flexShrink: 1,
   },
   ribbonBold: {
     color: '#FFF',
@@ -2207,7 +3095,7 @@ const styles = StyleSheet.create({
   scrollArena: {
     flexGrow: 1,
     width: '100%',
-    maxWidth: 460,
+    maxWidth: 480,
     alignSelf: 'center',
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -2230,7 +3118,7 @@ const styles = StyleSheet.create({
   },
   deckCard: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 460,
     backgroundColor: '#0F1326',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.14)',
@@ -2247,7 +3135,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   deckHeader: {
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  deckHeaderTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   deckBadge: {
     alignSelf: 'flex-start',
@@ -2257,7 +3151,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 8,
   },
   deckBadgeText: {
     fontSize: 10,
@@ -2265,22 +3158,36 @@ const styles = StyleSheet.create({
     color: '#00E5FF',
     letterSpacing: 0.8,
   },
+  headerPrevPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  headerPrevPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#E2E8F0',
+  },
   deckTitle: {
     fontSize: 22,
     fontWeight: '900',
     color: '#FFF',
     letterSpacing: -0.4,
     lineHeight: 28,
+    marginTop: 4,
   },
   deckSub: {
     fontSize: 13,
     color: '#8E95AA',
     lineHeight: 18,
-    marginTop: 4,
+    marginTop: 3,
   },
   deckBody: {
-    gap: 12,
-    marginVertical: 8,
+    gap: 11,
+    marginVertical: 6,
   },
   fieldBox: {
     gap: 6,
@@ -2295,16 +3202,104 @@ const styles = StyleSheet.create({
     backgroundColor: '#080A14',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     color: '#FFF',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   dobRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  dobHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  agePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  agePillValid: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  agePillInvalid: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  agePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  agePillTextValid: {
+    color: '#34D399',
+  },
+  agePillTextInvalid: {
+    color: '#F87171',
+  },
+  dobSegmentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dobBlock: {
+    flex: 1,
+  },
+  dobBlockSub: {
+    fontSize: 9,
+    color: '#94A3B8',
+    fontWeight: '800',
+    marginBottom: 4,
+    letterSpacing: 0.6,
+    textAlign: 'center',
+  },
+  dobInputSegment: {
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+  },
+  dobInputFilled: {
+    borderColor: 'rgba(255, 56, 92, 0.5)',
+    backgroundColor: 'rgba(255, 56, 92, 0.06)',
+  },
+  dobSlash: {
+    fontSize: 18,
+    color: '#64748B',
+    fontWeight: '700',
+    marginTop: 14,
+  },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  optionalBadgeText: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  skipDeck7Btn: {
+    alignSelf: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  skipDeck7BtnText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   selfieScanCard: {
     flexDirection: 'row',
@@ -2314,20 +3309,24 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(16, 185, 129, 0.4)',
     borderStyle: 'dashed',
-    borderRadius: 20,
-    padding: 14,
-    marginTop: 4,
+    borderRadius: 18,
+    padding: 12,
   },
   selfieScanCardDone: {
     borderStyle: 'solid',
     backgroundColor: 'rgba(16, 185, 129, 0.18)',
     borderColor: '#10B981',
   },
+  selfieScanCardPending: {
+    borderStyle: 'solid',
+    backgroundColor: 'rgba(245, 158, 11, 0.14)',
+    borderColor: '#F59E0B',
+  },
   selfieScanIcon: {
     fontSize: 24,
   },
   selfieScanTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#6EE7B7',
   },
@@ -2336,33 +3335,256 @@ const styles = StyleSheet.create({
     color: '#A7F3D0',
     marginTop: 2,
   },
+  /* Primary Residence 3-Layer Styles */
+  residenceHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  activeResidenceBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  activeResidenceBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#6EE7B7',
+  },
+  gpsDetectBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(0, 229, 255, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 229, 255, 0.35)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  gpsDetectBarActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.14)',
+    borderColor: '#10B981',
+  },
+  gpsPulseCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gpsDetectTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFF',
+  },
+  gpsDetectSub: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  gpsDetectActionPill: {
+    backgroundColor: 'rgba(0, 229, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: '#00E5FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  gpsDetectActionText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#00E5FF',
+  },
+  citySearchInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#080B17',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  citySearchInput: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+    paddingVertical: 2,
+  },
+  citySearchUseBtn: {
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  citySearchUseBtnText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  citySuggestionDropdown: {
+    backgroundColor: '#0B0F20',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.35)',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  citySuggestionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  citySuggestionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F1F5F9',
+  },
+  citySuggestionTag: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00E5FF',
+  },
+  metroCarouselScroll: {
+    marginTop: 2,
+  },
+  metroCarouselContent: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  metroHubCard: {
+    width: 132,
+    height: 114,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.14)',
+    position: 'relative',
+    justifyContent: 'flex-end',
+    backgroundColor: '#080B17',
+  },
+  metroHubCardSelected: {
+    borderColor: '#FF385C',
+    borderWidth: 2,
+  },
+  metroHubImage: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  metroHubOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(5, 6, 12, 0.52)',
+  },
+  metroHubCheckBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#FF385C',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  metroHubCheckBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#FFF',
+  },
+  metroHubTextWrap: {
+    padding: 8,
+  },
+  metroHubVibeTag: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FCD34D',
+  },
+  metroHubCityTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFF',
+    marginTop: 1,
+  },
+  metroHubSubText: {
+    fontSize: 9,
+    color: '#CBD5E1',
+    marginTop: 1,
+  },
+  /* Deck 2 Inline Selector Cards */
   rapidRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
+  },
+  rapidRowWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   rapidCard: {
     flex: 1,
     backgroundColor: '#080B17',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    padding: 14,
-    gap: 4,
+    borderRadius: 18,
+    padding: 12,
+    gap: 3,
+    position: 'relative',
+  },
+  rapidCardCompact: {
+    width: '48.2%',
+    backgroundColor: '#080B17',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 18,
+    padding: 12,
+    gap: 3,
+    position: 'relative',
   },
   rapidCardSelected: {
-    backgroundColor: 'rgba(255, 56, 92, 0.18)',
+    backgroundColor: 'rgba(255, 56, 92, 0.2)',
     borderColor: '#FF385C',
   },
+  rapidCheckDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FF385C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rapidCheckDotText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
   rapidEmoji: {
-    fontSize: 22,
+    fontSize: 20,
   },
   rapidTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
     color: '#FFF',
   },
   rapidSub: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#8E95AA',
   },
   pillCluster: {
@@ -2372,7 +3594,7 @@ const styles = StyleSheet.create({
   },
   microPill: {
     backgroundColor: '#090B14',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.12)',
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2389,6 +3611,7 @@ const styles = StyleSheet.create({
   },
   microPillTextSelected: {
     color: '#FFF',
+    fontWeight: '800',
   },
   categoryFilterScroll: {
     marginVertical: 4,
@@ -2421,7 +3644,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   bioArchetypeScroller: {
-    maxHeight: 215,
+    maxHeight: 205,
     marginVertical: 4,
   },
   personaCard: {
@@ -2470,7 +3693,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,56,92,0.4)',
     borderRadius: 18,
     padding: 12,
-    marginTop: 6,
+    marginTop: 4,
   },
   bioEditorHeader: {
     flexDirection: 'row',
@@ -2500,19 +3723,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 18,
-    minHeight: 50,
+    minHeight: 48,
   },
   statureBox: {
     backgroundColor: '#080A14',
     borderWidth: 1.5,
     borderColor: 'rgba(245, 158, 11, 0.3)',
     borderRadius: 22,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   statureNum: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '900',
     color: '#FCD34D',
   },
@@ -2539,89 +3762,43 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   kundliChartBox: {
-    marginBottom: 6,
-  },
-  trophyIcon: {
-    fontSize: 48,
-    alignSelf: 'center',
-    marginBottom: 10,
-  },
-  miniPreviewCard: {
-    backgroundColor: '#090C16',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 209, 102, 0.4)',
-    borderRadius: 22,
-    padding: 16,
-    gap: 8,
-  },
-  miniPreviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-    paddingBottom: 8,
-  },
-  miniPreviewName: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFF',
-  },
-  verifiedBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.5)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  verifiedBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#6EE7B7',
-  },
-  miniPreviewBio: {
-    fontSize: 12,
-    color: '#CBD5E1',
-    lineHeight: 16,
-  },
-  miniPillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  miniTag: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  miniTagText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  editProfileNotice: {
-    fontSize: 11,
-    color: '#8E95AA',
-    lineHeight: 16,
-    textAlign: 'center',
-    marginTop: 4,
+    marginBottom: 4,
   },
   deckFooter: {
-    marginTop: 16,
+    marginTop: 14,
     gap: 8,
   },
+  footerActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  btnPreviousFooter: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnPreviousFooterText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#CBD5E1',
+  },
   paceCue: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: '#6EE7B7',
     textAlign: 'center',
   },
   btnPrimary: {
     backgroundColor: '#FF385C',
-    borderRadius: 22,
+    borderRadius: 20,
     paddingVertical: 14,
+    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#FF385C',
@@ -2635,149 +3812,11 @@ const styles = StyleSheet.create({
     shadowColor: '#10B981',
   },
   btnPrimaryText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#FFF',
   },
-  btnBack: {
-    paddingVertical: 6,
-    alignItems: 'center',
-  },
-  btnBackText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#8E95AA',
-  },
-  expandableTogglePill: {
-    backgroundColor: '#0A0D1B',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  expandableTogglePillActive: {
-    backgroundColor: 'rgba(168, 85, 247, 0.14)',
-    borderColor: '#A855F7',
-  },
-  expandableTogglePillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#CBD5E1',
-  },
-  expandableTogglePillTextActive: {
-    color: '#E9D5FF',
-    fontWeight: '800',
-  },
-  expandableAccordionBox: {
-    backgroundColor: '#070914',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
-    borderRadius: 16,
-    padding: 10,
-    marginTop: 6,
-    gap: 8,
-  },
-  inclusiveChipCluster: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  inclusiveChip: {
-    backgroundColor: '#0E1222',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
-  inclusiveChipSelected: {
-    backgroundColor: 'rgba(168, 85, 247, 0.22)',
-    borderColor: '#A855F7',
-  },
-  inclusiveChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#CBD5E1',
-  },
-  inclusiveChipTextSelected: {
-    color: '#FFF',
-    fontWeight: '800',
-  },
-  customInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  customInputField: {
-    flex: 1,
-    backgroundColor: '#0A0D1A',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  customInputApplyBtn: {
-    backgroundColor: '#A855F7',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  customInputApplyBtnText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFF',
-  },
-  fieldHeaderWithEdit: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  fieldEditPenBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255, 56, 92, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 56, 92, 0.35)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  fieldEditPenIcon: {
-    fontSize: 11,
-  },
-  fieldEditPenLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#FF6B8B',
-    letterSpacing: 0.3,
-  },
-  activeCustomIdentityPill: {
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
-    borderWidth: 1,
-    borderColor: '#A855F7',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-    marginTop: 6,
-    alignItems: 'center',
-  },
-  activeCustomIdentityText: {
-    fontSize: 12,
-    color: '#D8B4FE',
-    fontWeight: '700',
-  },
+  /* Modals */
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -2800,25 +3839,24 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  modalHeaderEmoji: {
-    fontSize: 32,
+  customModalInputBox: {
+    width: '100%',
     marginBottom: 6,
   },
-  modalHeaderTitle: {
+  customModalTextInput: {
+    width: '100%',
+    backgroundColor: '#080A14',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.45)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     color: '#FFF',
-    fontSize: 17,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  modalHeaderSub: {
-    color: '#8E95AA',
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: 2,
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '700',
   },
   pickerOptionItem: {
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
@@ -2896,7 +3934,7 @@ const styles = StyleSheet.create({
   },
   modalDoneBottomBtnText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900',
   },
   photoPickerActionBtnPrimary: {
@@ -2939,11 +3977,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
-  selfieScanCardPending: {
-    borderStyle: 'solid',
-    backgroundColor: 'rgba(245, 158, 11, 0.14)',
-    borderColor: '#F59E0B',
-  },
+  /* Asymmetric Editorial Portfolio Grid (Deck 6) */
   photoCounterBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -2982,25 +4016,56 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFF',
   },
-  photoGrid6: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 10,
+  editorialPortfolioContainer: {
+    gap: 10,
     marginTop: 4,
   },
+  editorialTopRow: {
+    flexDirection: 'row',
+    gap: 10,
+    height: 236,
+  },
+  editorialHeroCol: {
+    flex: 2,
+    height: '100%',
+  },
+  editorialRightStackCol: {
+    flex: 1,
+    gap: 10,
+    height: '100%',
+  },
+  editorialHeroSlot: {
+    width: '100%',
+    height: '100%',
+  },
+  editorialStackedSlot: {
+    width: '100%',
+    flex: 1,
+  },
+  editorialBottomRow: {
+    flexDirection: 'row',
+    gap: 10,
+    height: 112,
+  },
+  editorialBottomSlot: {
+    flex: 1,
+    height: '100%',
+  },
   photoSlotCard: {
-    width: '31.5%',
-    aspectRatio: 0.78,
     backgroundColor: '#080B17',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.14)',
     borderStyle: 'dashed',
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  photoSlotHeroCover: {
+    borderColor: 'rgba(245, 158, 11, 0.75)',
+    backgroundColor: 'rgba(245, 158, 11, 0.07)',
+    borderWidth: 2,
   },
   photoSlotCardRequired: {
     borderColor: 'rgba(255, 56, 92, 0.55)',
@@ -3010,6 +4075,23 @@ const styles = StyleSheet.create({
     borderStyle: 'solid',
     borderColor: '#10B981',
   },
+  heroCoverTopPill: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(245, 158, 11, 0.22)',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  heroCoverTopPillText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#FCD34D',
+    letterSpacing: 0.4,
+  },
   photoSlotImage: {
     width: '100%',
     height: '100%',
@@ -3018,10 +4100,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 6,
     left: 6,
-    backgroundColor: 'rgba(5, 6, 10, 0.75)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    backgroundColor: 'rgba(5, 6, 10, 0.8)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
+  },
+  photoSlotHeroBadge: {
+    backgroundColor: '#FCD34D',
   },
   photoSlotTopTagText: {
     fontSize: 9,
@@ -3049,6 +4134,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 6,
     gap: 3,
+    width: '100%',
+    height: '100%',
   },
   photoSlotPlusIcon: {
     fontSize: 20,
@@ -3058,12 +4145,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#CBD5E1',
+    textAlign: 'center',
   },
   photoSlotReqSub: {
     fontSize: 8,
     fontWeight: '800',
     color: '#64748B',
     letterSpacing: 0.4,
+    textAlign: 'center',
   },
   photoSlotLoadingOverlay: {
     position: 'absolute',
@@ -3208,7 +4297,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tribeListScroller: {
-    maxHeight: 185,
+    maxHeight: 175,
   },
   tribeEmptyBox: {
     alignItems: 'center',
@@ -3331,41 +4420,6 @@ const styles = StyleSheet.create({
   photoPickerActionBtnMultiText: {
     color: '#E9D5FF',
     fontSize: 13,
-    fontWeight: '800',
-  },
-  miniPhotosStripScroll: {
-    marginVertical: 10,
-    maxHeight: 82,
-  },
-  miniPhotosStripRow: {
-    gap: 8,
-    paddingRight: 4,
-  },
-  miniPhotoThumbWrap: {
-    width: 64,
-    height: 76,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: '#10B981',
-    position: 'relative',
-  },
-  miniPhotoThumb: {
-    width: '100%',
-    height: '100%',
-  },
-  miniPhotoThumbBadge: {
-    position: 'absolute',
-    bottom: 3,
-    left: 3,
-    backgroundColor: 'rgba(5, 6, 10, 0.8)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 5,
-  },
-  miniPhotoThumbBadgeText: {
-    color: '#FCD34D',
-    fontSize: 8,
     fontWeight: '800',
   },
 });

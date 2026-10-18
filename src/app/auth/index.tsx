@@ -239,12 +239,32 @@ export default function AuthScreen() {
 
   // Responsive deck sizing: Single Canvas Hero Overlay
   // The card expands fluidly to fill the available screen budget between the top bar and bottom insets.
-  // There is NO separate bottom container and NO sudden deck height collapse on typing.
   const deckWidth = Math.max(280, Math.min(effectiveWidth - 20, 390));
   const safeHeight = effectiveHeight - (insets.top || 0) - (insets.bottom || 0);
   const nonDeckFootprint = isUltraCompactScreen ? 82 : isCompactScreen ? 90 : 98;
   const availableForDeck = Math.max(300, safeHeight - nonDeckFootprint);
   const deckHeight = availableForDeck;
+
+  // Active keyboard clearance sizing:
+  // When the numeric keypad opens, the visible height shrinks.
+  // We compute compactDeckHeight so the bottom of the card (where the phone number input sits)
+  // is guaranteed to stay proudly ABOVE the keypad with comfortable clearance.
+  const actualKeyboardHeight = keyboardHeight > 0
+    ? keyboardHeight
+    : (isUltraCompactScreen ? 270 : isCompactScreen ? 295 : 320);
+
+  const compactDeckHeight = Math.max(
+    240,
+    Math.min(
+      deckHeight - 120,
+      effectiveHeight - (insets.top || 0) - actualKeyboardHeight - (isUltraCompactScreen ? 60 : 75)
+    )
+  );
+
+  const animDeckHeight = keyboardAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [deckHeight, compactDeckHeight],
+  });
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -274,16 +294,26 @@ export default function AuthScreen() {
 
   const openPhoneMode = (focus: boolean) => {
     setPhoneMode(true);
-    Animated.timing(morphAnim, { toValue: 1, duration: 240, useNativeDriver: useNativeAnim }).start();
+    Animated.parallel([
+      Animated.timing(morphAnim, { toValue: 1, duration: 240, useNativeDriver: false }),
+      Animated.timing(keyboardAnim, { toValue: 1, duration: 240, useNativeDriver: false }),
+    ]).start();
     if (focus) {
-      setTimeout(() => phoneInputRef.current?.focus(), 260);
+      setTimeout(() => {
+        phoneInputRef.current?.focus();
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 80);
     }
   };
 
   const closePhoneMode = () => {
     Keyboard.dismiss();
-    Animated.timing(morphAnim, { toValue: 0, duration: 220, useNativeDriver: useNativeAnim }).start(() => {
+    Animated.parallel([
+      Animated.timing(morphAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
+      Animated.timing(keyboardAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
+    ]).start(() => {
       setPhoneMode(false);
+      setPhone('');
     });
   };
 
@@ -573,16 +603,21 @@ export default function AuthScreen() {
         if (e?.endCoordinates?.height) {
           setKeyboardHeight(e.endCoordinates.height);
         }
-        Animated.timing(keyboardAnim, {
-          toValue: 1,
-          duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
-          useNativeDriver: false,
-        }).start();
-        Animated.timing(morphAnim, {
-          toValue: 1,
-          duration: Platform.OS === 'ios' ? (e?.duration || 240) : 220,
-          useNativeDriver: useNativeAnim,
-        }).start();
+        Animated.parallel([
+          Animated.timing(keyboardAnim, {
+            toValue: 1,
+            duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
+            useNativeDriver: false,
+          }),
+          Animated.timing(morphAnim, {
+            toValue: 1,
+            duration: Platform.OS === 'ios' ? (e?.duration || 240) : 220,
+            useNativeDriver: false,
+          }),
+        ]).start();
+        setTimeout(() => {
+          scrollRef.current?.scrollToEnd({ animated: true });
+        }, 100);
       }
     );
     const hideSub = Keyboard.addListener(
@@ -593,16 +628,18 @@ export default function AuthScreen() {
         }
         setIsKeyboardVisible(false);
         setKeyboardHeight(0);
-        Animated.timing(keyboardAnim, {
-          toValue: 0,
-          duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
-          useNativeDriver: false,
-        }).start();
-        Animated.timing(morphAnim, {
-          toValue: 0,
-          duration: Platform.OS === 'ios' ? (e?.duration || 220) : 200,
-          useNativeDriver: useNativeAnim,
-        }).start();
+        Animated.parallel([
+          Animated.timing(keyboardAnim, {
+            toValue: 0,
+            duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
+            useNativeDriver: false,
+          }),
+          Animated.timing(morphAnim, {
+            toValue: 0,
+            duration: Platform.OS === 'ios' ? (e?.duration || 220) : 200,
+            useNativeDriver: false,
+          }),
+        ]).start();
         // If user dismissed keyboard without entering any digits and OTP not sent, return to CTA button
         setPhone((currentPhone) => {
           if (!currentPhone || currentPhone.trim().length === 0) {
@@ -966,10 +1003,12 @@ export default function AuthScreen() {
           style={styles.scrollFlex}
           contentContainerStyle={[
             styles.scrollContent,
-            step === 1 ? styles.scrollContentStep1 : undefined,
+            step === 1
+              ? ((isKeyboardVisible || phoneMode) ? styles.scrollContentStep1Keyboard : styles.scrollContentStep1)
+              : undefined,
           ]}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={step !== 1}
+          scrollEnabled={step !== 1 || isKeyboardVisible || phoneMode || otpSent}
           bounces={step !== 1}
           alwaysBounceVertical={false}
           showsVerticalScrollIndicator={false}>
@@ -988,7 +1027,7 @@ export default function AuthScreen() {
           {/* STEP 1: Option A · Glass Teaser Deck + Morphing Mobile Login */}
           {step === 1 && (
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-              <View style={styles.optAPageContainer}>
+              <View style={[styles.optAPageContainer, (isKeyboardVisible || phoneMode) && { overflow: 'visible' }]}>
               {/* Top Wordmark & Online Badge Header */}
               <View style={[styles.optATopBar, { width: deckWidth }]}>
                 <View style={styles.brandLogoRow}>
@@ -1008,21 +1047,29 @@ export default function AuthScreen() {
                 style={[
                   styles.optAMainContent,
                   {
-                    paddingTop: isUltraCompactScreen ? 6 : isCompactScreen ? 10 : 14,
-                    paddingBottom: Math.max(insets.bottom || 0, 10),
+                    paddingTop: (isKeyboardVisible || phoneMode) ? 2 : isUltraCompactScreen ? 6 : isCompactScreen ? 10 : 14,
+                    paddingBottom: (isKeyboardVisible || phoneMode) ? 4 : Math.max(insets.bottom || 0, 10),
                   },
                 ]}>
                 {/* Interactive Card Deck */}
-                <View
+                <Animated.View
                   style={[
                     styles.optADeckContainer,
                     {
                       width: deckWidth,
-                      height: deckHeight,
+                      height: animDeckHeight,
                     },
                   ]}>
                   {/* Background Card (Preview of next profile) */}
-                  <View style={[styles.optACardBack, { width: deckWidth, height: deckHeight }]} pointerEvents="none">
+                  <Animated.View
+                    style={[
+                      styles.optACardBack,
+                      {
+                        width: deckWidth,
+                        height: animDeckHeight,
+                      },
+                    ]}
+                    pointerEvents="none">
                     <Image
                       source={nextTeaser.localImage || { uri: nextTeaser.photo }}
                       style={styles.optACardImage}
@@ -1049,7 +1096,7 @@ export default function AuthScreen() {
                         </View>
                       </View>
                     </View>
-                  </View>
+                  </Animated.View>
 
                   {/* Foreground Card (Interactive swipe with PanResponder) */}
                   <Animated.View
@@ -1058,7 +1105,7 @@ export default function AuthScreen() {
                       styles.optACardFront,
                       {
                         width: deckWidth,
-                        height: deckHeight,
+                        height: animDeckHeight,
                         transform: [
                           { translateX: swipeAnim.x },
                           { translateY: swipeAnim.y },
@@ -1093,16 +1140,20 @@ export default function AuthScreen() {
                     </View>
 
                     {/* Integrated Bottom Overlay Tray over photo */}
-                    <View style={styles.optACardBottomTray}>
+                    <View style={[styles.optACardBottomTray, (isKeyboardVisible || phoneMode) && styles.optACardBottomTrayCompact]}>
                       {/* Profile Info */}
-                      <View style={styles.optACardInfo}>
-                        <Text style={styles.optACardName}>
+                      <View style={[styles.optACardInfo, (isKeyboardVisible || phoneMode) && styles.optACardInfoCompact]}>
+                        <Text style={[styles.optACardName, (isKeyboardVisible || phoneMode) && styles.optACardNameCompact]}>
                           {currentTeaser.name}, {currentTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
                         </Text>
-                        <Text style={styles.optACardMeta}>📍 {currentTeaser.meta}</Text>
-                        <View style={styles.optAChip}>
-                          <Text style={styles.optAChipText}>{currentTeaser.chip}</Text>
-                        </View>
+                        {!(isKeyboardVisible || phoneMode) && (
+                          <>
+                            <Text style={styles.optACardMeta}>📍 {currentTeaser.meta}</Text>
+                            <View style={styles.optAChip}>
+                              <Text style={styles.optAChipText}>{currentTeaser.chip}</Text>
+                            </View>
+                          </>
+                        )}
                       </View>
 
                       {/* Action Buttons (✕, ★, ❤️) - visible only in resting state */}
@@ -1177,8 +1228,8 @@ export default function AuthScreen() {
                                   onSubmitEditing={submitPhone}
                                 />
 
-                                {/* Arrow Button pops in on 10 digits */}
-                                {isPhoneFilled && (
+                                {/* Arrow Button pops in on 10 digits, otherwise close button */}
+                                {isPhoneFilled ? (
                                   <Animated.View style={{ transform: [{ scale: goAnim }] }}>
                                     <TouchableOpacity
                                       style={styles.optAGoBtn}
@@ -1193,6 +1244,14 @@ export default function AuthScreen() {
                                       )}
                                     </TouchableOpacity>
                                   </Animated.View>
+                                ) : (
+                                  <TouchableOpacity
+                                    style={styles.optAClosePhoneBtn}
+                                    activeOpacity={0.7}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    onPress={closePhoneMode}>
+                                    <Text style={styles.optAClosePhoneIcon}>✕</Text>
+                                  </TouchableOpacity>
                                 )}
                               </TouchableOpacity>
                             )}
@@ -1302,7 +1361,7 @@ export default function AuthScreen() {
                       </View>
                     </View>
                   </Animated.View>
-                </View>
+                </Animated.View>
 
                 {/* Subtext Trust Line below the card */}
                 {!isKeyboardVisible && (
@@ -1814,9 +1873,12 @@ const styles = StyleSheet.create({
   scrollContentStep1Keyboard: {
     flexGrow: 1,
     justifyContent: 'flex-start',
-    paddingTop: 68,
-    paddingBottom: 4,
-    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingBottom: 8,
+    paddingHorizontal: 10,
+    maxWidth: 420,
+    width: '100%',
+    alignSelf: 'center',
   },
   headerStepAbove: {
     flexDirection: 'row',
@@ -3835,15 +3897,26 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  optACardBottomTrayCompact: {
+    paddingTop: 8,
+    paddingBottom: 8,
+    paddingHorizontal: 10,
+  },
   optACardInfo: {
     marginBottom: 8,
     zIndex: 5,
+  },
+  optACardInfoCompact: {
+    marginBottom: 4,
   },
   optACardName: {
     color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: -0.3,
+  },
+  optACardNameCompact: {
+    fontSize: 18,
   },
   optACardVerified: {
     color: '#0088FF',

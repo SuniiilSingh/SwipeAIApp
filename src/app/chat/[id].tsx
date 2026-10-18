@@ -44,6 +44,10 @@ import { getOrDeriveMatchKey, encryptMessage, decryptMessage } from '@/services/
 import { dismissNotificationsForMatch } from '@/services/notifications';
 import { playMessageReceivedSound } from '@/services/sound-service';
 import type { AESEncryptionKey } from 'expo-crypto';
+import FlowerBokehOverlay from '@/components/flower-bokeh-overlay';
+import LuxuryDateProposalModal, { DateProposalPayload } from '@/components/luxury-date-proposal-modal';
+import RescheduleDateModal, { CounterProposalPayload } from '@/components/reschedule-date-modal';
+import DateProposalBubble, { parseDateProposal, DateProposalData } from '@/components/date-proposal-bubble';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -70,6 +74,10 @@ export default function ChatScreen() {
   const [showDatePlanModal, setShowDatePlanModal] = useState(false);
   const [dateVenue, setDateVenue] = useState('');
   const [dateNote, setDateNote] = useState('');
+  const [showFlowerShower, setShowFlowerShower] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [activeProposalForReschedule, setActiveProposalForReschedule] = useState<DateProposalData | null>(null);
+  const [isSendingProposal, setIsSendingProposal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [mutualSparks, setMutualSparks] = useState<string[]>([]);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -281,6 +289,10 @@ export default function ChatScreen() {
                 aesKeyRef.current = key;
               }
               const plain = await decryptMessage(data.content, key);
+              if (plain && (plain.startsWith('[BLUNDERR_DATE_PROPOSAL]') || plain.startsWith('[BLUNDERR_DATE_ACCEPTED]'))) {
+                setShowFlowerShower(true);
+                hapticFeedback.success();
+              }
               const normalizedMediaUrl = data.mediaUrl ? normalizeImageUrl(data.mediaUrl) : undefined;
               setMessages((prev) => {
                 if (prev.some((m) => m.id === data.id)) return prev;
@@ -353,6 +365,10 @@ export default function ChatScreen() {
                 const partnerIncoming = trulyNew.filter((m) => !m.isFromMe && m.senderId !== api.getCurrentUserId());
                 if (partnerIncoming.length > 0) {
                   playMessageReceivedSound().catch(() => {});
+                  if (partnerIncoming.some((m) => m.content && (m.content.startsWith('[BLUNDERR_DATE_PROPOSAL]') || m.content.startsWith('[BLUNDERR_DATE_ACCEPTED]')))) {
+                    setShowFlowerShower(true);
+                    hapticFeedback.success();
+                  }
                 }
 
                 return [...current, ...trulyNew];
@@ -530,6 +546,123 @@ export default function ChatScreen() {
     { key: 'EXPLICIT', emoji: '🔞', label: 'Unsolicited Inappropriate Media', desc: 'Explicit photos or unsolicited sexual content.' },
     { key: 'SCAM', emoji: '💸', label: 'Commercial Spam or Financial Scam', desc: 'Promoting services, asking for money, or spamming links.' },
   ];
+
+  const handleSendProposal = async (payload: DateProposalPayload) => {
+    setIsSendingProposal(true);
+    try {
+      const proposalData: DateProposalData = {
+        date: payload.date,
+        time: payload.time,
+        timeVibe: payload.timeVibe,
+        venue: payload.venue,
+        note: payload.note,
+        status: 'PENDING',
+      };
+      const proposalText = `[BLUNDERR_DATE_PROPOSAL]${JSON.stringify(proposalData)}`;
+      setShowDatePlanModal(false);
+      setShowFlowerShower(true);
+      hapticFeedback.success();
+      await handleSendMessage(proposalText);
+    } catch (e) {
+      console.error('Failed to send date proposal:', e);
+      Alert.alert('Error', 'Unable to send proposal. Please try again.');
+    } finally {
+      setIsSendingProposal(false);
+    }
+  };
+
+  const handleAcceptProposal = async (data: DateProposalData) => {
+    if (!matchId) return;
+    try {
+      hapticFeedback.success();
+      setShowFlowerShower(true);
+      const acceptedData: DateProposalData = {
+        date: data.date,
+        time: data.time,
+        venue: data.venue,
+        status: 'ACCEPTED',
+      };
+      const acceptText = `[BLUNDERR_DATE_ACCEPTED]${JSON.stringify(acceptedData)}`;
+      await handleSendMessage(acceptText);
+
+      // Mark planned in backend & free Rule of 5 slot
+      await api.markDatePlanned(matchId, data.venue, `${data.date} at ${data.time}`);
+      setMatchDetails((prev) => (prev ? { ...prev, status: 'DATE_PLANNED', dateVenue: data.venue } : prev));
+      Alert.alert(
+        '🥂 Date Confirmed!',
+        `Your date with ${matchProfile?.displayName || candidateName || 'your match'} is officially set for ${data.date} at ${data.time}! Added to Date Book & Rule of 5 slot freed.`
+      );
+    } catch (e) {
+      console.error('Failed to accept proposal:', e);
+    }
+  };
+
+  const handleOpenReschedule = (data: DateProposalData) => {
+    setActiveProposalForReschedule(data);
+    setShowRescheduleModal(true);
+  };
+
+  const handleSubmitReschedule = async (payload: CounterProposalPayload) => {
+    setShowRescheduleModal(false);
+    if (!matchId) return;
+
+    if (payload.isStrictDecline) {
+      const declineData: DateProposalData = {
+        date: activeProposalForReschedule?.date || '',
+        time: activeProposalForReschedule?.time || '',
+        venue: activeProposalForReschedule?.venue || '',
+        status: 'DECLINED',
+        reason: payload.reason,
+      };
+      const declineText = `[BLUNDERR_DATE_DECLINED]${JSON.stringify(declineData)}`;
+      await handleSendMessage(declineText);
+      Alert.alert('Date Declined', 'Polite decline message sent. You can continue chatting anytime.');
+    } else {
+      const rescheduleData: DateProposalData = {
+        date: activeProposalForReschedule?.date || '',
+        time: activeProposalForReschedule?.time || '',
+        venue: activeProposalForReschedule?.venue || '',
+        status: 'RESCHEDULED',
+        reason: payload.reason,
+        newDate: payload.newDate,
+        newTime: payload.newTime,
+        newVenue: payload.newVenue,
+        note: payload.note,
+      };
+      const rescheduleText = `[BLUNDERR_DATE_RESCHEDULE]${JSON.stringify(rescheduleData)}`;
+      await handleSendMessage(rescheduleText);
+      Alert.alert('Alternate Plan Sent ➔', `Suggested ${payload.newDate} at ${payload.newTime} to ${matchProfile?.displayName || candidateName || 'your match'}!`);
+    }
+  };
+
+  const handleAcceptCounterOffer = async (data: DateProposalData) => {
+    if (!matchId) return;
+    try {
+      hapticFeedback.success();
+      setShowFlowerShower(true);
+      const finalDate = data.newDate || data.date;
+      const finalTime = data.newTime || data.time;
+      const finalVenue = data.newVenue || data.venue;
+
+      const acceptedData: DateProposalData = {
+        date: finalDate,
+        time: finalTime,
+        venue: finalVenue,
+        status: 'ACCEPTED',
+      };
+      const acceptText = `[BLUNDERR_DATE_ACCEPTED]${JSON.stringify(acceptedData)}`;
+      await handleSendMessage(acceptText);
+
+      await api.markDatePlanned(matchId, finalVenue, `${finalDate} at ${finalTime}`);
+      setMatchDetails((prev) => (prev ? { ...prev, status: 'DATE_PLANNED', dateVenue: finalVenue } : prev));
+      Alert.alert(
+        '🥂 Counter-Offer Accepted!',
+        `Your date with ${matchProfile?.displayName || candidateName || 'your match'} is confirmed for ${finalDate} at ${finalTime} at ${finalVenue}!`
+      );
+    } catch (e) {
+      console.error('Failed to accept counter-offer:', e);
+    }
+  };
 
   const handleConfirmDatePlan = async () => {
     if (!matchId) return;
@@ -791,6 +924,26 @@ export default function ChatScreen() {
   const remainingHours = getRemainingHours();
 
   const renderMessageItem = ({ item }: { item: ChatMessage }) => {
+    const parsedProposal = parseDateProposal(item.content);
+    if (parsedProposal.type !== 'NONE' && parsedProposal.data) {
+      return (
+        <DateProposalBubble
+          type={parsedProposal.type}
+          data={parsedProposal.data}
+          isFromMe={Boolean(item.isFromMe)}
+          partnerName={matchProfile?.displayName || candidateName || 'your match'}
+          onAccept={() => handleAcceptProposal(parsedProposal.data!)}
+          onReschedule={() => handleOpenReschedule(parsedProposal.data!)}
+          onDecline={() => {
+            setActiveProposalForReschedule(parsedProposal.data);
+            setShowRescheduleModal(true);
+          }}
+          onAcceptCounter={() => handleAcceptCounterOffer(parsedProposal.data!)}
+          onProposeNew={() => setShowDatePlanModal(true)}
+        />
+      );
+    }
+
     const isBlurred =
       privateDetector.shouldBlurImage(item.id, Boolean(item.isFromMe), item.isBlurred) &&
       !unblurredImages[item.id];
@@ -1419,85 +1572,34 @@ export default function ChatScreen() {
         </View>
       </Modal>
 
-      {/* Date Plan Modal (Rule of 5 Slot Freer) */}
-      <Modal
+      {/* Luxury Date Proposal Modal */}
+      <LuxuryDateProposalModal
         visible={showDatePlanModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDatePlanModal(false)}>
-        <TouchableOpacity
-          style={styles.safetyModalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowDatePlanModal(false)}>
-          <View style={styles.datePlanSheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.safetyHandle} />
-            <View style={styles.safetyHeader}>
-              <Text style={styles.safetyHeaderIcon}>☕</Text>
-              <Text style={styles.safetyHeaderTitle}>
-                {matchDetails?.status === 'DATE_PLANNED' ? 'Real Date Scheduled!' : 'Plan a Real Date'}
-              </Text>
-              <Text style={styles.safetyHeaderSub}>
-                {matchDetails?.status === 'DATE_PLANNED'
-                  ? `You and ${matchProfile?.displayName || candidateName || 'your match'} have scheduled to meet up! Your Rule of 5 active slot has been freed.`
-                  : `BlunderR is built for real-world chemistry. Once you set a date, this chat is preserved in your Date Book and your active match slot is freed for new connections.`}
-              </Text>
-            </View>
+        onClose={() => setShowDatePlanModal(false)}
+        onSendProposal={handleSendProposal}
+        candidateName={matchProfile?.displayName || candidateName || 'your match'}
+        isSending={isSendingProposal}
+      />
 
-            <View style={styles.datePlanForm}>
-              <Text style={styles.datePlanInputLabel}>Venue or Safe Spot (Optional)</Text>
-              <TextInput
-                style={styles.datePlanInput}
-                placeholder="e.g. Blue Tokai, Third Wave, or Rooftop Lounge"
-                placeholderTextColor="#6B7280"
-                value={dateVenue}
-                onChangeText={setDateVenue}
-                editable={matchDetails?.status !== 'DATE_PLANNED'}
-              />
-
-              <Text style={styles.datePlanInputLabel}>Date & Time or Notes (Optional)</Text>
-              <TextInput
-                style={[styles.datePlanInput, { height: 60, textAlignVertical: 'top' }]}
-                placeholder="e.g. Saturday 5:30 PM for cold brew & banter"
-                placeholderTextColor="#6B7280"
-                value={dateNote}
-                onChangeText={setDateNote}
-                multiline
-                editable={matchDetails?.status !== 'DATE_PLANNED'}
-              />
-            </View>
-
-            {matchDetails?.status !== 'DATE_PLANNED' ? (
-              <TouchableOpacity
-                style={[styles.confirmDateBtn, actionLoading && { opacity: 0.6 }]}
-                onPress={handleConfirmDatePlan}
-                disabled={actionLoading}
-                activeOpacity={0.85}>
-                {actionLoading ? (
-                  <ActivityIndicator color="#0E0F13" />
-                ) : (
-                  <Text style={styles.confirmDateBtnText}>Confirm Real Date 🥂</Text>
-                )}
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.alreadyPlannedBadge}>
-                <Text style={styles.alreadyPlannedText}>✓ Status: Real Date Scheduled & Active Slot Freed</Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.safetyCancelBtn}
-              onPress={() => setShowDatePlanModal(false)}>
-              <Text style={styles.safetyCancelBtnText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {/* Polite Reschedule & Counter-Offer Modal */}
+      <RescheduleDateModal
+        visible={showRescheduleModal}
+        onClose={() => setShowRescheduleModal(false)}
+        onSubmit={handleSubmitReschedule}
+        proposerName={matchProfile?.displayName || candidateName || 'your match'}
+      />
 
       {/* 3D Liveness Retake Recovery Modal (Single-Flag System) */}
       <LivenessRetakeModal
         visible={showLivenessRetakeModal}
         onClose={() => setShowLivenessRetakeModal(false)}
         referrer="Chat Lounge"
+      />
+
+      {/* Live Flower Bokeh & Rose Petal Shower Overlay */}
+      <FlowerBokehOverlay
+        active={showFlowerShower}
+        onFinish={() => setShowFlowerShower(false)}
       />
     </SafeAreaView>
   );

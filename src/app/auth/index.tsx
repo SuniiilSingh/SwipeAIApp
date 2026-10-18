@@ -250,8 +250,8 @@ export default function AuthScreen() {
   const deckHeight = availableForDeck;
 
   // Responsive deck sizing with active keypad clearance:
-  // When entering mobile number or OTP, the card compactly sizes so the input box
-  // sits proudly ABOVE the numeric keypad with generous breathing room.
+  // When keyboard is visible, card shrinks so input/OTP sits ABOVE keypad.
+  // When keypad is dismissed (clicking anywhere), card smoothly expands so text box moves to down.
   const actualKeyboardHeight = keyboardHeight > 0
     ? keyboardHeight
     : (isUltraCompactScreen ? 270 : isCompactScreen ? 295 : 320);
@@ -264,8 +264,7 @@ export default function AuthScreen() {
     )
   );
 
-  const isInputActive = phoneMode || isKeyboardVisible || otpSent;
-  const animDeckHeight = isInputActive ? compactDeckHeight : deckHeight;
+  const animDeckHeight = isKeyboardVisible ? compactDeckHeight : deckHeight;
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -295,6 +294,7 @@ export default function AuthScreen() {
 
   const openPhoneMode = (focus: boolean) => {
     setPhoneMode(true);
+    setIsKeyboardVisible(true);
     if (focus) {
       setTimeout(() => {
         phoneInputRef.current?.focus();
@@ -308,6 +308,7 @@ export default function AuthScreen() {
     phoneInputRef.current?.blur();
     otpInputRef.current?.blur();
     scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setIsKeyboardVisible(false);
     setPhoneMode(false);
     setPhone('');
   };
@@ -316,6 +317,7 @@ export default function AuthScreen() {
     Keyboard.dismiss();
     phoneInputRef.current?.blur();
     otpInputRef.current?.blur();
+    setIsKeyboardVisible(false);
   };
 
   // Android hardware / gesture back button handling
@@ -986,7 +988,7 @@ export default function AuthScreen() {
           contentContainerStyle={[
             styles.scrollContent,
             step === 1
-              ? ((isKeyboardVisible || phoneMode) ? styles.scrollContentStep1Keyboard : styles.scrollContentStep1)
+              ? (isKeyboardVisible ? styles.scrollContentStep1Keyboard : styles.scrollContentStep1)
               : undefined,
           ]}
           keyboardShouldPersistTaps="handled"
@@ -1009,7 +1011,7 @@ export default function AuthScreen() {
           {/* STEP 1: Option A · Glass Teaser Deck + Morphing Mobile Login */}
           {step === 1 && (
             <TouchableWithoutFeedback onPress={handleDismissKeyboard} accessible={false}>
-              <View style={[styles.optAPageContainer, (isKeyboardVisible || phoneMode) && { overflow: 'visible' }]}>
+              <View style={[styles.optAPageContainer, isKeyboardVisible && { overflow: 'visible' }]}>
               {/* Top Wordmark & Online Badge Header */}
               <View style={[styles.optATopBar, { width: deckWidth }]}>
                 <View style={styles.brandLogoRow}>
@@ -1029,8 +1031,8 @@ export default function AuthScreen() {
                 style={[
                   styles.optAMainContent,
                   {
-                    paddingTop: (isKeyboardVisible || phoneMode) ? 2 : isUltraCompactScreen ? 6 : isCompactScreen ? 10 : 14,
-                    paddingBottom: (isKeyboardVisible || phoneMode) ? 4 : Math.max(insets.bottom || 0, 10),
+                    paddingTop: isKeyboardVisible ? 2 : isUltraCompactScreen ? 6 : isCompactScreen ? 10 : 14,
+                    paddingBottom: isKeyboardVisible ? 4 : Math.max(insets.bottom || 0, 10),
                   },
                 ]}>
                 {/* Interactive Card Deck */}
@@ -1122,13 +1124,13 @@ export default function AuthScreen() {
                     </View>
 
                     {/* Integrated Bottom Overlay Tray over photo */}
-                    <View style={[styles.optACardBottomTray, (isKeyboardVisible || phoneMode) && styles.optACardBottomTrayCompact]}>
+                    <View style={[styles.optACardBottomTray, isKeyboardVisible && styles.optACardBottomTrayCompact]}>
                       {/* Profile Info */}
-                      <View style={[styles.optACardInfo, (isKeyboardVisible || phoneMode) && styles.optACardInfoCompact]}>
-                        <Text style={[styles.optACardName, (isKeyboardVisible || phoneMode) && styles.optACardNameCompact]}>
+                      <View style={[styles.optACardInfo, isKeyboardVisible && styles.optACardInfoCompact]}>
+                        <Text style={[styles.optACardName, isKeyboardVisible && styles.optACardNameCompact]}>
                           {currentTeaser.name}, {currentTeaser.age} <Text style={styles.optACardVerified}>✓</Text>
                         </Text>
-                        {!(isKeyboardVisible || phoneMode) && (
+                        {!isKeyboardVisible && (
                           <>
                             <Text style={styles.optACardMeta}>📍 {currentTeaser.meta}</Text>
                             <View style={styles.optAChip}>
@@ -1175,7 +1177,11 @@ export default function AuthScreen() {
                               <Text style={styles.optACtaText}>📱  Continue with Mobile Number</Text>
                             </TouchableOpacity>
                           ) : (
-                            <View key="phone-input-row" style={styles.optAFieldRow}>
+                            <TouchableOpacity
+                              key="phone-input-row"
+                              activeOpacity={1}
+                              style={styles.optAFieldRow}
+                              onPress={() => phoneInputRef.current?.focus()}>
                               <View style={styles.optACountryCodeBox}>
                                 <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
                               </View>
@@ -1229,7 +1235,7 @@ export default function AuthScreen() {
                                   <Text style={styles.optAClosePhoneIcon}>✕</Text>
                                 </TouchableOpacity>
                               )}
-                            </View>
+                            </TouchableOpacity>
                           )
                         ) : (
                           /* OTP Verification inline in the same spot */

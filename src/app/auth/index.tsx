@@ -5,6 +5,7 @@ import {
   Animated,
   AppState,
   AppStateStatus,
+  BackHandler,
   Dimensions,
   Image,
   Keyboard,
@@ -14,6 +15,7 @@ import {
   Modal,
   PanResponder,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -329,6 +331,19 @@ export default function AuthScreen() {
       setPhoneMode(false);
     }
   };
+
+  // Android hardware / gesture back button handling
+  useEffect(() => {
+    const backAction = () => {
+      if (phoneMode && !otpSent) {
+        closePhoneMode();
+        return true;
+      }
+      return false;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [phoneMode, otpSent]);
 
   // Arrow pops in only once all 10 digits are entered
   useEffect(() => {
@@ -1187,81 +1202,78 @@ export default function AuthScreen() {
                       {/* Overlaid Login Controls directly over photo base */}
                       <View style={styles.optALoginSlot}>
                         {!otpSent ? (
-                          <View style={[styles.optAMorphBox, phoneMode && styles.optAMorphBoxActive]}>
-                            {!phoneMode ? (
-                              <TouchableOpacity
-                                key="phone-cta-btn"
-                                style={styles.optACtaBtn}
-                                activeOpacity={0.88}
-                                onPress={() => openPhoneMode(true)}>
-                                <Text style={styles.optACtaIcon}>📱</Text>
-                                <Text style={styles.optACtaText}>Continue with Mobile Number</Text>
-                              </TouchableOpacity>
-                            ) : (
-                              <TouchableOpacity
-                                key="phone-input-row"
-                                activeOpacity={1}
-                                style={styles.optAFieldRow}
-                                onPress={() => phoneInputRef.current?.focus()}>
-                                <View style={styles.optACountryCodeBox}>
-                                  <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
-                                </View>
-                                <TextInput
-                                  ref={phoneInputRef}
-                                  style={styles.optAPhoneInput}
-                                  value={phone}
-                                  onChangeText={(text) => {
-                                    const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
-                                    setPhone(digits);
-                                  }}
-                                  onFocus={() => {
-                                    setIsKeyboardVisible(true);
-                                    setPhoneMode(true);
-                                  }}
-                                  onBlur={() => {
-                                    setIsKeyboardVisible(false);
-                                    if (!phoneRef.current || phoneRef.current.trim().length === 0) {
-                                      setPhoneMode(false);
-                                    }
-                                  }}
-                                  placeholder="Mobile number"
-                                  placeholderTextColor="#5D6679"
-                                  keyboardType="phone-pad"
-                                  textContentType="telephoneNumber"
-                                  autoComplete="tel"
-                                  maxLength={10}
-                                  returnKeyType="done"
-                                  onSubmitEditing={submitPhone}
-                                />
+                          !phoneMode ? (
+                            <Pressable
+                              key="phone-cta-btn"
+                              collapsable={false}
+                              style={({ pressed }) => [
+                                styles.optACtaBtn,
+                                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
+                              ]}
+                              onPress={() => openPhoneMode(true)}>
+                              <Text style={styles.optACtaIcon}>📱</Text>
+                              <Text style={styles.optACtaText}>Continue with Mobile Number</Text>
+                            </Pressable>
+                          ) : (
+                            <View key="phone-input-row" collapsable={false} style={styles.optAFieldRow}>
+                              <View style={styles.optACountryCodeBox}>
+                                <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
+                              </View>
+                              <TextInput
+                                ref={phoneInputRef}
+                                style={styles.optAPhoneInput}
+                                value={phone}
+                                onChangeText={(text) => {
+                                  const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
+                                  setPhone(digits);
+                                }}
+                                onFocus={() => {
+                                  setIsKeyboardVisible(true);
+                                  setPhoneMode(true);
+                                }}
+                                onBlur={() => {
+                                  setIsKeyboardVisible(false);
+                                  if (!phoneRef.current || phoneRef.current.trim().length === 0) {
+                                    setPhoneMode(false);
+                                  }
+                                }}
+                                placeholder="Mobile number"
+                                placeholderTextColor="#5D6679"
+                                keyboardType="phone-pad"
+                                textContentType="telephoneNumber"
+                                autoComplete="tel"
+                                maxLength={10}
+                                returnKeyType="done"
+                                onSubmitEditing={submitPhone}
+                              />
 
-                                {/* Arrow Button pops in on 10 digits, otherwise close button */}
-                                {isPhoneFilled ? (
-                                  <Animated.View style={{ transform: [{ scale: goAnim }] }}>
-                                    <TouchableOpacity
-                                      style={styles.optAGoBtn}
-                                      activeOpacity={0.85}
-                                      accessibilityRole="button"
-                                      disabled={loading}
-                                      onPress={submitPhone}>
-                                      {loading ? (
-                                        <ActivityIndicator color="#fff" size="small" />
-                                      ) : (
-                                        <Text style={styles.optAGoArrow}>→</Text>
-                                      )}
-                                    </TouchableOpacity>
-                                  </Animated.View>
-                                ) : (
+                              {/* Arrow Button pops in on 10 digits, otherwise close button */}
+                              {isPhoneFilled ? (
+                                <Animated.View style={{ transform: [{ scale: goAnim }] }}>
                                   <TouchableOpacity
-                                    style={styles.optAClosePhoneBtn}
-                                    activeOpacity={0.7}
-                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    onPress={closePhoneMode}>
-                                    <Text style={styles.optAClosePhoneIcon}>✕</Text>
+                                    style={styles.optAGoBtn}
+                                    activeOpacity={0.85}
+                                    accessibilityRole="button"
+                                    disabled={loading}
+                                    onPress={submitPhone}>
+                                    {loading ? (
+                                      <ActivityIndicator color="#fff" size="small" />
+                                    ) : (
+                                      <Text style={styles.optAGoArrow}>→</Text>
+                                    )}
                                   </TouchableOpacity>
-                                )}
-                              </TouchableOpacity>
-                            )}
-                          </View>
+                                </Animated.View>
+                              ) : (
+                                <TouchableOpacity
+                                  style={styles.optAClosePhoneBtn}
+                                  activeOpacity={0.7}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                  onPress={closePhoneMode}>
+                                  <Text style={styles.optAClosePhoneIcon}>✕</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          )
                         ) : (
                           /* OTP Verification inline in the same spot */
                           <View style={styles.optAOtpBox}>
@@ -4064,64 +4076,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignItems: 'center',
   },
-  optAMorphBox: {
-    width: '100%',
-    height: 50,
-    minHeight: 50,
-    borderRadius: 25,
-    overflow: 'hidden',
-    backgroundColor: '#FF2E63',
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      web: {
-        background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 55%, #FF8A00 100%)',
-        boxShadow: '0 6px 20px rgba(255, 46, 99, 0.4)',
-      },
-      default: { shadowColor: '#FF2E63', shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 },
-    }),
-  },
-  optAMorphBoxActive: {
-    backgroundColor: '#12151F',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 46, 99, 0.7)',
-    ...Platform.select({
-      web: {
-        background: '#12151F',
-        boxShadow: '0 12px 36px rgba(0, 0, 0, 0.85), 0 0 0 3px rgba(255, 46, 99, 0.2)',
-        backdropFilter: 'blur(16px)',
-      },
-      default: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.6, shadowRadius: 14, elevation: 12 },
-    }),
-  },
   optACtaBtn: {
     width: '100%',
     height: 50,
     minHeight: 50,
-    alignSelf: 'stretch',
+    borderRadius: 25,
+    backgroundColor: '#FF2E63',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 55%, #FF8A00 100%)',
+        boxShadow: '0 6px 20px rgba(255, 46, 99, 0.4)',
+        cursor: 'pointer',
+      },
+      default: {
+        shadowColor: '#FF2E63',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.45,
+        shadowRadius: 8,
+        elevation: 4,
+      },
+    }),
   },
   optACtaIcon: {
     fontSize: 16,
     marginRight: 8,
+    includeFontPadding: false,
   },
   optACtaText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.3,
+    includeFontPadding: false,
   },
   optAFieldRow: {
     width: '100%',
     height: 50,
     minHeight: 50,
-    alignSelf: 'stretch',
+    borderRadius: 25,
+    backgroundColor: '#12151F',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 46, 99, 0.7)',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 12,
+    paddingLeft: 14,
     paddingRight: 6,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 12px 36px rgba(0, 0, 0, 0.85), 0 0 0 3px rgba(255, 46, 99, 0.2)',
+        backdropFilter: 'blur(16px)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 6,
+      },
+    }),
   },
   optACountryCodeBox: {
     paddingRight: 8,

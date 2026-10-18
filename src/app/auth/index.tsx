@@ -249,26 +249,9 @@ export default function AuthScreen() {
   const availableForDeck = Math.max(300, safeHeight - nonDeckFootprint);
   const deckHeight = availableForDeck;
 
-  // Active keyboard clearance sizing:
-  // When the numeric keypad opens, the visible height shrinks.
-  // We compute compactDeckHeight so the bottom of the card (where the phone number input sits)
-  // is guaranteed to stay proudly ABOVE the keypad with comfortable clearance.
-  const actualKeyboardHeight = keyboardHeight > 0
-    ? keyboardHeight
-    : (isUltraCompactScreen ? 270 : isCompactScreen ? 295 : 320);
-
-  const compactDeckHeight = Math.max(
-    240,
-    Math.min(
-      deckHeight - 120,
-      effectiveHeight - (insets.top || 0) - actualKeyboardHeight - (isUltraCompactScreen ? 60 : 75)
-    )
-  );
-
-  const animDeckHeight = keyboardAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [deckHeight, compactDeckHeight],
-  });
+  // Stable deck sizing: Hero card fills available screen budget smoothly.
+  // When keyboard opens, ScrollView handles elevation without destroying Yoga child measurements.
+  const animDeckHeight = deckHeight;
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -298,10 +281,6 @@ export default function AuthScreen() {
 
   const openPhoneMode = (focus: boolean) => {
     setPhoneMode(true);
-    Animated.parallel([
-      Animated.timing(morphAnim, { toValue: 1, duration: 240, useNativeDriver: false }),
-      Animated.timing(keyboardAnim, { toValue: 1, duration: 240, useNativeDriver: false }),
-    ]).start();
     if (focus) {
       setTimeout(() => {
         phoneInputRef.current?.focus();
@@ -314,22 +293,15 @@ export default function AuthScreen() {
     Keyboard.dismiss();
     phoneInputRef.current?.blur();
     otpInputRef.current?.blur();
-    Animated.parallel([
-      Animated.timing(morphAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
-      Animated.timing(keyboardAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
-    ]).start(() => {
-      setPhoneMode(false);
-      setPhone('');
-    });
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setPhoneMode(false);
+    setPhone('');
   };
 
   const handleDismissKeyboard = () => {
     Keyboard.dismiss();
     phoneInputRef.current?.blur();
     otpInputRef.current?.blur();
-    if (!phoneRef.current || phoneRef.current.trim().length === 0) {
-      setPhoneMode(false);
-    }
   };
 
   // Android hardware / gesture back button handling
@@ -628,41 +600,18 @@ export default function AuthScreen() {
         if (e?.endCoordinates?.height) {
           setKeyboardHeight(e.endCoordinates.height);
         }
-        Animated.parallel([
-          Animated.timing(keyboardAnim, {
-            toValue: 1,
-            duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
-            useNativeDriver: false,
-          }),
-          Animated.timing(morphAnim, {
-            toValue: 1,
-            duration: Platform.OS === 'ios' ? (e?.duration || 240) : 220,
-            useNativeDriver: false,
-          }),
-        ]).start();
         setTimeout(() => {
           scrollRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        }, 80);
       }
     );
     const hideSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      (e) => {
+      () => {
         setIsKeyboardVisible(false);
         setKeyboardHeight(0);
-        Animated.parallel([
-          Animated.timing(keyboardAnim, {
-            toValue: 0,
-            duration: Platform.OS === 'ios' ? (e?.duration || 250) : 200,
-            useNativeDriver: false,
-          }),
-          Animated.timing(morphAnim, {
-            toValue: 0,
-            duration: Platform.OS === 'ios' ? (e?.duration || 220) : 200,
-            useNativeDriver: false,
-          }),
-        ]).start();
-        // If user dismissed keyboard without entering any digits and OTP not sent, return to CTA button
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
+        // Only return to CTA button AFTER the keyboard has completely closed
         if (!phoneRef.current || phoneRef.current.trim().length === 0) {
           setPhoneMode(false);
         }
@@ -1203,19 +1152,16 @@ export default function AuthScreen() {
                       <View style={styles.optALoginSlot}>
                         {!otpSent ? (
                           !phoneMode ? (
-                            <Pressable
+                            <TouchableOpacity
                               key="phone-cta-btn"
-                              collapsable={false}
-                              style={({ pressed }) => [
-                                styles.optACtaBtn,
-                                pressed && { opacity: 0.88, transform: [{ scale: 0.98 }] },
-                              ]}
+                              style={styles.optACtaBtn}
+                              activeOpacity={0.85}
+                              accessibilityRole="button"
                               onPress={() => openPhoneMode(true)}>
-                              <Text style={styles.optACtaIcon}>📱</Text>
-                              <Text style={styles.optACtaText}>Continue with Mobile Number</Text>
-                            </Pressable>
+                              <Text style={styles.optACtaText}>📱  Continue with Mobile Number</Text>
+                            </TouchableOpacity>
                           ) : (
-                            <View key="phone-input-row" collapsable={false} style={styles.optAFieldRow}>
+                            <View key="phone-input-row" style={styles.optAFieldRow}>
                               <View style={styles.optACountryCodeBox}>
                                 <Text style={styles.optACountryCodeText}>🇮🇳 +91</Text>
                               </View>
@@ -1233,9 +1179,6 @@ export default function AuthScreen() {
                                 }}
                                 onBlur={() => {
                                   setIsKeyboardVisible(false);
-                                  if (!phoneRef.current || phoneRef.current.trim().length === 0) {
-                                    setPhoneMode(false);
-                                  }
                                 }}
                                 placeholder="Mobile number"
                                 placeholderTextColor="#5D6679"
@@ -4085,6 +4028,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
     ...Platform.select({
       web: {
         background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 55%, #FF8A00 100%)',
@@ -4096,7 +4040,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.45,
         shadowRadius: 8,
-        elevation: 4,
       },
     }),
   },
@@ -4107,9 +4050,10 @@ const styles = StyleSheet.create({
   },
   optACtaText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.3,
+    textAlign: 'center',
     includeFontPadding: false,
   },
   optAFieldRow: {

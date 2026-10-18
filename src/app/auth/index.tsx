@@ -249,9 +249,23 @@ export default function AuthScreen() {
   const availableForDeck = Math.max(300, safeHeight - nonDeckFootprint);
   const deckHeight = availableForDeck;
 
-  // Stable deck sizing: Hero card fills available screen budget smoothly.
-  // When keyboard opens, ScrollView handles elevation without destroying Yoga child measurements.
-  const animDeckHeight = deckHeight;
+  // Responsive deck sizing with active keypad clearance:
+  // When entering mobile number or OTP, the card compactly sizes so the input box
+  // sits proudly ABOVE the numeric keypad with generous breathing room.
+  const actualKeyboardHeight = keyboardHeight > 0
+    ? keyboardHeight
+    : (isUltraCompactScreen ? 270 : isCompactScreen ? 295 : 320);
+
+  const compactDeckHeight = Math.max(
+    240,
+    Math.min(
+      deckHeight - 120,
+      effectiveHeight - (insets.top || 0) - actualKeyboardHeight - (isUltraCompactScreen ? 55 : 68)
+    )
+  );
+
+  const isInputActive = phoneMode || isKeyboardVisible || otpSent;
+  const animDeckHeight = isInputActive ? compactDeckHeight : deckHeight;
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {

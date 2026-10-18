@@ -92,6 +92,8 @@ export default function AuthScreen() {
   // Step state
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [phone, setPhone] = useState('');
+  const phoneRef = useRef(phone);
+  phoneRef.current = phone;
   const [otp, setOtp] = useState('');
   const [expectedOtpLength, setExpectedOtpLength] = useState<number>(6);
   const [loading, setLoading] = useState(false);
@@ -308,6 +310,8 @@ export default function AuthScreen() {
 
   const closePhoneMode = () => {
     Keyboard.dismiss();
+    phoneInputRef.current?.blur();
+    otpInputRef.current?.blur();
     Animated.parallel([
       Animated.timing(morphAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
       Animated.timing(keyboardAnim, { toValue: 0, duration: 220, useNativeDriver: false }),
@@ -315,6 +319,15 @@ export default function AuthScreen() {
       setPhoneMode(false);
       setPhone('');
     });
+  };
+
+  const handleDismissKeyboard = () => {
+    Keyboard.dismiss();
+    phoneInputRef.current?.blur();
+    otpInputRef.current?.blur();
+    if (!phoneRef.current || phoneRef.current.trim().length === 0) {
+      setPhoneMode(false);
+    }
   };
 
   // Arrow pops in only once all 10 digits are entered
@@ -596,9 +609,6 @@ export default function AuthScreen() {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
-        if (Platform.OS !== 'web') {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        }
         setIsKeyboardVisible(true);
         if (e?.endCoordinates?.height) {
           setKeyboardHeight(e.endCoordinates.height);
@@ -623,9 +633,6 @@ export default function AuthScreen() {
     const hideSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       (e) => {
-        if (Platform.OS !== 'web') {
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        }
         setIsKeyboardVisible(false);
         setKeyboardHeight(0);
         Animated.parallel([
@@ -641,12 +648,9 @@ export default function AuthScreen() {
           }),
         ]).start();
         // If user dismissed keyboard without entering any digits and OTP not sent, return to CTA button
-        setPhone((currentPhone) => {
-          if (!currentPhone || currentPhone.trim().length === 0) {
-            setPhoneMode(false);
-          }
-          return currentPhone;
-        });
+        if (!phoneRef.current || phoneRef.current.trim().length === 0) {
+          setPhoneMode(false);
+        }
       }
     );
     return () => {
@@ -1026,7 +1030,7 @@ export default function AuthScreen() {
 
           {/* STEP 1: Option A · Glass Teaser Deck + Morphing Mobile Login */}
           {step === 1 && (
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+            <TouchableWithoutFeedback onPress={handleDismissKeyboard} accessible={false}>
               <View style={[styles.optAPageContainer, (isKeyboardVisible || phoneMode) && { overflow: 'visible' }]}>
               {/* Top Wordmark & Online Badge Header */}
               <View style={[styles.optATopBar, { width: deckWidth }]}>
@@ -1186,6 +1190,7 @@ export default function AuthScreen() {
                           <View style={[styles.optAMorphBox, phoneMode && styles.optAMorphBoxActive]}>
                             {!phoneMode ? (
                               <TouchableOpacity
+                                key="phone-cta-btn"
                                 style={styles.optACtaBtn}
                                 activeOpacity={0.88}
                                 onPress={() => openPhoneMode(true)}>
@@ -1194,6 +1199,7 @@ export default function AuthScreen() {
                               </TouchableOpacity>
                             ) : (
                               <TouchableOpacity
+                                key="phone-input-row"
                                 activeOpacity={1}
                                 style={styles.optAFieldRow}
                                 onPress={() => phoneInputRef.current?.focus()}>
@@ -1214,7 +1220,7 @@ export default function AuthScreen() {
                                   }}
                                   onBlur={() => {
                                     setIsKeyboardVisible(false);
-                                    if (!phone || phone.trim().length === 0) {
+                                    if (!phoneRef.current || phoneRef.current.trim().length === 0) {
                                       setPhoneMode(false);
                                     }
                                   }}
@@ -4061,10 +4067,12 @@ const styles = StyleSheet.create({
   optAMorphBox: {
     width: '100%',
     height: 50,
+    minHeight: 50,
     borderRadius: 25,
     overflow: 'hidden',
     backgroundColor: '#FF2E63',
     justifyContent: 'center',
+    alignItems: 'center',
     ...Platform.select({
       web: {
         background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 55%, #FF8A00 100%)',
@@ -4088,14 +4096,16 @@ const styles = StyleSheet.create({
   },
   optACtaBtn: {
     width: '100%',
-    height: '100%',
+    height: 50,
+    minHeight: 50,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   optACtaIcon: {
     fontSize: 16,
+    marginRight: 8,
   },
   optACtaText: {
     color: '#FFFFFF',
@@ -4105,7 +4115,9 @@ const styles = StyleSheet.create({
   },
   optAFieldRow: {
     width: '100%',
-    height: '100%',
+    height: 50,
+    minHeight: 50,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 12,

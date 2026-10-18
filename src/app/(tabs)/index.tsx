@@ -820,9 +820,11 @@ function SwipeableCandidateCard({
 
           {/* Top Badges Overlaid on Photo */}
           <View style={styles.photoTopRow}>
-            <View style={styles.datingVerifiedPill}>
-              <Text style={styles.datingVerifiedPillText}>⚡ 3D Verified Profile</Text>
-            </View>
+            {Boolean(item.isFaceVerified ?? (item.livenessScore && item.livenessScore >= 85)) && (
+              <View style={styles.datingVerifiedPill}>
+                <Text style={styles.datingVerifiedPillText}>🛡️ 100% Biometric Verified</Text>
+              </View>
+            )}
 
             <View style={styles.photoCountPill}>
               <Text style={styles.photoCountPillText}>

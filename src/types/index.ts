@@ -103,6 +103,7 @@ export interface UserProfile {
   hasActivePass: boolean;
   selectedMemeUrl?: string;
   selectedMemeTitle?: string;
+  photosVerificationJson?: string;
 }
 
 export interface CandidateCard {
@@ -173,6 +174,8 @@ export interface CandidateCard {
   commentText?: string;
   contextType?: string;
   contextTargetId?: string;
+  isFaceVerified?: boolean;
+  photosVerificationJson?: string;
 }
 
 export interface SparkNoteQuota {

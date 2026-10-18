@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -146,6 +146,25 @@ export default function ProfileScreen() {
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [uploadingSelfie, setUploadingSelfie] = useState(false);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
+
+  // Biometric Multi-Photo Verification Ledger mapping
+  const verificationMap = useMemo(() => {
+    if (!profile?.photosVerificationJson) return {} as Record<number, any>;
+    try {
+      const parsed = JSON.parse(profile.photosVerificationJson);
+      const map: Record<number, any> = {};
+      if (Array.isArray(parsed)) {
+        parsed.forEach((item: any) => {
+          if (item && item.slot) {
+            map[item.slot] = item;
+          }
+        });
+      }
+      return map;
+    } catch {
+      return {} as Record<number, any>;
+    }
+  }, [profile?.photosVerificationJson]);
 
   // Picker Modals state
   const [showDobPickerModal, setShowDobPickerModal] = useState(false);
@@ -1977,6 +1996,42 @@ export default function ProfileScreen() {
                         <View style={styles.primaryTag}>
                           <Text style={styles.primaryTagText}>⭐ Primary</Text>
                         </View>
+                      )}
+                      {hasPhoto && verificationMap[item.slotIdx] && (
+                        (() => {
+                          const v = verificationMap[item.slotIdx];
+                          if (v.status === 'MATCHED' || v.status === 'GROUP_MATCHED') {
+                            return (
+                              <View style={styles.photoVerifiedBadge}>
+                                <Text style={styles.photoVerifiedBadgeText}>
+                                  🛡️ {v.confidence_percent ? `${Math.round(v.confidence_percent)}%` : 'Verified'}
+                                </Text>
+                              </View>
+                            );
+                          }
+                          if (v.status === 'MISMATCH') {
+                            return (
+                              <View style={styles.photoMismatchBadge}>
+                                <Text style={styles.photoMismatchBadgeText}>⚠️ Mismatch</Text>
+                              </View>
+                            );
+                          }
+                          if (v.status === 'LIFESTYLE') {
+                            return (
+                              <View style={styles.photoLifestyleBadge}>
+                                <Text style={styles.photoLifestyleBadgeText}>🏔️ Lifestyle</Text>
+                              </View>
+                            );
+                          }
+                          if (v.status === 'NO_FACE_IN_PRIMARY') {
+                            return (
+                              <View style={styles.photoWarningBadge}>
+                                <Text style={styles.photoWarningBadgeText}>⚠️ Face Req</Text>
+                              </View>
+                            );
+                          }
+                          return null;
+                        })()
                       )}
                     </TouchableOpacity>
                   );
@@ -4310,6 +4365,62 @@ const styles = StyleSheet.create({
   },
   primaryTagText: {
     color: '#D4AF37',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  photoVerifiedBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  photoVerifiedBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  photoMismatchBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.95)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  photoMismatchBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  photoLifestyleBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(51, 65, 85, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  photoLifestyleBadgeText: {
+    color: '#F8FAFC',
+    fontSize: 8,
+    fontWeight: '700',
+  },
+  photoWarningBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.95)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  photoWarningBadgeText: {
+    color: '#000000',
     fontSize: 8,
     fontWeight: '800',
   },

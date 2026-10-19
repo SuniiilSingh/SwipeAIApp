@@ -314,7 +314,19 @@ export interface VirtualChaiSession {
   isSimulated?: boolean;
 }
 
-export type NotificationType = 'MATCH' | 'LIKE' | 'CHAT' | 'CHAT_UNLOCKED' | 'SYSTEM';
+export type NotificationType = 'MATCH' | 'LIKE' | 'CHAT' | 'CHAT_UNLOCKED' | 'SYSTEM' | 'REPORT_ACTION' | 'OFFER';
+
+export interface BlockedUserItem {
+  targetUserId: string;
+  displayName: string;
+  age: number;
+  city: string;
+  photoUrl?: string;
+  type: 'BLOCKED' | 'REPORTED' | 'REPORTED_AND_BLOCKED';
+  reason?: string;
+  remarks?: string;
+  createdAt?: string;
+}
 
 export interface AppNotification {
   id: string;

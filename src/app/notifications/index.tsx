@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -26,6 +27,14 @@ export default function NotificationsScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedReportAction, setSelectedReportAction] = useState<{
+    title: string;
+    body: string;
+    action?: string;
+    adminMessage?: string;
+    reportedUserName?: string;
+    resolvedAt?: string;
+  } | null>(null);
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -81,6 +90,22 @@ export default function NotificationsScreen() {
     // Deep link routing
     if (data?.url) {
       router.push(data.url as any);
+      return;
+    }
+
+    if (item.type === 'REPORT_ACTION' || data?.type === 'REPORT_ACTION' || data?.action) {
+      let parsedData: any = data;
+      if (typeof parsedData === 'string') {
+        try { parsedData = JSON.parse(parsedData); } catch {}
+      }
+      setSelectedReportAction({
+        title: item.title,
+        body: item.body,
+        action: parsedData?.action || 'RESOLVED',
+        adminMessage: parsedData?.adminMessage || item.body,
+        reportedUserName: parsedData?.reportedUserName || 'Reported Member',
+        resolvedAt: parsedData?.resolvedAt || item.createdAt,
+      });
       return;
     }
 
@@ -142,6 +167,10 @@ export default function NotificationsScreen() {
         return { icon: '💬', bg: 'rgba(124, 58, 237, 0.15)', border: '#7C3AED' };
       case 'CHAT_UNLOCKED':
         return { icon: '⚡', bg: 'rgba(245, 158, 11, 0.15)', border: '#F59E0B' };
+      case 'REPORT_ACTION':
+        return { icon: '🛡️', bg: 'rgba(16, 185, 129, 0.15)', border: '#10B981' };
+      case 'OFFER':
+        return { icon: '🎁', bg: 'rgba(245, 158, 11, 0.15)', border: '#F59E0B' };
       default:
         return { icon: '🔔', bg: 'rgba(13, 148, 136, 0.15)', border: '#0D9488' };
     }
@@ -281,6 +310,65 @@ export default function NotificationsScreen() {
           }
         />
       )}
+
+      {/* Safety Report Action Modal */}
+      <Modal
+        visible={!!selectedReportAction}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedReportAction(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalShieldIcon}>
+                <Text style={{ fontSize: 24 }}>🛡️</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>Trust & Safety Update</Text>
+                <Text style={styles.modalSubtitle}>Report Enforcement Notice</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectedReportAction(null)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Text style={styles.modalCloseX}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBadgeRow}>
+              <View style={styles.modalActionPill}>
+                <Text style={styles.modalActionPillText}>
+                  {selectedReportAction?.action?.replace('_', ' ') || 'ACTION TAKEN'}
+                </Text>
+              </View>
+              {selectedReportAction?.reportedUserName ? (
+                <Text style={styles.modalTargetName}>
+                  Profile: <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{selectedReportAction.reportedUserName}</Text>
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={styles.modalMessageBox}>
+              <Text style={styles.modalMessageLabel}>MESSAGE FROM TRUST & SAFETY TEAM:</Text>
+              <Text style={styles.modalMessageText}>
+                {selectedReportAction?.adminMessage || selectedReportAction?.body}
+              </Text>
+            </View>
+
+            <View style={styles.modalFooterNote}>
+              <Text style={styles.modalFooterNoteText}>
+                BlunderR is committed to 100% human-verified and safe connections. Thank you for helping keep our community respectful and secure.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalDoneBtn}
+              activeOpacity={0.8}
+              onPress={() => setSelectedReportAction(null)}>
+              <Text style={styles.modalDoneBtnText}>Understood</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -495,5 +583,137 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 19,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#161822',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  modalShieldIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  modalSubtitle: {
+    color: '#8E94A8',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  modalCloseX: {
+    color: '#8E94A8',
+    fontSize: 18,
+    fontWeight: '700',
+    padding: 4,
+  },
+  modalBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  modalActionPill: {
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  modalActionPillText: {
+    color: '#6EE7B7',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  modalTargetName: {
+    color: '#A0A6BE',
+    fontSize: 12,
+  },
+  modalMessageBox: {
+    backgroundColor: '#0E1018',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.25)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF385C',
+    padding: 14,
+    marginBottom: 14,
+  },
+  modalMessageLabel: {
+    color: '#FF6B8B',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  modalMessageText: {
+    color: '#F1F5F9',
+    fontSize: 13.5,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  modalFooterNote: {
+    marginBottom: 18,
+  },
+  modalFooterNoteText: {
+    color: '#6F7487',
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+  },
+  modalDoneBtn: {
+    backgroundColor: '#FF385C',
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  modalDoneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

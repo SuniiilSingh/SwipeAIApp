@@ -30,6 +30,7 @@ import {
   UserAstrology,
   AstroMatchResult,
   UpdateBirthDetailsPayload,
+  BlockedUserItem,
 } from '@/types';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
@@ -445,11 +446,13 @@ export const api = {
   },
 
   verifyLiveness: async (
-    headTurnDurationMs: number = 3000,
+    headTurnDurationMs: number = 2000,
     passed: boolean = true,
     selfieFrameBase64?: string,
     rightFrameBase64?: string,
-    leftFrameBase64?: string
+    leftFrameBase64?: string,
+    actionFrameBase64?: string,
+    actionType?: 'SMILE' | 'BLINK' | 'TURN'
   ) => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/kyc/liveness/verify`, {
@@ -461,6 +464,8 @@ export const api = {
           selfieFrameBase64,
           rightFrameBase64,
           leftFrameBase64,
+          actionFrameBase64,
+          actionType: actionType || (actionFrameBase64 ? 'SMILE' : 'TURN'),
         }),
       }, 20000);
       if (res.ok) {
@@ -1380,6 +1385,40 @@ export const api = {
     } catch (e) {
       console.warn('Block user error:', e);
       return false;
+    }
+  },
+
+  unblockUser: async (targetUserId: string): Promise<boolean> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/${targetUserId}/unblock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return !!data.success;
+      }
+      return false;
+    } catch (e) {
+      console.warn('Unblock user error:', e);
+      return false;
+    }
+  },
+
+  getBlockedAndReportedUsers: async (): Promise<BlockedUserItem[]> => {
+    try {
+      if (!authToken) await initAuth();
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/blocked`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return [];
+    } catch (e) {
+      console.warn('Get blocked users error:', e);
+      return [];
     }
   },
 

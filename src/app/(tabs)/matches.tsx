@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
 import { api } from '@/services/api';
-import { CandidateCard, MatchItem, UserProfile, MatchCapacityInfo } from '@/types';
+import { CandidateCard, MatchItem, UserProfile, MatchCapacityInfo, BlockedUserItem } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscription-gating-modal';
 import { hapticFeedback } from '@/utils/haptics';
@@ -51,6 +51,59 @@ export default function MatchesScreen() {
   const [isFreeingSlot, setIsFreeingSlot] = useState(false);
   const [gatingModalVisible, setGatingModalVisible] = useState(false);
   const [gatingFeature, setGatingFeature] = useState<GatingFeatureType>('REVIVE');
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUserItem[]>([]);
+  const [loadingBlocked, setLoadingBlocked] = useState(false);
+  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
+
+  const loadBlockedUsers = useCallback(async () => {
+    setLoadingBlocked(true);
+    try {
+      const list = await api.getBlockedAndReportedUsers();
+      setBlockedUsers(list);
+    } catch (e) {
+      console.warn('Failed to load blocked users:', e);
+    } finally {
+      setLoadingBlocked(false);
+    }
+  }, []);
+
+  const openBlockedModal = () => {
+    hapticFeedback.light();
+    setShowBlockedModal(true);
+    loadBlockedUsers();
+  };
+
+  const handleUnblockUser = (item: BlockedUserItem) => {
+    hapticFeedback.medium();
+    Alert.alert(
+      'Unblock Account',
+      `Unblock ${item.displayName}? This user will reappear in your discovery feed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          style: 'default',
+          onPress: async () => {
+            setUnblockingUserId(item.targetUserId);
+            try {
+              const ok = await api.unblockUser(item.targetUserId);
+              if (ok) {
+                hapticFeedback.success();
+                setBlockedUsers((prev) => prev.filter((u) => u.targetUserId !== item.targetUserId));
+              } else {
+                Alert.alert('Notice', 'Unable to unblock at this time. Please try again.');
+              }
+            } catch (err) {
+              Alert.alert('Notice', 'Failed to unblock.');
+            } finally {
+              setUnblockingUserId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Breathing pulse animation for <12h expiring matches and expired matches
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -137,16 +190,18 @@ export default function MatchesScreen() {
   const loadMatches = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [list, profile, likes, cap] = await Promise.all([
+      const [list, profile, likes, cap, blocked] = await Promise.all([
         api.getMatches(),
         api.getMyProfile().catch(() => null),
         api.getLikesReceived().catch(() => []),
         api.getMatchCapacity().catch(() => null),
+        api.getBlockedAndReportedUsers().catch(() => []),
       ]);
       setMatches(list);
       if (profile) setUserProfile(profile);
       if (Array.isArray(likes)) setLikesReceived(likes);
       if (cap) setCapacity(cap);
+      if (Array.isArray(blocked)) setBlockedUsers(blocked);
     } catch (err) {
       console.warn('[MatchesScreen] Failed to load matches:', err);
     } finally {
@@ -422,10 +477,23 @@ export default function MatchesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>Matches & Conversations</Text>
           <Text style={styles.subtitle}>48h Ephemeral Timer • Ghost-Buster Protected</Text>
         </View>
+        <TouchableOpacity
+          style={styles.headerShieldBtn}
+          onPress={openBlockedModal}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.headerShieldIcon}>🛡️</Text>
+          <Text style={styles.headerShieldText}>Blocked</Text>
+          {blockedUsers.length > 0 && (
+            <View style={styles.headerShieldBadge}>
+              <Text style={styles.headerShieldBadgeText}>{blockedUsers.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Ghost-Buster Karma Reminder */}
@@ -615,6 +683,15 @@ export default function MatchesScreen() {
             activeOpacity={0.8}>
             <Text style={[styles.filterChipText, filterType === 'EXPIRING' && styles.filterChipTextActive]}>
               ⏳ Expiring Soon ({counts.expiring})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.filterChipBlocked}
+            onPress={openBlockedModal}
+            activeOpacity={0.8}>
+            <Text style={styles.filterChipBlockedText}>
+              🛡️ Blocked & Reported ({blockedUsers.length})
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -899,6 +976,134 @@ export default function MatchesScreen() {
           loadMatches(true);
         }}
       />
+
+      {/* Blocked & Reported Accounts Management Modal */}
+      <Modal
+        visible={showBlockedModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBlockedModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.blockedModalContent}>
+            <View style={styles.blockedModalHeader}>
+              <View style={styles.blockedModalTitleWrap}>
+                <View style={styles.blockedModalShieldIcon}>
+                  <Text style={{ fontSize: 20 }}>🛡️</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.blockedModalTitle}>Blocked & Reported Accounts</Text>
+                  <Text style={styles.blockedModalSub}>
+                    Reported or blocked someone by mistake? Unblock them here.
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowBlockedModal(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Text style={styles.modalCloseX}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loadingBlocked ? (
+              <View style={styles.blockedLoadingWrap}>
+                <ActivityIndicator size="small" color="#FF385C" />
+                <Text style={styles.blockedLoadingText}>Loading blocked accounts...</Text>
+              </View>
+            ) : blockedUsers.length === 0 ? (
+              <View style={styles.blockedEmptyWrap}>
+                <Text style={{ fontSize: 40, marginBottom: 12 }}>✨</Text>
+                <Text style={styles.blockedEmptyTitle}>Zero Blocked Accounts</Text>
+                <Text style={styles.blockedEmptySub}>
+                  You haven't blocked or reported any profiles. Accounts you block will appear here for easy unblocking.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={blockedUsers}
+                keyExtractor={(item) => item.targetUserId}
+                style={{ maxHeight: 380 }}
+                contentContainerStyle={{ gap: 10, paddingVertical: 8 }}
+                renderItem={({ item }) => (
+                  <View style={styles.blockedUserCard}>
+                    <View style={styles.blockedAvatarWrap}>
+                      {item.photoUrl ? (
+                        <ExpoImage
+                          source={{ uri: item.photoUrl }}
+                          style={styles.blockedAvatar}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.blockedAvatarFallback}>
+                          <Text style={styles.blockedAvatarInitial}>
+                            {(item.displayName || 'M').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    <View style={styles.blockedUserInfo}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.blockedUserName}>
+                          {item.displayName}, {item.age}
+                        </Text>
+                        <View
+                          style={[
+                            styles.blockedTypeBadge,
+                            item.type.includes('REPORTED')
+                              ? styles.blockedTypeBadgeReported
+                              : styles.blockedTypeBadgeBlocked,
+                          ]}>
+                          <Text
+                            style={[
+                              styles.blockedTypeBadgeText,
+                              item.type.includes('REPORTED')
+                                ? styles.blockedTypeBadgeTextReported
+                                : styles.blockedTypeBadgeTextBlocked,
+                            ]}>
+                            {item.type.replace('_', ' ')}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Text style={styles.blockedUserCity}>📍 {item.city}</Text>
+
+                      {item.reason ? (
+                        <Text style={styles.blockedReasonText} numberOfLines={1}>
+                          Reason: {item.reason}
+                        </Text>
+                      ) : null}
+
+                      {item.remarks ? (
+                        <Text style={styles.blockedRemarksText} numberOfLines={1}>
+                          "{item.remarks}"
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.unblockBtn}
+                      disabled={unblockingUserId === item.targetUserId}
+                      onPress={() => handleUnblockUser(item)}
+                      activeOpacity={0.75}>
+                      {unblockingUserId === item.targetUserId ? (
+                        <ActivityIndicator size="small" color="#FF385C" />
+                      ) : (
+                        <Text style={styles.unblockBtnText}>Unblock</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              />
+            )}
+
+            <TouchableOpacity
+              style={styles.blockedDoneBtn}
+              onPress={() => setShowBlockedModal(false)}>
+              <Text style={styles.blockedDoneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1722,6 +1927,247 @@ const styles = StyleSheet.create({
   slotManagerDismissBtnText: {
     color: '#94A3B8',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  headerShieldBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.3)',
+    borderRadius: 99,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  headerShieldIcon: {
+    fontSize: 13,
+  },
+  headerShieldText: {
+    color: '#FF6B8B',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  headerShieldBadge: {
+    backgroundColor: '#FF385C',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginLeft: 2,
+  },
+  headerShieldBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  filterChipBlocked: {
+    backgroundColor: 'rgba(255, 56, 92, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.25)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    marginRight: 8,
+  },
+  filterChipBlockedText: {
+    color: '#FDA4AF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  blockedModalContent: {
+    width: '100%',
+    maxWidth: 440,
+    maxHeight: '85%',
+    backgroundColor: '#161822',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  blockedModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  blockedModalTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 8,
+  },
+  blockedModalShieldIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockedModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  blockedModalSub: {
+    color: '#8E94A8',
+    fontSize: 11.5,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  modalCloseX: {
+    color: '#8E94A8',
+    fontSize: 18,
+    fontWeight: '700',
+    padding: 4,
+  },
+  blockedLoadingWrap: {
+    paddingVertical: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  blockedLoadingText: {
+    color: '#8E94A8',
+    fontSize: 13,
+  },
+  blockedEmptyWrap: {
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockedEmptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  blockedEmptySub: {
+    color: '#6F7487',
+    fontSize: 12.5,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  blockedUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0E1018',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
+    padding: 12,
+    gap: 10,
+  },
+  blockedAvatarWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    overflow: 'hidden',
+    backgroundColor: '#1E2230',
+  },
+  blockedAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  blockedAvatarFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2A1F36',
+  },
+  blockedAvatarInitial: {
+    color: '#FF6B8B',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  blockedUserInfo: {
+    flex: 1,
+  },
+  blockedUserName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  blockedUserCity: {
+    color: '#767C92',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  blockedTypeBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+  },
+  blockedTypeBadgeBlocked: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  blockedTypeBadgeReported: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  blockedTypeBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  blockedTypeBadgeTextBlocked: {
+    color: '#FCA5A5',
+  },
+  blockedTypeBadgeTextReported: {
+    color: '#FCD34D',
+  },
+  blockedReasonText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  blockedRemarksText: {
+    color: '#64748B',
+    fontSize: 10.5,
+    fontStyle: 'italic',
+    marginTop: 1,
+  },
+  unblockBtn: {
+    backgroundColor: 'rgba(255, 56, 92, 0.16)',
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unblockBtnText: {
+    color: '#FF6B8B',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  blockedDoneBtn: {
+    marginTop: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockedDoneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
     fontWeight: '700',
   },
 });

@@ -24,7 +24,8 @@ interface LivenessCameraModalProps {
   onSuccess: (score: number, centerPhotoUri?: string) => void;
 }
 
-type LivenessStep = 'READY' | 'CENTER' | 'RIGHT' | 'LEFT' | 'ANALYZING' | 'PASSED' | 'FAILED';
+export type ChallengeAction = 'SMILE' | 'BLINK';
+type LivenessStep = 'READY' | 'CENTER' | 'ACTION' | 'ANALYZING' | 'PASSED' | 'FAILED';
 
 export default function LivenessCameraModal({
   visible,
@@ -39,25 +40,24 @@ export default function LivenessCameraModal({
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
+  // Active Micro-Challenge selector: Smile (Default) or Eye Blink
+  const [selectedChallenge, setSelectedChallenge] = useState<ChallengeAction>('SMILE');
+
   // Captured photos & base64s for real movement validation
   const [capturedPhotos, setCapturedPhotos] = useState<{
     center: string | null;
-    right: string | null;
-    left: string | null;
+    action: string | null;
   }>({
     center: null,
-    right: null,
-    left: null,
+    action: null,
   });
 
   const [capturedBase64s, setCapturedBase64s] = useState<{
     center: string | null;
-    right: string | null;
-    left: string | null;
+    action: string | null;
   }>({
     center: null,
-    right: null,
-    left: null,
+    action: null,
   });
 
   const [statusMessage, setStatusMessage] = useState('Position your face inside the oval');
@@ -67,22 +67,18 @@ export default function LivenessCameraModal({
   // Synchronous refs to prevent timer / interval closure staleness
   const capturedPhotosRef = useRef<{
     center: string | null;
-    right: string | null;
-    left: string | null;
+    action: string | null;
   }>({
     center: null,
-    right: null,
-    left: null,
+    action: null,
   });
 
   const capturedBase64sRef = useRef<{
     center: string | null;
-    right: string | null;
-    left: string | null;
+    action: string | null;
   }>({
     center: null,
-    right: null,
-    left: null,
+    action: null,
   });
 
   const cameraRef = useRef<any>(null);
@@ -117,12 +113,12 @@ export default function LivenessCameraModal({
         Animated.sequence([
           Animated.timing(scanLineAnim, {
             toValue: 240,
-            duration: 1400,
+            duration: 1200,
             useNativeDriver: Platform.OS !== 'web',
           }),
           Animated.timing(scanLineAnim, {
             toValue: 0,
-            duration: 1400,
+            duration: 1200,
             useNativeDriver: Platform.OS !== 'web',
           }),
         ])
@@ -163,31 +159,31 @@ export default function LivenessCameraModal({
     setIsCapturing(false);
     setCurrentStep('READY');
     currentStepRef.current = 'READY';
-    capturedPhotosRef.current = { center: null, right: null, left: null };
-    capturedBase64sRef.current = { center: null, right: null, left: null };
-    setCapturedPhotos({ center: null, right: null, left: null });
-    setCapturedBase64s({ center: null, right: null, left: null });
+    capturedPhotosRef.current = { center: null, action: null };
+    capturedBase64sRef.current = { center: null, action: null };
+    setCapturedPhotos({ center: null, action: null });
+    setCapturedBase64s({ center: null, action: null });
     setStatusMessage('Position your face inside the oval');
     setFailureReason(null);
     setProgressPercent(0);
   };
 
-  // Start the 3D Biometric Scan process
+  // Start the Fast Active Biometric Scan process
   const handleStartScan = () => {
     resetScanState();
     setIsScanning(true);
     setCurrentStep('CENTER');
     currentStepRef.current = 'CENTER';
-    setProgressPercent(20);
-    setStatusMessage('Look straight into the camera & hold still 👤');
+    setProgressPercent(30);
+    setStatusMessage('Look straight into the camera 👤');
     hapticFeedback.light();
     startCountdownForStep('CENTER');
   };
 
-  // Countdown timer for guided auto-capture (3 -> 2 -> 1 -> Capture)
-  const startCountdownForStep = (step: 'CENTER' | 'RIGHT' | 'LEFT') => {
+  // Fast countdown for guided auto-capture (1s per step - total < 2.5s)
+  const startCountdownForStep = (step: 'CENTER' | 'ACTION') => {
     clearCountdown();
-    let sec = 3;
+    let sec = step === 'CENTER' ? 1 : 1;
     setCountdown(sec);
 
     countdownTimerRef.current = setInterval(() => {
@@ -203,7 +199,7 @@ export default function LivenessCameraModal({
   };
 
   // Capture photo for the current active step
-  const capturePhotoForStep = async (step: 'CENTER' | 'RIGHT' | 'LEFT') => {
+  const capturePhotoForStep = async (step: 'CENTER' | 'ACTION') => {
     if (!cameraRef.current || isCapturing) return;
 
     clearCountdown();
@@ -214,7 +210,7 @@ export default function LivenessCameraModal({
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.35,
         base64: true,
-        skipProcessing: false,
+        skipProcessing: true,
       });
 
       if (!photo?.uri) {
@@ -242,26 +238,18 @@ export default function LivenessCameraModal({
         setCapturedBase64s({ ...capturedBase64sRef.current });
 
         hapticFeedback.success();
-        setCurrentStep('RIGHT');
-        currentStepRef.current = 'RIGHT';
-        setProgressPercent(50);
-        setStatusMessage('Great! Now turn your head to the RIGHT ➡️');
-        startCountdownForStep('RIGHT');
-      } else if (step === 'RIGHT') {
-        capturedPhotosRef.current.right = uri;
-        capturedBase64sRef.current.right = b64 || uri;
-        setCapturedPhotos({ ...capturedPhotosRef.current });
-        setCapturedBase64s({ ...capturedBase64sRef.current });
-
-        hapticFeedback.success();
-        setCurrentStep('LEFT');
-        currentStepRef.current = 'LEFT';
-        setProgressPercent(75);
-        setStatusMessage('Awesome! Now turn your head to the LEFT ⬅️');
-        startCountdownForStep('LEFT');
-      } else if (step === 'LEFT') {
-        capturedPhotosRef.current.left = uri;
-        capturedBase64sRef.current.left = b64 || uri;
+        setCurrentStep('ACTION');
+        currentStepRef.current = 'ACTION';
+        setProgressPercent(65);
+        setStatusMessage(
+          selectedChallenge === 'SMILE'
+            ? 'Great! Now give a warm, genuine smile 😊'
+            : 'Great! Now blink your eyes slowly 😉'
+        );
+        startCountdownForStep('ACTION');
+      } else if (step === 'ACTION') {
+        capturedPhotosRef.current.action = uri;
+        capturedBase64sRef.current.action = b64 || uri;
         setCapturedPhotos({ ...capturedPhotosRef.current });
         setCapturedBase64s({ ...capturedBase64sRef.current });
 
@@ -269,9 +257,13 @@ export default function LivenessCameraModal({
         setCurrentStep('ANALYZING');
         currentStepRef.current = 'ANALYZING';
         setProgressPercent(95);
-        setStatusMessage('Analyzing 3D Biometric Motion & Landmarks...');
+        setStatusMessage(
+          selectedChallenge === 'SMILE'
+            ? 'Verifying smile dynamics & 3D facial mesh...'
+            : 'Verifying blink dynamics & 3D facial mesh...'
+        );
 
-        // Trigger real movement validation with complete set of photos from refs
+        // Trigger real movement validation
         validateMovementAndVerify(
           { ...capturedPhotosRef.current },
           { ...capturedBase64sRef.current }
@@ -279,28 +271,31 @@ export default function LivenessCameraModal({
       }
     } catch (err) {
       console.warn(`Capture error during ${step}:`, err);
-      // If native camera snapshot errors, retry prompt
       setStatusMessage(`Please hold steady and tap Capture for ${step}`);
     } finally {
       setIsCapturing(false);
     }
   };
 
-  // Real 3D Head Movement Validation Algorithm
+  // Real Active Movement Validation Algorithm
   const validateMovementAndVerify = async (
-    photos: { center: string | null; right: string | null; left: string | null },
-    base64s: { center: string | null; right: string | null; left: string | null }
+    photos: { center: string | null; action: string | null },
+    base64s: { center: string | null; action: string | null }
   ) => {
-    // 1. Ensure all 3 poses were actually captured
-    if (!photos.center || !photos.right || !photos.left) {
-      handleMovementFailed('Incomplete poses. Center, Right, and Left captures are all required.');
+    // 1. Ensure both poses were captured
+    if (!photos.center || !photos.action) {
+      handleMovementFailed('Both initial face and smile/blink captures are required.');
       return;
     }
 
-    // 2. Head Movement Difference Check (prevents identical repeated frame bypass)
+    // 2. Anti-static check: prevents identical unmoving photo held in front of camera
     let hasMovement = true;
-    if (base64s.center && base64s.right && base64s.left &&
-        base64s.center.length > 200 && base64s.right.length > 200) {
+    if (
+      base64s.center &&
+      base64s.action &&
+      base64s.center.length > 200 &&
+      base64s.action.length > 200
+    ) {
       const compareStrings = (strA: string, strB: string): number => {
         const lenA = strA.length;
         const lenB = strB.length;
@@ -317,44 +312,51 @@ export default function LivenessCameraModal({
         return diffCount / samples;
       };
 
-      const rightDiff = compareStrings(base64s.center, base64s.right);
-      const leftDiff = compareStrings(base64s.center, base64s.left);
-
-      // Only fail if frames are byte-for-byte identical (unmoving picture placed in front of camera)
-      if (rightDiff === 0 && leftDiff === 0) {
+      const diff = compareStrings(base64s.center, base64s.action);
+      if (diff === 0) {
         hasMovement = false;
       }
     }
 
     if (!hasMovement) {
       handleMovementFailed(
-        'Head movement was not detected. You must turn your head clearly to both the Right and Left.'
+        selectedChallenge === 'SMILE'
+          ? 'No smile detected. Static photos or frozen screens are rejected.'
+          : 'No eye blink detected. Static photos or frozen screens are rejected.'
       );
       return;
     }
 
-    // 3. Send all 3 captured poses (Center, Right, Left) to the backend 3D YuNet landmark engine
-    setStatusMessage('Verifying 3D head movement & facial landmarks...');
+    // 3. Send to backend with active micro-challenge payload
+    setStatusMessage('Verifying authentic biometric presence...');
     const cleanB64 = (val: string | null) =>
       val && val.length > 200 && !val.startsWith('file:') ? val : undefined;
 
     const payloadCenter = cleanB64(base64s.center);
-    const payloadRight = cleanB64(base64s.right);
-    const payloadLeft = cleanB64(base64s.left);
+    const payloadAction = cleanB64(base64s.action);
 
-    if (!payloadCenter || !payloadRight || !payloadLeft) {
-      handleMovementFailed(
-        'Could not process all 3 camera frames (Center, Right, Left). Please hold steady and try again.'
-      );
+    if (!payloadCenter || !payloadAction) {
+      handleMovementFailed('Could not process camera frames. Please hold steady and try again.');
       return;
     }
 
     try {
-      const res = await api.verifyLiveness(3500, false, payloadCenter, payloadRight, payloadLeft);
+      const res = await api.verifyLiveness(
+        2000,
+        false,
+        payloadCenter,
+        undefined,
+        undefined,
+        payloadAction,
+        selectedChallenge
+      );
+
       if (!res || res.isLiveHuman !== true) {
         handleMovementFailed(
           res?.message ||
-            'No 3D head movement detected! Please turn your head clearly to the Right and Left when prompted.'
+            (selectedChallenge === 'SMILE'
+              ? 'Could not confirm smile. Please give a clear smile 😊 and retry.'
+              : 'Could not confirm eye blink. Please blink clearly 😉 and retry.')
         );
         return;
       }
@@ -363,15 +365,15 @@ export default function LivenessCameraModal({
       setCurrentStep('PASSED');
       currentStepRef.current = 'PASSED';
       setProgressPercent(100);
-      setStatusMessage('✓ 3D Biometric Verified! Live human movement confirmed.');
+      setStatusMessage('✓ 3D Biometric Verified! Live human presence confirmed.');
 
       setTimeout(() => {
-        onSuccess(res.livenessScore || 0.99, photos.center || undefined);
+        onSuccess(res.livenessScore || 0.98, photos.center || undefined);
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (e) {
       console.warn('Backend liveness api call failed:', e);
-      handleMovementFailed('Could not verify 3D head movement. Please check your connection and retry.');
+      handleMovementFailed('Verification server is busy. Please check connection and retry.');
     }
   };
 
@@ -381,7 +383,7 @@ export default function LivenessCameraModal({
     setCurrentStep('FAILED');
     currentStepRef.current = 'FAILED';
     setFailureReason(reason);
-    setStatusMessage('❌ 3D Movement Verification Failed');
+    setStatusMessage('❌ Verification Failed');
   };
 
   // Developer / Test Mode Quick Pass
@@ -392,7 +394,7 @@ export default function LivenessCameraModal({
     setStatusMessage('⚡ Dev Pass: Verifying 3D Biometrics...');
 
     try {
-      await api.verifyLiveness(3000, true);
+      await api.verifyLiveness(1500, true);
     } catch (e) {}
 
     hapticFeedback.success();
@@ -444,13 +446,13 @@ export default function LivenessCameraModal({
               </View>
               <Text style={styles.permissionHeading}>Camera Access Required</Text>
               <Text style={styles.permissionDesc}>
-                BlunderR requires front camera access to verify your live face motion (Center,
-                Right, and Left turns). This ensures everyone you meet is a 100% verified real human.
+                BlunderR requires camera access to verify your live presence with a quick 1-second
+                smile or blink. This guarantees every match is a 100% verified real human.
               </Text>
               <View style={styles.securityBullet}>
                 <Text style={styles.securityBulletIcon}>🔒</Text>
                 <Text style={styles.securityBulletText}>
-                  Zero-Knowledge Proof: Raw video is never stored permanently on our servers.
+                  Zero-Knowledge Proof: Video is never permanently stored on servers.
                 </Text>
               </View>
               <TouchableOpacity
@@ -464,8 +466,48 @@ export default function LivenessCameraModal({
               </TouchableOpacity>
             </View>
           ) : (
-            /* CAMERA PREVIEW & 3-STEP MOTION CAPTURE */
+            /* CAMERA PREVIEW & FAST 2-STEP MOTION CAPTURE */
             <View style={styles.cameraContainer}>
+              {/* Challenge Selector Tabs (Before scanning or on failed retry) */}
+              {(!isScanning || currentStep === 'FAILED') && (
+                <View style={styles.challengeSelectorRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.challengeTab,
+                      selectedChallenge === 'SMILE' && styles.challengeTabActive,
+                    ]}
+                    onPress={() => {
+                      hapticFeedback.selection();
+                      setSelectedChallenge('SMILE');
+                    }}>
+                    <Text
+                      style={[
+                        styles.challengeTabText,
+                        selectedChallenge === 'SMILE' && styles.challengeTabTextActive,
+                      ]}>
+                      😊 Smile Check
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.challengeTab,
+                      selectedChallenge === 'BLINK' && styles.challengeTabActive,
+                    ]}
+                    onPress={() => {
+                      hapticFeedback.selection();
+                      setSelectedChallenge('BLINK');
+                    }}>
+                    <Text
+                      style={[
+                        styles.challengeTabText,
+                        selectedChallenge === 'BLINK' && styles.challengeTabTextActive,
+                      ]}>
+                      😉 Blink Check
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Step Checklist Chips */}
               <View style={styles.chipsRow}>
                 <View
@@ -480,39 +522,24 @@ export default function LivenessCameraModal({
                       Boolean(capturedPhotos.center) && styles.stepChipTextDone,
                       currentStep === 'CENTER' && styles.stepChipTextActive,
                     ]}>
-                    {capturedPhotos.center ? '✓' : '1.'} Center Face
+                    {capturedPhotos.center ? '✓' : '1.'} Neutral Face 👤
                   </Text>
                 </View>
 
                 <View
                   style={[
                     styles.stepChip,
-                    Boolean(capturedPhotos.right) && styles.stepChipDone,
-                    currentStep === 'RIGHT' && styles.stepChipActive,
+                    Boolean(capturedPhotos.action) && styles.stepChipDone,
+                    currentStep === 'ACTION' && styles.stepChipActive,
                   ]}>
                   <Text
                     style={[
                       styles.stepChipText,
-                      Boolean(capturedPhotos.right) && styles.stepChipTextDone,
-                      currentStep === 'RIGHT' && styles.stepChipTextActive,
+                      Boolean(capturedPhotos.action) && styles.stepChipTextDone,
+                      currentStep === 'ACTION' && styles.stepChipTextActive,
                     ]}>
-                    {capturedPhotos.right ? '✓' : '2.'} Turn Right ➡️
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.stepChip,
-                    Boolean(capturedPhotos.left) && styles.stepChipDone,
-                    currentStep === 'LEFT' && styles.stepChipActive,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.stepChipText,
-                      Boolean(capturedPhotos.left) && styles.stepChipTextDone,
-                      currentStep === 'LEFT' && styles.stepChipTextActive,
-                    ]}>
-                    {capturedPhotos.left ? '✓' : '3.'} Turn Left ⬅️
+                    {capturedPhotos.action ? '✓' : '2.'}{' '}
+                    {selectedChallenge === 'SMILE' ? 'Smile 😊' : 'Blink 😉'}
                   </Text>
                 </View>
               </View>
@@ -539,10 +566,8 @@ export default function LivenessCameraModal({
                           ? '#10B981'
                           : currentStep === 'FAILED'
                           ? '#FF385C'
-                          : currentStep === 'RIGHT'
-                          ? '#FF9800'
-                          : currentStep === 'LEFT'
-                          ? '#2196F3'
+                          : currentStep === 'ACTION'
+                          ? '#F59E0B'
                           : currentStep === 'CENTER'
                           ? '#00E5FF'
                           : 'rgba(255, 255, 255, 0.6)',
@@ -561,17 +586,14 @@ export default function LivenessCameraModal({
                   {/* Step Guide Overlay inside oval */}
                   {currentStep === 'CENTER' && (
                     <View style={styles.directionBadge}>
-                      <Text style={styles.directionText}>👤 LOOK STRAIGHT CENTER</Text>
+                      <Text style={styles.directionText}>👤 LOOK STRAIGHT</Text>
                     </View>
                   )}
-                  {currentStep === 'RIGHT' && (
-                    <View style={[styles.directionBadge, styles.badgeRight]}>
-                      <Text style={styles.directionText}>➡️ TURN HEAD RIGHT</Text>
-                    </View>
-                  )}
-                  {currentStep === 'LEFT' && (
-                    <View style={[styles.directionBadge, styles.badgeLeft]}>
-                      <Text style={styles.directionText}>⬅️ TURN HEAD LEFT</Text>
+                  {currentStep === 'ACTION' && (
+                    <View style={[styles.directionBadge, styles.badgeAction]}>
+                      <Text style={styles.directionText}>
+                        {selectedChallenge === 'SMILE' ? '😊 GIVE A WARM SMILE' : '😉 BLINK YOUR EYES'}
+                      </Text>
                     </View>
                   )}
                   {currentStep === 'ANALYZING' && (
@@ -602,16 +624,16 @@ export default function LivenessCameraModal({
                 </Animated.View>
               </View>
 
-              {/* REAL CAPTURED POSES GALLERY (Shows Center, Right, Left Photos) */}
+              {/* REAL CAPTURED POSES GALLERY */}
               <View style={styles.capturedStrip}>
                 <View style={styles.capturedStripHeader}>
                   <Text style={styles.capturedStripTitle}>CAPTURED 3D MOVEMENTS</Text>
                   <Text style={styles.capturedStripCount}>
-                    {[capturedPhotos.center, capturedPhotos.right, capturedPhotos.left].filter(Boolean).length}/3 Captured
+                    {[capturedPhotos.center, capturedPhotos.action].filter(Boolean).length}/2 Captured
                   </Text>
                 </View>
                 <View style={styles.capturedGrid}>
-                  {/* Slot 1: Center */}
+                  {/* Slot 1: Neutral */}
                   <View
                     style={[
                       styles.poseCard,
@@ -628,56 +650,39 @@ export default function LivenessCameraModal({
                     ) : (
                       <View style={styles.posePlaceholder}>
                         <Text style={styles.posePlaceholderEmoji}>👤</Text>
-                        <Text style={styles.posePlaceholderText}>Center</Text>
+                        <Text style={styles.posePlaceholderText}>Neutral</Text>
                       </View>
                     )}
-                    <Text style={styles.poseLabel}>1. Center</Text>
+                    <Text style={styles.poseLabel}>1. Neutral</Text>
                   </View>
 
-                  {/* Slot 2: Right */}
+                  {/* Slot 2: Action (Smile / Blink) */}
                   <View
                     style={[
                       styles.poseCard,
-                      capturedPhotos.right && styles.poseCardCaptured,
-                      currentStep === 'RIGHT' && styles.poseCardActive,
+                      capturedPhotos.action && styles.poseCardCaptured,
+                      currentStep === 'ACTION' && styles.poseCardActive,
                     ]}>
-                    {capturedPhotos.right ? (
+                    {capturedPhotos.action ? (
                       <>
-                        <Image source={{ uri: capturedPhotos.right }} style={styles.poseImg} contentFit="cover" />
+                        <Image source={{ uri: capturedPhotos.action }} style={styles.poseImg} contentFit="cover" />
                         <View style={styles.poseCheckBadge}>
                           <Text style={styles.poseCheckText}>✓</Text>
                         </View>
                       </>
                     ) : (
                       <View style={styles.posePlaceholder}>
-                        <Text style={styles.posePlaceholderEmoji}>➡️</Text>
-                        <Text style={styles.posePlaceholderText}>Right</Text>
+                        <Text style={styles.posePlaceholderEmoji}>
+                          {selectedChallenge === 'SMILE' ? '😊' : '😉'}
+                        </Text>
+                        <Text style={styles.posePlaceholderText}>
+                          {selectedChallenge === 'SMILE' ? 'Smile' : 'Blink'}
+                        </Text>
                       </View>
                     )}
-                    <Text style={styles.poseLabel}>2. Right ➡️</Text>
-                  </View>
-
-                  {/* Slot 3: Left */}
-                  <View
-                    style={[
-                      styles.poseCard,
-                      capturedPhotos.left && styles.poseCardCaptured,
-                      currentStep === 'LEFT' && styles.poseCardActive,
-                    ]}>
-                    {capturedPhotos.left ? (
-                      <>
-                        <Image source={{ uri: capturedPhotos.left }} style={styles.poseImg} contentFit="cover" />
-                        <View style={styles.poseCheckBadge}>
-                          <Text style={styles.poseCheckText}>✓</Text>
-                        </View>
-                      </>
-                    ) : (
-                      <View style={styles.posePlaceholder}>
-                        <Text style={styles.posePlaceholderEmoji}>⬅️</Text>
-                        <Text style={styles.posePlaceholderText}>Left</Text>
-                      </View>
-                    )}
-                    <Text style={styles.poseLabel}>3. Left ⬅️</Text>
+                    <Text style={styles.poseLabel}>
+                      2. {selectedChallenge === 'SMILE' ? 'Smile 😊' : 'Blink 😉'}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -705,7 +710,10 @@ export default function LivenessCameraModal({
                     style={styles.primaryBtn}
                     onPress={handleStartScan}
                     activeOpacity={0.85}>
-                    <Text style={styles.primaryBtnText}>Start 3D Head Turn Scan 🎥</Text>
+                    <Text style={styles.primaryBtnText}>
+                      Start Fast Check (
+                      {selectedChallenge === 'SMILE' ? 'Smile 😊' : 'Blink 😉'}) 📸
+                    </Text>
                   </TouchableOpacity>
                   {__DEV__ && (
                     <TouchableOpacity
@@ -728,35 +736,24 @@ export default function LivenessCameraModal({
                   {isCapturing ? (
                     <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text style={styles.captureActionText}>📸 Snap Center Pose ({countdown ?? 'Ready'})</Text>
+                    <Text style={styles.captureActionText}>📸 Snap Neutral Face ({countdown ?? 'Ready'})</Text>
                   )}
                 </TouchableOpacity>
               )}
 
-              {isScanning && currentStep === 'RIGHT' && (
+              {isScanning && currentStep === 'ACTION' && (
                 <TouchableOpacity
-                  style={[styles.captureActionBtn, styles.captureBtnRight]}
-                  onPress={() => capturePhotoForStep('RIGHT')}
+                  style={[styles.captureActionBtn, styles.captureBtnAction]}
+                  onPress={() => capturePhotoForStep('ACTION')}
                   disabled={isCapturing}
                   activeOpacity={0.85}>
                   {isCapturing ? (
                     <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text style={styles.captureActionText}>📸 Snap Right Turn ➡️ ({countdown ?? 'Ready'})</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-
-              {isScanning && currentStep === 'LEFT' && (
-                <TouchableOpacity
-                  style={[styles.captureActionBtn, styles.captureBtnLeft]}
-                  onPress={() => capturePhotoForStep('LEFT')}
-                  disabled={isCapturing}
-                  activeOpacity={0.85}>
-                  {isCapturing ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text style={styles.captureActionText}>📸 Snap Left Turn ⬅️ ({countdown ?? 'Ready'})</Text>
+                    <Text style={styles.captureActionText}>
+                      📸 Snap {selectedChallenge === 'SMILE' ? 'Smile 😊' : 'Blink 😉'} (
+                      {countdown ?? 'Ready'})
+                    </Text>
                   )}
                 </TouchableOpacity>
               )}
@@ -766,14 +763,16 @@ export default function LivenessCameraModal({
                   style={[styles.primaryBtn, styles.retryBtn]}
                   onPress={handleStartScan}
                   activeOpacity={0.85}>
-                  <Text style={styles.primaryBtnText}>Try Again (Turn Head Clearly) 🔄</Text>
+                  <Text style={styles.primaryBtnText}>
+                    Try Again ({selectedChallenge === 'SMILE' ? 'Smile Clearly 😊' : 'Blink Clearly 😉'}) 🔄
+                  </Text>
                 </TouchableOpacity>
               )}
 
               {currentStep === 'PASSED' && (
                 <View style={styles.successRow}>
                   <Text style={styles.successIcon}>✓</Text>
-                  <Text style={styles.successText}>3D Biometric Gold Pass Awarded (3/3 Poses)</Text>
+                  <Text style={styles.successText}>3D Biometric Verified! Real Presence Confirmed</Text>
                 </View>
               )}
 
@@ -802,30 +801,18 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   modalContent: {
-    width: Math.min(width - 32, 420),
-    backgroundColor: '#161821',
+    width: Math.min(width - 32, 400),
+    backgroundColor: '#16171F',
     borderRadius: 24,
-    padding: 18,
+    padding: 20,
     borderWidth: 1,
-    borderColor: '#262836',
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.6)',
-      },
-      default: {
-        elevation: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.6,
-        shadowRadius: 16,
-      },
-    }),
+    borderColor: '#262838',
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   titleWithBadge: {
     flexDirection: 'row',
@@ -834,11 +821,11 @@ const styles = StyleSheet.create({
   },
   headerQuickPill: {
     backgroundColor: 'rgba(121, 40, 202, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#7928CA',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
   },
   headerQuickPillText: {
     color: '#D8B4FE',
@@ -921,9 +908,36 @@ const styles = StyleSheet.create({
   cameraContainer: {
     alignItems: 'center',
   },
+  challengeSelectorRow: {
+    flexDirection: 'row',
+    backgroundColor: '#111219',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 10,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#262838',
+  },
+  challengeTab: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 9,
+    alignItems: 'center',
+  },
+  challengeTabActive: {
+    backgroundColor: '#262838',
+  },
+  challengeTabText: {
+    color: '#8E94A5',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  challengeTabTextActive: {
+    color: '#ffffff',
+  },
   chipsRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
     marginBottom: 10,
     width: '100%',
     justifyContent: 'center',
@@ -931,7 +945,7 @@ const styles = StyleSheet.create({
   stepChip: {
     backgroundColor: '#1C1E2A',
     paddingVertical: 4,
-    paddingHorizontal: 9,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#2D3040',
@@ -1008,13 +1022,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#00E5FF',
   },
-  badgeRight: {
-    borderColor: '#FF9800',
-    backgroundColor: 'rgba(255, 152, 0, 0.25)',
-  },
-  badgeLeft: {
-    borderColor: '#2196F3',
-    backgroundColor: 'rgba(33, 150, 243, 0.25)',
+  badgeAction: {
+    borderColor: '#F59E0B',
+    backgroundColor: 'rgba(245, 158, 11, 0.25)',
   },
   badgePassed: {
     borderColor: '#10B981',
@@ -1193,13 +1203,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 229, 255, 0.15)',
     borderColor: '#00E5FF',
   },
-  captureBtnRight: {
-    backgroundColor: 'rgba(255, 152, 0, 0.2)',
-    borderColor: '#FF9800',
-  },
-  captureBtnLeft: {
-    backgroundColor: 'rgba(33, 150, 243, 0.2)',
-    borderColor: '#2196F3',
+  captureBtnAction: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: '#F59E0B',
   },
   captureActionText: {
     color: '#ffffff',

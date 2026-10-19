@@ -70,6 +70,12 @@ export default function ChatScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReportReason, setSelectedReportReason] = useState<string | null>(null);
+  const [reportRemarks, setReportRemarks] = useState('');
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockReason, setBlockReason] = useState('Inappropriate or offensive behavior');
+  const [blockRemarks, setBlockRemarks] = useState('');
+  const [blockingLoading, setBlockingLoading] = useState(false);
   const [showKundaliModal, setShowKundaliModal] = useState(false);
   const [showDatePlanModal, setShowDatePlanModal] = useState(false);
   const [dateVenue, setDateVenue] = useState('');
@@ -547,6 +553,14 @@ export default function ChatScreen() {
     { key: 'SCAM', emoji: '💸', label: 'Commercial Spam or Financial Scam', desc: 'Promoting services, asking for money, or spamming links.' },
   ];
 
+  const CHAT_BLOCK_REASONS = [
+    { key: 'UNCOMFORTABLE', emoji: '😬', label: 'Made me uncomfortable' },
+    { key: 'OFFENSIVE', emoji: '🚫', label: 'Inappropriate or offensive behavior' },
+    { key: 'NO_VIBE', emoji: '🙅', label: 'No connection / Not interested' },
+    { key: 'SPAM', emoji: '🤖', label: 'Commercial spam or fake profile' },
+    { key: 'OTHER', emoji: '💬', label: 'Other personal reason' },
+  ];
+
   const handleSendProposal = async (payload: DateProposalPayload) => {
     setIsSendingProposal(true);
     try {
@@ -741,16 +755,23 @@ export default function ChatScreen() {
     );
   };
 
-  const handleConfirmReport = async (reason: string) => {
-    if (!matchId) return;
-    setShowReportModal(false);
+  const handleOpenReportModal = () => {
+    setShowSafetyModal(false);
+    setSelectedReportReason(null);
+    setReportRemarks('');
+    setShowReportModal(true);
+  };
+
+  const handleConfirmReport = async () => {
+    if (!matchId || !selectedReportReason) return;
     setActionLoading(true);
     hapticFeedback.error();
-    await api.reportUser(matchId, reason);
+    await api.reportUser(matchId, selectedReportReason, reportRemarks);
     setActionLoading(false);
+    setShowReportModal(false);
     Alert.alert(
       'Shield 360 Report Submitted',
-      `Thank you for helping keep SwipeAI safe. Our Trust & Safety team has received your report for "${reason}". The user has been penalised -50 karma points, blocked, and removed from your matches.`,
+      `Thank you for helping keep BlunderR safe. Our Trust & Safety team has received your report for "${selectedReportReason}". Your remarks have been forwarded to admin review. The user has been penalized -50 karma points, blocked, and removed from your matches.`,
       [
         {
           text: 'OK',
@@ -760,23 +781,27 @@ export default function ChatScreen() {
     );
   };
 
-  const handleBlockUser = () => {
+  const handleOpenBlockModal = () => {
     setShowSafetyModal(false);
-    hapticFeedback.warning();
+    setBlockReason('Inappropriate or offensive behavior');
+    setBlockRemarks('');
+    setShowBlockModal(true);
+  };
+
+  const handleConfirmBlock = async () => {
+    if (!matchId) return;
+    setBlockingLoading(true);
+    hapticFeedback.heavy();
+    await api.blockMatch(matchId, blockReason, blockRemarks);
+    setBlockingLoading(false);
+    setShowBlockModal(false);
     Alert.alert(
-      'Block User',
-      `Blocking will prevent ${matchProfile?.displayName || candidateName || 'this user'} from ever contacting or matching with you again on SwipeAI.`,
+      'User Blocked & Unmatched',
+      `${matchProfile?.displayName || candidateName || 'User'} has been blocked and unmatched. Your remarks have been submitted to admin review.`,
       [
-        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Block & Unmatch',
-          style: 'destructive',
-          onPress: async () => {
-            if (!matchId) return;
-            hapticFeedback.heavy();
-            await api.unmatch(matchId);
-            router.replace('/(tabs)/matches');
-          },
+          text: 'OK',
+          onPress: () => router.replace('/(tabs)/matches'),
         },
       ]
     );
@@ -797,7 +822,9 @@ export default function ChatScreen() {
           style: 'destructive',
           onPress: () => {
             privateDetector.reportMedia(messageId, 'UNSOLICITED_SENSITIVE_MEDIA');
-            handleBlockUser();
+            setSelectedReportReason('Unsolicited Inappropriate Media');
+            setReportRemarks('Sent unsolicited explicit media in chat');
+            setShowReportModal(true);
           },
         },
         {
@@ -995,7 +1022,9 @@ export default function ChatScreen() {
                         onPress={() => {
                           hapticFeedback.light();
                           privateDetector.reportMedia(item.id, 'UNSOLICITED_SENSITIVE_MEDIA');
-                          handleBlockUser();
+                          setSelectedReportReason('Unsolicited Inappropriate Media');
+                          setReportRemarks('Reported explicit photo in chat lounge');
+                          setShowReportModal(true);
                         }}
                         activeOpacity={0.8}>
                         <Text style={[styles.revealBtnText, { color: '#FCA5A5' }]}>🚨 Report</Text>
@@ -1522,30 +1551,27 @@ export default function ChatScreen() {
 
               <TouchableOpacity
                 style={styles.safetyOptionItem}
-                onPress={() => {
-                  setShowSafetyModal(false);
-                  setShowReportModal(true);
-                }}
+                onPress={handleOpenReportModal}
                 activeOpacity={0.7}>
                 <View style={[styles.safetyOptionIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
                   <Text style={styles.safetyOptionIcon}>🚨</Text>
                 </View>
                 <View style={styles.safetyOptionTextBox}>
                   <Text style={styles.safetyOptionTitle}>Report Profile & Harassment</Text>
-                  <Text style={styles.safetyOptionSub}>Flag inappropriate conduct to Trust & Safety team</Text>
+                  <Text style={styles.safetyOptionSub}>Flag inappropriate conduct with admin remarks</Text>
                 </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.safetyOptionItem}
-                onPress={handleBlockUser}
+                onPress={handleOpenBlockModal}
                 activeOpacity={0.7}>
                 <View style={[styles.safetyOptionIconBox, { backgroundColor: 'rgba(107, 114, 128, 0.15)' }]}>
                   <Text style={styles.safetyOptionIcon}>🚫</Text>
                 </View>
                 <View style={styles.safetyOptionTextBox}>
                   <Text style={styles.safetyOptionTitle}>Block User Completely</Text>
-                  <Text style={styles.safetyOptionSub}>Prevent them from ever seeing or matching with you</Text>
+                  <Text style={styles.safetyOptionSub}>Prevent them from ever contacting you & send remarks to admin</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -1565,41 +1591,189 @@ export default function ChatScreen() {
         transparent
         animationType="slide"
         onRequestClose={() => setShowReportModal(false)}>
-        <View style={styles.safetyModalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.safetyModalOverlay}>
           <View style={styles.safetySheet}>
             <View style={styles.safetyHandle} />
             <View style={styles.safetyHeader}>
               <Text style={styles.safetyHeaderIcon}>🚨</Text>
               <Text style={styles.safetyHeaderTitle}>Report to Shield 360</Text>
               <Text style={styles.safetyHeaderSub}>
-                What is the reason for reporting {matchProfile?.displayName || candidateName || 'this user'}?
+                Help keep BlunderR safe. Our Trust & Safety team reviews all reports and remarks within 24 hours.
               </Text>
             </View>
 
-            <ScrollView style={{ maxHeight: 340 }}>
-              {REPORT_REASONS.map((reason) => (
+            {actionLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#E94057" />
+                <Text style={{ color: '#CACDD8', marginTop: 12, fontSize: 13, fontWeight: '600' }}>
+                  Submitting report and shielding chat lounge...
+                </Text>
+              </View>
+            ) : !selectedReportReason ? (
+              <>
+                <Text style={styles.chatModalSubTitle}>Select Violation Reason</Text>
+                <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                  {REPORT_REASONS.map((reason) => (
+                    <TouchableOpacity
+                      key={reason.key}
+                      style={styles.reportReasonItem}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setSelectedReportReason(reason.label);
+                      }}
+                      activeOpacity={0.7}>
+                      <Text style={styles.reportReasonEmoji}>{reason.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.reportReasonLabel}>{reason.label}</Text>
+                        <Text style={styles.reportReasonDesc}>{reason.desc}</Text>
+                      </View>
+                      <Text style={styles.reportArrow}>→</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
                 <TouchableOpacity
-                  key={reason.key}
-                  style={styles.reportReasonItem}
-                  onPress={() => handleConfirmReport(reason.label)}
-                  activeOpacity={0.7}>
-                  <Text style={styles.reportReasonEmoji}>{reason.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.reportReasonLabel}>{reason.label}</Text>
-                    <Text style={styles.reportReasonDesc}>{reason.desc}</Text>
-                  </View>
-                  <Text style={styles.reportArrow}>→</Text>
+                  style={styles.safetyCancelBtn}
+                  onPress={() => setShowReportModal(false)}>
+                  <Text style={styles.safetyCancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={styles.chatSelectedReasonBadge}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                    <Text style={{ fontSize: 14 }}>🚩</Text>
+                    <Text style={styles.chatSelectedReasonText} numberOfLines={1}>{selectedReportReason}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setSelectedReportReason(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={styles.chatChangeReasonText}>Change</Text>
+                  </TouchableOpacity>
+                </View>
 
-            <TouchableOpacity
-              style={styles.safetyCancelBtn}
-              onPress={() => setShowReportModal(false)}>
-              <Text style={styles.safetyCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+                <Text style={styles.chatRemarksLabel}>Remarks for Admin Review (Optional)</Text>
+                <TextInput
+                  style={styles.chatRemarksInput}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={500}
+                  placeholder="Provide context or details about the conversation, screenshots, or messages so our admin moderation desk can take swift action..."
+                  placeholderTextColor="#6B7280"
+                  value={reportRemarks}
+                  onChangeText={setReportRemarks}
+                  textAlignVertical="top"
+                />
+                <View style={styles.chatRemarksMetaRow}>
+                  <Text style={styles.chatRemarksHint}>Strictly confidential admin report.</Text>
+                  <Text style={styles.chatRemarksCounter}>{reportRemarks.length}/500</Text>
+                </View>
+
+                <View style={styles.chatShieldNoticeBox}>
+                  <Text style={styles.chatShieldNoticeText}>
+                    🛡️ <Text style={{ fontWeight: '700', color: '#FDA4AF' }}>SafeDate Shield™:</Text> Submitting this report will apply a -50 karma penalty, sever this match, and close this chat lounge permanently.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.chatSubmitReportBtn}
+                  onPress={handleConfirmReport}
+                  activeOpacity={0.85}>
+                  <Text style={styles.chatSubmitReportBtnText}>🚨 Submit Report & Block User</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.chatBackReasonBtn}
+                  onPress={() => setSelectedReportReason(null)}>
+                  <Text style={styles.chatBackReasonBtnText}>← Choose Another Reason</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Block & Unmatch Modal */}
+      <Modal
+        visible={showBlockModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBlockModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.safetyModalOverlay}>
+          <View style={styles.safetySheet}>
+            <View style={styles.safetyHandle} />
+            <View style={styles.safetyHeader}>
+              <Text style={styles.safetyHeaderIcon}>🚫</Text>
+              <Text style={styles.safetyHeaderTitle}>Block {matchProfile?.displayName || candidateName || 'User'}</Text>
+              <Text style={styles.safetyHeaderSub}>
+                This will unmatch, permanently close this chat lounge, and prevent them from ever contacting you again.
+              </Text>
+            </View>
+
+            {blockingLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#EF4444" />
+                <Text style={{ color: '#CACDD8', marginTop: 12, fontSize: 13, fontWeight: '600' }}>
+                  Blocking user and recording feedback...
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={styles.chatRemarksLabel}>Select Reason</Text>
+                <View style={styles.chatBlockChipsWrap}>
+                  {CHAT_BLOCK_REASONS.map((item) => {
+                    const isSelected = blockReason === item.label;
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[styles.chatBlockChip, isSelected && styles.chatBlockChipActive]}
+                        onPress={() => {
+                          hapticFeedback.selection();
+                          setBlockReason(item.label);
+                        }}>
+                        <Text style={{ fontSize: 14 }}>{item.emoji}</Text>
+                        <Text style={[styles.chatBlockChipText, isSelected && styles.chatBlockChipTextActive]}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.chatRemarksLabel}>Remarks for Admin Review (Optional)</Text>
+                <TextInput
+                  style={styles.chatRemarksInput}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={500}
+                  placeholder="Optional: Tell admin why you are blocking this user (e.g. ghosting, rude tone, suspicious link)..."
+                  placeholderTextColor="#6B7280"
+                  value={blockRemarks}
+                  onChangeText={setBlockRemarks}
+                  textAlignVertical="top"
+                />
+                <View style={styles.chatRemarksMetaRow}>
+                  <Text style={styles.chatRemarksHint}>Recorded confidentially for Trust & Safety review.</Text>
+                  <Text style={styles.chatRemarksCounter}>{blockRemarks.length}/500</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.chatConfirmBlockBtn}
+                  onPress={handleConfirmBlock}
+                  activeOpacity={0.85}>
+                  <Text style={styles.chatConfirmBlockBtnText}>🚫 Block User & Close Chat Lounge</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.safetyCancelBtn}
+                  onPress={() => setShowBlockModal(false)}>
+                  <Text style={styles.safetyCancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Luxury Date Proposal Modal */}
@@ -2591,6 +2765,157 @@ const styles = StyleSheet.create({
   chatLivenessUnlockText: {
     color: '#FFFFFF',
     fontSize: 11,
+    fontWeight: '800',
+  },
+  chatModalSubTitle: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  chatSelectedReasonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  chatSelectedReasonText: {
+    color: '#FCA5A5',
+    fontSize: 13,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  chatChangeReasonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    marginLeft: 8,
+  },
+  chatRemarksLabel: {
+    color: '#E5E7EB',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  chatRemarksInput: {
+    backgroundColor: '#11131B',
+    borderWidth: 1,
+    borderColor: '#262A38',
+    borderRadius: 14,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 13,
+    minHeight: 84,
+    textAlignVertical: 'top',
+  },
+  chatRemarksMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  chatRemarksHint: {
+    color: '#6B7280',
+    fontSize: 11,
+  },
+  chatRemarksCounter: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  chatShieldNoticeBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.22)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  chatShieldNoticeText: {
+    color: '#E5E7EB',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  chatSubmitReportBtn: {
+    backgroundColor: '#E94057',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#E94057',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  chatSubmitReportBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  chatBackReasonBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  chatBackReasonBtnText: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  chatBlockChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  chatBlockChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#191C28',
+    borderWidth: 1,
+    borderColor: '#272B3E',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  chatBlockChipActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderColor: '#EF4444',
+  },
+  chatBlockChipText: {
+    color: '#CACDD8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chatBlockChipTextActive: {
+    color: '#F87171',
+    fontWeight: '700',
+  },
+  chatConfirmBlockBtn: {
+    backgroundColor: '#EF4444',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  chatConfirmBlockBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '800',
   },
 });

@@ -3,10 +3,13 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -81,7 +84,13 @@ export default function ProfileDetailModal({
   const [showKundaliModal, setShowKundaliModal] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [selectedReportReason, setSelectedReportReason] = useState<string | null>(null);
+  const [reportRemarks, setReportRemarks] = useState('');
   const [reporting, setReporting] = useState(false);
+
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockReason, setBlockReason] = useState('Not interested / No chemistry');
+  const [blockRemarks, setBlockRemarks] = useState('');
   const [blocking, setBlocking] = useState(false);
 
   const CANDIDATE_REPORT_REASONS = [
@@ -90,6 +99,14 @@ export default function ProfileDetailModal({
     { key: 'HARASSMENT', emoji: '🚫', label: 'Harassment & Abusive Behavior', desc: 'Hate speech, threatening text, or offensive messages.' },
     { key: 'SCAM', emoji: '💸', label: 'Commercial Spam or Financial Scam', desc: 'Asking for money, selling services, or spamming links.' },
     { key: 'UNDERAGE', emoji: '🚸', label: 'Suspected Minor (Under 18)', desc: 'Blunderr strictly forbids anyone under 18 years of age.' },
+  ];
+
+  const BLOCK_REASONS = [
+    { key: 'NOT_INTERESTED', emoji: '🙅', label: 'Not interested / No chemistry' },
+    { key: 'UNCOMFORTABLE', emoji: '😬', label: 'Made me uncomfortable' },
+    { key: 'INAPPROPRIATE', emoji: '🚫', label: 'Inappropriate or offensive behavior' },
+    { key: 'SPAM_BOT', emoji: '🤖', label: 'Spam, bot, or commercial account' },
+    { key: 'OTHER', emoji: '💬', label: 'Other personal reason' },
   ];
 
   if (!candidate) return null;
@@ -122,55 +139,60 @@ export default function ProfileDetailModal({
     setIsPlayingAudio(false);
     setShowActionSheet(false);
     setShowReportModal(false);
+    setShowBlockModal(false);
+    setSelectedReportReason(null);
+    setReportRemarks('');
+    setBlockRemarks('');
     onClose();
   };
 
-  const handleBlockUser = () => {
+  const handleOpenBlockModal = () => {
     setShowActionSheet(false);
-    hapticFeedback.warning();
+    setBlockReason('Not interested / No chemistry');
+    setBlockRemarks('');
+    setShowBlockModal(true);
+  };
+
+  const handleConfirmBlock = async () => {
+    setBlocking(true);
+    hapticFeedback.medium();
+    await api.blockUser(candidate.userId, blockReason, blockRemarks);
+    setBlocking(false);
+    setShowBlockModal(false);
+    hapticFeedback.success();
     Alert.alert(
-      'Block User',
-      `Are you sure you want to block ${candidate.displayName}? You will no longer see each other anywhere on Blunderr.`,
+      'User Blocked',
+      `${candidate.displayName} has been blocked and removed from your feed. Your remarks have been submitted to Trust & Safety for review.`,
       [
-        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Block User',
-          style: 'destructive',
-          onPress: async () => {
-            setBlocking(true);
-            hapticFeedback.medium();
-            await api.blockUser(candidate.userId);
-            setBlocking(false);
-            hapticFeedback.success();
-            Alert.alert(
-              'User Blocked',
-              `${candidate.displayName} has been blocked and removed from your feed.`,
-              [
-                {
-                  text: 'OK',
-                  onPress: () => {
-                    if (onPass) onPass();
-                    handleClose();
-                  },
-                },
-              ]
-            );
+          text: 'OK',
+          onPress: () => {
+            if (onPass) onPass();
+            handleClose();
           },
         },
       ]
     );
   };
 
-  const handleConfirmReport = async (reason: string) => {
+  const handleOpenReportModal = () => {
+    setShowActionSheet(false);
+    setSelectedReportReason(null);
+    setReportRemarks('');
+    setShowReportModal(true);
+  };
+
+  const handleConfirmReport = async () => {
+    if (!selectedReportReason) return;
     setReporting(true);
     hapticFeedback.medium();
-    const ok = await api.reportProfile(candidate.userId, reason);
+    const ok = await api.reportProfile(candidate.userId, selectedReportReason, reportRemarks);
     setReporting(false);
     setShowReportModal(false);
     hapticFeedback.success();
     Alert.alert(
       'Report Submitted',
-      `Thank you for helping keep Blunderr safe. We received your report for "${reason}". Our Trust & Safety team will review this within 24 hours. This user has been blocked and removed from your feed.`,
+      `Thank you for helping keep Blunderr safe. We received your report for "${selectedReportReason}". Our Trust & Safety team will review your remarks within 24 hours. This user has been blocked and removed from your feed.`,
       [
         {
           text: 'OK',
@@ -654,28 +676,25 @@ export default function ProfileDetailModal({
 
             <TouchableOpacity
               style={styles.sheetOptionDestructive}
-              onPress={() => {
-                setShowActionSheet(false);
-                setShowReportModal(true);
-              }}>
+              onPress={handleOpenReportModal}>
               <Text style={styles.sheetOptionEmoji}>🚩</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.sheetOptionTextDestructive}>Report Profile</Text>
                 <Text style={styles.sheetOptionDesc}>
-                  Flag objectionable photos, fake bio, or abusive behavior
+                  Flag objectionable photos, fake bio, or abusive behavior with admin remarks
                 </Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.sheetOption}
-              onPress={handleBlockUser}
+              onPress={handleOpenBlockModal}
               disabled={blocking}>
               <Text style={styles.sheetOptionEmoji}>🚫</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.sheetOptionText}>Block User</Text>
                 <Text style={styles.sheetOptionDesc}>
-                  Hide this profile permanently and prevent all future interactions
+                  Hide this profile permanently and submit optional feedback to admin
                 </Text>
               </View>
             </TouchableOpacity>
@@ -689,13 +708,15 @@ export default function ProfileDetailModal({
         </TouchableOpacity>
       </Modal>
 
-      {/* UGC Report Reason Picker Modal */}
+      {/* UGC Report Reason & Remarks Modal */}
       <Modal
         visible={showReportModal}
         transparent
         animationType="slide"
         onRequestClose={() => setShowReportModal(false)}>
-        <View style={styles.sheetOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.sheetOverlay}>
           <View style={styles.reportModalContainer}>
             <View style={styles.reportHeader}>
               <Text style={styles.reportHeaderTitle}>Report to Trust & Safety</Text>
@@ -704,7 +725,7 @@ export default function ProfileDetailModal({
               </TouchableOpacity>
             </View>
             <Text style={styles.reportHeaderSub}>
-              Help keep Blunderr safe. Why are you reporting {candidate.displayName}? Our moderation team reviews every report within 24 hours.
+              Help keep Blunderr safe. Our moderation team reviews every report within 24 hours.
             </Text>
 
             {reporting ? (
@@ -714,25 +735,164 @@ export default function ProfileDetailModal({
                   Submitting report and shielding profile...
                 </Text>
               </View>
+            ) : !selectedReportReason ? (
+              <>
+                <Text style={styles.stepTitle}>Select a Reason</Text>
+                <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                  {CANDIDATE_REPORT_REASONS.map((reason) => (
+                    <TouchableOpacity
+                      key={reason.key}
+                      style={styles.reasonCard}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setSelectedReportReason(reason.label);
+                      }}>
+                      <Text style={styles.reasonEmoji}>{reason.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.reasonLabel}>{reason.label}</Text>
+                        <Text style={styles.reasonDesc}>{reason.desc}</Text>
+                      </View>
+                      <Text style={styles.reasonArrow}>→</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
             ) : (
-              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
-                {CANDIDATE_REPORT_REASONS.map((reason) => (
-                  <TouchableOpacity
-                    key={reason.key}
-                    style={styles.reasonCard}
-                    onPress={() => handleConfirmReport(reason.label)}>
-                    <Text style={styles.reasonEmoji}>{reason.emoji}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.reasonLabel}>{reason.label}</Text>
-                      <Text style={styles.reasonDesc}>{reason.desc}</Text>
-                    </View>
-                    <Text style={styles.reasonArrow}>→</Text>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={styles.selectedReasonBadge}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                    <Text style={{ fontSize: 14 }}>🚩</Text>
+                    <Text style={styles.selectedReasonText} numberOfLines={1}>{selectedReportReason}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setSelectedReportReason(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={styles.changeReasonText}>Change</Text>
                   </TouchableOpacity>
-                ))}
+                </View>
+
+                <Text style={styles.remarksLabel}>Remarks for Admin Review (Optional)</Text>
+                <TextInput
+                  style={styles.remarksInput}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={500}
+                  placeholder="Provide context or specific details to help our Trust & Safety admin team review this profile and take appropriate action..."
+                  placeholderTextColor="#6B7280"
+                  value={reportRemarks}
+                  onChangeText={setReportRemarks}
+                  textAlignVertical="top"
+                />
+                <View style={styles.remarksMetaRow}>
+                  <Text style={styles.remarksHint}>Your report is strictly confidential.</Text>
+                  <Text style={styles.remarksCounter}>{reportRemarks.length}/500</Text>
+                </View>
+
+                <View style={styles.shieldNoticeBox}>
+                  <Text style={styles.shieldNoticeText}>
+                    🛡️ <Text style={{ fontWeight: '700', color: '#FDA4AF' }}>SafeDate Shield™:</Text> Submitting this report will immediately sever all interactions and block {candidate.displayName} from your feed.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.submitReportBtn}
+                  onPress={handleConfirmReport}
+                  activeOpacity={0.85}>
+                  <Text style={styles.submitReportBtnText}>🚨 Submit Report & Block Profile</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.backReasonBtn}
+                  onPress={() => setSelectedReportReason(null)}>
+                  <Text style={styles.backReasonBtnText}>← Choose Another Reason</Text>
+                </TouchableOpacity>
               </ScrollView>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* UGC Block Profile & Remarks Modal */}
+      <Modal
+        visible={showBlockModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowBlockModal(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.sheetOverlay}>
+          <View style={styles.reportModalContainer}>
+            <View style={styles.reportHeader}>
+              <Text style={styles.reportHeaderTitle}>Block {candidate.displayName} 🚫</Text>
+              <TouchableOpacity onPress={() => setShowBlockModal(false)} style={styles.reportCloseBtn}>
+                <Text style={styles.reportCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reportHeaderSub}>
+              You will no longer see each other anywhere on Blunderr. All past and future interactions will be severed.
+            </Text>
+
+            {blocking ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#EF4444" />
+                <Text style={{ color: '#CACDD8', marginTop: 12, fontSize: 13, fontWeight: '600' }}>
+                  Blocking user and recording feedback...
+                </Text>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={styles.remarksLabel}>Select Primary Reason</Text>
+                <View style={styles.blockReasonChipsWrap}>
+                  {BLOCK_REASONS.map((item) => {
+                    const isSelected = blockReason === item.label;
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[styles.blockReasonChip, isSelected && styles.blockReasonChipActive]}
+                        onPress={() => {
+                          hapticFeedback.selection();
+                          setBlockReason(item.label);
+                        }}>
+                        <Text style={styles.blockReasonEmoji}>{item.emoji}</Text>
+                        <Text style={[styles.blockReasonChipText, isSelected && styles.blockReasonChipTextActive]}>
+                          {item.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.remarksLabel}>Remarks for Admin Review (Optional)</Text>
+                <TextInput
+                  style={styles.remarksInput}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={500}
+                  placeholder="Optional: Tell our team why you are blocking this profile (helps admins detect spam patterns or suspicious activity)..."
+                  placeholderTextColor="#6B7280"
+                  value={blockRemarks}
+                  onChangeText={setBlockRemarks}
+                  textAlignVertical="top"
+                />
+                <View style={styles.remarksMetaRow}>
+                  <Text style={styles.remarksHint}>Shared confidentially with admin moderation.</Text>
+                  <Text style={styles.remarksCounter}>{blockRemarks.length}/500</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.confirmBlockBtn}
+                  onPress={handleConfirmBlock}
+                  activeOpacity={0.85}>
+                  <Text style={styles.confirmBlockBtnText}>🚫 Confirm & Block Profile</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelBlockBtn}
+                  onPress={() => setShowBlockModal(false)}>
+                  <Text style={styles.cancelBlockBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Modal>
   );
@@ -1459,5 +1619,166 @@ const styles = StyleSheet.create({
     color: '#FBBF24',
     fontSize: 11,
     fontWeight: '700',
+  },
+  stepTitle: {
+    color: '#CACDD8',
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  selectedReasonBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(233, 64, 87, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(233, 64, 87, 0.35)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  selectedReasonText: {
+    color: '#FF758F',
+    fontSize: 13,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  changeReasonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    marginLeft: 8,
+  },
+  remarksLabel: {
+    color: '#CACDD8',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  remarksInput: {
+    backgroundColor: '#0E0F14',
+    borderWidth: 1,
+    borderColor: '#262A38',
+    borderRadius: 14,
+    padding: 12,
+    color: '#FFFFFF',
+    fontSize: 13,
+    minHeight: 88,
+    textAlignVertical: 'top',
+  },
+  remarksMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 14,
+  },
+  remarksHint: {
+    color: '#6B7280',
+    fontSize: 11,
+  },
+  remarksCounter: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  shieldNoticeBox: {
+    backgroundColor: 'rgba(255, 56, 92, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.22)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  shieldNoticeText: {
+    color: '#E5E7EB',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  submitReportBtn: {
+    backgroundColor: '#E94057',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#E94057',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitReportBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  backReasonBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  backReasonBtnText: {
+    color: '#8E94A5',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  blockReasonChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  blockReasonChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E212D',
+    borderWidth: 1,
+    borderColor: '#2A2E3D',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  blockReasonChipActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+    borderColor: '#EF4444',
+  },
+  blockReasonEmoji: {
+    fontSize: 14,
+  },
+  blockReasonChipText: {
+    color: '#CACDD8',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  blockReasonChipTextActive: {
+    color: '#F87171',
+    fontWeight: '700',
+  },
+  confirmBlockBtn: {
+    backgroundColor: '#EF4444',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 10,
+  },
+  confirmBlockBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  cancelBlockBtn: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  cancelBlockBtnText: {
+    color: '#8E94A5',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

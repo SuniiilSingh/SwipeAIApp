@@ -1327,12 +1327,12 @@ export const api = {
     }
   },
 
-  reportUser: async (matchId: string, reason: string): Promise<boolean> => {
+  reportUser: async (matchId: string, reason: string, remarks?: string): Promise<boolean> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, remarks: remarks || '' }),
       });
       return res.ok;
     } catch (e) {
@@ -1341,12 +1341,26 @@ export const api = {
     }
   },
 
-  reportProfile: async (targetUserId: string, reason: string): Promise<boolean> => {
+  blockMatch: async (matchId: string, reason?: string, remarks?: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/block`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ reason: reason || 'Direct Block', remarks: remarks || '' }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('Block match error:', e);
+      return false;
+    }
+  },
+
+  reportProfile: async (targetUserId: string, reason: string, remarks?: string): Promise<boolean> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/${targetUserId}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, remarks: remarks || '' }),
       });
       return res.ok;
     } catch (e) {
@@ -1355,11 +1369,12 @@ export const api = {
     }
   },
 
-  blockUser: async (targetUserId: string): Promise<boolean> => {
+  blockUser: async (targetUserId: string, reason?: string, remarks?: string): Promise<boolean> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/profiles/${targetUserId}/block`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ reason: reason || 'Direct Block', remarks: remarks || '' }),
       });
       return res.ok;
     } catch (e) {

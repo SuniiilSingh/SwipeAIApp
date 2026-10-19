@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -930,11 +931,55 @@ export default function OnboardingDecksScreen() {
     return calculatedAge;
   };
 
-  const feetAndInches = () => {
-    const feet = Math.floor(heightCm / 30.48);
-    const inches = Math.round((heightCm % 30.48) / 2.54);
-    return `${heightCm} cm (${feet}'${inches}'')`;
+  const formatFeetAndInches = (cm: number) => {
+    const totalInches = cm / 2.54;
+    const feet = Math.floor(totalInches / 12);
+    const inches = Math.round(totalInches % 12);
+    if (inches === 12) return `${feet + 1}'0"`;
+    return `${feet}'${inches}"`;
   };
+
+  const feetAndInches = () => {
+    return `${formatFeetAndInches(heightCm)} (${heightCm} cm)`;
+  };
+
+  const getStatureArchetype = (cm: number) => {
+    if (cm >= 185) return '👑 Runway & Athletic';
+    if (cm >= 178) return '🔥 Statuesque Aura';
+    if (cm >= 170) return '✨ Everyday Magnetism';
+    if (cm >= 160) return '🌿 Chic & Graceful';
+    return '🌸 Petite Charm';
+  };
+
+  const sliderTrackWidthRef = useRef<number>(200);
+
+  const updateHeightFromGestureX = (locationX: number) => {
+    const width = sliderTrackWidthRef.current || 200;
+    const pct = Math.max(0, Math.min(1, locationX / width));
+    const newCm = Math.round(140 + pct * (215 - 140));
+    setHeightCm((prev) => {
+      if (prev !== newCm) {
+        hapticFeedback.selection();
+        return newCm;
+      }
+      return prev;
+    });
+  };
+
+  const sliderPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (evt) => {
+          updateHeightFromGestureX(evt.nativeEvent.locationX);
+        },
+        onPanResponderMove: (evt) => {
+          updateHeightFromGestureX(evt.nativeEvent.locationX);
+        },
+      }),
+    []
+  );
 
   const validateDeck = (deck: number): { valid: boolean; message?: string } => {
     switch (deck) {
@@ -2551,27 +2596,100 @@ export default function OnboardingDecksScreen() {
                 </View>
 
                 <View style={styles.deckBody}>
-                  {/* Height Box with Stepper Controls */}
+                  {/* Height Box with Smooth Continuous Slider & 1-cm Nudge Buttons */}
                   <View style={styles.statureBox}>
-                    <Text style={styles.fieldLabel}>HEIGHT 📏</Text>
-                    <Text style={styles.statureNum}>{feetAndInches()}</Text>
-                    <View style={styles.statureStepperRow}>
+                    <View style={styles.statureHeaderRow}>
+                      <Text style={styles.fieldLabel}>HEIGHT 📏</Text>
+                      <View style={styles.statureArchetypeBadge}>
+                        <Text style={styles.statureArchetypeText}>{getStatureArchetype(heightCm)}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.statureDisplayCenter}>
+                      <Text style={styles.statureImperialText}>{formatFeetAndInches(heightCm)}</Text>
+                      <View style={styles.statureMetricPill}>
+                        <Text style={styles.statureMetricText}>{heightCm} cm</Text>
+                      </View>
+                    </View>
+
+                    {/* Interactive Slider Row with Nudge [-] & [+] */}
+                    <View style={styles.sliderControlRow}>
                       <TouchableOpacity
-                        style={styles.statureBtn}
+                        style={styles.nudgeBtn}
+                        activeOpacity={0.7}
                         onPress={() => {
                           hapticFeedback.light();
-                          setHeightCm((prev) => Math.max(140, prev - 2));
+                          setHeightCm((prev) => Math.max(140, prev - 1));
                         }}>
-                        <Text style={styles.statureBtnText}>- 2 cm</Text>
+                        <Text style={styles.nudgeBtnText}>– 1</Text>
                       </TouchableOpacity>
+
+                      <View
+                        style={styles.sliderTrackContainer}
+                        onLayout={(e) => {
+                          sliderTrackWidthRef.current = e.nativeEvent.layout.width;
+                        }}
+                        {...sliderPanResponder.panHandlers}>
+                        <View style={styles.sliderTrackBackground}>
+                          <View
+                            style={[
+                              styles.sliderTrackFill,
+                              { width: `${Math.max(0, Math.min(100, ((heightCm - 140) / (215 - 140)) * 100))}%` },
+                            ]}
+                          />
+                        </View>
+                        <View
+                          style={[
+                            styles.sliderThumb,
+                            {
+                              left: `${Math.max(0, Math.min(100, ((heightCm - 140) / (215 - 140)) * 100))}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+
                       <TouchableOpacity
-                        style={[styles.statureBtn, styles.statureBtnHighlight]}
+                        style={[styles.nudgeBtn, styles.nudgeBtnHighlight]}
+                        activeOpacity={0.7}
                         onPress={() => {
                           hapticFeedback.light();
-                          setHeightCm((prev) => Math.min(215, prev + 2));
+                          setHeightCm((prev) => Math.min(215, prev + 1));
                         }}>
-                        <Text style={styles.statureBtnText}>+ 2 cm</Text>
+                        <Text style={styles.nudgeBtnText}>+ 1</Text>
                       </TouchableOpacity>
+                    </View>
+
+                    {/* Range Boundary Labels */}
+                    <View style={styles.sliderBoundLabels}>
+                      <Text style={styles.sliderBoundText}>140 cm (4'7")</Text>
+                      <Text style={styles.sliderBoundText}>215 cm (7'1")</Text>
+                    </View>
+
+                    {/* Quick Jump Preset Chips */}
+                    <View style={styles.statureQuickJumpRow}>
+                      {[
+                        { cm: 160, label: "5'3\"" },
+                        { cm: 168, label: "5'6\"" },
+                        { cm: 175, label: "5'9\"" },
+                        { cm: 183, label: "6'0\"" },
+                        { cm: 188, label: "6'2\"" },
+                      ].map((chip) => {
+                        const isSelected = heightCm === chip.cm;
+                        return (
+                          <TouchableOpacity
+                            key={chip.cm}
+                            style={[styles.statureQuickChip, isSelected && styles.statureQuickChipActive]}
+                            activeOpacity={0.75}
+                            onPress={() => {
+                              hapticFeedback.medium();
+                              setHeightCm(chip.cm);
+                            }}>
+                            <Text style={[styles.statureQuickChipText, isSelected && styles.statureQuickChipTextActive]}>
+                              {chip.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
 
@@ -4062,11 +4180,153 @@ const styles = StyleSheet.create({
   statureBox: {
     backgroundColor: '#080A14',
     borderWidth: 1.5,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
+    borderColor: 'rgba(255, 56, 92, 0.3)',
     borderRadius: 22,
-    padding: 14,
+    padding: 16,
+    gap: 8,
+  },
+  statureHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 6,
+    width: '100%',
+  },
+  statureArchetypeBadge: {
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  statureArchetypeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FF6B8B',
+  },
+  statureDisplayCenter: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    gap: 8,
+    marginVertical: 4,
+  },
+  statureImperialText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  statureMetricPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  statureMetricText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  sliderControlRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    gap: 10,
+    marginTop: 4,
+  },
+  nudgeBtn: {
+    width: 44,
+    height: 40,
+    backgroundColor: '#151A2E',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nudgeBtnHighlight: {
+    borderColor: 'rgba(255, 56, 92, 0.4)',
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+  },
+  nudgeBtnText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  sliderTrackContainer: {
+    flex: 1,
+    height: 40,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  sliderTrackBackground: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+  },
+  sliderTrackFill: {
+    height: '100%',
+    backgroundColor: '#FF385C',
+    borderRadius: 4,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    top: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#FF385C',
+    marginLeft: -12,
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  sliderBoundLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 54,
+    marginTop: -4,
+  },
+  sliderBoundText: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  statureQuickJumpRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 8,
+    gap: 4,
+  },
+  statureQuickChip: {
+    flex: 1,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+  },
+  statureQuickChipActive: {
+    backgroundColor: 'rgba(255, 56, 92, 0.2)',
+    borderColor: '#FF385C',
+  },
+  statureQuickChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  statureQuickChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '900',
   },
   statureNum: {
     fontSize: 24,

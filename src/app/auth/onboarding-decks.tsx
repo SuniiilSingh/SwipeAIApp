@@ -290,6 +290,7 @@ export default function OnboardingDecksScreen() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [resumedBannerText, setResumedBannerText] = useState<string>('');
   const isHydratedRef = useRef<boolean>(false);
+  const mainScrollRef = useRef<ScrollView>(null);
 
   // Deck 1: Identity, Liveness Selfie & Primary Residence (Zero Prefill)
   const [fullName, setFullName] = useState<string>('');
@@ -1039,6 +1040,20 @@ export default function OnboardingDecksScreen() {
     }
   };
 
+  // Whenever the active deck changes (Next, Previous, or Quick-Jump Strip), instantly scroll to the top
+  useEffect(() => {
+    try {
+      mainScrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+      const timer = setTimeout(() => {
+        mainScrollRef.current?.scrollTo({ y: 0, animated: false });
+      }, 40);
+      return () => clearTimeout(timer);
+    } catch (e) {}
+  }, [activeDeck]);
+
   const advanceToDeck = (targetDeck: number) => {
     if (targetDeck < 1 || targetDeck > 7) return;
     if (targetDeck > activeDeck) {
@@ -1054,6 +1069,14 @@ export default function OnboardingDecksScreen() {
       // Sync completed deck to cloud backend in background
       syncDeckCheckpointToCloud(activeDeck);
     }
+
+    // Reset scroll position to top immediately so user starts from the top of the next deck
+    try {
+      mainScrollRef.current?.scrollTo({ y: 0, animated: false });
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' as any });
+      }
+    } catch (e) {}
 
     hapticFeedback.medium();
     Animated.sequence([
@@ -1587,6 +1610,7 @@ export default function OnboardingDecksScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
+          ref={mainScrollRef}
           contentContainerStyle={[
             styles.scrollArena,
             isCompactPhone && { paddingHorizontal: 8, paddingVertical: 6 },

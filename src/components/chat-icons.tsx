@@ -32,6 +32,9 @@ export const DOUBLE_TICK_B64 =
 export const SINGLE_TICK_B64 =
   'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNNCAxMkwxMCAxOEwyMCA2Ii8+PC9zdmc+';
 
+export const ARROW_LEFT_B64 =
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMi42IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xOSAxMkg1TTEyIDE5bC03LTcgNy03Ii8+PC9zdmc+';
+
 interface IconProps {
   size?: number;
   color?: string;
@@ -157,6 +160,19 @@ export function StatusTick({
     <View style={[styles.center, { width: size, height: size }]}>
       <Image
         source={{ uri: iconUri }}
+        style={{ width: size, height: size }}
+        tintColor={color}
+        contentFit="contain"
+      />
+    </View>
+  );
+}
+
+export function BackArrowIcon({ size = 20, color = '#FFFFFF' }: IconProps) {
+  return (
+    <View style={[styles.center, { width: size, height: size }]}>
+      <Image
+        source={{ uri: ARROW_LEFT_B64 }}
         style={{ width: size, height: size }}
         tintColor={color}
         contentFit="contain"

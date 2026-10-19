@@ -16,6 +16,8 @@ import {
   dismissNotificationsForMatch,
   dismissAllSystemNotifications,
 } from '@/services/notifications';
+import { BackArrowIcon } from '@/components/chat-icons';
+import { hapticFeedback } from '@/utils/haptics';
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -193,8 +195,16 @@ export default function NotificationsScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header Bar */}
       <View style={styles.headerBar}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>←</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            hapticFeedback.light();
+            router.back();
+          }}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back">
+          <BackArrowIcon size={20} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.headerTitleWrap}>
@@ -290,17 +300,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#20222B',
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1B1D26',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#181A24',
+    borderWidth: 1,
+    borderColor: '#282C3D',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backButtonText: {
-    color: '#FFF',
-    fontSize: 20,
-    fontWeight: '700',
   },
   headerTitleWrap: {
     flexDirection: 'row',

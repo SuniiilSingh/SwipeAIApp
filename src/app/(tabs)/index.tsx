@@ -1288,6 +1288,12 @@ function SwipeableCandidateCard({
           setShowFullProfileModal(false);
           setSelectedCandidate(null);
         }}
+        onRewind={() => {
+          setShowFullProfileModal(false);
+          setSelectedCandidate(null);
+          handleRewind();
+        }}
+        canRewind={swipedHistory.length > 0}
         onPass={() => {
           if (selectedCandidate) handleAction(selectedCandidate, 'PASS');
           setShowFullProfileModal(false);
@@ -1304,6 +1310,14 @@ function SwipeableCandidateCard({
           setSelectedCandidate(null);
           if (target) confirmSendCuttingChai();
         }}
+        onSparkNote={() => {
+          const target = selectedCandidate;
+          setShowFullProfileModal(false);
+          if (target) {
+            handleOpenSparkNote(target);
+          }
+        }}
+        hasFreeSparkNote={sparkNoteQuota ? sparkNoteQuota.canSendFree : true}
         onComment={(contextType, contextTargetId, contextTitle, previewUrl) => {
           const target = selectedCandidate;
           setShowFullProfileModal(false);

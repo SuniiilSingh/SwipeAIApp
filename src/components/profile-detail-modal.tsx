@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CandidateCard, ContextType, DietaryPreference, LivingStatus } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
@@ -34,6 +34,10 @@ interface ProfileDetailModalProps {
   onPass?: () => void;
   onSendSuperSpark?: () => void;
   onComment?: (contextType?: ContextType, contextTargetId?: string, contextTitle?: string, previewUrl?: string) => void;
+  onSparkNote?: () => void;
+  onRewind?: () => void;
+  canRewind?: boolean;
+  hasFreeSparkNote?: boolean;
   onStartChat?: () => void;
   onVirtualChai?: () => void;
 }
@@ -76,9 +80,15 @@ export default function ProfileDetailModal({
   onPass,
   onSendSuperSpark,
   onComment,
+  onSparkNote,
+  onRewind,
+  canRewind = true,
+  hasFreeSparkNote = true,
   onStartChat,
   onVirtualChai,
 }: ProfileDetailModalProps) {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 16);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showKundaliModal, setShowKundaliModal] = useState(false);
@@ -595,59 +605,131 @@ export default function ProfileDetailModal({
             </View>
           </View>
 
-          <View style={{ height: 110 }} />
+          <View style={{ height: 100 + bottomInset }} />
         </ScrollView>
 
         {/* Bottom Interactive Action Bar */}
-        <View style={styles.footerBar}>
-          {onPass && (
-            <TouchableOpacity style={styles.actionPassBtn} onPress={onPass}>
-              <Text style={styles.actionPassIcon}>✖</Text>
-            </TouchableOpacity>
-          )}
+        {(onStartChat || onVirtualChai || onPass || onLike || onSendSuperSpark || onSparkNote || onRewind) && (
+          <View style={[styles.footerBar, { paddingBottom: bottomInset, paddingTop: 12 }]}>
+            {onStartChat ? (
+              <>
+                <TouchableOpacity
+                  style={styles.primaryFooterBtn}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    hapticFeedback.medium();
+                    onStartChat();
+                  }}>
+                  <Text style={styles.primaryFooterBtnText}>💬 Open Chat Lounge</Text>
+                </TouchableOpacity>
 
-          {onSendSuperSpark && (
-            <TouchableOpacity style={styles.actionChaiBtn} onPress={onSendSuperSpark}>
-              <Text style={styles.actionChaiEmoji}>⚡</Text>
-              <Text style={styles.actionChaiText}>
-                {FEATURE_FLAGS.ENABLE_STORE ? 'Super Spark (₹19)' : 'Super Spark'}
-              </Text>
-            </TouchableOpacity>
-          )}
+                {FEATURE_FLAGS.ENABLE_CALLING && onVirtualChai && (
+                  <TouchableOpacity
+                    style={styles.secondaryFooterBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      onVirtualChai();
+                    }}>
+                    <Text style={styles.secondaryFooterBtnText}>☕ Virtual Chai</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : (
+              <>
+                {/* 1. Rewind Button */}
+                {onRewind ? (
+                  canRewind ? (
+                    <TouchableOpacity
+                      style={styles.cardRewindBtn}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        hapticFeedback.light();
+                        onRewind();
+                      }}
+                      accessibilityLabel="Rewind Last Profile">
+                      <Text style={styles.cardRewindBtnIcon}>↺</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.cardRewindBtn, { opacity: 0.35 }]}>
+                      <Text style={styles.cardRewindBtnIcon}>↺</Text>
+                    </View>
+                  )
+                ) : null}
 
-          {onComment && (
-            <TouchableOpacity
-              style={styles.actionCommentBtn}
-              onPress={() =>
-                onComment(
-                  'PHOTO',
-                  `photo_${activePhotoIdx}`,
-                  `${candidate.displayName}'s Photo #${activePhotoIdx + 1}`,
-                  photos[activePhotoIdx]
-                )
-              }>
-              <Text style={styles.actionCommentIcon}>✨</Text>
-            </TouchableOpacity>
-          )}
+                {/* 2. Pass Button */}
+                {onPass && (
+                  <TouchableOpacity
+                    style={styles.cardPassBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      hapticFeedback.medium();
+                      onPass();
+                    }}
+                    accessibilityLabel="Pass Profile">
+                    <Text style={styles.cardPassBtnIcon}>✕</Text>
+                  </TouchableOpacity>
+                )}
 
-          {onLike && (
-            <TouchableOpacity style={styles.actionLikeBtn} onPress={onLike}>
-              <Text style={styles.actionLikeIcon}>❤️</Text>
-            </TouchableOpacity>
-          )}
+                {/* 3. Super Spark / Star Button */}
+                {onSendSuperSpark && (
+                  <TouchableOpacity
+                    style={styles.cardChaiBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      hapticFeedback.heavy();
+                      onSendSuperSpark();
+                    }}
+                    accessibilityLabel="Super Spark">
+                    <Text style={styles.cardChaiBtnIcon}>★</Text>
+                  </TouchableOpacity>
+                )}
 
-          {onStartChat && (
-            <TouchableOpacity style={styles.primaryFooterBtn} onPress={onStartChat}>
-              <Text style={styles.primaryFooterBtnText}>💬 Open Chat Lounge</Text>
-            </TouchableOpacity>
-          )}
+                {/* 4. Spark Note / Comment Button */}
+                {(onSparkNote || onComment) && (
+                  <TouchableOpacity
+                    style={styles.cardSparkNoteBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      hapticFeedback.medium();
+                      if (onSparkNote) {
+                        onSparkNote();
+                      } else if (onComment) {
+                        onComment(
+                          'PHOTO',
+                          `photo_${activePhotoIdx}`,
+                          `${candidate.displayName}'s Photo #${activePhotoIdx + 1}`,
+                          photos[activePhotoIdx]
+                        );
+                      }
+                    }}
+                    accessibilityLabel="Daily Free Spark Note">
+                    <Text style={styles.cardSparkNoteBtnIcon}>✨</Text>
+                    {hasFreeSparkNote && (
+                      <View style={styles.cardFreePillDot}>
+                        <Text style={styles.cardFreePillText}>1</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
 
-          {FEATURE_FLAGS.ENABLE_CALLING && onVirtualChai && (
-            <TouchableOpacity style={styles.secondaryFooterBtn} onPress={onVirtualChai}>
-              <Text style={styles.secondaryFooterBtnText}>☕ Virtual Chai</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+                {/* 5. Like / Swipe Button */}
+                {onLike && (
+                  <TouchableOpacity
+                    style={styles.cardLikeBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      hapticFeedback.heavy();
+                      onLike();
+                    }}
+                    accessibilityLabel="Like Profile">
+                    <Text style={styles.cardLikeBtnIcon}>❤️</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        )}
       </SafeAreaView>
 
       {/* Cosmic Kundali & Vibe Harmony Breakdown Modal */}
@@ -1347,74 +1429,163 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(14, 15, 19, 0.95)',
+    backgroundColor: 'rgba(10, 11, 15, 0.94)',
     borderTopWidth: 1,
-    borderTopColor: '#20222B',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 12,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
+    ...Platform.select({
+      web: { backdropFilter: 'blur(20px)', boxShadow: '0px -6px 24px rgba(0, 0, 0, 0.6)' },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+        elevation: 10,
+      },
+    }),
   },
-  actionPassBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#1E1F28',
-    justifyContent: 'center',
+  cardRewindBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#161822',
+    borderWidth: 1.5,
+    borderColor: '#EAB308',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#343847',
-  },
-  actionPassIcon: {
-    color: '#8E94A5',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  actionChaiBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF9800',
-    height: 50,
-    borderRadius: 25,
-    paddingHorizontal: 14,
-    gap: 6,
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 8px rgba(234, 179, 8, 0.35)' },
+      default: {
+        shadowColor: '#EAB308',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 6,
+        elevation: 4,
+      },
+    }),
   },
-  actionChaiEmoji: {
-    fontSize: 18,
-  },
-  actionChaiText: {
-    color: '#000000',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  actionCommentBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#1E1F28',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E94057',
-  },
-  actionCommentIcon: {
-    fontSize: 18,
-  },
-  actionLikeBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#E94057',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionLikeIcon: {
-    color: '#ffffff',
+  cardRewindBtnIcon: {
+    color: '#EAB308',
     fontSize: 20,
+    fontWeight: '900',
+  },
+  cardPassBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#1A1116',
+    borderWidth: 2,
+    borderColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 12px rgba(255, 59, 48, 0.4)' },
+      default: {
+        shadowColor: '#FF3B30',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        elevation: 6,
+      },
+    }),
+  },
+  cardPassBtnIcon: {
+    color: '#FF3B30',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  cardChaiBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#0F1A28',
+    borderWidth: 1.5,
+    borderColor: '#00F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 10px rgba(0, 242, 254, 0.35)' },
+      default: {
+        shadowColor: '#00F2FE',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 5,
+      },
+    }),
+  },
+  cardChaiBtnIcon: {
+    color: '#00F2FE',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  cardSparkNoteBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1E1B10',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    ...Platform.select({
+      web: { boxShadow: '0px 2px 10px rgba(245, 158, 11, 0.4)' },
+      default: {
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 5,
+      },
+    }),
+  },
+  cardSparkNoteBtnIcon: {
+    fontSize: 20,
+  },
+  cardFreePillDot: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: '#000000',
+  },
+  cardFreePillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  cardLikeBtn: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#FF2B66',
+    borderWidth: 2,
+    borderColor: '#FF5A7E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 16px rgba(255, 43, 102, 0.6)' },
+      default: {
+        shadowColor: '#FF2B66',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.6,
+        shadowRadius: 12,
+        elevation: 8,
+      },
+    }),
+  },
+  cardLikeBtnIcon: {
+    fontSize: 24,
   },
   primaryFooterBtn: {
     flex: 1,

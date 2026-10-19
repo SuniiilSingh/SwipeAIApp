@@ -675,6 +675,10 @@ export default function DiscoveryScreen() {
     }
 
     return true;
+  }).sort((a, b) => {
+    const distA = typeof a.distanceKm === 'number' ? a.distanceKm : 999;
+    const distB = typeof b.distanceKm === 'number' ? b.distanceKm : 999;
+    return distA - distB;
   });
 
   // Proactive pre-fetch top candidate photos into memory-disk cache for instantaneous 60/120fps swiping

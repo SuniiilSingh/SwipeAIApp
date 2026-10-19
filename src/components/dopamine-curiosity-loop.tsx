@@ -150,7 +150,7 @@ export default function DopamineCuriosityLoop({
 }: DopamineCuriosityLoopProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [minTimePassed, setMinTimePassed] = useState(false);
-  const [isTargetLocked, setIsTargetLocked] = useState(false);
+  const [isProfileLocked, setIsProfileLocked] = useState(false);
   const hasFinishedRef = useRef(false);
 
   // Proactive prefetch candidate photos in parallel while radar is sweeping
@@ -218,11 +218,11 @@ export default function DopamineCuriosityLoop({
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fadeOutAnim = useRef(new Animated.Value(1)).current;
 
-  // Trigger target lock when data arrives or when ready
+  // Trigger profile lock when data arrives or when ready
   useEffect(() => {
     const hasRealData = Boolean(candidates && candidates.length > 0);
-    if ((hasRealData || minTimePassed) && !isTargetLocked) {
-      setIsTargetLocked(true);
+    if ((hasRealData || minTimePassed) && !isProfileLocked) {
+      setIsProfileLocked(true);
       hapticFeedback.medium();
       Animated.spring(lockAnim, {
         toValue: 1,
@@ -231,7 +231,7 @@ export default function DopamineCuriosityLoop({
         useNativeDriver: true,
       }).start();
     }
-  }, [candidates, minTimePassed, isTargetLocked]);
+  }, [candidates, minTimePassed, isProfileLocked]);
 
   // 1. Min duration tracker
   useEffect(() => {
@@ -401,43 +401,43 @@ export default function DopamineCuriosityLoop({
     outputRange: ['0%', '100%'],
   });
 
-  const targetCategoryLabel = seekingGender === 'FEMALE' ? 'VERIFIED WOMEN' : seekingGender === 'MALE' ? 'VERIFIED MEN' : 'VERIFIED SINGLES';
-  const targetSeekText = seekingGender === 'FEMALE' ? 'verified women' : seekingGender === 'MALE' ? 'verified men' : 'active singles';
+  const profileCategoryLabel = seekingGender === 'FEMALE' ? 'VERIFIED WOMEN' : seekingGender === 'MALE' ? 'VERIFIED MEN' : 'VERIFIED SINGLES';
+  const profileSeekText = seekingGender === 'FEMALE' ? 'verified women' : seekingGender === 'MALE' ? 'verified men' : 'active singles';
 
   const RADAR_SCAN_STEPS = [
     {
       phase: 1,
       title: filterLabel ? `⚡ Proximity Radar: ${filterLabel}` : '⚡ Proximity Radar Active',
       sub: filterLabel
-        ? `Sweeping database within radius for ${filterLabel} ${targetSeekText}...`
-        : `Sweeping 5km radius for ${targetSeekText}...`,
-      tag: filterLabel ? `DB FILTER: ${filterLabel.toUpperCase()}` : 'SCANNING FREQUENCY 5.8 GHz',
-      status: 'LOCKING RADAR',
+        ? `Sweeping database from 0km up to radius for ${filterLabel} ${profileSeekText}...`
+        : `Scanning proximity rings from 0km up to search radius for ${profileSeekText}...`,
+      tag: filterLabel ? `DB FILTER: ${filterLabel.toUpperCase()}` : 'SCANNING PROXIMITY RINGS',
+      status: 'RADAR ACTIVE',
     },
     {
       phase: 2,
       title: '🛡️ Zero-Bot Validation',
-      sub: 'Filtering catfish & checking 3D facial liveness...',
+      sub: 'Filtering catfish & checking 3D facial liveness across rings...',
       tag: '100% HUMAN ASSURANCE',
       status: 'VERIFYING BIOMETRICS',
     },
     {
       phase: 3,
-      title: isTargetLocked ? '🎯 Target Locked Nearby' : '🔥 Chemistry Match Detected',
-      sub: isTargetLocked
+      title: isProfileLocked ? '✨ Profiles Found Nearby' : '🔥 Chemistry Match Detected',
+      sub: isProfileLocked
         ? filterLabel
           ? `Found verified ${filterLabel} profiles matching your vibe!`
-          : `Locked ${activeAvatars.length} verified matches matching your vibe!`
-        : `Found ${targetSeekText} matching your banter vibe!`,
-      tag: isTargetLocked ? 'TARGETS LOCKED > 94%' : 'NEARBY COMPATIBILITY > 94%',
-      status: isTargetLocked ? 'TARGETS IDENTIFIED' : 'MATCHES IDENTIFIED',
+          : `Discovered ${candidates && candidates.length > 0 ? candidates.length : activeAvatars.length} verified profiles sorted by closest distance!`
+        : `Found ${profileSeekText} matching your banter vibe!`,
+      tag: isProfileLocked ? 'PROFILES DISCOVERED > 94%' : 'NEARBY COMPATIBILITY > 94%',
+      status: isProfileLocked ? 'PROFILES IDENTIFIED' : 'MATCHES IDENTIFIED',
     },
     {
       phase: 4,
       title: '✨ Curating Discovery Deck',
       sub: filterLabel
-        ? `Locking ${filterLabel} candidates into your discovery feed...`
-        : 'Locking top candidates to your discovery feed...',
+        ? `Sorting closest ${filterLabel} profiles to the top of your feed...`
+        : 'Sorting closest verified profiles to the top of your feed...',
       tag: 'DECK READY',
       status: 'LAUNCHING FEED',
     },
@@ -464,7 +464,7 @@ export default function DopamineCuriosityLoop({
             <View style={styles.liveRadarPill}>
               <View style={styles.radarDot} />
               <Text style={styles.radarPillText}>
-                {isTargetLocked ? 'TARGETS LOCKED' : 'RADAR ACTIVE'}
+                {isProfileLocked ? 'PROFILES FOUND' : 'RADAR ACTIVE'}
               </Text>
             </View>
           </View>
@@ -538,8 +538,8 @@ export default function DopamineCuriosityLoop({
                     transform: [{ scale }],
                   },
                 ]}>
-                {isTargetLocked ? (
-                  // Target Locked: Reveal photo with smooth lock animation
+                {isProfileLocked ? (
+                  // Profile Locked: Reveal photo with smooth lock animation
                   <Animated.View
                     style={[
                       styles.avatarImageWrapper,
@@ -572,7 +572,7 @@ export default function DopamineCuriosityLoop({
 
                 <View style={[styles.avatarTag, { backgroundColor: avatar.color }]}>
                   <Text style={styles.avatarTagText}>
-                    {isTargetLocked ? `📍 ${avatar.distance}` : '📍 Pinging...'}
+                    {isProfileLocked ? `📍 ${avatar.distance}` : '📍 Pinging...'}
                   </Text>
                 </View>
               </Animated.View>
@@ -584,9 +584,11 @@ export default function DopamineCuriosityLoop({
         <View style={styles.bottomSection}>
           {/* Phase Badge */}
           <View style={styles.phaseBadgeRow}>
-            <View style={[styles.phasePill, isTargetLocked && styles.phasePillLocked]}>
-              <Text style={[styles.phasePillText, isTargetLocked && styles.phasePillTextLocked]}>
-                {isTargetLocked ? '🎯 3 TARGETS LOCKED' : currentStep.tag}
+            <View style={[styles.phasePill, isProfileLocked && styles.phasePillLocked]}>
+              <Text style={[styles.phasePillText, isProfileLocked && styles.phasePillTextLocked]}>
+                {isProfileLocked
+                  ? `✨ ${candidates && candidates.length > 0 ? candidates.length : 3} PROFILES FOUND`
+                  : currentStep.tag}
               </Text>
             </View>
             <Text style={styles.statusLiveText}>● {currentStep.status}</Text>
@@ -600,21 +602,21 @@ export default function DopamineCuriosityLoop({
           <View style={styles.teaserCard}>
             <View style={styles.teaserTopRow}>
               <Text style={styles.teaserCategory}>
-                ⚡ {targetCategoryLabel} SPOTLIGHT
+                ⚡ {profileCategoryLabel} SPOTLIGHT
               </Text>
               <Text style={styles.teaserDistance}>
-                {isTargetLocked ? `📍 ${activeAvatars[0]?.distance || 'Nearby'}` : '📍 3 within 1.5 km'}
+                {isProfileLocked ? `📍 ${activeAvatars[0]?.distance || 'Nearby'}` : '📍 3 within 1.5 km'}
               </Text>
             </View>
             <Text style={styles.teaserQuote} numberOfLines={2}>
-              {isTargetLocked
+              {isProfileLocked
                 ? `"${activeAvatars[0]?.bio || activeAvatars[0]?.vibe || 'Looking for genuine banter and spontaneous coffee dates...'}"`
                 : '"Looking for someone who argues about playlists over late craft beers..."'}
             </Text>
             <View style={styles.teaserTrustRow}>
               <Text style={styles.teaserTrustBadge}>🛡️ 3D Liveness Verified</Text>
               <Text style={styles.teaserTrustBadge}>
-                {isTargetLocked ? `✨ ${activeAvatars[0]?.vibe || 'Verified Profile'}` : '☕ Indiranagar Regular'}
+                {isProfileLocked ? `✨ ${activeAvatars[0]?.vibe || 'Verified Profile'}` : '☕ Indiranagar Regular'}
               </Text>
             </View>
           </View>

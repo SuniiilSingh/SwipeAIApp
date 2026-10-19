@@ -23,6 +23,7 @@ interface DopamineCuriosityLoopProps {
   isLoading?: boolean;
   candidates?: CandidateCard[];
   userProfile?: UserProfile | null;
+  filterLabel?: string;
   onComplete?: () => void;
 }
 
@@ -144,6 +145,7 @@ export default function DopamineCuriosityLoop({
   isLoading = false,
   candidates,
   userProfile,
+  filterLabel,
   onComplete,
 }: DopamineCuriosityLoopProps) {
   const [stepIndex, setStepIndex] = useState(0);
@@ -405,9 +407,11 @@ export default function DopamineCuriosityLoop({
   const RADAR_SCAN_STEPS = [
     {
       phase: 1,
-      title: '⚡ Proximity Radar Active',
-      sub: `Sweeping 5km radius for ${targetSeekText}...`,
-      tag: 'SCANNING FREQUENCY 5.8 GHz',
+      title: filterLabel ? `⚡ Proximity Radar: ${filterLabel}` : '⚡ Proximity Radar Active',
+      sub: filterLabel
+        ? `Sweeping database within radius for ${filterLabel} ${targetSeekText}...`
+        : `Sweeping 5km radius for ${targetSeekText}...`,
+      tag: filterLabel ? `DB FILTER: ${filterLabel.toUpperCase()}` : 'SCANNING FREQUENCY 5.8 GHz',
       status: 'LOCKING RADAR',
     },
     {
@@ -420,14 +424,20 @@ export default function DopamineCuriosityLoop({
     {
       phase: 3,
       title: isTargetLocked ? '🎯 Target Locked Nearby' : '🔥 Chemistry Match Detected',
-      sub: isTargetLocked ? `Locked ${activeAvatars.length} verified matches matching your vibe!` : `Found ${targetSeekText} matching your banter vibe!`,
+      sub: isTargetLocked
+        ? filterLabel
+          ? `Found verified ${filterLabel} profiles matching your vibe!`
+          : `Locked ${activeAvatars.length} verified matches matching your vibe!`
+        : `Found ${targetSeekText} matching your banter vibe!`,
       tag: isTargetLocked ? 'TARGETS LOCKED > 94%' : 'NEARBY COMPATIBILITY > 94%',
       status: isTargetLocked ? 'TARGETS IDENTIFIED' : 'MATCHES IDENTIFIED',
     },
     {
       phase: 4,
       title: '✨ Curating Discovery Deck',
-      sub: 'Locking top candidates to your discovery feed...',
+      sub: filterLabel
+        ? `Locking ${filterLabel} candidates into your discovery feed...`
+        : 'Locking top candidates to your discovery feed...',
       tag: 'DECK READY',
       status: 'LAUNCHING FEED',
     },

@@ -280,7 +280,14 @@ export default function DiscoveryScreen() {
     }, [])
   );
 
-  const loadFeed = async (communityOverride?: MicroCircle | null) => {
+  const activeFilterLabel = selectedCommunityFilter
+    ? `Circle: ${selectedCommunityFilter.name}`
+    : selectedFilter !== 'ALL'
+    ? FILTER_TAGS.find((t) => t.id === selectedFilter)?.label
+    : undefined;
+  const hasActiveFilter = Boolean(activeFilterLabel);
+
+  const loadFeed = async (communityOverride?: MicroCircle | null, filterOverride?: string) => {
     feedLoadedRef.current = false;
     loopTimerFinishedRef.current = false;
     radarFadeAnim.setValue(1);
@@ -327,15 +334,26 @@ export default function DiscoveryScreen() {
       } catch (e) {}
 
       const effectiveCommunity = communityOverride !== undefined ? communityOverride : selectedCommunityFilter;
+      const effectiveFilter = filterOverride !== undefined ? filterOverride : selectedFilter;
+
+      let dietaryFilters: string[] | undefined = undefined;
+      if (effectiveFilter && ['PURE_VEG', 'STRICT_JAIN', 'VEGAN', 'EGGETARIAN', 'NON_VEG'].includes(effectiveFilter)) {
+        dietaryFilters = [effectiveFilter];
+      }
+
       const feed = await api.getFeed({
         maxDistanceKm: myProfile.maxDistanceKm,
         latitude: lat,
         longitude: lon,
         microCircle: effectiveCommunity ? effectiveCommunity.name : undefined,
+        dietaryFilters,
       });
-      const list = feed?.candidates && Array.isArray(feed.candidates) && feed.candidates.length > 0
+
+      // Accurately capture database candidates. If database returns an array, honor it.
+      const list = feed && Array.isArray(feed.candidates)
         ? feed.candidates
         : FALLBACK_DISCOVERY_CANDIDATES;
+
       setCandidates(list);
       setRemainingSwipes(myProfile.hasActivePass ? 999 : (feed?.remainingDailySwipes ?? 25));
 
@@ -378,12 +396,41 @@ export default function DiscoveryScreen() {
     }
   };
 
-  const handleSelectCommunityFilter = (comm: MicroCircle | null) => {
-    setSelectedCommunityFilter(comm);
+  const handleSelectFilter = (filterId: string) => {
+    const nextFilter = selectedFilter === filterId ? 'ALL' : filterId;
+    setSelectedFilter(nextFilter);
+    hapticFeedback.medium();
     radarFadeAnim.setValue(1);
     setIsCuriosityLoopActive(true);
     setLoading(true);
-    loadFeed(comm);
+    loadFeed(selectedCommunityFilter, nextFilter);
+  };
+
+  const handleSelectCommunityFilter = (comm: MicroCircle | null) => {
+    setSelectedCommunityFilter(comm);
+    hapticFeedback.medium();
+    radarFadeAnim.setValue(1);
+    setIsCuriosityLoopActive(true);
+    setLoading(true);
+    loadFeed(comm, selectedFilter);
+  };
+
+  const handleClearFiltersAndShowAll = () => {
+    hapticFeedback.medium();
+    setSelectedFilter('ALL');
+    setSelectedCommunityFilter(null);
+    radarFadeAnim.setValue(1);
+    setIsCuriosityLoopActive(true);
+    setLoading(true);
+    loadFeed(null, 'ALL');
+  };
+
+  const handleScanDatabaseMore = () => {
+    hapticFeedback.heavy();
+    radarFadeAnim.setValue(1);
+    setIsCuriosityLoopActive(true);
+    setLoading(true);
+    loadFeed(selectedCommunityFilter, selectedFilter);
   };
 
   const handleRefresh = () => {
@@ -1103,7 +1150,7 @@ function SwipeableCandidateCard({
               <TouchableOpacity
                 key={filter.id}
                 style={[styles.filterChip, isSelected && styles.filterChipActive]}
-                onPress={() => setSelectedFilter(selectedFilter === filter.id ? 'ALL' : filter.id)}>
+                onPress={() => handleSelectFilter(filter.id)}>
                 <Text
                   style={[
                     styles.filterChipText,
@@ -1165,27 +1212,111 @@ function SwipeableCandidateCard({
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>🎉</Text>
-              <Text style={styles.emptyTitle}>
-                {candidates.length === 0 ? "You're All Caught Up!" : 'No Profiles in this Category'}
-              </Text>
-              <Text style={styles.emptySub}>
-                {candidates.length === 0
-                  ? 'Check back soon for new verified singles in your area, or adjust your match distance and filters.'
-                  : 'Try selecting "All Profiles" to explore the remaining verified singles.'}
-              </Text>
-              <TouchableOpacity
-                style={styles.resetFilterBtn}
-                onPress={() => {
-                  setSelectedFilter('ALL');
-                  if (candidates.length === 0) {
-                    loadFeed();
-                  }
-                }}>
-                <Text style={styles.resetFilterBtnText}>
-                  {candidates.length === 0 ? '🔄 Check for New Profiles' : 'Show All Profiles'}
-                </Text>
-              </TouchableOpacity>
+              {hasActiveFilter ? (
+                // SPECIFIC FILTER EMPTY STATE
+                <View style={styles.emptyCardBox}>
+                  {/* Glowing Radar Pulse Icon */}
+                  <View style={styles.radarPulseRingOuter}>
+                    <View style={styles.radarPulseRingInner}>
+                      <Text style={styles.emptyCardIcon}>🔍</Text>
+                    </View>
+                  </View>
+
+                  {/* Active Filter Pill */}
+                  <View style={styles.activeFilterBadge}>
+                    <View style={styles.activeFilterDot} />
+                    <Text style={styles.activeFilterBadgeText}>
+                      FILTER ACTIVE: {activeFilterLabel?.toUpperCase()}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.emptyCardTitle}>
+                    No {activeFilterLabel} Profiles Found Nearby
+                  </Text>
+                  <Text style={styles.emptyCardSub}>
+                    We scanned the database within {userProfile?.maxDistanceKm || 50}km, but found no verified singles matching this specific filter right now.
+                  </Text>
+
+                  {/* Action 1: Re-scan DB for this specific filter */}
+                  <TouchableOpacity
+                    style={styles.emptyPrimaryBtn}
+                    activeOpacity={0.8}
+                    onPress={() => handleSelectFilter(selectedFilter)}>
+                    <Text style={styles.emptyPrimaryBtnText}>
+                      🔄 Re-scan Database for {activeFilterLabel}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Action 2: Show All Profiles */}
+                  <TouchableOpacity
+                    style={styles.emptySecondaryBtn}
+                    activeOpacity={0.8}
+                    onPress={handleClearFiltersAndShowAll}>
+                    <Text style={styles.emptySecondaryBtnText}>
+                      🌟 Clear Filter & Show All Profiles {candidates.length > 0 ? `(${candidates.length} in area)` : ''}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                // DECK FINISHED / LAST PROFILE REACHED (REAL DATA REFRESH & FETCH)
+                <View style={styles.emptyCardBox}>
+                  {/* Live Proximity Radar Graphic */}
+                  <View style={styles.deckFinishedRadarWrap}>
+                    <View style={styles.radarWave3} />
+                    <View style={styles.radarWave2} />
+                    <View style={styles.radarWave1}>
+                      <Text style={styles.emptyCardIcon}>📡</Text>
+                    </View>
+                  </View>
+
+                  {/* Live Radar Status Pill */}
+                  <View style={styles.liveProximityStatusPill}>
+                    <View style={styles.liveBeaconDot} />
+                    <Text style={styles.liveProximityStatusText}>
+                      PROXIMITY SCANNER • {userProfile?.city || 'Bangalore'} ({userProfile?.maxDistanceKm || 50}km)
+                    </Text>
+                  </View>
+
+                  <Text style={styles.emptyCardTitle}>
+                    You've Seen Everyone Nearby!
+                  </Text>
+                  <Text style={styles.emptyCardSub}>
+                    You've browsed through all active verified profiles in your area for now. New members join throughout the day. Tap below to query the database for fresh singles!
+                  </Text>
+
+                  {/* Action 1: Live DB Fetch */}
+                  <TouchableOpacity
+                    style={styles.emptyPrimaryBtn}
+                    activeOpacity={0.8}
+                    onPress={handleScanDatabaseMore}>
+                    <Text style={styles.emptyPrimaryBtnText}>
+                      📡 Scan Database for More Profiles
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Action 2: Rewind (if history exists) */}
+                  {swipedHistory.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.emptySecondaryBtn}
+                      activeOpacity={0.8}
+                      onPress={handleRewind}>
+                      <Text style={styles.emptySecondaryBtnText}>
+                        ↺ Rewind Last Profile ({swipedHistory[0]?.candidate?.displayName || 'Candidate'})
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Action 3: Expand Search Radius */}
+                  <TouchableOpacity
+                    style={styles.emptyGhostBtn}
+                    activeOpacity={0.8}
+                    onPress={() => setShowDesireModal(true)}>
+                    <Text style={styles.emptyGhostBtnText}>
+                      📍 Expand Discovery Radius & Preferences →
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           }
         />
@@ -1454,6 +1585,7 @@ function SwipeableCandidateCard({
             isLoading={loading}
             candidates={candidates}
             userProfile={userProfile}
+            filterLabel={activeFilterLabel}
             onComplete={handleLoopComplete}
           />
         </Animated.View>
@@ -2141,38 +2273,202 @@ const styles = StyleSheet.create({
     display: 'none',
   },
   emptyContainer: {
-    padding: 32,
+    padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 40,
+    marginTop: 20,
+    width: '100%',
   },
-  emptyIcon: {
-    fontSize: 44,
+  emptyCardBox: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#161822',
+    borderWidth: 1,
+    borderColor: '#262A38',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    ...Platform.select({
+      web: { boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.45)' },
+      default: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.45,
+        shadowRadius: 16,
+        elevation: 8,
+      },
+    }),
+  },
+  emptyCardIcon: {
+    fontSize: 30,
+  },
+  radarPulseRingOuter: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: 'rgba(233, 64, 87, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(233, 64, 87, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  radarPulseRingInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(233, 64, 87, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeFilterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
     marginBottom: 12,
   },
-  emptyTitle: {
-    color: '#ffffff',
+  activeFilterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F59E0B',
+  },
+  activeFilterBadgeText: {
+    color: '#F59E0B',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  emptyCardTitle: {
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 6,
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  emptySub: {
+  emptyCardSub: {
     color: '#8E94A5',
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 18,
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  emptyPrimaryBtn: {
+    width: '100%',
+    backgroundColor: '#E94057',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    ...Platform.select({
+      web: { boxShadow: '0px 4px 14px rgba(233, 64, 87, 0.4)' },
+      default: {
+        shadowColor: '#E94057',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+        elevation: 6,
+      },
+    }),
+  },
+  emptyPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  emptySecondaryBtn: {
+    width: '100%',
+    backgroundColor: '#1E212D',
+    borderWidth: 1,
+    borderColor: '#323648',
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptySecondaryBtnText: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  emptyGhostBtn: {
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyGhostBtnText: {
+    color: '#8E94A5',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deckFinishedRadarWrap: {
+    width: 90,
+    height: 90,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
     marginBottom: 16,
   },
-  resetFilterBtn: {
-    backgroundColor: '#E94057',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 12,
+  radarWave3: {
+    position: 'absolute',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 242, 254, 0.2)',
   },
-  resetFilterBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
+  radarWave2: {
+    position: 'absolute',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 1.5,
+    borderColor: 'rgba(0, 242, 254, 0.35)',
+    backgroundColor: 'rgba(0, 242, 254, 0.05)',
+  },
+  radarWave1: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(0, 242, 254, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#00F2FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  liveProximityStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  liveBeaconDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  liveProximityStatusText: {
+    color: '#10B981',
+    fontSize: 10,
     fontWeight: '800',
+    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,

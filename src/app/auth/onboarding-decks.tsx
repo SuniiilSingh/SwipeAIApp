@@ -1030,9 +1030,7 @@ export default function OnboardingDecksScreen() {
         return { valid: true };
       }
       case 3: {
-        if (!microCircle || !microCircle.trim()) {
-          return { valid: false, message: 'Please join a neighborhood micro-circle.' };
-        }
+        // Micro-circle neighborhood tribe is now completely optional
         if (!job || !job.trim()) {
           return { valid: false, message: 'Please enter your career / profession to continue.' };
         }
@@ -2221,7 +2219,7 @@ export default function OnboardingDecksScreen() {
 
                 <View style={styles.deckBody}>
                   <View style={styles.tribeHeaderRow}>
-                    <Text style={styles.fieldLabel}>📍 NEIGHBORHOOD MICRO-CIRCLES</Text>
+                    <Text style={styles.fieldLabel}>📍 NEIGHBORHOOD MICRO-CIRCLES (OPTIONAL)</Text>
                     <TouchableOpacity
                       style={styles.tribeBrowseModalBtn}
                       activeOpacity={0.8}
@@ -2248,16 +2246,27 @@ export default function OnboardingDecksScreen() {
                       setShowTribeModal(true);
                     }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.selectedTribeLabel}>ACTIVE TRIBE / CIRCLE</Text>
+                      <Text style={styles.selectedTribeLabel}>ACTIVE TRIBE / CIRCLE (OPTIONAL)</Text>
                       <Text style={styles.selectedTribeValue} numberOfLines={1}>
-                        {microCircle ? `📍 ${microCircle}` : 'Tap a circle below or browse directory...'}
+                        {microCircle ? `📍 ${microCircle}` : 'Tap a circle below, or skip for now...'}
                       </Text>
                     </View>
-                    <View style={styles.selectedTribeEditBadge}>
-                      <Text style={styles.selectedTribeEditText}>
-                        {microCircle ? 'Change' : 'Select'}
-                      </Text>
-                    </View>
+                    {microCircle ? (
+                      <TouchableOpacity
+                        style={styles.selectedTribeEditBadge}
+                        activeOpacity={0.8}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          hapticFeedback.light();
+                          setMicroCircle('');
+                        }}>
+                        <Text style={[styles.selectedTribeEditText, { color: '#FF385C' }]}>✕ Clear</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.selectedTribeEditBadge}>
+                        <Text style={styles.selectedTribeEditText}>Select</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
 
                   {/* Search Input for Tribes */}
@@ -2342,7 +2351,7 @@ export default function OnboardingDecksScreen() {
                               activeOpacity={0.85}
                               onPress={() => {
                                 hapticFeedback.light();
-                                setMicroCircle(circle.name);
+                                setMicroCircle((prev) => (prev === circle.name ? '' : circle.name));
                               }}>
                               <View style={{ flex: 1 }}>
                                 <View style={styles.tribeCardTitleRow}>
@@ -3050,6 +3059,9 @@ export default function OnboardingDecksScreen() {
               if (circle.city) {
                 setTribeCityFilter(circle.city);
               }
+            } else {
+              hapticFeedback.light();
+              setMicroCircle('');
             }
           }}
         />

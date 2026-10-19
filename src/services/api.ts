@@ -858,8 +858,16 @@ export const api = {
           if (data && data.publicUrl) {
             return normalizeImageUrl(data.publicUrl);
           }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (errData && errData.error === 'EXPLICIT_CONTENT_REJECTED') {
+            throw new Error(`EXPLICIT_CONTENT_REJECTED: ${errData.message || 'Image violates community guidelines'}`);
+          }
         }
-      } catch (e) {
+      } catch (e: any) {
+        if (e?.message?.includes('EXPLICIT_CONTENT_REJECTED')) {
+          throw e;
+        }
         console.warn('Direct base64 upload failed, trying file upload:', e);
       }
     }
@@ -959,9 +967,17 @@ export const api = {
           if (data && data.publicUrl) {
             return normalizeImageUrl(data.publicUrl);
           }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (errData && errData.error === 'EXPLICIT_CONTENT_REJECTED') {
+            throw new Error(`EXPLICIT_CONTENT_REJECTED: ${errData.message || 'Image violates community guidelines'}`);
+          }
         }
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (e?.message?.includes('EXPLICIT_CONTENT_REJECTED')) {
+        throw e;
+      }
       console.warn('Fallback base64 upload failed:', e);
     }
 

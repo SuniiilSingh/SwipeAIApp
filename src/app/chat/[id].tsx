@@ -883,9 +883,23 @@ export default function ChatScreen() {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 40);
 
-        // Upload photo to Cloudflare R2 / backend
-        const uploadedImageUrl = await api.uploadImage(asset.uri, asset.base64);
-        const imageUrlToSend = uploadedImageUrl || asset.uri;
+        // Upload photo to Cloudflare R2 / backend with Layer 2 SafeDate Shield scan
+        let imageUrlToSend: string;
+        try {
+          const uploadedImageUrl = await api.uploadImage(asset.uri, asset.base64);
+          imageUrlToSend = uploadedImageUrl || asset.uri;
+        } catch (uploadErr: any) {
+          // Remove optimistic message if upload was blocked
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          if (uploadErr?.message?.includes('EXPLICIT_CONTENT_REJECTED')) {
+            Alert.alert(
+              '🛡️ SafeDate Shield Alert',
+              'This photo was blocked by Shield 360 AI for explicit or sensitive content.\n\nBlunderR strictly prohibits non-consensual explicit media in chat lounges. Violations result in an immediate account suspension.'
+            );
+            return;
+          }
+          throw uploadErr;
+        }
 
         let currentKey = aesKeyRef.current;
         if (!currentKey) {
@@ -904,9 +918,11 @@ export default function ChatScreen() {
           );
         }
       }
-    } catch (err) {
-      console.error('Image pick error:', err);
-      Alert.alert('Error', 'Unable to pick or capture image.');
+    } catch (err: any) {
+      if (!err?.message?.includes('EXPLICIT_CONTENT_REJECTED')) {
+        console.error('Image pick error:', err);
+        Alert.alert('Error', 'Unable to pick or upload image.');
+      }
     }
   };
 
@@ -964,13 +980,27 @@ export default function ChatScreen() {
                   <View style={styles.shieldContentOverlay}>
                     <Text style={styles.shieldIcon}>🛡️</Text>
                     <Text style={styles.shieldTitle}>Sensitive Content Warning</Text>
-                    <Text style={styles.shieldSub}>Auto-blurred by Shield 360 Private Detector.</Text>
-                    <TouchableOpacity
-                      style={styles.revealBtn}
-                      onPress={() => handleRequestReveal(item.id)}
-                      activeOpacity={0.8}>
-                      <Text style={styles.revealBtnText}>Tap to View</Text>
-                    </TouchableOpacity>
+                    <Text style={styles.shieldSub}>
+                      {item.blurReason || 'Auto-blurred by Shield 360 Private Detector.'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                      <TouchableOpacity
+                        style={styles.revealBtn}
+                        onPress={() => handleRequestReveal(item.id)}
+                        activeOpacity={0.8}>
+                        <Text style={styles.revealBtnText}>👁️ Tap to View</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.revealBtn, { backgroundColor: 'rgba(239, 68, 68, 0.25)', borderColor: '#EF4444' }]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          privateDetector.reportMedia(item.id, 'UNSOLICITED_SENSITIVE_MEDIA');
+                          handleBlockUser();
+                        }}
+                        activeOpacity={0.8}>
+                        <Text style={[styles.revealBtnText, { color: '#FCA5A5' }]}>🚨 Report</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               ) : (

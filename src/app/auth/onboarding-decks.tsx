@@ -1237,6 +1237,19 @@ export default function OnboardingDecksScreen() {
         }
         return next;
       });
+    } catch (err: any) {
+      if (err?.message?.includes('EXPLICIT_CONTENT_REJECTED')) {
+        Alert.alert(
+          '🛡️ SafeDate Shield Alert',
+          'This photo was flagged by Shield 360 AI for explicit or sensitive content.\n\nBlunderR strictly prohibits nude or explicit imagery on public profiles to maintain community safety. Please select a different photo.'
+        );
+        setPhotoSlots((prev) => {
+          const next = [...prev];
+          next[slotIndex] = '';
+          photoSlotsRef.current = next;
+          return next;
+        });
+      }
     } finally {
       setUploadingSlots((prev) => {
         const copy = { ...prev };

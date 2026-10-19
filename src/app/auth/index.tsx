@@ -39,12 +39,22 @@ import { DatingIntent } from '@/types';
 import LivenessCameraModal from '@/components/liveness-camera-modal';
 import { FEATURE_FLAGS } from '@/config/features';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
+import { hapticFeedback } from '@/utils/haptics';
 
 const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
   'Kannada 🌿', 'Malayalam 🌴', 'Marathi 🚩', 'Gujarati 💎', 'Marwari 🏜️', 'Urdu 📜',
   'French 🥐', 'Spanish 💃', 'German 🥨'
 ];
+
+const getLanguageFlag = (lang: string): string => {
+  const match = ONBOARDING_LANGUAGES.find((item) => item.startsWith(lang));
+  if (match) {
+    const parts = match.split(' ');
+    return parts[1] || '🗣️';
+  }
+  return '🗣️';
+};
 
 // First-screen teaser deck (Option A · Glass). Tara is the flagship original character.
 const TEASER_PROFILES = [
@@ -169,14 +179,44 @@ export default function AuthScreen() {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [customLangInput, setCustomLangInput] = useState('');
 
+  // Option 1 Horizontal Scroller refs
+  const cardLangScrollRef = useRef<ScrollView>(null);
+  const modalLangScrollRef = useRef<ScrollView>(null);
+
+  // Reset horizontal scrollers to first item (x: 0) whenever user leaves the page or changes step
+  useEffect(() => {
+    cardLangScrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [step]);
+
+  // Reset modal scroller to first item (x: 0) when opened or closed
+  useEffect(() => {
+    if (!showLanguageModal) {
+      modalLangScrollRef.current?.scrollTo({ x: 0, animated: false });
+    }
+  }, [showLanguageModal]);
+
+  // Reset on unmount / leaving the screen
+  useEffect(() => {
+    return () => {
+      cardLangScrollRef.current?.scrollTo({ x: 0, animated: false });
+      modalLangScrollRef.current?.scrollTo({ x: 0, animated: false });
+    };
+  }, []);
+
   const toggleLanguage = (lang: string) => {
     const cleanLang = lang.split(' ')[0];
     if (tempSelectedLanguages.includes(cleanLang)) {
       if (tempSelectedLanguages.length > 1) {
         setTempSelectedLanguages(tempSelectedLanguages.filter((l) => l !== cleanLang));
+      } else {
+        Alert.alert('Language Required', 'Please keep at least 1 language for algorithmic matching.');
       }
     } else {
       setTempSelectedLanguages([...tempSelectedLanguages, cleanLang]);
+      // Smoothly pan horizontal scroller to show newly added language
+      setTimeout(() => {
+        modalLangScrollRef.current?.scrollToEnd({ animated: true });
+      }, 60);
     }
   };
 
@@ -186,8 +226,20 @@ export default function AuthScreen() {
     const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
     if (!tempSelectedLanguages.includes(capitalized)) {
       setTempSelectedLanguages([...tempSelectedLanguages, capitalized]);
+      setTimeout(() => {
+        modalLangScrollRef.current?.scrollToEnd({ animated: true });
+      }, 60);
     }
     setCustomLangInput('');
+  };
+
+  const handleRemoveLanguageOnCard = (langToRemove: string) => {
+    hapticFeedback.light();
+    if (selectedLanguages.length > 1) {
+      setSelectedLanguages(selectedLanguages.filter((l) => l !== langToRemove));
+    } else {
+      Alert.alert('Language Required', 'Please keep at least 1 language for algorithmic matching.');
+    }
   };
 
   // Modals & Permissions
@@ -1514,49 +1566,71 @@ export default function AuthScreen() {
               ))}
             </View>
 
-            {/* Languages Known Section (Clickable Text Box with Pen Edit -> Opens Pop-up Modal) */}
+            {/* Languages Known Section - Option 1: Single-Line Horizontal Scroller */}
             <View style={styles.languageSectionWrap}>
               <View style={styles.langHeaderRow}>
-                <Text style={styles.langSectionTitle}>🗣️ Languages Known</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.langSectionTitle}>🗣️ Languages Known</Text>
+                  <View style={styles.langCountBadge}>
+                    <Text style={styles.langCountBadgeText}>
+                      {selectedLanguages.length} selected
+                    </Text>
+                  </View>
+                </View>
                 <TouchableOpacity
-                  style={styles.langCountBadge}
+                  style={styles.langEditBtnTop}
                   activeOpacity={0.75}
                   onPress={() => {
+                    hapticFeedback.light();
                     setTempSelectedLanguages([...selectedLanguages]);
                     setCustomLangInput('');
                     setShowLanguageModal(true);
                   }}>
-                  <Text style={styles.langCountBadgeText}>
-                    ✏️ {selectedLanguages.length} selected
-                  </Text>
+                  <Text style={styles.langEditBtnTopText}>✏️ Edit All</Text>
                 </TouchableOpacity>
               </View>
               <Text style={styles.langSectionSub}>
-                Tap the text box or pen icon below to edit languages you speak or add your mother tongue.
+                Swipe horizontally to view all • Fixed single-line
               </Text>
 
-              <TouchableOpacity
-                style={styles.langTextBoxTrigger}
-                activeOpacity={0.8}
-                onPress={() => {
-                  setTempSelectedLanguages([...selectedLanguages]);
-                  setCustomLangInput('');
-                  setShowLanguageModal(true);
-                }}>
-                <Text
-                  style={[
-                    styles.langTextBoxValue,
-                    selectedLanguages.length === 0 && { color: '#6B7280' },
-                  ]}
-                  numberOfLines={2}>
-                  {selectedLanguages.length > 0
-                    ? selectedLanguages.join(', ')
-                    : 'Tap to edit languages known...'}
-                </Text>
-                <View style={styles.langTextBoxRightBadge}>
-                  <Text style={styles.langTextBoxRightText}>✏️ Edit</Text>
-                </View>
-              </TouchableOpacity>
+              {/* Single-Line Horizontal Scroller Strip */}
+              <View style={styles.langHoloScrollTrack}>
+                <ScrollView
+                  ref={cardLangScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.langHoloScrollContent}
+                  keyboardShouldPersistTaps="handled">
+                  {selectedLanguages.map((lang) => {
+                    const flag = getLanguageFlag(lang);
+                    return (
+                      <View key={lang} style={styles.langHoloChip}>
+                        <Text style={styles.langHoloFlag}>{flag}</Text>
+                        <Text style={styles.langHoloChipText}>{lang}</Text>
+                        <TouchableOpacity
+                          onPress={() => handleRemoveLanguageOnCard(lang)}
+                          style={styles.langHoloRemoveBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          activeOpacity={0.7}>
+                          <Text style={styles.langHoloRemoveText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                  {/* Trailing Add More Button */}
+                  <TouchableOpacity
+                    style={styles.langHoloAddMoreChip}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      setTempSelectedLanguages([...selectedLanguages]);
+                      setCustomLangInput('');
+                      setShowLanguageModal(true);
+                    }}>
+                    <Text style={styles.langHoloAddMoreText}>+ Add More</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
             </View>
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleSaveShieldAndIntent} disabled={loading}>
@@ -1598,18 +1672,40 @@ export default function AuthScreen() {
               style={{ maxHeight: 340, width: '100%' }}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
-              {/* Active Selected Chips */}
-              <View style={styles.selectedLangRow}>
-                {tempSelectedLanguages.map((lang) => (
-                  <TouchableOpacity
-                    key={lang}
-                    style={styles.selectedLangChip}
-                    onPress={() => toggleLanguage(lang)}
-                    activeOpacity={0.7}>
-                    <Text style={styles.selectedLangChipText}>✓ {lang}</Text>
-                    <Text style={styles.selectedLangRemoveText}>✕</Text>
-                  </TouchableOpacity>
-                ))}
+              {/* Active Selected Chips - Option 1: Single-Line Horizontal Scroller */}
+              <View style={styles.modalLangScrollerWrap}>
+                <View style={styles.modalLangScrollerHeader}>
+                  <Text style={styles.modalLangScrollerLabel}>
+                    SELECTED ({tempSelectedLanguages.length})
+                  </Text>
+                  <Text style={styles.modalLangScrollerHint}>⇄ Swipe left / right</Text>
+                </View>
+                <ScrollView
+                  ref={modalLangScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.modalLangScrollerContent}
+                  keyboardShouldPersistTaps="handled">
+                  {tempSelectedLanguages.map((lang) => {
+                    const flag = getLanguageFlag(lang);
+                    return (
+                      <TouchableOpacity
+                        key={lang}
+                        style={styles.langHoloChipModal}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          toggleLanguage(lang);
+                        }}
+                        activeOpacity={0.7}>
+                        <Text style={styles.langHoloFlag}>{flag}</Text>
+                        <Text style={styles.langHoloChipTextModal}>{lang}</Text>
+                        <View style={styles.langHoloRemoveBtnModal}>
+                          <Text style={styles.langHoloRemoveTextModal}>✕</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
 
               {/* Preset Language Options */}
@@ -1657,6 +1753,10 @@ export default function AuthScreen() {
               onPress={() => {
                 setSelectedLanguages([...tempSelectedLanguages]);
                 setShowLanguageModal(false);
+                // Reset card scroller to the beginning (x: 0) so user sees from first
+                setTimeout(() => {
+                  cardLangScrollRef.current?.scrollTo({ x: 0, animated: false });
+                }, 50);
               }}>
               <Text style={styles.primaryButtonText}>✓ Done</Text>
             </TouchableOpacity>
@@ -3493,6 +3593,150 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 12,
     lineHeight: 17,
+  },
+  /* Option 1: Horizontal Scroller Language Styles */
+  langEditBtnTop: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+  },
+  langEditBtnTopText: {
+    color: '#FF6B8B',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  langHoloScrollTrack: {
+    backgroundColor: 'rgba(12, 16, 28, 0.85)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  langHoloScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 6,
+  },
+  langHoloChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 56, 92, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 14,
+  },
+  langHoloFlag: {
+    fontSize: 14,
+  },
+  langHoloChipText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  langHoloRemoveBtn: {
+    marginLeft: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langHoloRemoveText: {
+    color: '#FF6B8B',
+    fontSize: 10,
+    fontWeight: '900',
+    lineHeight: 12,
+  },
+  langHoloAddMoreChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+    borderStyle: 'dashed',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+  },
+  langHoloAddMoreText: {
+    color: '#94A3B8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalLangScrollerWrap: {
+    marginBottom: 14,
+    backgroundColor: 'rgba(12, 16, 28, 0.85)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  modalLangScrollerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    paddingHorizontal: 4,
+  },
+  modalLangScrollerLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00E5FF',
+    letterSpacing: 0.5,
+  },
+  modalLangScrollerHint: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  modalLangScrollerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  langHoloChipModal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: '#FF385C',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  langHoloChipTextModal: {
+    color: '#FF6B8B',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  langHoloRemoveBtnModal: {
+    marginLeft: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 56, 92, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  langHoloRemoveTextModal: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 11,
   },
   selectedLangRow: {
     flexDirection: 'row',

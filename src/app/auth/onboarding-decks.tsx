@@ -19,6 +19,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
 import { DietaryPreference, Gender, MicroCircle } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
@@ -278,6 +279,8 @@ const DECK_STRIP_ITEMS = [
   { id: 7, label: '07 • Vedic' },
 ];
 
+const ONBOARDING_DRAFT_STORAGE_KEY = '@blunderr_onboarding_draft_v1';
+
 export default function OnboardingDecksScreen() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -285,6 +288,8 @@ export default function OnboardingDecksScreen() {
 
   const [activeDeck, setActiveDeck] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [resumedBannerText, setResumedBannerText] = useState<string>('');
+  const isHydratedRef = useRef<boolean>(false);
 
   // Deck 1: Identity, Liveness Selfie & Primary Residence (Zero Prefill)
   const [fullName, setFullName] = useState<string>('');
@@ -568,56 +573,132 @@ export default function OnboardingDecksScreen() {
     );
   });
 
-  // Load existing user profile & micro-circles if available (without fake prefilled defaults)
+  // Option 3: Hybrid Hydration (Local Draft First for 0ms recovery, then Cloud Profile Sync)
   useEffect(() => {
     loadTribeCircles();
     (async () => {
+      let restoredDeck = 1;
       try {
+        // 1. Read instant local draft from AsyncStorage (crash recovery)
+        const rawDraft = await AsyncStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
+        if (rawDraft) {
+          try {
+            const draft = JSON.parse(rawDraft);
+            if (draft.fullName) setFullName(draft.fullName);
+            if (draft.dobYear) setDobYear(draft.dobYear);
+            if (draft.dobMonth) setDobMonth(draft.dobMonth);
+            if (draft.dobDay) setDobDay(draft.dobDay);
+            if (draft.primaryCity) setPrimaryCity(draft.primaryCity);
+            if (draft.primaryLocation) setPrimaryLocation(draft.primaryLocation);
+            if (draft.coords) setCoords(draft.coords);
+            if (draft.gender) setGender(draft.gender);
+            if (draft.genderDisplay) {
+              setGenderDisplay(draft.genderDisplay);
+              setTempGenderDisplay(draft.genderDisplay);
+            }
+            if (draft.lookingFor) {
+              setLookingFor(draft.lookingFor);
+              setTempLookingFor(draft.lookingFor);
+            }
+            if (draft.orientation) {
+              setOrientation(draft.orientation);
+              setTempOrientation(draft.orientation);
+            }
+            if (draft.microCircle) setMicroCircle(draft.microCircle);
+            if (draft.job) setJob(draft.job);
+            if (draft.institute) setInstitute(draft.institute);
+            if (draft.bio) setBio(draft.bio);
+            if (typeof draft.heightCm === 'number') setHeightCm(draft.heightCm);
+            if (draft.dietaryPref) setDietaryPref(draft.dietaryPref);
+            if (draft.drinkingHabit) setDrinkingHabit(draft.drinkingHabit);
+            if (Array.isArray(draft.photoSlots)) {
+              photoSlotsRef.current = draft.photoSlots;
+              setPhotoSlots(draft.photoSlots);
+            }
+            if (draft.selfieUrl) setSelfieUrl(draft.selfieUrl);
+            if (draft.verificationStatus) setVerificationStatus(draft.verificationStatus);
+            if (draft.isLivenessVerified) setIsLivenessVerified(draft.isLivenessVerified);
+            if (draft.birthTime) setBirthTime(draft.birthTime);
+            if (draft.birthCity) setBirthCity(draft.birthCity);
+
+            if (typeof draft.activeDeck === 'number' && draft.activeDeck >= 1 && draft.activeDeck <= 7) {
+              restoredDeck = Math.max(restoredDeck, draft.activeDeck);
+            }
+          } catch (e) {
+            console.warn('[onboarding] Failed to parse local draft:', e);
+          }
+        }
+
+        // 2. Fetch server profile to merge cloud state and calculate furthest cloud step
         const prof = await api.getMyProfile();
+        let serverFurthestDeck = 1;
+
         if (prof?.displayName || prof?.fullName) {
           const existingName = prof.displayName || prof.fullName || '';
           if (existingName && existingName !== 'New User' && existingName !== 'BlunderR Star') {
-            setFullName(existingName);
+            setFullName((prev) => prev || existingName);
           }
         }
         if (prof?.birthDate) {
           const parts = prof.birthDate.split('-');
           if (parts.length === 3) {
-            setDobYear(parts[0]);
-            setDobMonth(parts[1]);
-            setDobDay(parts[2]);
+            setDobYear((prev) => prev || parts[0]);
+            setDobMonth((prev) => prev || parts[1]);
+            setDobDay((prev) => prev || parts[2]);
+            serverFurthestDeck = Math.max(serverFurthestDeck, 2);
           }
         }
         if (prof?.city || prof?.location) {
           const c = prof.city || prof.location || '';
-          setPrimaryCity(c);
-          setPrimaryLocation(prof.location || c);
+          setPrimaryCity((prev) => prev || c);
+          setPrimaryLocation((prev) => prev || prof.location || c);
+          serverFurthestDeck = Math.max(serverFurthestDeck, 3);
         }
         if (typeof prof?.latitude === 'number' && typeof prof?.longitude === 'number') {
-          setCoords({ lat: prof.latitude, lng: prof.longitude });
+          setCoords((prev) => prev || { lat: prof.latitude!, lng: prof.longitude! });
         }
-        if (prof?.gender) setGender(prof.gender);
+        if (prof?.gender) setGender((prev) => prev || prof.gender);
         if (prof?.genderDisplay) {
-          setGenderDisplay(prof.genderDisplay);
-          setTempGenderDisplay(prof.genderDisplay);
+          setGenderDisplay((prev) => prev || prof.genderDisplay || '');
+          setTempGenderDisplay((prev) => prev || prof.genderDisplay || '');
         }
         if (prof?.genderPreferenceDisplay) {
-          setLookingFor(prof.genderPreferenceDisplay);
-          setTempLookingFor(prof.genderPreferenceDisplay);
+          setLookingFor((prev) => prev || prof.genderPreferenceDisplay || '');
+          setTempLookingFor((prev) => prev || prof.genderPreferenceDisplay || '');
         }
         if (prof?.sexualOrientation) {
-          setOrientation(prof.sexualOrientation);
-          setTempOrientation(prof.sexualOrientation);
+          setOrientation((prev) => prev || prof.sexualOrientation || '');
+          setTempOrientation((prev) => prev || prof.sexualOrientation || '');
         }
-        if (prof?.microCircle) setMicroCircle(prof.microCircle);
-        if (prof?.job || prof?.occupation) setJob(prof.job || prof.occupation || '');
-        if (prof?.institute || prof?.education) setInstitute(prof.institute || prof.education || '');
-        if (prof?.bio) setBio(prof.bio);
-        if (prof?.height) setHeightCm(prof.height);
-        if (prof?.dietaryPref) setDietaryPref(prof.dietaryPref);
-        if (prof?.drinkingHabit) setDrinkingHabit(prof.drinkingHabit);
+        if (prof?.microCircle) {
+          setMicroCircle((prev) => prev || prof.microCircle || '');
+          serverFurthestDeck = Math.max(serverFurthestDeck, 4);
+        }
+        if (prof?.job || prof?.occupation) {
+          setJob((prev) => prev || prof.job || prof.occupation || '');
+          serverFurthestDeck = Math.max(serverFurthestDeck, 5);
+        }
+        if (prof?.institute || prof?.education) {
+          setInstitute((prev) => prev || prof.institute || prof.education || '');
+        }
+        if (prof?.bio) {
+          setBio((prev) => prev || prof.bio || '');
+          serverFurthestDeck = Math.max(serverFurthestDeck, 5);
+        }
+        if (prof?.height) {
+          setHeightCm((prev) => (prev !== 175 ? prev : prof.height || 175));
+          serverFurthestDeck = Math.max(serverFurthestDeck, 6);
+        }
+        if (prof?.dietaryPref) {
+          setDietaryPref((prev) => prev || prof.dietaryPref || '');
+          serverFurthestDeck = Math.max(serverFurthestDeck, 6);
+        }
+        if (prof?.drinkingHabit) {
+          setDrinkingHabit((prev) => prev || prof.drinkingHabit || '');
+          serverFurthestDeck = Math.max(serverFurthestDeck, 6);
+        }
 
-        const initialSlots = [
+        const serverPhotos = [
           prof?.photo1 || prof?.photos?.[0] || '',
           prof?.photo2 || prof?.photos?.[1] || '',
           prof?.photo3 || prof?.photos?.[2] || '',
@@ -625,8 +706,22 @@ export default function OnboardingDecksScreen() {
           prof?.photo5 || prof?.photos?.[4] || '',
           prof?.photo6 || prof?.photos?.[5] || '',
         ].map((u) => (u && !u.includes('unsplash.com/photo-1534528741775') ? u : ''));
-        photoSlotsRef.current = initialSlots;
-        setPhotoSlots(initialSlots);
+
+        const validServerPhotos = serverPhotos.filter(Boolean);
+        if (validServerPhotos.length >= 2) {
+          serverFurthestDeck = Math.max(serverFurthestDeck, 7);
+        }
+
+        if (validServerPhotos.length > 0) {
+          setPhotoSlots((currentSlots) => {
+            const merged = [...currentSlots];
+            serverPhotos.forEach((p, idx) => {
+              if (p && !merged[idx]) merged[idx] = p;
+            });
+            photoSlotsRef.current = merged;
+            return merged;
+          });
+        }
 
         if (prof?.selfieUrl) {
           setSelfieUrl(prof.selfieUrl);
@@ -641,9 +736,162 @@ export default function OnboardingDecksScreen() {
           setVerificationStatus('REJECTED');
           setIsLivenessVerified(false);
         }
-      } catch (e) {}
+
+        const finalDeckToResume = Math.max(restoredDeck, serverFurthestDeck);
+        if (finalDeckToResume > 1 && finalDeckToResume <= 7) {
+          setActiveDeck(finalDeckToResume);
+          const deckLabels: Record<number, string> = {
+            2: 'Vibe & Frequency',
+            3: 'Neighborhood Tribe',
+            4: '1-Tap Bio Spark',
+            5: 'Lifestyle Rhythm',
+            6: 'Editorial Portfolio',
+            7: 'Cosmic Chemistry',
+          };
+          setResumedBannerText(`⚡ Resumed at Deck ${finalDeckToResume}: ${deckLabels[finalDeckToResume] || 'Progress Restored'}`);
+          setTimeout(() => setResumedBannerText(''), 4500);
+        }
+      } catch (e) {
+        console.warn('[onboarding] Hydration warning:', e);
+      } finally {
+        isHydratedRef.current = true;
+      }
     })();
   }, []);
+
+  // Continuous Local Auto-Draft Debounce (Runs silently on every keystroke / chip / photo change)
+  useEffect(() => {
+    if (!isHydratedRef.current) return;
+    const timer = setTimeout(async () => {
+      try {
+        const draft = {
+          activeDeck,
+          fullName,
+          dobYear,
+          dobMonth,
+          dobDay,
+          selfieUrl,
+          isLivenessVerified,
+          verificationStatus,
+          primaryCity,
+          primaryLocation,
+          coords,
+          gender,
+          genderDisplay,
+          lookingFor,
+          orientation,
+          microCircle,
+          job,
+          institute,
+          bio,
+          heightCm,
+          dietaryPref,
+          drinkingHabit,
+          photoSlots,
+          birthTime,
+          birthCity,
+          updatedAt: Date.now(),
+        };
+        await AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      } catch (e) {
+        console.warn('[onboarding] Debounced draft save warning:', e);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [
+    activeDeck,
+    fullName,
+    dobYear,
+    dobMonth,
+    dobDay,
+    selfieUrl,
+    isLivenessVerified,
+    verificationStatus,
+    primaryCity,
+    primaryLocation,
+    coords,
+    gender,
+    genderDisplay,
+    lookingFor,
+    orientation,
+    microCircle,
+    job,
+    institute,
+    bio,
+    heightCm,
+    dietaryPref,
+    drinkingHabit,
+    photoSlots,
+    birthTime,
+    birthCity,
+  ]);
+
+  // Non-blocking step checkpoint sync to PostgreSQL backend
+  const syncDeckCheckpointToCloud = (completedDeck: number) => {
+    try {
+      const formattedDob = `${dobYear.trim()}-${dobMonth.trim().padStart(2, '0')}-${dobDay.trim().padStart(2, '0')}`;
+      const cleanName = fullName.trim();
+
+      if (completedDeck === 1) {
+        api.updateMyProfile({
+          fullName: cleanName || undefined,
+          displayName: cleanName || undefined,
+          birthDate: (dobYear.trim() && dobMonth.trim() && dobDay.trim()) ? formattedDob : undefined,
+          selfieUrl: selfieUrl && !selfieUrl.startsWith('file:') ? selfieUrl : undefined,
+          verificationStatus: selfieUrl ? (verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING') : undefined,
+        } as any).catch(() => {});
+      } else if (completedDeck === 2) {
+        api.updateMyProfile({
+          gender,
+          genderDisplay: genderDisplay || undefined,
+          genderPreferenceDisplay: lookingFor || undefined,
+          sexualOrientation: orientation || undefined,
+        } as any).catch(() => {});
+      } else if (completedDeck === 3) {
+        if (coords) {
+          api.updateLocation(
+            coords.lat,
+            coords.lng,
+            primaryCity.trim(),
+            (primaryLocation || primaryCity).trim()
+          ).catch(() => {});
+        }
+        api.updateMyProfile({
+          city: primaryCity.trim() || undefined,
+          location: (primaryLocation || primaryCity).trim() || undefined,
+          latitude: coords?.lat,
+          longitude: coords?.lng,
+          microCircle: microCircle || undefined,
+        } as any).catch(() => {});
+      } else if (completedDeck === 4) {
+        api.updateMyProfile({
+          bio: bio || undefined,
+          job: job.trim() || undefined,
+          occupation: job.trim() || undefined,
+          institute: institute.trim() || undefined,
+          education: institute.trim() || undefined,
+        } as any).catch(() => {});
+      } else if (completedDeck === 5) {
+        api.updateMyProfile({
+          height: heightCm,
+          dietaryPref: (dietaryPref || 'PURE_VEG') as DietaryPreference,
+          drinkingHabit: drinkingHabit || undefined,
+        } as any).catch(() => {});
+      } else if (completedDeck === 6) {
+        // Photo slots are already uploaded and saved in real-time by uploadSingleAssetToSlot
+      } else if (completedDeck === 7) {
+        if (birthTime.trim() || birthCity.trim()) {
+          api.updateMyBirthDetails({
+            birthTime: birthTime.trim(),
+            birthCity: birthCity.trim(),
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('[onboarding] Non-blocking cloud checkpoint failed:', e);
+    }
+  };
 
   // Poll backend verification status in background while PENDING
   useEffect(() => {
@@ -802,6 +1050,9 @@ export default function OnboardingDecksScreen() {
           return;
         }
       }
+
+      // Sync completed deck to cloud backend in background
+      syncDeckCheckpointToCloud(activeDeck);
     }
 
     hapticFeedback.medium();
@@ -819,6 +1070,39 @@ export default function OnboardingDecksScreen() {
     ]).start();
 
     setActiveDeck(targetDeck);
+
+    // Immediately persist updated deck location to AsyncStorage (crash-proof)
+    AsyncStorage.setItem(
+      ONBOARDING_DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        activeDeck: targetDeck,
+        fullName,
+        dobYear,
+        dobMonth,
+        dobDay,
+        selfieUrl,
+        isLivenessVerified,
+        verificationStatus,
+        primaryCity,
+        primaryLocation,
+        coords,
+        gender,
+        genderDisplay,
+        lookingFor,
+        orientation,
+        microCircle,
+        job,
+        institute,
+        bio,
+        heightCm,
+        dietaryPref,
+        drinkingHabit,
+        photoSlots,
+        birthTime,
+        birthCity,
+        updatedAt: Date.now(),
+      })
+    ).catch(() => {});
   };
 
   const handleRerollBio = () => {
@@ -1086,8 +1370,9 @@ export default function OnboardingDecksScreen() {
         }
       }
 
-      // 4. Mark Onboarding Complete & Launch Discovery
+      // 4. Mark Onboarding Complete & Purge Draft
       await api.setOnboardingCompleted(true);
+      await AsyncStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY).catch(() => {});
       router.replace('/(tabs)');
     } catch (err: any) {
       setIsSubmitting(false);
@@ -1286,6 +1571,13 @@ export default function OnboardingDecksScreen() {
             </Text>
           </Text>
         </View>
+
+        {/* Dynamic Resumed Progress Banner */}
+        {!!resumedBannerText && (
+          <View style={styles.resumedBanner}>
+            <Text style={styles.resumedBannerText}>{resumedBannerText}</Text>
+          </View>
+        )}
       </View>
 
       {/* ========================================================
@@ -3091,6 +3383,24 @@ const styles = StyleSheet.create({
   ribbonBold: {
     color: '#FFF',
     fontWeight: '800',
+  },
+  resumedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 56, 92, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 6,
+  },
+  resumedBannerText: {
+    color: '#FF6B8B',
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   scrollArena: {
     flexGrow: 1,

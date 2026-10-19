@@ -1763,53 +1763,123 @@ export default function OnboardingDecksScreen() {
                     </View>
                   </View>
 
-                  {/* Selfie Upload / Capture Button */}
-                  <TouchableOpacity
-                    style={[
-                      styles.selfieScanCard,
-                      verificationStatus === 'VERIFIED' && styles.selfieScanCardDone,
-                      verificationStatus === 'PENDING' && styles.selfieScanCardPending,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => setShowSelfieModal(true)}>
-                    <Text style={styles.selfieScanIcon}>
-                      {verificationStatus === 'VERIFIED'
-                        ? '✅'
-                        : verificationStatus === 'PENDING'
-                        ? '⏳'
-                        : verificationStatus === 'REJECTED'
-                        ? '⚠️'
-                        : '📸'}
-                    </Text>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.selfieScanTitle,
-                          verificationStatus === 'PENDING' && { color: '#FCD34D' },
-                          verificationStatus === 'REJECTED' && { color: '#FCA5A5' },
-                        ]}>
-                        {verificationStatus === 'VERIFIED'
-                          ? 'Selfie Verified ✓'
-                          : verificationStatus === 'PENDING'
-                          ? 'Selfie Uploaded • Verifying in Background'
-                          : verificationStatus === 'REJECTED'
-                          ? 'Verification Failed • Tap to Retake'
-                          : 'Take / Upload Your Liveness Selfie'}
+                  {/* Selfie Upload / Capture - Option 1: Face ID Hologram */}
+                  {!selfieUrl ? (
+                    <TouchableOpacity
+                      style={styles.selfieHoloEmptyCard}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        hapticFeedback.medium();
+                        setShowSelfieModal(true);
+                      }}>
+                      <View style={styles.selfieHoloIconContainer}>
+                        <View style={styles.selfieHoloRingOuter} />
+                        <View style={styles.selfieHoloRingInner}>
+                          <Text style={styles.selfieHoloCameraEmoji}>📸</Text>
+                        </View>
+                        <View style={styles.selfieHoloPlusBadge}>
+                          <Text style={styles.selfieHoloPlusText}>+</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.selfieHoloEmptyTitle}>
+                        Tap to Calibrate 3D Liveness Selfie
                       </Text>
-                      <Text
-                        style={[
-                          styles.selfieScanDesc,
-                          verificationStatus === 'PENDING' && { color: '#FDE68A' },
-                          verificationStatus === 'REJECTED' && { color: '#FECACA' },
-                        ]}>
-                        {verificationStatus === 'VERIFIED'
-                          ? 'Verified by backend AI • Authenticity shield active'
-                          : verificationStatus === 'PENDING'
-                          ? 'You can continue filling decks while AI verifies your selfie'
-                          : 'Required for 100% human verification badge'}
+                      <Text style={styles.selfieHoloEmptyDesc}>
+                        Required for the <Text style={styles.selfieHoloEmeraldHighlight}>🛡️ 100% Verified Human</Text> badge. AI matches this against all your profile photos.
                       </Text>
+                      <View style={styles.selfieHoloPill}>
+                        <Text style={styles.selfieHoloPillText}>⚡ Takes 5 Seconds</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[
+                      styles.selfieHoloUploadedCard,
+                      verificationStatus === 'VERIFIED' && styles.selfieHoloCardVerified,
+                      verificationStatus === 'PENDING' && styles.selfieHoloCardPending,
+                      verificationStatus === 'REJECTED' && styles.selfieHoloCardRejected,
+                    ]}>
+                      <View style={styles.selfieHoloTopRow}>
+                        {/* Live Photo Thumbnail with Verification Halo Ring */}
+                        <View style={styles.selfieThumbnailWrapper}>
+                          <Image
+                            source={{ uri: selfieUrl }}
+                            style={[
+                              styles.selfieThumbnailImage,
+                              verificationStatus === 'VERIFIED' && styles.selfieThumbBorderVerified,
+                              verificationStatus === 'PENDING' && styles.selfieThumbBorderPending,
+                              verificationStatus === 'REJECTED' && styles.selfieThumbBorderRejected,
+                            ]}
+                            contentFit="cover"
+                            transition={200}
+                          />
+                          <View style={[
+                            styles.selfieStatusMiniBadge,
+                            verificationStatus === 'VERIFIED' && { backgroundColor: '#10B981' },
+                            verificationStatus === 'PENDING' && { backgroundColor: '#F59E0B' },
+                            verificationStatus === 'REJECTED' && { backgroundColor: '#EF4444' },
+                          ]}>
+                            <Text style={styles.selfieStatusMiniBadgeText}>
+                              {verificationStatus === 'VERIFIED' ? '✓' : verificationStatus === 'PENDING' ? '⏳' : '!'}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Status Details */}
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.selfieHoloStatusTagRow}>
+                            <View style={[
+                              styles.selfieLivePulseDot,
+                              verificationStatus === 'VERIFIED' && { backgroundColor: '#34D399' },
+                              verificationStatus === 'PENDING' && { backgroundColor: '#FCD34D' },
+                              verificationStatus === 'REJECTED' && { backgroundColor: '#F87171' },
+                            ]} />
+                            <Text style={[
+                              styles.selfieHoloStatusTagText,
+                              verificationStatus === 'VERIFIED' && { color: '#6EE7B7' },
+                              verificationStatus === 'PENDING' && { color: '#FCD34D' },
+                              verificationStatus === 'REJECTED' && { color: '#FCA5A5' },
+                            ]}>
+                              {verificationStatus === 'VERIFIED'
+                                ? '3D BIOMETRIC LOCKED'
+                                : verificationStatus === 'PENDING'
+                                ? 'AI VERIFYING IN BACKGROUND'
+                                : 'VERIFICATION FAILED'}
+                            </Text>
+                          </View>
+                          <Text style={styles.selfieHoloUploadedTitle}>
+                            {verificationStatus === 'VERIFIED'
+                              ? 'Selfie Calibrated & Verified ✓'
+                              : verificationStatus === 'PENDING'
+                              ? 'Selfie Uploaded • Verifying...'
+                              : 'Face Not Clear • Retake'}
+                          </Text>
+                          <Text style={styles.selfieHoloUploadedDesc} numberOfLines={2}>
+                            {verificationStatus === 'VERIFIED'
+                              ? 'YuNet SFace 128D embedding active • Authenticity shield locked'
+                              : verificationStatus === 'PENDING'
+                              ? 'You can continue filling decks while AI verifies your selfie'
+                              : 'Please ensure your face is well-lit and directly facing the camera'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Bottom Action Strip with Retake button */}
+                      <View style={styles.selfieHoloBottomStrip}>
+                        <Text style={styles.selfieHoloShieldStatus}>
+                          {verificationStatus === 'VERIFIED' ? '🛡️ Authenticity Shield Active' : '⚡ 3D Liveness Check'}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.selfieRetakeBtn}
+                          activeOpacity={0.75}
+                          onPress={() => {
+                            hapticFeedback.light();
+                            setShowSelfieModal(true);
+                          }}>
+                          <Text style={styles.selfieRetakeBtnText}>🔄 Retake Selfie</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                  </TouchableOpacity>
+                  )}
 
                   {/* 3-LAYER PRIMARY RESIDENCE SELECTOR */}
                   <View style={[styles.fieldBox, { marginTop: 4 }]}>
@@ -3798,6 +3868,227 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#A7F3D0',
     marginTop: 2,
+  },
+  /* Option 1: Face ID Hologram Selfie Styles */
+  selfieHoloEmptyCard: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 56, 92, 0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 56, 92, 0.45)',
+    borderStyle: 'dashed',
+    borderRadius: 22,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginVertical: 4,
+  },
+  selfieHoloIconContainer: {
+    width: 68,
+    height: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    position: 'relative',
+  },
+  selfieHoloRingOuter: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255, 56, 92, 0.14)',
+  },
+  selfieHoloRingInner: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selfieHoloCameraEmoji: {
+    fontSize: 26,
+  },
+  selfieHoloPlusBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FF385C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#05060A',
+    shadowColor: '#FF385C',
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  selfieHoloPlusText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    lineHeight: 14,
+  },
+  selfieHoloEmptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  selfieHoloEmptyDesc: {
+    color: '#94A3B8',
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+    marginTop: 4,
+    maxWidth: 290,
+  },
+  selfieHoloEmeraldHighlight: {
+    color: '#34D399',
+    fontWeight: '700',
+  },
+  selfieHoloPill: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.3)',
+  },
+  selfieHoloPillText: {
+    color: '#FF6B8B',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  selfieHoloUploadedCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+    borderRadius: 20,
+    padding: 14,
+    marginVertical: 4,
+  },
+  selfieHoloCardVerified: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: '#10B981',
+  },
+  selfieHoloCardPending: {
+    backgroundColor: 'rgba(245, 158, 11, 0.10)',
+    borderColor: '#F59E0B',
+  },
+  selfieHoloCardRejected: {
+    backgroundColor: 'rgba(239, 68, 68, 0.10)',
+    borderColor: '#EF4444',
+  },
+  selfieHoloTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  selfieThumbnailWrapper: {
+    position: 'relative',
+    width: 66,
+    height: 66,
+  },
+  selfieThumbnailImage: {
+    width: 66,
+    height: 66,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#10B981',
+    backgroundColor: '#0A0E1A',
+  },
+  selfieThumbBorderVerified: {
+    borderColor: '#10B981',
+  },
+  selfieThumbBorderPending: {
+    borderColor: '#F59E0B',
+  },
+  selfieThumbBorderRejected: {
+    borderColor: '#EF4444',
+  },
+  selfieStatusMiniBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#05060A',
+  },
+  selfieStatusMiniBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  selfieHoloStatusTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  selfieLivePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#34D399',
+  },
+  selfieHoloStatusTagText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#6EE7B7',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  selfieHoloUploadedTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+  selfieHoloUploadedDesc: {
+    color: '#94A3B8',
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  selfieHoloBottomStrip: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selfieHoloShieldStatus: {
+    color: '#6EE7B7',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  selfieRetakeBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  selfieRetakeBtnText: {
+    color: '#F1F5F9',
+    fontSize: 11,
+    fontWeight: '700',
   },
   /* Primary Residence 3-Layer Styles */
   residenceHeaderRow: {

@@ -39,6 +39,9 @@ import DopamineCuriosityLoop from '@/components/dopamine-curiosity-loop';
 import { useLivenessRecovery } from '@/services/liveness-recovery';
 import LivenessRetakeModal from '@/components/liveness-retake-modal';
 import DiscoveryVoiceSnippet from '@/components/discovery-voice-snippet';
+import { VibeQuizCard } from '@/components/vibe-quiz-card';
+import { LifestyleSyncModal } from '@/components/lifestyle-sync-modal';
+import { getEngagementStatus, recordSwipeEvent, markInterstitialShownToday } from '@/utils/engagement-cadence';
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
@@ -104,11 +107,6 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
       synergyTag: 'Rohini & Uttara Phalguni 32/36 Gunas',
       score: 96,
     },
-    voicePrompt: {
-      audioUrl: '',
-      durationSec: 14,
-      promptText: 'My most controversial chai opinion: cardamom is essential, ginger is overrated ☕',
-    },
     selectedMemeTitle: 'Sunday brunch priorities 🥐',
     selectedMemeUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&auto=format&fit=crop&q=80',
   },
@@ -142,11 +140,6 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
       synergyTag: 'Deep Graha Maitri Resonance',
       score: 92,
     },
-    voicePrompt: {
-      audioUrl: '',
-      durationSec: 12,
-      promptText: 'One song I can put on loop forever: Cold/Mess by Prateek Kuhad 🎸',
-    },
     selectedMemeTitle: 'Pushing code straight to production 💻',
     selectedMemeUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80',
   },
@@ -179,11 +172,6 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
     cosmicChemistry: {
       synergyTag: 'Pushya Nakshatra High Emotional Bond',
       score: 94,
-    },
-    voicePrompt: {
-      audioUrl: '',
-      durationSec: 15,
-      promptText: 'First date rule: no resume talk, only favorite comfort street food 🥟',
     },
     selectedMemeTitle: 'My social battery at loud parties 🔋',
     selectedMemeUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80',
@@ -272,11 +260,27 @@ export default function DiscoveryScreen() {
   const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
   const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
 
+  // Smart Lifestyle Sync & 1-Tap Vibe Quiz (Flow 1, 3, 4)
+  const [showLifestyleSyncModal, setShowLifestyleSyncModal] = useState(false);
+  const [dismissedQuiz, setDismissedQuiz] = useState(false);
+  const [reflectedToast, setReflectedToast] = useState<string | null>(null);
+  const [isEngagementEligible, setIsEngagementEligible] = useState(false);
+
+  const showReflectedToast = (msg: string) => {
+    setReflectedToast(msg);
+    setTimeout(() => {
+      setReflectedToast((cur) => (cur === msg ? null : cur));
+    }, 2800);
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadFeed();
       api.getSparkNoteQuota().then(setSparkNoteQuota).catch(() => {});
       api.getUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => {});
+      getEngagementStatus()
+        .then((status) => setIsEngagementEligible(status.isEligibleForPrompt))
+        .catch(() => {});
     }, [])
   );
 
@@ -498,8 +502,11 @@ export default function DiscoveryScreen() {
     const targetId = targetCandidate.userId;
     const targetName = targetCandidate.displayName || 'Candidate';
 
-    // 1. Record in swiped history for Rewind
+    // 1. Record in swiped history for Rewind & increment daily engagement counter
     setSwipedHistory((prev) => [{ candidate: targetCandidate, action: actionType }, ...prev.slice(0, 9)]);
+    recordSwipeEvent()
+      .then((status) => setIsEngagementEligible(status.isEligibleForPrompt))
+      .catch(() => {});
 
     // 2. Immediately remove the profile from candidates so it GOES AWAY and the next loads
     setCandidates((prev) => prev.filter((c) => c.userId !== targetId));
@@ -683,38 +690,65 @@ export default function DiscoveryScreen() {
     return distA - distB;
   });
 
-  // In-Deck Profile Booster Card injection
+  // In-Deck Profile Booster Card & 1-Tap Vibe Quiz injection
   const feedDisplayCards = useMemo(() => {
+    const list = [...filteredCandidates];
     const myPhotos = userProfile?.photos || [];
     const hasFivePhotos = myPhotos.length >= 5 || Boolean(userProfile?.photo5);
     const isProfileIncomplete = !hasFivePhotos;
-    if (!isProfileIncomplete || filteredCandidates.length < 3) {
-      return filteredCandidates;
+
+    // Strict drop-off prevention rule:
+    // Only ask after >20 swipes on Day 1, or after >5 swipes on Day 2+.
+    // Never show immediately to new users to protect first-time retention.
+    if (isEngagementEligible && !dismissedQuiz && list.length >= 2) {
+      const vibeQuizCard: CandidateCard = {
+        userId: '__blunderr_vibe_quiz__',
+        displayName: '1-Tap Vibe Quiz',
+        age: 24,
+        isDigilockerVerified: false,
+        isWhatsappVerified: false,
+        livenessScore: 100,
+        distanceKm: 0,
+        fuzzyDistance: '+5% Reach Multiplier',
+        culturalBadges: {
+          diet: 'PURE_VEG' as any,
+          living: 'INDEPENDENT_FLAT' as any,
+          languages: [],
+          zodiac: 'Leo',
+        },
+        compatibilityScore: 100,
+        bio: 'Sync your lifestyle harmony in 1 tap',
+        photos: [],
+      };
+      const insertIdx = Math.min(2, list.length);
+      list.splice(insertIdx, 0, vibeQuizCard);
+
+      if (isProfileIncomplete && list.length >= 5) {
+        const boosterCard: CandidateCard = {
+          userId: '__blunderr_profile_booster__',
+          displayName: 'Profile Multiplier',
+          age: 25,
+          isDigilockerVerified: false,
+          isWhatsappVerified: false,
+          livenessScore: 100,
+          distanceKm: 0,
+          fuzzyDistance: '3.8x VIP Reach',
+          culturalBadges: {
+            diet: 'PURE_VEG' as any,
+            living: 'INDEPENDENT_FLAT' as any,
+            languages: [],
+            zodiac: 'Aries',
+          },
+          compatibilityScore: 100,
+          bio: 'Boost your reach to 3.8x',
+          photos: [],
+        };
+        list.splice(5, 0, boosterCard);
+      }
     }
-    const boosterCard: CandidateCard = {
-      userId: '__blunderr_profile_booster__',
-      displayName: 'Profile Multiplier',
-      age: 25,
-      isDigilockerVerified: false,
-      isWhatsappVerified: false,
-      livenessScore: 100,
-      distanceKm: 0,
-      fuzzyDistance: '3.8x VIP Reach',
-      culturalBadges: {
-        diet: 'PURE_VEG' as any,
-        living: 'INDEPENDENT_FLAT' as any,
-        languages: [],
-        zodiac: 'Aries',
-      },
-      compatibilityScore: 100,
-      bio: 'Boost your reach to 3.8x',
-      photos: [],
-    };
-    const list = [...filteredCandidates];
-    // Insert at index 3 (after 3 real candidates)
-    list.splice(3, 0, boosterCard);
+
     return list;
-  }, [filteredCandidates, userProfile]);
+  }, [filteredCandidates, userProfile, dismissedQuiz, isEngagementEligible]);
 
   // Proactive pre-fetch top candidate photos into memory-disk cache for instantaneous 60/120fps swiping
   useEffect(() => {
@@ -742,6 +776,8 @@ interface SwipeableCardProps {
   canRewind?: boolean;
   canLike?: boolean;
   hasFreeSparkNote?: boolean;
+  userProfile?: UserProfile | null;
+  onTagReflected?: (tagKey: string, tagValue: string) => void;
 }
 
 function SwipeableCandidateCard({
@@ -757,6 +793,8 @@ function SwipeableCandidateCard({
   canRewind,
   canLike = true,
   hasFreeSparkNote = true,
+  userProfile,
+  onTagReflected,
 }: SwipeableCardProps) {
   const pan = useRef(new Animated.ValueXY()).current;
   const entryPopAnim = useRef(new Animated.Value(1)).current;
@@ -1025,14 +1063,6 @@ function SwipeableCandidateCard({
           activeOpacity={0.94}
           onPress={() => onOpenDetails(item)}
           style={styles.heroTouchWrap}>
-          {/* Instagram / Story Progress Indicators at Top */}
-          <View style={styles.storyDashesRow}>
-            <View style={[styles.storyDash, styles.storyDashActive]} />
-            <View style={styles.storyDash} />
-            <View style={styles.storyDash} />
-            <View style={styles.storyDash} />
-          </View>
-
           <ExpoImage
             source={{
               uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
@@ -1103,34 +1133,89 @@ function SwipeableCandidateCard({
               {(item.education || item.institute) ? ` • 🎓 ${item.education || 'Graduate'}` : ''}
             </Text>
 
-            {/* Row 4: Lifestyle Indicators Row */}
+            {/* Row 4: Lifestyle Indicators Row with Contextual 1-Tap Reflection */}
             <View style={styles.lifestyleRow}>
-              <View style={styles.lifestyleChip}>
-                <Text style={styles.lifestyleChipText}>🍸 Cocktails</Text>
-              </View>
-              <View style={styles.lifestyleChip}>
-                <Text style={styles.lifestyleChipText}>{item.smokingHabit || '🚭 Non-Smoker'}</Text>
-              </View>
-              <View style={styles.lifestyleChip}>
-                <Text style={styles.lifestyleChipText}>{item.drinkingHabit || '🍷 Social'}</Text>
-              </View>
-              <View style={styles.lifestyleChip}>
-                <Text style={styles.lifestyleChipText}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => onTagReflected && onTagReflected('drinkingHabit', 'Social / Weekend Drinker 🍷')}
+                style={[
+                  styles.lifestyleChip,
+                  Boolean(userProfile?.drinkingHabit && userProfile.drinkingHabit.toLowerCase().includes('social')) && {
+                    borderColor: '#2ED573',
+                    backgroundColor: 'rgba(46, 213, 115, 0.14)',
+                  },
+                ]}>
+                <Text style={[styles.lifestyleChipText, Boolean(userProfile?.drinkingHabit && userProfile.drinkingHabit.toLowerCase().includes('social')) && { color: '#2ED573', fontWeight: '800' }]}>
+                  {Boolean(userProfile?.drinkingHabit && userProfile.drinkingHabit.toLowerCase().includes('social')) ? '✓ ' : '+ '}
+                  🍸 Cocktails
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => onTagReflected && onTagReflected('smokingHabit', item.smokingHabit || 'Non-Smoker 🚭')}
+                style={[
+                  styles.lifestyleChip,
+                  Boolean(item.smokingHabit && userProfile?.smokingHabit === item.smokingHabit) && {
+                    borderColor: '#2ED573',
+                    backgroundColor: 'rgba(46, 213, 115, 0.14)',
+                  },
+                ]}>
+                <Text style={[styles.lifestyleChipText, Boolean(item.smokingHabit && userProfile?.smokingHabit === item.smokingHabit) && { color: '#2ED573', fontWeight: '800' }]}>
+                  {Boolean(item.smokingHabit && userProfile?.smokingHabit === item.smokingHabit) ? '✓ ' : '+ '}
+                  {item.smokingHabit || '🚭 Non-Smoker'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => onTagReflected && onTagReflected('drinkingHabit', item.drinkingHabit || 'Social / Weekend Drinker 🍷')}
+                style={[
+                  styles.lifestyleChip,
+                  Boolean(item.drinkingHabit && userProfile?.drinkingHabit === item.drinkingHabit) && {
+                    borderColor: '#2ED573',
+                    backgroundColor: 'rgba(46, 213, 115, 0.14)',
+                  },
+                ]}>
+                <Text style={[styles.lifestyleChipText, Boolean(item.drinkingHabit && userProfile?.drinkingHabit === item.drinkingHabit) && { color: '#2ED573', fontWeight: '800' }]}>
+                  {Boolean(item.drinkingHabit && userProfile?.drinkingHabit === item.drinkingHabit) ? '✓ ' : '+ '}
+                  {item.drinkingHabit || '🍷 Social'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => onTagReflected && onTagReflected('vacationPreference', item.vacationPreference || 'Majestic Mountains 🏔️')}
+                style={[
+                  styles.lifestyleChip,
+                  Boolean(item.vacationPreference && userProfile?.vacationPreference === item.vacationPreference) && {
+                    borderColor: '#2ED573',
+                    backgroundColor: 'rgba(46, 213, 115, 0.14)',
+                  },
+                ]}>
+                <Text style={[styles.lifestyleChipText, Boolean(item.vacationPreference && userProfile?.vacationPreference === item.vacationPreference) && { color: '#2ED573', fontWeight: '800' }]}>
+                  {Boolean(item.vacationPreference && userProfile?.vacationPreference === item.vacationPreference) ? '✓ ' : '+ '}
                   {item.vacationPreference || '✈️ Solo Travel'}
                 </Text>
-              </View>
+              </TouchableOpacity>
+
               <View style={styles.lifestyleChip}>
                 <Text style={styles.lifestyleChipText}>{getDietBadge(item.culturalBadges?.diet)}</Text>
               </View>
             </View>
 
-            {/* Row 5: Interactive Audio Snippet with Real Waveform */}
-            <DiscoveryVoiceSnippet
-              audioUri={item.voicePromptUrl || item.voicePrompt?.audioUrl}
-              durationSec={item.voicePromptDuration || item.voicePrompt?.durationSec || 15}
-              promptText={item.voicePromptText || item.voicePrompt?.promptText || item.profilePromptAnswer}
-              displayName={item.displayName}
-            />
+            {/* Row 5: Interactive Audio Snippet with Real Waveform - ONLY if candidate uploaded recording */}
+            {Boolean(
+              (typeof item.voicePromptUrl === 'string' && item.voicePromptUrl.trim() !== '') ||
+              (typeof item.voicePrompt?.audioUrl === 'string' && item.voicePrompt.audioUrl.trim() !== '')
+            ) && (
+              <DiscoveryVoiceSnippet
+                audioUri={item.voicePromptUrl || item.voicePrompt?.audioUrl}
+                durationSec={item.voicePromptDuration || item.voicePrompt?.durationSec || 15}
+                promptText={item.voicePromptText || item.voicePrompt?.promptText || item.profilePromptAnswer}
+                displayName={item.displayName}
+              />
+            )}
           </View>
         </TouchableOpacity>
 
@@ -1195,6 +1280,32 @@ function SwipeableCandidateCard({
 }
 
   const renderCandidateCard = ({ item, index }: { item: CandidateCard; index: number }) => {
+    if (item.userId === '__blunderr_vibe_quiz__') {
+      return (
+        <VibeQuizCard
+          feedDimensions={feedDimensions}
+          userProfile={userProfile}
+          onAnswered={async (tagKey, tagValue) => {
+            const updates: any = { [tagKey]: tagValue };
+            setUserProfile((prev) => (prev ? { ...prev, ...updates } : prev));
+            markInterstitialShownToday().catch(() => {});
+            setIsEngagementEligible(false);
+            try {
+              await api.updateMyProfile(updates);
+            } catch (e) {}
+            setTimeout(() => {
+              setDismissedQuiz(true);
+            }, 700);
+          }}
+          onSkip={() => {
+            markInterstitialShownToday().catch(() => {});
+            setIsEngagementEligible(false);
+            setDismissedQuiz(true);
+          }}
+        />
+      );
+    }
+
     if (item.userId === '__blunderr_profile_booster__') {
       return (
         <View style={{ width: feedDimensions.width, height: feedDimensions.height, padding: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: '#090B10' }}>
@@ -1214,7 +1325,11 @@ function SwipeableCandidateCard({
             <TouchableOpacity
               style={styles.boosterDeckActionBtn}
               activeOpacity={0.85}
-              onPress={() => router.push('/(tabs)/profile?edit=true' as any)}>
+              onPress={() => {
+                markInterstitialShownToday().catch(() => {});
+                setIsEngagementEligible(false);
+                router.push('/(tabs)/profile?edit=true' as any);
+              }}>
               <Text style={styles.boosterDeckActionBtnText}>📸 Complete Profile (Takes 20s) →</Text>
             </TouchableOpacity>
           </View>
@@ -1240,6 +1355,16 @@ function SwipeableCandidateCard({
         canRewind={swipedHistory.length > 0}
         canLike={canLike}
         hasFreeSparkNote={isFreeSparkAvailable}
+        userProfile={userProfile}
+        onTagReflected={async (key, value) => {
+          hapticFeedback.success();
+          const updates: any = { [key]: value };
+          setUserProfile((prev) => (prev ? { ...prev, ...updates } : prev));
+          showReflectedToast(`✨ Added "${value}" to your profile! Shared wavelength unlocked ⚡`);
+          try {
+            await api.updateMyProfile(updates);
+          } catch (e) {}
+        }}
       />
     );
   };
@@ -1301,6 +1426,26 @@ function SwipeableCandidateCard({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Text style={{ color: '#08080E', fontSize: 9, fontWeight: '900' }}>✕</Text>
               </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+
+          {/* Smart Lifestyle Sync Button (Flow 3) */}
+          <TouchableOpacity
+            style={[styles.communityHeaderButton, { borderColor: '#2ED573' }, isCompactScreen && styles.compactCommunityBtn]}
+            onPress={() => setShowLifestyleSyncModal(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Lifestyle Sync">
+            <Text style={[styles.communityHeaderIcon, isCompactScreen && { fontSize: 10 }]}>🌿</Text>
+            {!isTinyScreen && (
+              <Text
+                style={[
+                  styles.communityHeaderText,
+                  { color: '#2ED573' },
+                  isCompactScreen && { fontSize: 10 },
+                ]}
+                numberOfLines={1}>
+                Vibe
+              </Text>
             )}
           </TouchableOpacity>
 
@@ -1375,6 +1520,13 @@ function SwipeableCandidateCard({
 
       {/* Sticky Top Header */}
       {renderFeedHeader()}
+
+      {/* Contextual Tag Reflection Floating Toast (Flow 4) */}
+      {reflectedToast ? (
+        <View style={styles.floatingReflectedToast}>
+          <Text style={styles.floatingReflectedToastText}>{reflectedToast}</Text>
+        </View>
+      ) : null}
 
       {/* Main Profile Feed: Exactly 1 Profile per screen */}
       <View
@@ -1740,6 +1892,19 @@ function SwipeableCandidateCard({
         onSaved={() => loadFeed()}
       />
 
+      {/* SMART LIFESTYLE & LIVING SYNC MODAL (FLOW 3) */}
+      <LifestyleSyncModal
+        visible={showLifestyleSyncModal}
+        onClose={() => setShowLifestyleSyncModal(false)}
+        userProfile={userProfile}
+        onSave={async (updates) => {
+          setUserProfile((prev) => (prev ? { ...prev, ...updates } : prev));
+          try {
+            await api.updateMyProfile(updates);
+          } catch (e) {}
+        }}
+      />
+
       {/* PLAN / SUBSCRIPTION GATING MODAL */}
       <SubscriptionGatingModal
         visible={gatingModalVisible}
@@ -1801,6 +1966,29 @@ function SwipeableCandidateCard({
 }
 
 const styles = StyleSheet.create({
+  floatingReflectedToast: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 100 : 70,
+    alignSelf: 'center',
+    zIndex: 9999,
+    backgroundColor: 'rgba(15, 18, 26, 0.94)',
+    borderColor: '#2ED573',
+    borderWidth: 1.5,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    shadowColor: '#2ED573',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  floatingReflectedToastText: {
+    color: '#2ED573',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   container: {
     flex: 1,
     backgroundColor: '#0E0F14',

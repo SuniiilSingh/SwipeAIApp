@@ -17,8 +17,9 @@ export default function DiscoveryVoiceSnippet({
   promptText,
   displayName = 'Candidate',
 }: DiscoveryVoiceSnippetProps) {
-  // If candidate has no custom audio, use clean preview or placeholder
-  const resolvedUri = audioUri ? normalizeImageUrl(audioUri) : null;
+  // Only play if profile has an authentic recorded audio URL
+  const validAudioUri = (typeof audioUri === 'string' && audioUri.trim() !== '') ? audioUri.trim() : null;
+  const resolvedUri = validAudioUri ? normalizeImageUrl(validAudioUri) : null;
   let player: any = null;
   let status: any = null;
 
@@ -69,6 +70,11 @@ export default function DiscoveryVoiceSnippet({
       if (animLoop) animLoop.stop();
     };
   }, [isPlaying]);
+
+  // If user has not uploaded recording, do not render audio snippet
+  if (!resolvedUri) {
+    return null;
+  }
 
   const togglePlay = async () => {
     hapticFeedback.light();

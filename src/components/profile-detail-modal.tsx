@@ -108,6 +108,18 @@ export default function ProfileDetailModal({
   const [blockRemarks, setBlockRemarks] = useState('');
   const [blocking, setBlocking] = useState(false);
 
+  // Contextual Tag Reflection (Flow 4)
+  const [reflectionToast, setReflectionToast] = useState<string | null>(null);
+  const [myHobbies, setMyHobbies] = useState<string>(() => api.getCachedProfile()?.hobbies || '');
+  const [myVacation, setMyVacation] = useState<string>(() => api.getCachedProfile()?.vacationPreference || '');
+
+  const showReflectionToast = (msg: string) => {
+    setReflectionToast(msg);
+    setTimeout(() => {
+      setReflectionToast((cur) => (cur === msg ? null : cur));
+    }, 2800);
+  };
+
   const CANDIDATE_REPORT_REASONS = [
     { key: 'CATFISH', emoji: '🎭', label: 'Fake Profile / Catfishing', desc: 'Stolen photos, fake bio, or someone impersonating another person.' },
     { key: 'INAPPROPRIATE', emoji: '🔞', label: 'Inappropriate Photos or Bio', desc: 'Nudity, sexual solicitation, or vulgar content.' },
@@ -305,6 +317,25 @@ export default function ProfileDetailModal({
               </View>
             )}
           </View>
+
+          {/* Contextual Tag Reflection Toast */}
+          {reflectionToast ? (
+            <View style={{
+              marginHorizontal: 16,
+              marginBottom: 10,
+              backgroundColor: 'rgba(46, 213, 115, 0.16)',
+              borderColor: '#2ED573',
+              borderWidth: 1,
+              borderRadius: 12,
+              paddingVertical: 8,
+              paddingHorizontal: 14,
+              alignItems: 'center',
+            }}>
+              <Text style={{ color: '#2ED573', fontSize: 12, fontWeight: '700', textAlign: 'center' }}>
+                {reflectionToast}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Main Info Card */}
           <View style={styles.card}>
@@ -506,33 +537,83 @@ export default function ProfileDetailModal({
                 </Text>
               </View>
 
-              <View style={[styles.traitChip, { width: '100%' }]}>
-                <Text style={styles.traitLabel}>Vacation Vibe: Mountains vs Beaches</Text>
+              <TouchableOpacity
+                style={[
+                  styles.traitChip,
+                  { width: '100%' },
+                  Boolean(candidate.vacationPreference && myVacation.includes(candidate.vacationPreference.slice(0, 5))) && {
+                    borderColor: 'rgba(46, 213, 115, 0.4)',
+                    backgroundColor: 'rgba(46, 213, 115, 0.08)',
+                  },
+                ]}
+                activeOpacity={0.75}
+                onPress={async () => {
+                  const vac = candidate.vacationPreference || 'Majestic Mountains 🏔️';
+                  if (myVacation.includes(vac.slice(0, 5))) return;
+                  hapticFeedback.success();
+                  setMyVacation(vac);
+                  showReflectionToast(`✈️ Added "${vac}" to your profile! Shared vacation wavelength unlocked.`);
+                  try {
+                    await api.updateMyProfile({ vacationPreference: vac });
+                  } catch (e) {}
+                }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.traitLabel}>Vacation Vibe: Mountains vs Beaches</Text>
+                  {Boolean(candidate.vacationPreference && myVacation.includes(candidate.vacationPreference.slice(0, 5))) ? (
+                    <Text style={{ color: '#2ED573', fontSize: 10, fontWeight: '800' }}>✓ MUTUAL VIBE</Text>
+                  ) : (
+                    <Text style={{ color: '#FF385C', fontSize: 10, fontWeight: '700' }}>+ Tap to Sync</Text>
+                  )}
+                </View>
                 <Text style={styles.traitValue}>
                   {candidate.vacationPreference || 'Majestic Mountains 🏔️'}
                 </Text>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Hobbies & Active Pursuits */}
+          {/* Hobbies & Active Pursuits with Contextual 1-Tap Reflection */}
           {candidate.hobbies && (
             <View style={styles.card}>
-              <Text style={styles.cardSectionTitle}>🎨 Hobbies & Pursuits</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={styles.cardSectionTitle}>🎨 Hobbies & Pursuits</Text>
+                <Text style={{ color: '#8E94A5', fontSize: 11 }}>Tap any tag to add to profile</Text>
+              </View>
               <View style={styles.interestsWrap}>
-                {candidate.hobbies.split(',').map((h, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.interestPill,
-                      {
-                        backgroundColor: 'rgba(255, 152, 0, 0.12)',
-                        borderColor: 'rgba(255, 152, 0, 0.3)',
-                      },
-                    ]}>
-                    <Text style={[styles.interestPillText, { color: '#FF9800' }]}>✨ {h.trim()}</Text>
-                  </View>
-                ))}
+                {candidate.hobbies.split(',').map((h, idx) => {
+                  const tag = h.trim();
+                  if (!tag) return null;
+                  const isMutual = myHobbies.toLowerCase().includes(tag.toLowerCase());
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      activeOpacity={0.7}
+                      onPress={async () => {
+                        if (isMutual) return;
+                        hapticFeedback.success();
+                        const updated = myHobbies ? `${myHobbies}, ${tag}` : tag;
+                        setMyHobbies(updated);
+                        showReflectionToast(`✨ Added "${tag}" to your profile! You now match on this pursuit.`);
+                        try {
+                          await api.updateMyProfile({ hobbies: updated });
+                        } catch (e) {}
+                      }}
+                      style={[
+                        styles.interestPill,
+                        isMutual ? {
+                          backgroundColor: 'rgba(46, 213, 115, 0.15)',
+                          borderColor: '#2ED573',
+                        } : {
+                          backgroundColor: 'rgba(255, 152, 0, 0.12)',
+                          borderColor: 'rgba(255, 152, 0, 0.3)',
+                        },
+                      ]}>
+                      <Text style={[styles.interestPillText, { color: isMutual ? '#2ED573' : '#FF9800' }]}>
+                        {isMutual ? '✓ ' : '+ '}✨ {tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           )}
@@ -571,26 +652,33 @@ export default function ProfileDetailModal({
             </View>
           </TouchableOpacity>
 
-          {/* Vernacular Voice Note */}
-          {(candidate.voicePrompt || candidate.voicePromptUrl) && (
+          {/* Vernacular Voice Note - ONLY if profile has uploaded an authentic audio recording */}
+          {Boolean(
+            (typeof candidate.voicePrompt?.audioUrl === 'string' && candidate.voicePrompt.audioUrl.trim() !== '') ||
+            (typeof candidate.voicePromptUrl === 'string' && candidate.voicePromptUrl.trim() !== '')
+          ) && (
             <View style={styles.voicePromptCard}>
               <View style={styles.voiceHeader}>
                 <Text style={styles.voiceTitle}>🎙️ 15s Vernacular Voice Note</Text>
-                <Text style={styles.voiceDuration}>{candidate.voicePrompt?.durationSec || 15}s</Text>
+                <Text style={styles.voiceDuration}>{candidate.voicePrompt?.durationSec || candidate.voicePromptDuration || 15}s</Text>
               </View>
-              <Text style={styles.voicePromptText}>"{candidate.voicePrompt?.promptText || 'Vernacular voice intro'}"</Text>
+              <Text style={styles.voicePromptText}>"{candidate.voicePrompt?.promptText || candidate.voicePromptText || 'Vernacular voice intro'}"</Text>
 
               <TouchableOpacity
                 style={styles.audioWaveBtn}
                 onPress={() => {
+                  const targetAudio = (candidate.voicePrompt?.audioUrl && candidate.voicePrompt.audioUrl.trim()) ||
+                                      (candidate.voicePromptUrl && candidate.voicePromptUrl.trim());
+                  if (!targetAudio) return;
+
                   if (isPlayingAudio) {
                     stopAudibleVoiceNote();
                     setIsPlayingAudio(false);
                   } else {
                     playAudibleVoiceNote({
-                      audioUrl: candidate.voicePrompt?.audioUrl || candidate.voicePromptUrl,
-                      promptText: candidate.voicePrompt?.promptText,
-                      durationSec: candidate.voicePrompt?.durationSec || 15,
+                      audioUrl: targetAudio,
+                      promptText: candidate.voicePrompt?.promptText || candidate.voicePromptText,
+                      durationSec: candidate.voicePrompt?.durationSec || candidate.voicePromptDuration || 15,
                       onStart: () => setIsPlayingAudio(true),
                       onEnd: () => setIsPlayingAudio(false),
                     });

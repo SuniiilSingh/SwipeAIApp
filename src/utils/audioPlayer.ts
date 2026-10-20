@@ -155,6 +155,12 @@ export function playAudibleVoiceNote({
 }): void {
   stopAudibleVoiceNote();
 
+  // If user has not uploaded recording, do not play anything
+  if (!audioUrl || typeof audioUrl !== 'string' || audioUrl.trim() === '') {
+    if (onEnd) onEnd();
+    return;
+  }
+
   if (onStart) onStart();
 
   let hasEnded = false;

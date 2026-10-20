@@ -130,7 +130,7 @@ export const normalizeProfilePhotos = (p: UserProfile): UserProfile => {
     photos: mergedPhotos,
     selfieUrl: normalizeImageUrl(p.selfieUrl, true),
     selectedMemeUrl: normalizeImageUrl(p.selectedMemeUrl, false),
-    voicePromptUrl: normalizeImageUrl(p.voicePromptUrl, false),
+    voicePromptUrl: (p.voicePromptUrl && p.voicePromptUrl.trim()) ? (normalizeImageUrl(p.voicePromptUrl, false) || undefined) : undefined,
   };
 };
 
@@ -1048,13 +1048,23 @@ export const api = {
               }
               return cleaned;
             })(),
-            voicePrompt: c.voicePrompt
-              ? { ...c.voicePrompt, audioUrl: normalizeImageUrl(c.voicePrompt.audioUrl) }
-              : (c.voicePromptUrl ? {
-                  audioUrl: normalizeImageUrl(c.voicePromptUrl),
+            voicePrompt: (c.voicePrompt?.audioUrl && typeof c.voicePrompt.audioUrl === 'string' && c.voicePrompt.audioUrl.trim() !== '')
+              ? {
+                  ...c.voicePrompt,
+                  audioUrl: normalizeImageUrl(c.voicePrompt.audioUrl.trim()),
+                  durationSec: c.voicePrompt.durationSec || 15,
+                  promptText: c.voicePrompt.promptText || 'My authentic voice note 🎙️',
+                }
+              : (c.voicePromptUrl && typeof c.voicePromptUrl === 'string' && c.voicePromptUrl.trim() !== '')
+              ? {
+                  audioUrl: normalizeImageUrl(c.voicePromptUrl.trim()),
                   durationSec: c.voicePromptDuration || 15,
-                  promptText: c.voicePromptText || 'My controversial chai opinion ☕',
-                } : undefined),
+                  promptText: c.voicePromptText || 'My authentic voice note 🎙️',
+                }
+              : undefined,
+            voicePromptUrl: (c.voicePromptUrl && typeof c.voicePromptUrl === 'string' && c.voicePromptUrl.trim() !== '')
+              ? (normalizeImageUrl(c.voicePromptUrl.trim(), false) || undefined)
+              : undefined,
             selectedMemeUrl: normalizeImageUrl(c.selectedMemeUrl || c.memeMatch?.memeImageUrl),
             selectedMemeTitle: c.selectedMemeTitle || c.memeMatch?.memeTitle,
             memeMatch: (c.memeMatch || c.selectedMemeUrl)

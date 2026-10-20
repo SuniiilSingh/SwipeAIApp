@@ -458,9 +458,13 @@ export default function DopamineCuriosityLoop({
         {/* TOP STATUS HEADER */}
         <View style={styles.topHeader}>
           <View style={styles.brandRow}>
-            <Text style={styles.brandTitle}>
-              BLUNDERR<Text style={styles.brandSpark}>⚡</Text>
-            </Text>
+            <View style={styles.brandWordmarkContainer}>
+              <Text style={styles.brandTitle}>BLUNDER</Text>
+              <View style={styles.flippedRContainer}>
+                <Text style={styles.flippedRText}>R</Text>
+              </View>
+              <Text style={styles.brandSpark}>⚡</Text>
+            </View>
             <View style={styles.liveRadarPill}>
               <View style={styles.radarDot} />
               <Text style={styles.radarPillText}>
@@ -653,14 +657,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  brandWordmarkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   brandTitle: {
     color: '#FFFFFF',
     fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
+  },
+  flippedRContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [{ scaleX: -1 }],
+  },
+  flippedRText: {
+    color: '#FF385C',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    textShadowColor: 'rgba(255, 56, 92, 0.55)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
   brandSpark: {
-    color: '#FF2E63',
+    color: '#FF385C',
+    fontSize: 18,
+    marginLeft: 3,
   },
   liveRadarPill: {
     flexDirection: 'row',

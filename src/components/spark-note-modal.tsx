@@ -47,6 +47,13 @@ export default function SparkNoteModal({
 }: SparkNoteModalProps) {
   const [noteText, setNoteText] = useState('');
 
+  // Reset text when modal becomes visible
+  React.useEffect(() => {
+    if (visible) {
+      setNoteText('');
+    }
+  }, [visible]);
+
   if (!candidate) return null;
 
   const candidateName = candidate.displayName || candidate.fullName || 'Candidate';
@@ -55,9 +62,9 @@ export default function SparkNoteModal({
   const charsRemaining = 140 - noteText.length;
 
   const handleSend = () => {
-    if (!noteText.trim()) return;
+    const textToSend = noteText.trim() || QUICK_STARTERS[0];
     hapticFeedback.medium();
-    onSubmit(noteText.trim(), contextType as ContextType, contextTargetId);
+    onSubmit(textToSend, contextType as ContextType, contextTargetId);
     setNoteText('');
   };
 
@@ -166,17 +173,13 @@ export default function SparkNoteModal({
 
           {/* Send CTA */}
           <TouchableOpacity
-            style={[
-              styles.sendBtn,
-              !noteText.trim() && styles.sendBtnDisabled,
-            ]}
-            disabled={!noteText.trim()}
+            style={styles.sendBtn}
             onPress={handleSend}
             activeOpacity={0.85}>
             <Text style={styles.sendBtnText}>
-              {isFreeAvailable
-                ? 'Send Free Spark Note ✨'
-                : 'Send Spark Note ✨'}
+              {noteText.trim()
+                ? (isFreeAvailable ? 'Send Free Spark Note ✨' : 'Send Spark Note ✨')
+                : 'Send Quick Spark ✨'}
             </Text>
           </TouchableOpacity>
 

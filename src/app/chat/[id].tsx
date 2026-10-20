@@ -1484,7 +1484,11 @@ export default function ChatScreen() {
                 <TouchableOpacity
                   key={idx}
                   style={styles.quickChip}
-                  onPress={() => setInputText(spark)}>
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    hapticFeedback.light();
+                    setInputText(spark);
+                  }}>
                   <Text style={styles.quickChipText} numberOfLines={1}>"{spark}"</Text>
                 </TouchableOpacity>
               ))}
@@ -1617,6 +1621,7 @@ export default function ChatScreen() {
         candidate={matchProfile}
         onClose={() => setShowKundaliModal(false)}
         onUseSpark={(spark) => {
+          hapticFeedback.light();
           setInputText(spark);
         }}
       />

@@ -559,7 +559,7 @@ export default function DiscoveryScreen() {
   };
 
   const handleRewind = () => {
-    if (!userProfile?.hasActivePass) {
+    if (FEATURE_FLAGS.ENABLE_STORE && !userProfile?.hasActivePass) {
       hapticFeedback.warning();
       setGatingFeature('REWIND');
       setGatingModalVisible(true);
@@ -580,21 +580,23 @@ export default function DiscoveryScreen() {
   };
 
   const handleSendCuttingChai = (candidate: CandidateCard) => {
-    const isVip = Boolean(userProfile?.hasActivePass);
-    const sparks = userProfile?.sparksBalance || 0;
-    if (!isVip && sparks <= 0) {
-      hapticFeedback.warning();
-      setGatingFeature('SUPER_LIKE');
-      setGatingModalVisible(true);
-      return;
+    if (FEATURE_FLAGS.ENABLE_STORE) {
+      const isVip = Boolean(userProfile?.hasActivePass);
+      const sparks = userProfile?.sparksBalance || 0;
+      if (!isVip && sparks <= 0) {
+        hapticFeedback.warning();
+        setGatingFeature('SUPER_LIKE');
+        setGatingModalVisible(true);
+        return;
+      }
     }
     setChaiTargetCandidate(candidate);
     setChaiModalVisible(true);
   };
 
-  const confirmSendCuttingChai = async () => {
-    if (!chaiTargetCandidate) return;
-    const target = chaiTargetCandidate;
+  const confirmSendCuttingChai = async (candidateOverride?: CandidateCard) => {
+    const target = candidateOverride || chaiTargetCandidate;
+    if (!target) return;
     setChaiModalVisible(false);
     setChaiTargetCandidate(null);
 
@@ -1462,14 +1464,16 @@ function SwipeableCandidateCard({
             <TouchableOpacity
               style={styles.modalSubmitBtn}
               onPress={() => {
-                const isVip = Boolean(userProfile?.hasActivePass);
-                const dms = userProfile?.directDmsBalance || 0;
-                if (!isVip && dms <= 0) {
-                  setCommentModalVisible(false);
-                  hapticFeedback.warning();
-                  setGatingFeature('DIRECT_DM');
-                  setGatingModalVisible(true);
-                  return;
+                if (FEATURE_FLAGS.ENABLE_STORE) {
+                  const isVip = Boolean(userProfile?.hasActivePass);
+                  const dms = userProfile?.directDmsBalance || 0;
+                  if (!isVip && dms <= 0) {
+                    setCommentModalVisible(false);
+                    hapticFeedback.warning();
+                    setGatingFeature('DIRECT_DM');
+                    setGatingModalVisible(true);
+                    return;
+                  }
                 }
                 if (userProfile && userProfile.directDmsBalance > 0) {
                   setUserProfile((prev) => prev ? { ...prev, directDmsBalance: Math.max(0, prev.directDmsBalance - 1) } : null);
@@ -1510,7 +1514,7 @@ function SwipeableCandidateCard({
 
             <TouchableOpacity
               style={styles.modalSubmitBtn}
-              onPress={confirmSendCuttingChai}>
+              onPress={() => confirmSendCuttingChai()}>
               <Text style={styles.modalSubmitBtnText}>
                 {FEATURE_FLAGS.ENABLE_STORE ? 'Pay ₹19 via UPI & Send Spark ⚡' : 'Send Super Spark ⚡'}
               </Text>
@@ -1553,13 +1557,17 @@ function SwipeableCandidateCard({
           const target = selectedCandidate;
           setShowFullProfileModal(false);
           setSelectedCandidate(null);
-          if (target) confirmSendCuttingChai();
+          if (target) {
+            handleSendCuttingChai(target);
+          }
         }}
         onSparkNote={() => {
           const target = selectedCandidate;
           setShowFullProfileModal(false);
           if (target) {
-            handleOpenSparkNote(target);
+            setTimeout(() => {
+              handleOpenSparkNote(target);
+            }, 120);
           }
         }}
         hasFreeSparkNote={sparkNoteQuota ? sparkNoteQuota.canSendFree : true}
@@ -1567,13 +1575,15 @@ function SwipeableCandidateCard({
           const target = selectedCandidate;
           setShowFullProfileModal(false);
           if (target) {
-            handleOpenSparkNote(
-              target,
-              contextType || 'PHOTO',
-              contextTargetId,
-              contextTitle,
-              previewUrl
-            );
+            setTimeout(() => {
+              handleOpenSparkNote(
+                target,
+                contextType || 'PHOTO',
+                contextTargetId,
+                contextTitle,
+                previewUrl
+              );
+            }, 120);
           }
         }}
       />

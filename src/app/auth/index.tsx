@@ -40,6 +40,7 @@ import LivenessCameraModal from '@/components/liveness-camera-modal';
 import { FEATURE_FLAGS } from '@/config/features';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 import { hapticFeedback } from '@/utils/haptics';
+import { ForwardArrowIcon } from '@/components/chat-icons';
 
 const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
@@ -344,16 +345,40 @@ export default function AuthScreen() {
   const likeStampOpacity = swipeAnim.x.interpolate({ inputRange: [0, 90], outputRange: [0, 1], extrapolate: 'clamp' });
   const nopeStampOpacity = swipeAnim.x.interpolate({ inputRange: [-90, 0], outputRange: [1, 0], extrapolate: 'clamp' });
 
-  const openPhoneMode = (focus: boolean) => {
+  const openPhoneMode = (focus: boolean = true) => {
     setPhoneMode(true);
     setIsKeyboardVisible(true);
     if (focus) {
+      requestAnimationFrame(() => {
+        phoneInputRef.current?.focus();
+      });
       setTimeout(() => {
         phoneInputRef.current?.focus();
         scrollRef.current?.scrollToEnd({ animated: true });
       }, 80);
+      setTimeout(() => {
+        phoneInputRef.current?.focus();
+      }, 200);
+      setTimeout(() => {
+        phoneInputRef.current?.focus();
+      }, 350);
     }
   };
+
+  useEffect(() => {
+    if (phoneMode && !otpSent) {
+      const t1 = setTimeout(() => {
+        phoneInputRef.current?.focus();
+      }, 80);
+      const t2 = setTimeout(() => {
+        phoneInputRef.current?.focus();
+      }, 250);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }
+  }, [phoneMode, otpSent]);
 
   const closePhoneMode = () => {
     Keyboard.dismiss();
@@ -410,12 +435,12 @@ export default function AuthScreen() {
     const target =
       dir === 'up' ? { x: 0, y: -900 } : { x: dir === 'right' ? 520 : -520, y: 40 };
     const swipedName = TEASER_PROFILES[teaserIndexRef.current % TEASER_PROFILES.length].name;
-    Animated.timing(swipeAnim, { toValue: target, duration: 260, useNativeDriver: false }).start(() => {
+    Animated.timing(swipeAnim, { toValue: target, duration: 240, useNativeDriver: false }).start(() => {
       swipeAnim.setValue({ x: 0, y: 0 });
       setTeaserIndex((i) => i + 1);
       if (dir !== 'left' && !otpSent) {
         setLikedName(swipedName);
-        openPhoneMode(false);
+        openPhoneMode(true);
       }
     });
   };
@@ -425,15 +450,35 @@ export default function AuthScreen() {
   const deckPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 || Math.abs(g.dy) > 8,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, g) => {
+        return Math.abs(g.dx) > 10 || Math.abs(g.dy) > 12;
+      },
+      onMoveShouldSetPanResponderCapture: (_, g) => {
+        // Capture horizontal swipe so neither ScrollView nor TouchableWithoutFeedback steals it
+        return Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 0.7;
+      },
+      onPanResponderTerminationRequest: () => false,
       onPanResponderMove: Animated.event([null, { dx: swipeAnim.x, dy: swipeAnim.y }], {
         useNativeDriver: false,
       }),
       onPanResponderRelease: (_, g) => {
-        if (g.dx > 110) flyCardRef.current('right');
-        else if (g.dx < -110) flyCardRef.current('left');
-        else if (g.dy < -120) flyCardRef.current('up');
-        else Animated.spring(swipeAnim, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: false }).start();
+        const SWIPE_THRESHOLD = 75;
+        const SWIPE_VELOCITY = 0.35;
+        if (g.dx > SWIPE_THRESHOLD || g.vx > SWIPE_VELOCITY) {
+          flyCardRef.current('right');
+        } else if (g.dx < -SWIPE_THRESHOLD || g.vx < -SWIPE_VELOCITY) {
+          flyCardRef.current('left');
+        } else if (g.dy < -100 || g.vy < -0.5) {
+          flyCardRef.current('up');
+        } else {
+          Animated.spring(swipeAnim, {
+            toValue: { x: 0, y: 0 },
+            friction: 5,
+            tension: 40,
+            useNativeDriver: false,
+          }).start();
+        }
       },
       onPanResponderTerminate: () => {
         Animated.spring(swipeAnim, { toValue: { x: 0, y: 0 }, friction: 5, useNativeDriver: false }).start();
@@ -1241,6 +1286,7 @@ export default function AuthScreen() {
                                 ref={phoneInputRef}
                                 style={styles.optAPhoneInput}
                                 value={phone}
+                                autoFocus={true}
                                 onChangeText={(text) => {
                                   const digits = text.replace(/[^0-9]/g, '').slice(0, 10);
                                   setPhone(digits);
@@ -1274,7 +1320,7 @@ export default function AuthScreen() {
                                     {loading ? (
                                       <ActivityIndicator color="#fff" size="small" />
                                     ) : (
-                                      <Text style={styles.optAGoArrow}>→</Text>
+                                      <ForwardArrowIcon size={18} color="#FFFFFF" />
                                     )}
                                   </TouchableOpacity>
                                 </Animated.View>
@@ -1367,7 +1413,7 @@ export default function AuthScreen() {
                                     {loading ? (
                                       <ActivityIndicator color="#fff" size="small" />
                                     ) : (
-                                      <Text style={styles.optAGoArrow}>→</Text>
+                                      <ForwardArrowIcon size={18} color="#FFFFFF" />
                                     )}
                                   </TouchableOpacity>
                                 </Animated.View>

@@ -282,6 +282,13 @@ const DECK_STRIP_ITEMS = [
 
 const ONBOARDING_DRAFT_STORAGE_KEY = '@blunderr_onboarding_draft_v1';
 
+const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_NAMES_FULL = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+const QUICK_YEAR_PRESETS = [2006, 2005, 2004, 2003, 2002, 2001, 2000, 1998, 1996, 1994, 1992, 1990];
+
 export default function OnboardingDecksScreen() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -294,21 +301,18 @@ export default function OnboardingDecksScreen() {
   const isHydratedRef = useRef<boolean>(false);
   const mainScrollRef = useRef<ScrollView>(null);
 
-  // Deck 1: Identity, Liveness Selfie & Primary Residence (Zero Prefill)
+  // Deck 1: Identity, Liveness Selfie & Primary Residence (Option A: Frictionless Timeline & Chips)
   const [fullName, setFullName] = useState<string>('');
-  const [dobYear, setDobYear] = useState<string>('');
-  const [dobMonth, setDobMonth] = useState<string>('');
-  const [dobDay, setDobDay] = useState<string>('');
-  const dobDayRef = useRef<TextInput>(null);
-  const dobMonthRef = useRef<TextInput>(null);
-  const dobYearRef = useRef<TextInput>(null);
+  const [dobYear, setDobYear] = useState<string>('2002');
+  const [dobMonth, setDobMonth] = useState<string>('10');
+  const [dobDay, setDobDay] = useState<string>('15');
 
   // Unified Form Data Ref to eliminate closure staleness and ensure instant crash-proof saving
   const formDataRef = useRef({
     fullName: '',
-    dobYear: '',
-    dobMonth: '',
-    dobDay: '',
+    dobYear: '2002',
+    dobMonth: '10',
+    dobDay: '15',
     selfieUrl: '',
     isLivenessVerified: false,
     verificationStatus: 'UNVERIFIED' as 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED',
@@ -336,15 +340,16 @@ export default function OnboardingDecksScreen() {
     formDataRef.current.fullName = text;
   };
 
-  const clampDayForMonth = (currentDay: string, monthStr: string) => {
+  const clampDayForMonth = (currentDay: string, monthStr: string, yearStr?: string) => {
     if (!currentDay) return;
     const dy = parseInt(currentDay, 10);
     const mo = parseInt(monthStr, 10);
+    const yr = parseInt(yearStr || dobYear, 10);
     if (isNaN(dy) || isNaN(mo)) return;
 
     let maxDays = 31;
     if (mo === 2) {
-      maxDays = 29;
+      maxDays = (!isNaN(yr) && ((yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0)) ? 29 : 28;
     } else if ([4, 6, 9, 11].includes(mo)) {
       maxDays = 30;
     }
@@ -356,129 +361,49 @@ export default function OnboardingDecksScreen() {
     }
   };
 
-  const handleDobDayChange = (text: string) => {
-    let clean = text.replace(/[^0-9]/g, '');
-    if (!clean) {
-      setDobDay('');
-      formDataRef.current.dobDay = '';
-      return;
-    }
-
-    // If first digit typed is 4-9, it can only be 04, 05... 09
-    if (clean.length === 1 && parseInt(clean, 10) >= 4) {
-      clean = `0${clean}`;
-      setDobDay(clean);
-      formDataRef.current.dobDay = clean;
-      dobMonthRef.current?.focus();
-      return;
-    }
-
-    clean = clean.slice(0, 2);
-
-    if (clean.length === 2) {
-      let num = parseInt(clean, 10);
-      if (num === 0) num = 1;
-      if (num > 31) num = 31;
-
-      // Check current month limits if month is already filled
-      const mo = parseInt(formDataRef.current.dobMonth || '', 10);
-      if (!isNaN(mo)) {
-        if (mo === 2 && num > 29) num = 29;
-        if ([4, 6, 9, 11].includes(mo) && num > 30) num = 30;
-      }
-
-      clean = String(num).padStart(2, '0');
-      setDobDay(clean);
-      formDataRef.current.dobDay = clean;
-      dobMonthRef.current?.focus();
-      return;
-    }
-
-    setDobDay(clean);
-    formDataRef.current.dobDay = clean;
-  };
-
-  const handleDobMonthChange = (text: string) => {
-    let clean = text.replace(/[^0-9]/g, '');
-    if (!clean) {
-      setDobMonth('');
-      formDataRef.current.dobMonth = '';
-      return;
-    }
-
-    // If first digit typed is 2-9, it can only be 02, 03... 09
-    if (clean.length === 1 && parseInt(clean, 10) >= 2) {
-      clean = `0${clean}`;
-      setDobMonth(clean);
-      formDataRef.current.dobMonth = clean;
-      clampDayForMonth(formDataRef.current.dobDay, clean);
-      dobYearRef.current?.focus();
-      return;
-    }
-
-    clean = clean.slice(0, 2);
-
-    if (clean.length === 2) {
-      let num = parseInt(clean, 10);
-      if (num === 0) num = 1;
-      if (num > 12) num = 12;
-      clean = String(num).padStart(2, '0');
-      setDobMonth(clean);
-      formDataRef.current.dobMonth = clean;
-      clampDayForMonth(formDataRef.current.dobDay, clean);
-      dobYearRef.current?.focus();
-      return;
-    }
-
-    setDobMonth(clean);
-    formDataRef.current.dobMonth = clean;
-  };
-
-  const handleDobYearChange = (text: string) => {
-    let clean = text.replace(/[^0-9]/g, '').slice(0, 4);
-    if (!clean) {
-      setDobYear('');
-      formDataRef.current.dobYear = '';
-      return;
-    }
-
-    // 1st digit: Must be 1 or 2 (rejects inputs starting with 3-9 like 9999)
-    if (clean.length >= 1) {
-      if (clean[0] !== '1' && clean[0] !== '2') {
-        return;
-      }
-    }
-
-    // 2nd digit: If 1 -> 9 (19xx). If 2 -> 0 (20xx).
-    if (clean.length >= 2) {
-      if (clean[0] === '1' && clean[1] !== '9') {
-        clean = '19' + clean.slice(2);
-      } else if (clean[0] === '2' && clean[1] !== '0') {
-        clean = '20' + clean.slice(2);
-      }
-    }
-
-    // 4 digits validation:
-    if (clean.length === 4) {
-      const yr = parseInt(clean, 10);
-      const currentYr = new Date().getFullYear();
-      if (yr > currentYr) {
-        clean = String(currentYr - 18);
-      } else if (yr < 1920) {
-        clean = '1920';
-      }
-    }
-
-    setDobYear(clean);
-    formDataRef.current.dobYear = clean;
-  };
-
-  const handleQuickYearSelect = (yearNum: number) => {
-    hapticFeedback.selection();
-    const str = String(yearNum);
+  const handleSelectYear = (yrNum: number) => {
+    const currentYr = new Date().getFullYear();
+    const clampedYr = Math.max(1940, Math.min(currentYr - 18, yrNum));
+    const str = String(clampedYr);
     setDobYear(str);
     formDataRef.current.dobYear = str;
+    clampDayForMonth(formDataRef.current.dobDay, formDataRef.current.dobMonth, str);
+    hapticFeedback.selection();
   };
+
+  const handleStepYear = (delta: number) => {
+    const current = parseInt(dobYear, 10) || 2002;
+    handleSelectYear(current + delta);
+  };
+
+  const handleSelectMonth = (monthIndex1to12: number) => {
+    const str = String(monthIndex1to12).padStart(2, '0');
+    setDobMonth(str);
+    formDataRef.current.dobMonth = str;
+    clampDayForMonth(formDataRef.current.dobDay, str);
+    hapticFeedback.selection();
+  };
+
+  const handleSelectDay = (dayNum: number) => {
+    const str = String(dayNum).padStart(2, '0');
+    setDobDay(str);
+    formDataRef.current.dobDay = str;
+    hapticFeedback.selection();
+  };
+
+  const maxDaysInSelectedMonth = useMemo(() => {
+    const mo = parseInt(dobMonth, 10);
+    const yr = parseInt(dobYear, 10);
+    if (isNaN(mo)) return 31;
+    if (mo === 2) {
+      if (!isNaN(yr) && ((yr % 4 === 0 && yr % 100 !== 0) || yr % 400 === 0)) {
+        return 29;
+      }
+      return 28;
+    }
+    if ([4, 6, 9, 11].includes(mo)) return 30;
+    return 31;
+  }, [dobMonth, dobYear]);
 
   const handleJobChange = (text: string) => {
     setJob(text);
@@ -500,17 +425,6 @@ export default function OnboardingDecksScreen() {
     formDataRef.current.birthCity = text;
   };
 
-  const handleMonthKeyPress = ({ nativeEvent }: any) => {
-    if (nativeEvent.key === 'Backspace' && dobMonth.length === 0) {
-      dobDayRef.current?.focus();
-    }
-  };
-
-  const handleYearKeyPress = ({ nativeEvent }: any) => {
-    if (nativeEvent.key === 'Backspace' && dobYear.length === 0) {
-      dobMonthRef.current?.focus();
-    }
-  };
 
   const calculatedAge = useMemo(() => {
     const yr = parseInt(dobYear, 10);
@@ -2126,102 +2040,156 @@ export default function OnboardingDecksScreen() {
                     />
                   </View>
 
-                  <View style={styles.fieldBox}>
-                    <View style={styles.dobHeaderRow}>
-                      <Text style={styles.fieldLabel}>DATE OF BIRTH (DD / MM / YYYY)</Text>
-                      {calculatedAge !== null && (
-                        <View style={[styles.agePill, calculatedAge >= 18 ? styles.agePillValid : styles.agePillInvalid]}>
-                          <Text style={[styles.agePillText, calculatedAge >= 18 ? styles.agePillTextValid : styles.agePillTextInvalid]}>
-                            {calculatedAge >= 18 ? `✓ ${calculatedAge} yrs (18+)` : `⚠️ Under 18 (${calculatedAge})`}
-                          </Text>
+                  {/* OPTION A: Haptic Year Timeline, Month & Day Chips */}
+                  <View style={styles.dobContainerCard}>
+                    {/* Hero Age & Identity Header Card */}
+                    <View style={styles.dobHeroCard}>
+                      <View style={styles.dobHeroTopRow}>
+                        <Text style={styles.dobHeroLabel}>YOUR DATE OF BIRTH & AGE</Text>
+                        {calculatedAge !== null && (
+                          <View style={[styles.agePill, calculatedAge >= 18 ? styles.agePillValid : styles.agePillInvalid]}>
+                            <Text style={[styles.agePillText, calculatedAge >= 18 ? styles.agePillTextValid : styles.agePillTextInvalid]}>
+                              {calculatedAge >= 18 ? `✓ ${calculatedAge} yrs (18+)` : `⚠️ Under 18 (${calculatedAge})`}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={styles.dobHeroCenter}>
+                        <View style={styles.dobHeroAgeRow}>
+                          <Text style={styles.dobHeroAgeNumber}>{calculatedAge ?? 24}</Text>
+                          <Text style={styles.dobHeroAgeUnit}>years old</Text>
                         </View>
-                      )}
-                    </View>
-                    <View style={styles.dobSegmentContainer}>
-                      {/* DAY */}
-                      <View style={styles.dobBlock}>
-                        <Text style={styles.dobBlockSub}>DAY</Text>
-                        <TextInput
-                          ref={dobDayRef}
-                          style={[styles.glowInput, styles.dobInputSegment, dobDay.length === 2 && styles.dobInputFilled]}
-                          placeholder="DD"
-                          placeholderTextColor="#64748B"
-                          value={dobDay}
-                          onChangeText={handleDobDayChange}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                          selectTextOnFocus
-                        />
-                      </View>
-
-                      <Text style={styles.dobSlash}>/</Text>
-
-                      {/* MONTH */}
-                      <View style={styles.dobBlock}>
-                        <Text style={styles.dobBlockSub}>MONTH</Text>
-                        <TextInput
-                          ref={dobMonthRef}
-                          style={[styles.glowInput, styles.dobInputSegment, dobMonth.length === 2 && styles.dobInputFilled]}
-                          placeholder="MM"
-                          placeholderTextColor="#64748B"
-                          value={dobMonth}
-                          onChangeText={handleDobMonthChange}
-                          onKeyPress={handleMonthKeyPress}
-                          keyboardType="number-pad"
-                          maxLength={2}
-                          selectTextOnFocus
-                        />
-                      </View>
-
-                      <Text style={styles.dobSlash}>/</Text>
-
-                      {/* YEAR */}
-                      <View style={[styles.dobBlock, { flex: 1.4 }]}>
-                        <Text style={styles.dobBlockSub}>YEAR</Text>
-                        <TextInput
-                          ref={dobYearRef}
-                          style={[styles.glowInput, styles.dobInputSegment, dobYear.length === 4 && styles.dobInputFilled]}
-                          placeholder="YYYY"
-                          placeholderTextColor="#64748B"
-                          value={dobYear}
-                          onChangeText={handleDobYearChange}
-                          onKeyPress={handleYearKeyPress}
-                          keyboardType="number-pad"
-                          maxLength={4}
-                          selectTextOnFocus
-                        />
+                        <Text style={styles.dobHeroDateString}>
+                          Born on {parseInt(dobDay, 10) || 15} {MONTH_NAMES_FULL[(parseInt(dobMonth, 10) || 10) - 1]} {dobYear || '2002'}
+                        </Text>
+                        {activeZodiac ? (
+                          <View style={styles.dobZodiacPill}>
+                            <Text style={styles.dobZodiacPillText}>Zodiac: {activeZodiac}</Text>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
 
-                    {/* Live Validation & Astrological Status Pill */}
-                    {calculatedAge !== null && (
-                      <View style={[styles.dobStatusCard, calculatedAge >= 18 ? styles.dobStatusSuccess : styles.dobStatusError]}>
-                        <Text style={[styles.dobStatusText, calculatedAge >= 18 ? styles.dobStatusTextSuccess : styles.dobStatusTextError]}>
-                          {calculatedAge >= 18
-                            ? `✓ ${calculatedAge} years old (18+ Verified)${activeZodiac ? ` • ${activeZodiac}` : ''}`
-                            : `⚠️ Must be at least 18 years old to join BlunderR (currently ${calculatedAge} yrs)`}
+                    {/* 1. Year Selector */}
+                    <View style={styles.dobSectionBlock}>
+                      <View style={styles.dobSectionHeader}>
+                        <Text style={styles.dobSectionTitle}>1. BIRTH YEAR</Text>
+                        <Text style={styles.dobSectionSubtitle}>
+                          {dobYear || '2002'} ({calculatedAge ?? 24} yrs old)
                         </Text>
                       </View>
-                    )}
+                      <View style={styles.dobYearStepperRow}>
+                        <TouchableOpacity
+                          style={styles.dobStepperBtn}
+                          onPress={() => handleStepYear(-1)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.dobStepperBtnText}>−</Text>
+                        </TouchableOpacity>
 
-                    {/* Quick 1-Tap Year Shortcut Chips */}
-                    <View style={styles.quickYearRow}>
-                      <Text style={styles.quickYearTitle}>QUICK YEAR:</Text>
-                      {[2006, 2004, 2002, 2000, 1998, 1996, 1994].map((yr) => {
-                        const isSelected = dobYear === String(yr);
-                        return (
-                          <TouchableOpacity
-                            key={yr}
-                            style={[styles.quickYearChip, isSelected && styles.quickYearChipActive]}
-                            onPress={() => handleQuickYearSelect(yr)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.quickYearChipText, isSelected && styles.quickYearChipTextActive]}>
-                              {yr}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                        <View style={styles.dobYearCenterDisplay}>
+                          <Text style={styles.dobYearBigText}>{dobYear || '2002'}</Text>
+                          <Text style={styles.dobYearAgeSub}>Tap + / − or select below</Text>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.dobStepperBtn,
+                            (parseInt(dobYear, 10) || 2002) >= new Date().getFullYear() - 18 && styles.dobStepperBtnDisabled,
+                          ]}
+                          onPress={() => handleStepYear(1)}
+                          disabled={(parseInt(dobYear, 10) || 2002) >= new Date().getFullYear() - 18}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.dobStepperBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Quick Year Horizontal Chips */}
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.dobQuickYearsContainer}
+                      >
+                        {QUICK_YEAR_PRESETS.map((yr) => {
+                          const isSelected = dobYear === String(yr);
+                          return (
+                            <TouchableOpacity
+                              key={yr}
+                              style={[styles.dobQuickYearChip, isSelected && styles.dobQuickYearChipActive]}
+                              onPress={() => handleSelectYear(yr)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[styles.dobQuickYearChipText, isSelected && styles.dobQuickYearChipTextActive]}>
+                                {yr}
+                              </Text>
+                              <Text style={[styles.dobQuickYearChipSub, isSelected && styles.dobQuickYearChipSubActive]}>
+                                {new Date().getFullYear() - yr} yrs
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+
+                    {/* 2. Month Selector */}
+                    <View style={styles.dobSectionBlock}>
+                      <View style={styles.dobSectionHeader}>
+                        <Text style={styles.dobSectionTitle}>2. BIRTH MONTH</Text>
+                        <Text style={styles.dobSectionSubtitle}>
+                          {MONTH_NAMES_FULL[(parseInt(dobMonth, 10) || 10) - 1]}
+                        </Text>
+                      </View>
+                      <View style={styles.dobMonthGrid}>
+                        {MONTH_NAMES_SHORT.map((mName, idx) => {
+                          const mNum = idx + 1;
+                          const isSelected = (parseInt(dobMonth, 10) || 10) === mNum;
+                          return (
+                            <TouchableOpacity
+                              key={mName}
+                              style={[styles.dobMonthChip, isSelected && styles.dobMonthChipActive]}
+                              onPress={() => handleSelectMonth(mNum)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[styles.dobMonthChipText, isSelected && styles.dobMonthChipTextActive]}>
+                                {mName}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </View>
+
+                    {/* 3. Day Selector */}
+                    <View style={[styles.dobSectionBlock, { marginBottom: 4 }]}>
+                      <View style={styles.dobSectionHeader}>
+                        <Text style={styles.dobSectionTitle}>3. BIRTH DAY</Text>
+                        <Text style={styles.dobSectionSubtitle}>
+                          Day {parseInt(dobDay, 10) || 15} of {maxDaysInSelectedMonth}
+                        </Text>
+                      </View>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.dobDayScrollContainer}
+                      >
+                        {Array.from({ length: maxDaysInSelectedMonth }, (_, i) => i + 1).map((dNum) => {
+                          const isSelected = (parseInt(dobDay, 10) || 15) === dNum;
+                          return (
+                            <TouchableOpacity
+                              key={dNum}
+                              style={[styles.dobDayCircle, isSelected && styles.dobDayCircleActive]}
+                              onPress={() => handleSelectDay(dNum)}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[styles.dobDayCircleText, isSelected && styles.dobDayCircleTextActive]}>
+                                {dNum}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
                     </View>
                   </View>
 
@@ -4267,100 +4235,226 @@ const styles = StyleSheet.create({
   agePillTextInvalid: {
     color: '#F87171',
   },
-  dobSegmentContainer: {
+  dobContainerCard: {
+    backgroundColor: 'rgba(20, 23, 34, 0.6)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 14,
+    marginBottom: 20,
+  },
+  dobHeroCard: {
+    backgroundColor: 'rgba(10, 12, 18, 0.85)',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    padding: 14,
+    marginBottom: 16,
+  },
+  dobHeroTopRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 6,
+  },
+  dobHeroLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+  },
+  dobHeroCenter: {
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  dobHeroAgeRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     gap: 6,
   },
-  dobBlock: {
-    flex: 1,
+  dobHeroAgeNumber: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -1,
   },
-  dobBlockSub: {
-    fontSize: 9,
-    color: '#94A3B8',
+  dobHeroAgeUnit: {
+    fontSize: 15,
     fontWeight: '800',
-    marginBottom: 4,
-    letterSpacing: 0.6,
-    textAlign: 'center',
+    color: '#FF385C',
   },
-  dobInputSegment: {
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '700',
-    paddingHorizontal: 6,
-    paddingVertical: 10,
+  dobHeroDateString: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#E2E8F0',
+    marginTop: 2,
   },
-  dobInputFilled: {
-    borderColor: 'rgba(255, 56, 92, 0.5)',
-    backgroundColor: 'rgba(255, 56, 92, 0.06)',
-  },
-  dobSlash: {
-    fontSize: 18,
-    color: '#64748B',
-    fontWeight: '700',
-    marginTop: 14,
-  },
-  dobStatusCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    borderWidth: 1,
+  dobZodiacPill: {
     marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.25)',
   },
-  dobStatusSuccess: {
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-  },
-  dobStatusError: {
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    borderColor: 'rgba(239, 68, 68, 0.35)',
-  },
-  dobStatusText: {
+  dobZodiacPillText: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#FF6B8B',
   },
-  dobStatusTextSuccess: {
-    color: '#34D399',
+  dobSectionBlock: {
+    marginBottom: 14,
   },
-  dobStatusTextError: {
-    color: '#F87171',
+  dobSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 2,
   },
-  quickYearRow: {
+  dobSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.6,
+  },
+  dobSectionSubtitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF385C',
+  },
+  dobYearStepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  quickYearTitle: {
-    fontSize: 10,
-    color: '#64748B',
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginRight: 2,
-  },
-  quickYearChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'space-between',
+    backgroundColor: '#0A0C12',
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 6,
+    marginBottom: 8,
   },
-  quickYearChipActive: {
-    backgroundColor: 'rgba(255, 56, 92, 0.2)',
-    borderColor: '#FF385C',
+  dobStepperBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  quickYearChipText: {
-    fontSize: 11,
+  dobStepperBtnDisabled: {
+    opacity: 0.3,
+  },
+  dobStepperBtnText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  dobYearCenterDisplay: {
+    alignItems: 'center',
+  },
+  dobYearBigText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  dobYearAgeSub: {
+    fontSize: 10,
     fontWeight: '600',
     color: '#94A3B8',
   },
-  quickYearChipTextActive: {
-    color: '#FF6B8B',
+  dobQuickYearsContainer: {
+    paddingVertical: 2,
+    gap: 6,
+  },
+  dobQuickYearChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+  },
+  dobQuickYearChipActive: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  dobQuickYearChipText: {
+    fontSize: 12,
     fontWeight: '700',
+    color: '#94A3B8',
+  },
+  dobQuickYearChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  dobQuickYearChipSub: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 1,
+  },
+  dobQuickYearChipSubActive: {
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  dobMonthGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  dobMonthChip: {
+    width: '23%',
+    flexGrow: 1,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dobMonthChipActive: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  dobMonthChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  dobMonthChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  dobDayScrollContainer: {
+    paddingVertical: 2,
+    gap: 6,
+  },
+  dobDayCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dobDayCircleActive: {
+    backgroundColor: '#FF385C',
+    borderColor: '#FF385C',
+  },
+  dobDayCircleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  dobDayCircleTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   fieldLabelRow: {
     flexDirection: 'row',

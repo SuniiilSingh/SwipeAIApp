@@ -38,6 +38,7 @@ export default function MatchesScreen() {
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [likesReceived, setLikesReceived] = useState<CandidateCard[]>([]);
   const [selectedLikeCandidate, setSelectedLikeCandidate] = useState<CandidateCard | null>(null);
+  const [showLikeRevealGateModal, setShowLikeRevealGateModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<MatchItem | null>(null);
@@ -522,26 +523,39 @@ export default function MatchesScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sparksScroll}>
             {likesReceived.map((item) => {
               const hasSparkNote = Boolean(item.commentText);
+              const myPhotos = userProfile?.photos || [];
+              const hasFivePhotos = myPhotos.length >= 5 || Boolean(userProfile?.photo5);
+              const isLocked = !hasFivePhotos;
+
               return (
                 <TouchableOpacity
                   key={item.userId}
-                  style={[styles.sparkCard, hasSparkNote && styles.sparkCardWithNote]}
+                  style={[styles.sparkCard, hasSparkNote && styles.sparkCardWithNote, isLocked && { borderColor: 'rgba(255, 184, 0, 0.45)' }]}
                   activeOpacity={0.85}
-                  onPress={() => setSelectedLikeCandidate(item)}>
+                  onPress={() => {
+                    if (isLocked) {
+                      setShowLikeRevealGateModal(true);
+                    } else {
+                      setSelectedLikeCandidate(item);
+                    }
+                  }}>
                   <View style={[styles.sparkAvatarWrap, hasSparkNote && styles.sparkAvatarWrapWithNote]}>
                     <ExpoImage
                       source={{ uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500' }}
                       style={styles.sparkAvatar}
                       contentFit="cover"
+                      blurRadius={isLocked ? 16 : 0}
                     />
-                    <View style={[styles.sparkBadge, hasSparkNote && styles.sparkNoteBadge]}>
-                      <Text style={{ fontSize: 10 }}>{hasSparkNote ? '✨' : '❤️'}</Text>
+                    <View style={[styles.sparkBadge, hasSparkNote && styles.sparkNoteBadge, isLocked && { backgroundColor: '#FFB800' }]}>
+                      <Text style={{ fontSize: 10 }}>{isLocked ? '🔒' : (hasSparkNote ? '✨' : '❤️')}</Text>
                     </View>
                   </View>
                   <Text style={styles.sparkName} numberOfLines={1}>
-                    {item.displayName || 'Someone'}
+                    {isLocked ? 'Admirer' : (item.displayName || 'Someone')}
                   </Text>
-                  {hasSparkNote ? (
+                  {isLocked ? (
+                    <Text style={[styles.sparkHint, { color: '#FFB800', fontWeight: '800' }]}>Tap to Unblur</Text>
+                  ) : hasSparkNote ? (
                     <Text style={styles.sparkNoteText} numberOfLines={1}>
                       💬 {item.commentText}
                     </Text>
@@ -819,6 +833,44 @@ export default function MatchesScreen() {
           if (selectedLikeCandidate) handlePassCandidate(selectedLikeCandidate);
         }}
       />
+
+      {/* Admirer Photo Reveal Gate Modal */}
+      <Modal
+        visible={showLikeRevealGateModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLikeRevealGateModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.revealGateCard}>
+            <View style={styles.revealGateIconWrap}>
+              <Text style={{ fontSize: 32 }}>💌</Text>
+            </View>
+            <Text style={styles.revealGateTitle}>Someone Liked Your Vibe!</Text>
+            <Text style={styles.revealGateSub}>
+              A verified member in your micro-community liked your profile. Complete photo #4 & #5 to unblur their photo and start matching!
+            </Text>
+            <View style={styles.revealGatePerksList}>
+              <Text style={styles.revealGatePerkItem}>⚡ Unlocks all admirer profiles permanently</Text>
+              <Text style={styles.revealGatePerkItem}>🔥 Boosts your profile visibility by 2.4x</Text>
+              <Text style={styles.revealGatePerkItem}>🛡️ Keeps BlunderR 100% verified & genuine</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.revealGateActionBtn}
+              activeOpacity={0.85}
+              onPress={() => {
+                setShowLikeRevealGateModal(false);
+                router.push('/(tabs)/profile?edit=true' as any);
+              }}>
+              <Text style={styles.revealGateActionBtnText}>📸 Add 2 Photos & Reveal Admirer →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.revealGateCancelBtn}
+              onPress={() => setShowLikeRevealGateModal(false)}>
+              <Text style={styles.revealGateCancelBtnText}>Maybe Later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Rule of 5 Explainer Modal */}
       <Modal
@@ -1610,6 +1662,80 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     padding: 24,
     alignItems: 'center',
+  },
+  revealGateCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#0E111A',
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    padding: 24,
+    alignItems: 'center',
+  },
+  revealGateIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  revealGateTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  revealGateSub: {
+    color: '#94A3B8',
+    fontSize: 12.5,
+    marginTop: 6,
+    marginBottom: 16,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  revealGatePerksList: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  revealGatePerkItem: {
+    color: '#E2E8F0',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  revealGateActionBtn: {
+    width: '100%',
+    backgroundColor: '#FF385C',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  revealGateActionBtnText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  revealGateCancelBtn: {
+    marginTop: 12,
+    paddingVertical: 6,
+  },
+  revealGateCancelBtnText: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '600',
   },
   ruleModalIconWrapper: {
     width: 60,

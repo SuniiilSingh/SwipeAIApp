@@ -792,12 +792,13 @@ export default function ProfileScreen() {
     if (setupBio && setupBio.trim()) pct += 8;
     if (setupPromptAnswer && setupPromptAnswer.trim()) pct += 7;
 
-    // 4. Photos & Verified Selfie (20%)
+    // 4. Photos & Verified Selfie (24%)
     if (setupPhoto1 && setupPhoto1.trim()) pct += 8;
     if (setupPhoto2 && setupPhoto2.trim()) pct += 2;
     if (setupPhoto3 && setupPhoto3.trim()) pct += 2;
     if (setupPhoto4 && setupPhoto4.trim()) pct += 2;
     if (setupPhoto5 && setupPhoto5.trim()) pct += 2;
+    if (setupPhoto6 && setupPhoto6.trim()) pct += 2;
     if (setupSelfie && setupSelfie.trim()) pct += 4;
 
     // 5. Career, Education & Height (10%)
@@ -812,10 +813,11 @@ export default function ProfileScreen() {
     if (setupSmoking || setupDrinking) pct += 2;
     if (setupVacation && setupVacation.trim()) pct += 2;
 
-    // 7. Passions, Vedic Zodiac & Meme (Bonus overlap up to 5%)
+    // 7. Passions, Vedic Zodiac, Voice & Meme (Bonus overlap up to 8%)
     if (setupInterests && setupInterests.trim()) pct += 3;
     if (setupHobbies && setupHobbies.trim()) pct += 2;
     if (setupZodiacSign) pct += 2;
+    if (setupVoicePromptUrl && setupVoicePromptUrl.trim()) pct += 3;
     if (setupMemeUrl) pct += 2;
 
     return Math.min(100, pct);
@@ -1339,8 +1341,12 @@ export default function ProfileScreen() {
             <View style={styles.boostNudgeHeader}>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={styles.boostNudgeTitle}>⚡ Profile Completion ({completionScore}%)</Text>
-                  <Text style={styles.boostNudgeActionBtnText}>Checklist →</Text>
+                  <Text style={styles.boostNudgeTitle}>
+                    {completionScore < 75 ? `⚡ Profile Reach: 1.0x (${completionScore}%)` : `🔥 Profile Reach: 2.4x (${completionScore}%)`}
+                  </Text>
+                  <Text style={styles.boostNudgeActionBtnText}>
+                    {completionScore < 75 ? 'Unlock 2.4x →' : 'Unlock 3.8x VIP →'}
+                  </Text>
                 </View>
                 <View style={styles.progressBarTrack}>
                   <View
@@ -1351,6 +1357,11 @@ export default function ProfileScreen() {
                     ]}
                   />
                 </View>
+                <Text style={{ color: '#FFD700', fontSize: 11, fontWeight: '700', marginTop: 5 }}>
+                  {completionScore < 75
+                    ? '🎯 Add photos 4 & 5 to unlock 2.4x more daily dates!'
+                    : '👑 100% profiles get 3.8x VIP Reach + top priority placement!'}
+                </Text>
               </View>
             </View>
 
@@ -1930,12 +1941,12 @@ export default function ProfileScreen() {
 
               <View style={styles.photoGrid}>
                 {[
-                  { uri: setupPhoto1, setter: setSetupPhoto1, slotIdx: 1, label: 'Primary' },
-                  { uri: setupPhoto2, setter: setSetupPhoto2, slotIdx: 2, label: 'Photo 2' },
-                  { uri: setupPhoto3, setter: setSetupPhoto3, slotIdx: 3, label: 'Photo 3' },
-                  { uri: setupPhoto4, setter: setSetupPhoto4, slotIdx: 4, label: 'Photo 4' },
-                  { uri: setupPhoto5, setter: setSetupPhoto5, slotIdx: 5, label: 'Photo 5' },
-                  { uri: setupPhoto6, setter: setSetupPhoto6, slotIdx: 6, label: 'Photo 6' },
+                  { uri: setupPhoto1, setter: setSetupPhoto1, slotIdx: 1, label: '#1 Headshot', sub: 'Clear & smiling', icon: '👤' },
+                  { uri: setupPhoto2, setter: setSetupPhoto2, slotIdx: 2, label: '#2 Full Outfit', sub: 'Head-to-toe style', icon: '👗' },
+                  { uri: setupPhoto3, setter: setSetupPhoto3, slotIdx: 3, label: '#3 Weekend Vibe', sub: 'Cafe / Hobbies', icon: '☕' },
+                  { uri: setupPhoto4, setter: setSetupPhoto4, slotIdx: 4, label: '#4 Candid', sub: 'Laughing / Social', icon: '🎉' },
+                  { uri: setupPhoto5, setter: setSetupPhoto5, slotIdx: 5, label: '#5 Travel', sub: 'Vacation / Sunset', icon: '✈️' },
+                  { uri: setupPhoto6, setter: setSetupPhoto6, slotIdx: 6, label: '#6 Wild Card', sub: 'Pet / Aesthetic', icon: '🐾' },
                 ].map((item, idx) => {
                   const cleanUri = normalizeImageUrl(item.uri);
                   const hasPhoto = Boolean(cleanUri && cleanUri.trim() !== '');
@@ -1967,7 +1978,15 @@ export default function ProfileScreen() {
                           }}
                         />
                       ) : (
-                        <Text style={{ fontSize: 24 }}>📷</Text>
+                        <View style={{ alignItems: 'center', paddingHorizontal: 4, justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 18 }}>{item.icon}</Text>
+                          <Text style={{ color: '#E2E8F0', fontSize: 9, fontWeight: '800', marginTop: 2, textAlign: 'center' }} numberOfLines={1}>
+                            {item.label}
+                          </Text>
+                          <Text style={{ color: '#8E94A5', fontSize: 7.5, textAlign: 'center', marginTop: 1 }} numberOfLines={1}>
+                            {item.sub}
+                          </Text>
+                        </View>
                       )}
                       {uploadingSlot === item.slotIdx && (
                         <View style={styles.uploadingOverlay}>

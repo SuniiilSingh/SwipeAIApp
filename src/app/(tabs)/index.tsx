@@ -683,6 +683,39 @@ export default function DiscoveryScreen() {
     return distA - distB;
   });
 
+  // In-Deck Profile Booster Card injection
+  const feedDisplayCards = useMemo(() => {
+    const myPhotos = userProfile?.photos || [];
+    const hasFivePhotos = myPhotos.length >= 5 || Boolean(userProfile?.photo5);
+    const isProfileIncomplete = !hasFivePhotos;
+    if (!isProfileIncomplete || filteredCandidates.length < 3) {
+      return filteredCandidates;
+    }
+    const boosterCard: CandidateCard = {
+      userId: '__blunderr_profile_booster__',
+      displayName: 'Profile Multiplier',
+      age: 25,
+      isDigilockerVerified: false,
+      isWhatsappVerified: false,
+      livenessScore: 100,
+      distanceKm: 0,
+      fuzzyDistance: '3.8x VIP Reach',
+      culturalBadges: {
+        diet: 'PURE_VEG' as any,
+        living: 'INDEPENDENT_FLAT' as any,
+        languages: [],
+        zodiac: 'Aries',
+      },
+      compatibilityScore: 100,
+      bio: 'Boost your reach to 3.8x',
+      photos: [],
+    };
+    const list = [...filteredCandidates];
+    // Insert at index 3 (after 3 real candidates)
+    list.splice(3, 0, boosterCard);
+    return list;
+  }, [filteredCandidates, userProfile]);
+
   // Proactive pre-fetch top candidate photos into memory-disk cache for instantaneous 60/120fps swiping
   useEffect(() => {
     if (filteredCandidates.length > 0) {
@@ -1162,10 +1195,37 @@ function SwipeableCandidateCard({
 }
 
   const renderCandidateCard = ({ item, index }: { item: CandidateCard; index: number }) => {
+    if (item.userId === '__blunderr_profile_booster__') {
+      return (
+        <View style={{ width: feedDimensions.width, height: feedDimensions.height, padding: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: '#090B10' }}>
+          <View style={styles.boosterDeckCard}>
+            <View style={styles.boosterDeckHeader}>
+              <View style={styles.boosterDeckPill}>
+                <Text style={styles.boosterDeckPillText}>⚡ PROFILE MULTIPLIER</Text>
+              </View>
+              <Text style={{ color: '#FFD700', fontSize: 11, fontWeight: '800' }}>3.8x Match Boost</Text>
+            </View>
+            <Text style={styles.boosterDeckTitle}>
+              You’re 2 Photos away from 3.8x more daily dates 🔥
+            </Text>
+            <Text style={styles.boosterDeckSub}>
+              Candidates with 5+ photos get 4x more replies, top discovery rank, and zero ghosting.
+            </Text>
+            <TouchableOpacity
+              style={styles.boosterDeckActionBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push('/(tabs)/profile?edit=true' as any)}>
+              <Text style={styles.boosterDeckActionBtnText}>📸 Complete Profile (Takes 20s) →</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     const isVip = Boolean(userProfile?.hasActivePass);
     const canLike = isVip || remainingSwipes > 0;
     const isFreeSparkAvailable = sparkNoteQuota ? sparkNoteQuota.canSendFree : true;
-    const nextItem = filteredCandidates[index + 1] || null;
+    const nextItem = feedDisplayCards[index + 1] || null;
     return (
       <SwipeableCandidateCard
         item={item}
@@ -1326,13 +1386,13 @@ function SwipeableCandidateCard({
           }
         }}>
         <FlatList
-          data={filteredCandidates}
+          data={feedDisplayCards}
           keyExtractor={(item) => item.userId}
           renderItem={renderCandidateCard}
           pagingEnabled={true}
           showsVerticalScrollIndicator={false}
           getItemLayout={
-            filteredCandidates.length > 0
+            feedDisplayCards.length > 0
               ? (_, index) => ({
                   length: feedDimensions.height,
                   offset: feedDimensions.height * index,
@@ -2159,6 +2219,69 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 10,
     fontWeight: '700',
+  },
+  boosterDeckCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: '#121522',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.45)',
+    borderRadius: 28,
+    padding: 24,
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  boosterDeckHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  boosterDeckPill: {
+    backgroundColor: 'rgba(255, 56, 92, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.4)',
+  },
+  boosterDeckPillText: {
+    color: '#FF385C',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  boosterDeckTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 26,
+    marginBottom: 10,
+  },
+  boosterDeckSub: {
+    color: '#A0AEC0',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  boosterDeckActionBtn: {
+    backgroundColor: '#FF385C',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  boosterDeckActionBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
   },
   nameWithShieldRow: {
     flexDirection: 'row',

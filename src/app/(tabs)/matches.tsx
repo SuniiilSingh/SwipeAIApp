@@ -209,9 +209,31 @@ export default function MatchesScreen() {
     }
   }, []);
 
+  const isDatePlannedMatch = (m: MatchItem) => {
+    return (
+      m.status === 'DATE_PLANNED' ||
+      Boolean(m.datePlannedAt) ||
+      Boolean(m.dateVenue) ||
+      (typeof m.lastMessage === 'string' && m.lastMessage.includes('[BLUNDERR_DATE_ACCEPTED]'))
+    );
+  };
+
+  const formatLastMessagePreview = (msg?: string) => {
+    if (!msg) return 'Chat lounge unlocked! Say hi 👋';
+    if (msg.startsWith('[BLUNDERR_DATE_ACCEPTED]')) return '🥂 Date Confirmed & Scheduled!';
+    if (msg.startsWith('[BLUNDERR_DATE_PROPOSAL]')) return '💌 Real Date Invitation Proposed!';
+    if (msg.startsWith('[BLUNDERR_DATE_RESCHEDULE]')) return '💬 Suggested Alternate Date Plan';
+    if (msg.startsWith('[BLUNDERR_DATE_DECLINED]')) return '✖️ Date Proposal Declined';
+    if (msg.startsWith('E2EE:v1:')) return '🔒 Encrypted message';
+    return msg;
+  };
+
   // Instant refresh on tab focus so matches appear immediately without pull-to-refresh
+  // Always land with 'ALL' filter selected
   useFocusEffect(
     useCallback(() => {
+      setFilterType('ALL');
+      setSearchQuery('');
       loadMatches(matches.length > 0);
     }, [loadMatches, matches.length])
   );
@@ -269,10 +291,10 @@ export default function MatchesScreen() {
 
   const counts = useMemo(() => ({
     all: matches.length,
-    active: matches.filter((m) => m.status === 'ACTIVE_CHAT' || (m.status === 'PENDING_ICEBREAKER' && (m.icebreakerQuiz?.hasAnswered || m.icebreakerQuiz?.isCompleted))).length,
-    quiz: matches.filter((m) => m.status === 'PENDING_ICEBREAKER' && !m.icebreakerQuiz?.hasAnswered && !m.icebreakerQuiz?.isCompleted).length,
-    expiring: matches.filter((m) => m.remainingHours <= 24 && m.status !== 'DATE_PLANNED').length,
-    datesPlanned: matches.filter((m) => m.status === 'DATE_PLANNED').length,
+    active: matches.filter((m) => !isDatePlannedMatch(m) && (m.status === 'ACTIVE_CHAT' || (m.status === 'PENDING_ICEBREAKER' && (m.icebreakerQuiz?.hasAnswered || m.icebreakerQuiz?.isCompleted)))).length,
+    quiz: matches.filter((m) => !isDatePlannedMatch(m) && m.status === 'PENDING_ICEBREAKER' && !m.icebreakerQuiz?.hasAnswered && !m.icebreakerQuiz?.isCompleted).length,
+    expiring: matches.filter((m) => !isDatePlannedMatch(m) && m.remainingHours <= 24).length,
+    datesPlanned: matches.filter(isDatePlannedMatch).length,
   }), [matches]);
 
   const filteredMatches = useMemo(() => {
@@ -282,11 +304,12 @@ export default function MatchesScreen() {
       if (!matchesSearch) return false;
 
       const isQuizPending = item.status === 'PENDING_ICEBREAKER' && !item.icebreakerQuiz?.hasAnswered && !item.icebreakerQuiz?.isCompleted;
+      const isPlanned = isDatePlannedMatch(item);
 
-      if (filterType === 'DATES_PLANNED') return item.status === 'DATE_PLANNED';
-      if (filterType === 'QUIZ') return isQuizPending && item.status !== 'DATE_PLANNED';
-      if (filterType === 'EXPIRING') return item.remainingHours <= 24 && item.status !== 'DATE_PLANNED';
-      if (filterType === 'ACTIVE') return !isQuizPending && item.status !== 'DATE_PLANNED';
+      if (filterType === 'DATES_PLANNED') return isPlanned;
+      if (filterType === 'QUIZ') return isQuizPending && !isPlanned;
+      if (filterType === 'EXPIRING') return item.remainingHours <= 24 && !isPlanned;
+      if (filterType === 'ACTIVE') return !isQuizPending && !isPlanned;
       return true;
     });
   }, [matches, searchQuery, filterType]);
@@ -380,7 +403,7 @@ export default function MatchesScreen() {
             style={[
               styles.avatarRing,
               { borderColor: getUrgencyRingColor(item) },
-              item.status === 'DATE_PLANNED' && styles.avatarRingGold,
+              isDatePlannedMatch(item) && styles.avatarRingGold,
             ]}>
             <ExpoImage
               source={{ uri: item.otherUserPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75' }}
@@ -392,7 +415,7 @@ export default function MatchesScreen() {
           </View>
 
           {/* Pulsing Breathing Ring Glow for < 12h or Expired */}
-          {(item.remainingHours <= 12 || item.status === 'EXPIRED') && item.status !== 'DATE_PLANNED' && item.status !== 'QUEUED_CAPACITY' && (
+          {(item.remainingHours <= 12 || item.status === 'EXPIRED') && !isDatePlannedMatch(item) && item.status !== 'QUEUED_CAPACITY' && (
             <Animated.View
               pointerEvents="none"
               style={[
@@ -402,7 +425,7 @@ export default function MatchesScreen() {
             />
           )}
 
-          {item.status === 'DATE_PLANNED' && (
+          {isDatePlannedMatch(item) && (
             <View style={styles.datePlannedAvatarBadge}>
               <Text style={{ fontSize: 10 }}>🥂</Text>
             </View>
@@ -418,7 +441,7 @@ export default function MatchesScreen() {
         <View style={styles.matchInfo}>
           <View style={styles.nameRow}>
             <Text style={styles.matchName}>{item.otherUserName}, {item.otherUserAge}</Text>
-            {item.status === 'DATE_PLANNED' ? (
+            {isDatePlannedMatch(item) ? (
               <View style={styles.datePlannedBadge}>
                 <Text style={styles.datePlannedText}>☕ Date Planned</Text>
               </View>
@@ -462,7 +485,7 @@ export default function MatchesScreen() {
             </View>
           ) : (
             <Text style={styles.lastMessage} numberOfLines={1}>
-              {item.lastMessage || 'Chat lounge unlocked! Say hi 👋'}
+              {formatLastMessagePreview(item.lastMessage)}
             </Text>
           )}
         </View>
@@ -481,19 +504,6 @@ export default function MatchesScreen() {
           <Text style={styles.title}>Matches & Conversations</Text>
           <Text style={styles.subtitle}>48h Ephemeral Timer • Ghost-Buster Protected</Text>
         </View>
-        <TouchableOpacity
-          style={styles.headerShieldBtn}
-          onPress={openBlockedModal}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.headerShieldIcon}>🛡️</Text>
-          <Text style={styles.headerShieldText}>Blocked</Text>
-          {blockedUsers.length > 0 && (
-            <View style={styles.headerShieldBadge}>
-              <Text style={styles.headerShieldBadgeText}>{blockedUsers.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
       </View>
 
       {/* Ghost-Buster Karma Reminder */}
@@ -688,7 +698,10 @@ export default function MatchesScreen() {
 
           <TouchableOpacity
             style={styles.filterChipBlocked}
-            onPress={openBlockedModal}
+            onPress={() => {
+              hapticFeedback.light();
+              router.push('/blocked-profiles' as any);
+            }}
             activeOpacity={0.8}>
             <Text style={styles.filterChipBlockedText}>
               🛡️ Blocked & Reported ({blockedUsers.length})
@@ -744,6 +757,17 @@ export default function MatchesScreen() {
         visible={!!selectedMatch}
         candidate={selectedMatch ? getCandidateProfile(selectedMatch) : null}
         onClose={() => setSelectedMatch(null)}
+        scheduledDate={
+          selectedMatch?.status === 'DATE_PLANNED' || selectedMatch?.datePlannedAt || selectedMatch?.dateVenue
+            ? {
+                date: selectedMatch.datePlannedAt ? selectedMatch.datePlannedAt.split(' at ')[0] || selectedMatch.datePlannedAt : 'Scheduled Date',
+                time: selectedMatch.datePlannedAt && selectedMatch.datePlannedAt.includes(' at ') ? selectedMatch.datePlannedAt.split(' at ')[1] : '7:30 PM',
+                venue: selectedMatch.dateVenue || 'Verified Partner Venue',
+                note: selectedMatch.dateNote || 'Confirmed SafeDate',
+                status: 'ACCEPTED' as const,
+              }
+            : null
+        }
         onStartChat={() => {
           if (!selectedMatch) return;
           const target = selectedMatch;

@@ -199,6 +199,26 @@ export default function SupportScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Blocked Profiles Cross-Link Notice Banner (Separation) */}
+      <TouchableOpacity
+        style={styles.blockedProfilesBanner}
+        onPress={() => {
+          hapticFeedback.light();
+          router.push('/blocked-profiles' as any);
+        }}
+        activeOpacity={0.85}>
+        <Text style={styles.blockedProfilesBannerIcon}>🛡️</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.blockedProfilesBannerTitle}>
+            Blocked & Reported Profiles Hub
+          </Text>
+          <Text style={styles.blockedProfilesBannerSub}>
+            Blocked accounts & report investigation status have their own dedicated safety section.
+          </Text>
+        </View>
+        <Text style={styles.blockedProfilesBannerArrow}>Open →</Text>
+      </TouchableOpacity>
+
       {loading ? (
         <View style={styles.centerBox}>
           <ActivityIndicator size="large" color="#10B981" />
@@ -578,6 +598,35 @@ const styles = StyleSheet.create({
   tabItemTextActive: {
     color: '#10B981',
     fontWeight: '900',
+  },
+  blockedProfilesBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1C151A',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 12,
+  },
+  blockedProfilesBannerIcon: {
+    fontSize: 18,
+  },
+  blockedProfilesBannerTitle: {
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  blockedProfilesBannerSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 1,
+  },
+  blockedProfilesBannerArrow: {
+    color: '#F87171',
+    fontSize: 11,
+    fontWeight: '800',
   },
   scrollContent: {
     padding: 16,

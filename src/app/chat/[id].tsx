@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -48,6 +48,7 @@ import FlowerBokehOverlay from '@/components/flower-bokeh-overlay';
 import LuxuryDateProposalModal, { DateProposalPayload } from '@/components/luxury-date-proposal-modal';
 import RescheduleDateModal, { CounterProposalPayload } from '@/components/reschedule-date-modal';
 import DateProposalBubble, { parseDateProposal, DateProposalData } from '@/components/date-proposal-bubble';
+import ScheduledDateCardModal from '@/components/scheduled-date-card-modal';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -78,6 +79,7 @@ export default function ChatScreen() {
   const [blockingLoading, setBlockingLoading] = useState(false);
   const [showKundaliModal, setShowKundaliModal] = useState(false);
   const [showDatePlanModal, setShowDatePlanModal] = useState(false);
+  const [showScheduledDateModal, setShowScheduledDateModal] = useState(false);
   const [dateVenue, setDateVenue] = useState('');
   const [dateNote, setDateNote] = useState('');
   const [showFlowerShower, setShowFlowerShower] = useState(false);
@@ -91,6 +93,7 @@ export default function ChatScreen() {
   const [isQuizExpanded, setIsQuizExpanded] = useState(false);
   const [showSafeSpot, setShowSafeSpot] = useState(false);
   const [dismissedMilestone, setDismissedMilestone] = useState<number>(0);
+  const [currentUserGender, setCurrentUserGender] = useState<string>('OTHER');
 
   const { startCall, subscribeToWebSocket, sendWsMessage, connectionStatus, setActiveChatMatchId } = useCall();
   const [unblurredImages, setUnblurredImages] = useState<Record<string, boolean>>({});
@@ -147,11 +150,16 @@ export default function ChatScreen() {
 
     const loadChatData = async () => {
       try {
-        const [msgs, matchData, sparksRes] = await Promise.all([
+        const [msgs, matchData, sparksRes, myProf] = await Promise.all([
           api.getMessages(matchId),
           api.getMatchDetails(matchId),
           api.getWingmanSparks(matchId).catch(() => null),
+          api.getMyProfile().catch(() => null),
         ]);
+
+        if (myProf?.gender) {
+          setCurrentUserGender(myProf.gender);
+        }
 
         let derivedKey = aesKeyRef.current;
         if (matchData) {
@@ -571,9 +579,11 @@ export default function ChatScreen() {
         venue: payload.venue,
         note: payload.note,
         status: 'PENDING',
+        emergencyContact: payload.emergencyContact,
       };
       const proposalText = `[BLUNDERR_DATE_PROPOSAL]${JSON.stringify(proposalData)}`;
       setShowDatePlanModal(false);
+      setDismissedMilestone(9999);
       setShowFlowerShower(true);
       hapticFeedback.success();
       await handleSendMessage(proposalText);
@@ -966,6 +976,126 @@ export default function ChatScreen() {
   };
   const remainingHours = getRemainingHours();
 
+  function cleanDateStr(val?: string): string {
+    if (!val) return 'Tomorrow';
+    const trimmed = String(val).trim();
+    if (trimmed.toLowerCase().includes('invalid')) return 'Tomorrow';
+    return trimmed;
+  }
+
+  function cleanTimeStr(val?: string): string {
+    if (!val) return '7:30 PM';
+    const trimmed = String(val).trim();
+    if (trimmed.toLowerCase().includes('invalid')) return '7:30 PM';
+    return trimmed;
+  }
+
+  function formatBubbleTime(createdAt?: any): string {
+    if (!createdAt) return '';
+    if (typeof createdAt === 'object' && createdAt !== null) {
+      if (createdAt.dateTime?.time) {
+        const h = createdAt.dateTime.time.hour ?? 0;
+        const m = createdAt.dateTime.time.minute ?? 0;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12}:${m < 10 ? '0' : ''}${m} ${ampm}`;
+      }
+    }
+    try {
+      const d = new Date(createdAt);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch {}
+    return '';
+  }
+
+  // Derive whether date is confirmed and the latest confirmed details
+  const confirmedProposalData = useMemo<DateProposalData | null>(() => {
+    // 1. Check messages in reverse for accepted date proposal
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.content && msg.content.startsWith('[BLUNDERR_DATE_ACCEPTED]')) {
+        try {
+          const jsonStr = msg.content.replace('[BLUNDERR_DATE_ACCEPTED]', '').trim();
+          const parsed = JSON.parse(jsonStr) as DateProposalData;
+          if (parsed && (parsed.date || parsed.venue)) {
+            return {
+              ...parsed,
+              date: cleanDateStr(parsed.date),
+              time: cleanTimeStr(parsed.time),
+              venue: parsed.venue || 'Confirmed SafeDate Hub',
+              status: 'ACCEPTED',
+            };
+          }
+        } catch {}
+      }
+    }
+
+    // 2. If match is marked DATE_PLANNED or an accepted message exists, check proposal for sender's view
+    const isPlanned = matchDetails?.status === 'DATE_PLANNED' || messages.some(
+      (m) => typeof m.content === 'string' && m.content.startsWith('[BLUNDERR_DATE_ACCEPTED]')
+    );
+
+    if (isPlanned) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.content && msg.content.startsWith('[BLUNDERR_DATE_PROPOSAL]')) {
+          try {
+            const jsonStr = msg.content.replace('[BLUNDERR_DATE_PROPOSAL]', '').trim();
+            const parsed = JSON.parse(jsonStr) as DateProposalData;
+            if (parsed && (parsed.date || parsed.venue)) {
+              return {
+                ...parsed,
+                date: cleanDateStr(parsed.date),
+                time: cleanTimeStr(parsed.time),
+                venue: parsed.venue || 'Confirmed SafeDate Hub',
+                status: 'ACCEPTED',
+              };
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // 3. Fallback to matchDetails if status === 'DATE_PLANNED' or dateVenue
+    if (matchDetails?.status === 'DATE_PLANNED' || matchDetails?.datePlannedAt || matchDetails?.dateVenue) {
+      let dateStr = 'Tomorrow';
+      let timeStr = '7:30 PM';
+      if (matchDetails.datePlannedAt) {
+        if (matchDetails.datePlannedAt.includes(' at ')) {
+          const parts = matchDetails.datePlannedAt.split(' at ');
+          dateStr = parts[0] || dateStr;
+          timeStr = parts[1] || timeStr;
+        } else {
+          dateStr = matchDetails.datePlannedAt;
+        }
+      }
+      return {
+        date: cleanDateStr(dateStr),
+        time: cleanTimeStr(timeStr),
+        venue: matchDetails.dateVenue || 'Verified Partner Venue',
+        note: matchDetails.dateNote || 'SafeDate Shield™ Verified Meeting',
+        status: 'ACCEPTED' as const,
+      };
+    }
+    return null;
+  }, [messages, matchDetails?.status, matchDetails?.datePlannedAt, matchDetails?.dateVenue, matchDetails?.dateNote]);
+
+  const isDateConfirmed = Boolean(confirmedProposalData || matchDetails?.status === 'DATE_PLANNED');
+
+  const hasAnyProposalSentOrConfirmed = useMemo(() => {
+    if (isDateConfirmed || matchDetails?.status === 'DATE_PLANNED') return true;
+    return messages.some((m) => {
+      if (typeof m.content !== 'string') return false;
+      return (
+        m.content.startsWith('[BLUNDERR_DATE_PROPOSAL]') ||
+        m.content.startsWith('[BLUNDERR_DATE_ACCEPTED]') ||
+        m.content.startsWith('[BLUNDERR_DATE_RESCHEDULE]')
+      );
+    });
+  }, [messages, isDateConfirmed, matchDetails?.status]);
+
   const renderMessageItem = ({ item }: { item: ChatMessage }) => {
     const parsedProposal = parseDateProposal(item.content);
     if (parsedProposal.type !== 'NONE' && parsedProposal.data) {
@@ -975,6 +1105,7 @@ export default function ChatScreen() {
           data={parsedProposal.data}
           isFromMe={Boolean(item.isFromMe)}
           partnerName={matchProfile?.displayName || candidateName || 'your match'}
+          isDateConfirmed={isDateConfirmed}
           onAccept={() => handleAcceptProposal(parsedProposal.data!)}
           onReschedule={() => handleOpenReschedule(parsedProposal.data!)}
           onDecline={() => {
@@ -982,7 +1113,13 @@ export default function ChatScreen() {
             setShowRescheduleModal(true);
           }}
           onAcceptCounter={() => handleAcceptCounterOffer(parsedProposal.data!)}
-          onProposeNew={() => setShowDatePlanModal(true)}
+          onProposeNew={() => {
+            if (isDateConfirmed) {
+              setShowScheduledDateModal(true);
+            } else {
+              setShowDatePlanModal(true);
+            }
+          }}
         />
       );
     }
@@ -1060,7 +1197,7 @@ export default function ChatScreen() {
 
           <View style={styles.bubbleFooter}>
             <Text style={[styles.bubbleTimeText, item.isFromMe ? styles.myBubbleTime : styles.theirBubbleTime]}>
-              {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {formatBubbleTime(item.createdAt)}
             </Text>
             {item.isFromMe && (
               <StatusTick status={item.status || 'SENT'} size={14} />
@@ -1118,19 +1255,24 @@ export default function ChatScreen() {
           </TouchableOpacity>
 
           <View style={styles.headerCallActionRow}>
-            {/* Plan Real Date (Rule of 5 Slot Freer) */}
+            {/* Plan Real Date / View Scheduled Date (Rule of 5 Slot Freer) */}
             <TouchableOpacity
               style={[
                 styles.headerIconBtn,
-                matchDetails?.status === 'DATE_PLANNED' && styles.headerIconBtnActiveDate,
+                isDateConfirmed && styles.headerIconBtnActiveDate,
               ]}
               onPress={() => {
                 hapticFeedback.light();
-                setShowDatePlanModal(true);
+                if (isDateConfirmed) {
+                  setShowScheduledDateModal(true);
+                } else {
+                  setShowDatePlanModal(true);
+                }
               }}
               activeOpacity={0.75}
-              accessibilityLabel="Plan Real Date">
-              <Text style={{ fontSize: 16 }}>☕</Text>
+              accessibilityLabel={isDateConfirmed ? "View Scheduled Date Card" : "Plan Real Date"}>
+              <Text style={{ fontSize: 16 }}>{isDateConfirmed ? '🥂' : '☕'}</Text>
+              {isDateConfirmed && <View style={styles.headerScheduledDateDot} />}
             </TouchableOpacity>
 
             {/* Cosmic Kundali Astrological Synergy Button */}
@@ -1184,20 +1326,22 @@ export default function ChatScreen() {
         </View>
 
         {/* Date Planned Banner OR Ephemeral Expiry Alert Banner */}
-        {matchDetails?.status === 'DATE_PLANNED' ? (
+        {isDateConfirmed ? (
           <View style={styles.datePlannedBanner}>
-            <Text style={styles.datePlannedIcon}>☕</Text>
+            <Text style={styles.datePlannedIcon}>🥂</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.datePlannedTitle}>Real Date Planned!</Text>
-              <Text style={styles.datePlannedSub}>
-                {matchDetails.dateVenue ? `Meeting at ${matchDetails.dateVenue} • ` : ''}Active Rule of 5 slot unlocked
+              <Text style={styles.datePlannedTitle}>Real Date Confirmed!</Text>
+              <Text style={styles.datePlannedSub} numberOfLines={1}>
+                {confirmedProposalData?.venue || matchDetails?.dateVenue ? `📍 ${confirmedProposalData?.venue || matchDetails?.dateVenue} • ` : ''}
+                {confirmedProposalData?.date ? `📅 ${confirmedProposalData.date} • ` : ''}
+                Active Rule of 5 slot unlocked
               </Text>
             </View>
             <TouchableOpacity
               style={styles.datePlannedDetailsBtn}
-              onPress={() => setShowDatePlanModal(true)}
+              onPress={() => setShowScheduledDateModal(true)}
               activeOpacity={0.8}>
-              <Text style={styles.datePlannedDetailsText}>Details</Text>
+              <Text style={styles.datePlannedDetailsText}>View Card</Text>
             </TouchableOpacity>
           </View>
         ) : remainingHours !== null && remainingHours < 24 ? (
@@ -1259,7 +1403,7 @@ export default function ChatScreen() {
         {(() => {
           const count = messages.length;
           const milestone = count >= 100 ? 100 : count >= 50 ? 50 : count >= 20 ? 20 : 0;
-          const showPrompt = milestone > 0 && dismissedMilestone !== milestone && matchDetails?.status !== 'DATE_PLANNED';
+          const showPrompt = milestone > 0 && dismissedMilestone !== milestone && !hasAnyProposalSentOrConfirmed;
           if (!showPrompt) return null;
           return (
             <View style={styles.milestonePromptCard}>
@@ -1283,7 +1427,11 @@ export default function ChatScreen() {
                   style={styles.proposeDateBtn}
                   onPress={() => {
                     hapticFeedback.success();
-                    setShowDatePlanModal(true);
+                    if (isDateConfirmed) {
+                      setShowScheduledDateModal(true);
+                    } else {
+                      setShowDatePlanModal(true);
+                    }
                   }}>
                   <Text style={styles.proposeDateBtnText}>Propose a Real Date ☕</Text>
                 </TouchableOpacity>
@@ -1490,6 +1638,7 @@ export default function ChatScreen() {
           setShowProfileModal(false);
           handleStartCall(false);
         }}
+        scheduledDate={confirmedProposalData}
       />
 
       {/* Cosmic Kundali & Vibe Harmony Modal */}
@@ -1572,6 +1721,23 @@ export default function ChatScreen() {
                 <View style={styles.safetyOptionTextBox}>
                   <Text style={styles.safetyOptionTitle}>Block User Completely</Text>
                   <Text style={styles.safetyOptionSub}>Prevent them from ever contacting you & send remarks to admin</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.safetyOptionItem}
+                onPress={() => {
+                  setShowSafetyModal(false);
+                  hapticFeedback.light();
+                  router.push('/blocked-profiles' as any);
+                }}
+                activeOpacity={0.7}>
+                <View style={[styles.safetyOptionIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
+                  <Text style={styles.safetyOptionIcon}>🛡️</Text>
+                </View>
+                <View style={styles.safetyOptionTextBox}>
+                  <Text style={styles.safetyOptionTitle}>Blocked & Reported Profiles Hub</Text>
+                  <Text style={styles.safetyOptionSub}>Manage blocked accounts, review report status & unblock anytime</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -1778,11 +1944,26 @@ export default function ChatScreen() {
 
       {/* Luxury Date Proposal Modal */}
       <LuxuryDateProposalModal
-        visible={showDatePlanModal}
+        visible={showDatePlanModal && !isDateConfirmed}
         onClose={() => setShowDatePlanModal(false)}
         onSendProposal={handleSendProposal}
         candidateName={matchProfile?.displayName || candidateName || 'your match'}
         isSending={isSendingProposal}
+        userGender={currentUserGender}
+      />
+
+      {/* Scheduled Date Card Modal */}
+      <ScheduledDateCardModal
+        visible={showScheduledDateModal}
+        onClose={() => setShowScheduledDateModal(false)}
+        candidateName={matchProfile?.displayName || candidateName || 'your match'}
+        candidatePhoto={matchProfile?.photos?.[0] || matchDetails?.otherUserPhoto}
+        dateData={confirmedProposalData || {
+          date: 'Tomorrow',
+          time: '7:30 PM',
+          venue: matchDetails?.dateVenue || 'Verified SafeDate Partner Hub',
+          status: 'ACCEPTED',
+        }}
       />
 
       {/* Polite Reschedule & Counter-Offer Modal */}
@@ -2625,6 +2806,17 @@ const styles = StyleSheet.create({
   headerIconBtnActiveDate: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
     borderColor: 'rgba(16, 185, 129, 0.6)',
+  },
+  headerScheduledDateDot: {
+    position: 'absolute',
+    top: 3,
+    right: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#10B981',
+    borderWidth: 1,
+    borderColor: '#0E0F13',
   },
   datePlannedBanner: {
     flexDirection: 'row',

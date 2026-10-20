@@ -17,6 +17,24 @@ export interface DateProposalData {
   newDate?: string;
   newTime?: string;
   newVenue?: string;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+  };
+}
+
+function sanitizeDateText(d?: string): string {
+  if (!d) return 'Upcoming Date';
+  const trimmed = String(d).trim();
+  if (trimmed.toLowerCase().includes('invalid')) return 'Upcoming Date';
+  return trimmed;
+}
+
+function sanitizeTimeText(t?: string): string {
+  if (!t) return '7:30 PM';
+  const trimmed = String(t).trim();
+  if (trimmed.toLowerCase().includes('invalid')) return '7:30 PM';
+  return trimmed;
 }
 
 export function parseDateProposal(content?: string): {
@@ -74,6 +92,7 @@ interface DateProposalBubbleProps {
   onAcceptCounter?: () => void;
   onProposeNew?: () => void;
   partnerName?: string;
+  isDateConfirmed?: boolean;
 }
 
 export default function DateProposalBubble({
@@ -86,6 +105,7 @@ export default function DateProposalBubble({
   onAcceptCounter,
   onProposeNew,
   partnerName = 'your match',
+  isDateConfirmed = false,
 }: DateProposalBubbleProps) {
   // 1. ORIGINAL DATE PROPOSAL
   if (type === 'PROPOSAL') {
@@ -116,12 +136,12 @@ export default function DateProposalBubble({
           <View style={styles.rowBetween}>
             <View style={styles.rowItem}>
               <Text style={styles.itemIcon}>📅</Text>
-              <Text style={styles.itemBold}>{data.date}</Text>
+              <Text style={styles.itemBold}>{sanitizeDateText(data.date)}</Text>
             </View>
             <View style={styles.rowItem}>
               <Text style={styles.itemIcon}>⏰</Text>
               <Text style={[styles.itemBold, { color: '#FCD34D' }]}>
-                {data.time}
+                {sanitizeTimeText(data.time)}
               </Text>
             </View>
           </View>
@@ -129,7 +149,7 @@ export default function DateProposalBubble({
           <View style={styles.venueRow}>
             <Text style={styles.venueIcon}>📍</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.venueName}>{data.venue}</Text>
+              <Text style={styles.venueName}>{data.venue || 'Confirmed SafeDate Venue'}</Text>
               <Text style={styles.venueSub}>Verified SafeDate Partner Hub</Text>
             </View>
           </View>
@@ -142,7 +162,14 @@ export default function DateProposalBubble({
         </View>
 
         {/* Action Controls */}
-        {isFromMe ? (
+        {isDateConfirmed ? (
+          <View style={styles.confirmedBadgeBar}>
+            <Text style={styles.confirmedBadgeIcon}>🥂</Text>
+            <Text style={styles.confirmedBadgeText}>
+              Date Confirmed & Scheduled! Check Scheduled Date Card
+            </Text>
+          </View>
+        ) : isFromMe ? (
           <View style={styles.pendingBar}>
             <Text style={styles.pendingDot}>⏳</Text>
             <Text style={styles.pendingText}>
@@ -197,10 +224,10 @@ export default function DateProposalBubble({
 
         <View style={styles.confirmedDetails}>
           <Text style={styles.confirmedSummary}>
-            📅 {data.date} • ⏰ {data.time}
+            📅 {sanitizeDateText(data.date)} • ⏰ {sanitizeTimeText(data.time)}
           </Text>
           <Text style={styles.confirmedVenue}>
-            📍 {data.venue}
+            📍 {data.venue || 'Confirmed SafeDate Hub'}
           </Text>
         </View>
 
@@ -246,32 +273,41 @@ export default function DateProposalBubble({
         <View style={styles.counterDetailsBox}>
           <Text style={styles.counterLabel}>SUGGESTED ALTERNATIVE:</Text>
           <Text style={styles.counterDetailsText}>
-            📅 {data.newDate || data.date} • ⏰ {data.newTime || data.time}
+            📅 {sanitizeDateText(data.newDate || data.date)} • ⏰ {sanitizeTimeText(data.newTime || data.time)}
           </Text>
           <Text style={styles.counterVenueText}>
-            📍 {data.newVenue || data.venue}
+            📍 {data.newVenue || data.venue || 'Confirmed SafeDate Hub'}
           </Text>
         </View>
 
         {!isFromMe ? (
-          <View style={styles.counterActionRow}>
-            <TouchableOpacity
-              style={styles.acceptCounterBtn}
-              activeOpacity={0.85}
-              onPress={onAcceptCounter}>
-              <Text style={styles.acceptCounterBtnText}>
-                ✓ Accept New Time
+          isDateConfirmed ? (
+            <View style={styles.confirmedBadgeBar}>
+              <Text style={styles.confirmedBadgeIcon}>🥂</Text>
+              <Text style={styles.confirmedBadgeText}>
+                Date Confirmed & Scheduled! Check Scheduled Date Card
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.proposeNewBtn}
-              activeOpacity={0.8}
-              onPress={onProposeNew}>
-              <Text style={styles.proposeNewBtnText}>
-                Propose Different
-              </Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          ) : (
+            <View style={styles.counterActionRow}>
+              <TouchableOpacity
+                style={styles.acceptCounterBtn}
+                activeOpacity={0.85}
+                onPress={onAcceptCounter}>
+                <Text style={styles.acceptCounterBtnText}>
+                  ✓ Accept New Time
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.proposeNewBtn}
+                activeOpacity={0.8}
+                onPress={onProposeNew}>
+                <Text style={styles.proposeNewBtnText}>
+                  Propose Different
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )
         ) : null}
       </View>
     );
@@ -428,6 +464,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  confirmedBadgeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  confirmedBadgeIcon: {
+    fontSize: 16,
+  },
+  confirmedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34D399',
+    flex: 1,
   },
   pendingDot: {
     fontSize: 14,

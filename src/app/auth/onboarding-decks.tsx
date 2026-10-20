@@ -290,6 +290,7 @@ export default function OnboardingDecksScreen() {
   const [activeDeck, setActiveDeck] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [resumedBannerText, setResumedBannerText] = useState<string>('');
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
   const isHydratedRef = useRef<boolean>(false);
   const mainScrollRef = useRef<ScrollView>(null);
 
@@ -302,9 +303,43 @@ export default function OnboardingDecksScreen() {
   const dobMonthRef = useRef<TextInput>(null);
   const dobYearRef = useRef<TextInput>(null);
 
+  // Unified Form Data Ref to eliminate closure staleness and ensure instant crash-proof saving
+  const formDataRef = useRef({
+    fullName: '',
+    dobYear: '',
+    dobMonth: '',
+    dobDay: '',
+    selfieUrl: '',
+    isLivenessVerified: false,
+    verificationStatus: 'UNVERIFIED' as 'UNVERIFIED' | 'PENDING' | 'VERIFIED' | 'REJECTED',
+    primaryCity: '',
+    primaryLocation: '',
+    coords: null as { lat: number; lng: number } | null,
+    gender: 'MALE' as Gender,
+    genderDisplay: '',
+    lookingFor: '',
+    orientation: '',
+    microCircle: '',
+    job: '',
+    institute: '',
+    bio: '',
+    heightCm: 175,
+    dietaryPref: '' as DietaryPreference | '',
+    drinkingHabit: '',
+    photoSlots: ['', '', '', '', '', ''],
+    birthTime: '',
+    birthCity: '',
+  });
+
+  const handleFullNameChange = (text: string) => {
+    setFullName(text);
+    formDataRef.current.fullName = text;
+  };
+
   const handleDobDayChange = (text: string) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
     setDobDay(clean);
+    formDataRef.current.dobDay = clean;
     if (clean.length === 2) {
       dobMonthRef.current?.focus();
     }
@@ -313,6 +348,7 @@ export default function OnboardingDecksScreen() {
   const handleDobMonthChange = (text: string) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
     setDobMonth(clean);
+    formDataRef.current.dobMonth = clean;
     if (clean.length === 2) {
       dobYearRef.current?.focus();
     }
@@ -321,6 +357,27 @@ export default function OnboardingDecksScreen() {
   const handleDobYearChange = (text: string) => {
     const clean = text.replace(/[^0-9]/g, '').slice(0, 4);
     setDobYear(clean);
+    formDataRef.current.dobYear = clean;
+  };
+
+  const handleJobChange = (text: string) => {
+    setJob(text);
+    formDataRef.current.job = text;
+  };
+
+  const handleInstituteChange = (text: string) => {
+    setInstitute(text);
+    formDataRef.current.institute = text;
+  };
+
+  const handleBioChange = (text: string) => {
+    setBio(text);
+    formDataRef.current.bio = text;
+  };
+
+  const handleBirthCityChange = (text: string) => {
+    setBirthCity(text);
+    formDataRef.current.birthCity = text;
   };
 
   const handleMonthKeyPress = ({ nativeEvent }: any) => {
@@ -356,21 +413,26 @@ export default function OnboardingDecksScreen() {
     const digits = text.replace(/[^0-9]/g, '');
     if (!digits) {
       setBirthTime('');
+      formDataRef.current.birthTime = '';
       return;
     }
     const cleanDigits = digits.slice(0, 4);
     if (cleanDigits.length <= 2) {
       if (text.endsWith(':') || text.length === 3) {
         setBirthTime(cleanDigits);
+        formDataRef.current.birthTime = cleanDigits;
       } else if (cleanDigits.length === 2 && !birthTime.includes(':')) {
         setBirthTime(`${cleanDigits}:`);
+        formDataRef.current.birthTime = `${cleanDigits}:`;
       } else {
         setBirthTime(cleanDigits);
+        formDataRef.current.birthTime = cleanDigits;
       }
     } else {
       const hh = cleanDigits.slice(0, 2);
       const mm = cleanDigits.slice(2, 4);
       setBirthTime(`${hh}:${mm}`);
+      formDataRef.current.birthTime = `${hh}:${mm}`;
     }
   };
   const [selfieUrl, setSelfieUrl] = useState<string>('');
@@ -458,9 +520,13 @@ export default function OnboardingDecksScreen() {
     const cleanLoc = (locationLabel || cleanCity).trim();
     setPrimaryCity(cleanCity);
     setPrimaryLocation(cleanLoc);
+    formDataRef.current.primaryCity = cleanCity;
+    formDataRef.current.primaryLocation = cleanLoc;
     setCitySearchQuery('');
     if (typeof lat === 'number' && typeof lng === 'number') {
-      setCoords({ lat, lng });
+      const c = { lat, lng };
+      setCoords(c);
+      formDataRef.current.coords = c;
       api.updateLocation(lat, lng, cleanCity, cleanLoc).catch(() => {});
     }
     // Automatically sync Deck 3 Neighborhood Tribe city filter if it matches one of our tribe cities
@@ -575,129 +641,376 @@ export default function OnboardingDecksScreen() {
     );
   });
 
+  // Helper to get up-to-the-millisecond merged form data without closure staleness
+  const getMergedFormData = () => ({
+    fullName: (formDataRef.current.fullName || fullName).trim(),
+    dobYear: (formDataRef.current.dobYear || dobYear).trim(),
+    dobMonth: (formDataRef.current.dobMonth || dobMonth).trim(),
+    dobDay: (formDataRef.current.dobDay || dobDay).trim(),
+    selfieUrl: (formDataRef.current.selfieUrl || selfieUrl).trim(),
+    isLivenessVerified: formDataRef.current.isLivenessVerified ?? isLivenessVerified,
+    verificationStatus: formDataRef.current.verificationStatus || verificationStatus,
+    primaryCity: (formDataRef.current.primaryCity || primaryCity).trim(),
+    primaryLocation: (formDataRef.current.primaryLocation || primaryLocation).trim(),
+    coords: formDataRef.current.coords || coords,
+    gender: formDataRef.current.gender || gender,
+    genderDisplay: (formDataRef.current.genderDisplay || genderDisplay).trim(),
+    lookingFor: (formDataRef.current.lookingFor || lookingFor).trim(),
+    orientation: (formDataRef.current.orientation || orientation).trim(),
+    microCircle: (formDataRef.current.microCircle || microCircle).trim(),
+    job: (formDataRef.current.job || job).trim(),
+    institute: (formDataRef.current.institute || institute).trim(),
+    bio: (formDataRef.current.bio || bio).trim(),
+    heightCm: typeof formDataRef.current.heightCm === 'number' ? formDataRef.current.heightCm : heightCm,
+    dietaryPref: formDataRef.current.dietaryPref || dietaryPref,
+    drinkingHabit: (formDataRef.current.drinkingHabit || drinkingHabit).trim(),
+    photoSlots: photoSlotsRef.current,
+    birthTime: (formDataRef.current.birthTime || birthTime).trim(),
+    birthCity: (formDataRef.current.birthCity || birthCity).trim(),
+  });
+
+  // Deck validation function that merges latest state and synchronous formDataRef
+  const validateDeck = (deck: number): { valid: boolean; message?: string } => {
+    const data = getMergedFormData();
+
+    switch (deck) {
+      case 1: {
+        const cleanName = (data.fullName || '').trim();
+        if (!cleanName || cleanName.length < 2) {
+          return { valid: false, message: 'Please enter your first name (at least 2 characters) to continue.' };
+        }
+        const dy = parseInt(data.dobDay || '', 10);
+        const mo = parseInt(data.dobMonth || '', 10);
+        const yr = parseInt(data.dobYear || '', 10);
+        const currentYr = new Date().getFullYear();
+        if (isNaN(dy) || dy < 1 || dy > 31) {
+          return { valid: false, message: 'Please enter a valid birth day (01 to 31).' };
+        }
+        if (isNaN(mo) || mo < 1 || mo > 12) {
+          return { valid: false, message: 'Please enter a valid birth month (01 to 12).' };
+        }
+        if (isNaN(yr) || yr < 1920 || yr > currentYr) {
+          return { valid: false, message: 'Please enter a valid birth year (YYYY, e.g. 1999).' };
+        }
+        const today = new Date();
+        let age = today.getFullYear() - yr;
+        const m = today.getMonth() - (mo - 1);
+        if (m < 0 || (m === 0 && today.getDate() < dy)) {
+          age--;
+        }
+        if (age < 18) {
+          return { valid: false, message: `You are currently ${age} years old. You must be at least 18 years old to join BlunderR.` };
+        }
+        const cleanSelfie = (data.selfieUrl || '').trim();
+        if (!cleanSelfie || cleanSelfie.length === 0) {
+          return { valid: false, message: 'Please take or upload your verification selfie to continue.' };
+        }
+        const cleanCity = (data.primaryCity || '').trim();
+        if (!cleanCity) {
+          return { valid: false, message: 'Please select or auto-detect your primary residence city for local matching.' };
+        }
+        return { valid: true };
+      }
+      case 2: {
+        const gDisplay = (data.genderDisplay || '').trim();
+        if (!gDisplay) {
+          return { valid: false, message: 'Please select how you identify.' };
+        }
+        const lookFor = (data.lookingFor || '').trim();
+        if (!lookFor) {
+          return { valid: false, message: 'Please select who you are looking to meet.' };
+        }
+        const orient = (data.orientation || '').trim();
+        if (!orient) {
+          return { valid: false, message: 'Please select your sexual orientation.' };
+        }
+        return { valid: true };
+      }
+      case 3: {
+        const j = (data.job || '').trim();
+        if (!j) {
+          return { valid: false, message: 'Please enter your career / profession to continue.' };
+        }
+        return { valid: true };
+      }
+      case 4: {
+        const b = (data.bio || '').trim();
+        if (!b || b.length < 10) {
+          return { valid: false, message: 'Please select an archetype or write a bio (at least 10 characters).' };
+        }
+        return { valid: true };
+      }
+      case 5: {
+        const h = typeof data.heightCm === 'number' ? data.heightCm : 175;
+        if (!h || h < 100) {
+          return { valid: false, message: 'Please set your height to continue.' };
+        }
+        if (!data.dietaryPref) {
+          return { valid: false, message: 'Please select your food preference.' };
+        }
+        const habit = (data.drinkingHabit || '').trim();
+        if (!habit) {
+          return { valid: false, message: 'Please select your social drinking preference.' };
+        }
+        return { valid: true };
+      }
+      case 6: {
+        const currentSlots = photoSlotsRef.current || data.photoSlots || [];
+        const validPhotos = currentSlots.filter((u) => u && u.trim().length > 0);
+        if (validPhotos.length < 2) {
+          return {
+            valid: false,
+            message: `Please upload at least 2 photos (${validPhotos.length}/2 uploaded). You can upload up to 6 photos!`,
+          };
+        }
+        return { valid: true };
+      }
+      case 7: {
+        const cleanTime = (data.birthTime || '').trim();
+        if (cleanTime.length > 0) {
+          const timeRegex = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+          if (!timeRegex.test(cleanTime)) {
+            return {
+              valid: false,
+              message: 'Birth time format should be HH:MM in 24-hr format (e.g. 14:30), or leave blank to skip.',
+            };
+          }
+        }
+        return { valid: true };
+      }
+      default:
+        return { valid: true };
+    }
+  };
+
+  // Immediate synchronous draft persistence function
+  const saveDraftLocally = async (targetDeck?: number) => {
+    try {
+      const data = getMergedFormData();
+      const draft = {
+        activeDeck: targetDeck ?? activeDeck,
+        ...data,
+        updatedAt: Date.now(),
+      };
+      await AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch (e) {
+      console.warn('[onboarding] Failed to save draft locally:', e);
+    }
+  };
+
   // Option 3: Hybrid Hydration (Local Draft First for 0ms recovery, then Cloud Profile Sync)
   useEffect(() => {
     loadTribeCircles();
     (async () => {
-      let restoredDeck = 1;
+      let candidateDeck = 1;
       try {
         // 1. Read instant local draft from AsyncStorage (crash recovery)
         const rawDraft = await AsyncStorage.getItem(ONBOARDING_DRAFT_STORAGE_KEY);
         if (rawDraft) {
           try {
             const draft = JSON.parse(rawDraft);
-            if (draft.fullName) setFullName(draft.fullName);
-            if (draft.dobYear) setDobYear(draft.dobYear);
-            if (draft.dobMonth) setDobMonth(draft.dobMonth);
-            if (draft.dobDay) setDobDay(draft.dobDay);
-            if (draft.primaryCity) setPrimaryCity(draft.primaryCity);
-            if (draft.primaryLocation) setPrimaryLocation(draft.primaryLocation);
-            if (draft.coords) setCoords(draft.coords);
-            if (draft.gender) setGender(draft.gender);
+            if (draft.fullName) {
+              setFullName(draft.fullName);
+              formDataRef.current.fullName = draft.fullName;
+            }
+            if (draft.dobYear) {
+              setDobYear(draft.dobYear);
+              formDataRef.current.dobYear = draft.dobYear;
+            }
+            if (draft.dobMonth) {
+              setDobMonth(draft.dobMonth);
+              formDataRef.current.dobMonth = draft.dobMonth;
+            }
+            if (draft.dobDay) {
+              setDobDay(draft.dobDay);
+              formDataRef.current.dobDay = draft.dobDay;
+            }
+            if (draft.primaryCity) {
+              setPrimaryCity(draft.primaryCity);
+              formDataRef.current.primaryCity = draft.primaryCity;
+            }
+            if (draft.primaryLocation) {
+              setPrimaryLocation(draft.primaryLocation);
+              formDataRef.current.primaryLocation = draft.primaryLocation;
+            }
+            if (draft.coords) {
+              setCoords(draft.coords);
+              formDataRef.current.coords = draft.coords;
+            }
+            if (draft.gender) {
+              setGender(draft.gender);
+              formDataRef.current.gender = draft.gender;
+            }
             if (draft.genderDisplay) {
               setGenderDisplay(draft.genderDisplay);
               setTempGenderDisplay(draft.genderDisplay);
+              formDataRef.current.genderDisplay = draft.genderDisplay;
             }
             if (draft.lookingFor) {
               setLookingFor(draft.lookingFor);
               setTempLookingFor(draft.lookingFor);
+              formDataRef.current.lookingFor = draft.lookingFor;
             }
             if (draft.orientation) {
               setOrientation(draft.orientation);
               setTempOrientation(draft.orientation);
+              formDataRef.current.orientation = draft.orientation;
             }
-            if (draft.microCircle) setMicroCircle(draft.microCircle);
-            if (draft.job) setJob(draft.job);
-            if (draft.institute) setInstitute(draft.institute);
-            if (draft.bio) setBio(draft.bio);
-            if (typeof draft.heightCm === 'number') setHeightCm(draft.heightCm);
-            if (draft.dietaryPref) setDietaryPref(draft.dietaryPref);
-            if (draft.drinkingHabit) setDrinkingHabit(draft.drinkingHabit);
+            if (draft.microCircle) {
+              setMicroCircle(draft.microCircle);
+              formDataRef.current.microCircle = draft.microCircle;
+            }
+            if (draft.job) {
+              setJob(draft.job);
+              formDataRef.current.job = draft.job;
+            }
+            if (draft.institute) {
+              setInstitute(draft.institute);
+              formDataRef.current.institute = draft.institute;
+            }
+            if (draft.bio) {
+              setBio(draft.bio);
+              formDataRef.current.bio = draft.bio;
+            }
+            if (typeof draft.heightCm === 'number') {
+              setHeightCm(draft.heightCm);
+              formDataRef.current.heightCm = draft.heightCm;
+            }
+            if (draft.dietaryPref) {
+              setDietaryPref(draft.dietaryPref);
+              formDataRef.current.dietaryPref = draft.dietaryPref;
+            }
+            if (draft.drinkingHabit) {
+              setDrinkingHabit(draft.drinkingHabit);
+              formDataRef.current.drinkingHabit = draft.drinkingHabit;
+            }
             if (Array.isArray(draft.photoSlots)) {
               photoSlotsRef.current = draft.photoSlots;
+              formDataRef.current.photoSlots = draft.photoSlots;
               setPhotoSlots(draft.photoSlots);
             }
-            if (draft.selfieUrl) setSelfieUrl(draft.selfieUrl);
-            if (draft.verificationStatus) setVerificationStatus(draft.verificationStatus);
-            if (draft.isLivenessVerified) setIsLivenessVerified(draft.isLivenessVerified);
-            if (draft.birthTime) setBirthTime(draft.birthTime);
-            if (draft.birthCity) setBirthCity(draft.birthCity);
+            if (draft.selfieUrl) {
+              setSelfieUrl(draft.selfieUrl);
+              formDataRef.current.selfieUrl = draft.selfieUrl;
+            }
+            if (draft.verificationStatus) {
+              setVerificationStatus(draft.verificationStatus);
+              formDataRef.current.verificationStatus = draft.verificationStatus;
+            }
+            if (draft.isLivenessVerified) {
+              setIsLivenessVerified(draft.isLivenessVerified);
+              formDataRef.current.isLivenessVerified = draft.isLivenessVerified;
+            }
+            if (draft.birthTime) {
+              setBirthTime(draft.birthTime);
+              formDataRef.current.birthTime = draft.birthTime;
+            }
+            if (draft.birthCity) {
+              setBirthCity(draft.birthCity);
+              formDataRef.current.birthCity = draft.birthCity;
+            }
 
             if (typeof draft.activeDeck === 'number' && draft.activeDeck >= 1 && draft.activeDeck <= 7) {
-              restoredDeck = Math.max(restoredDeck, draft.activeDeck);
+              candidateDeck = Math.max(candidateDeck, draft.activeDeck);
             }
           } catch (e) {
             console.warn('[onboarding] Failed to parse local draft:', e);
           }
         }
 
-        // 2. Fetch server profile to merge cloud state and calculate furthest cloud step
+        // 2. Fetch server profile to merge cloud state (NEVER overwrite existing local inputs)
         const prof = await api.getMyProfile();
-        let serverFurthestDeck = 1;
 
         if (prof?.displayName || prof?.fullName) {
-          const existingName = prof.displayName || prof.fullName || '';
+          const existingName = (prof.displayName || prof.fullName || '').trim();
           if (existingName && existingName !== 'New User' && existingName !== 'BlunderR Star') {
-            setFullName((prev) => prev || existingName);
+            if (!formDataRef.current.fullName) {
+              setFullName(existingName);
+              formDataRef.current.fullName = existingName;
+            }
           }
         }
         if (prof?.birthDate) {
           const parts = prof.birthDate.split('-');
           if (parts.length === 3) {
-            setDobYear((prev) => prev || parts[0]);
-            setDobMonth((prev) => prev || parts[1]);
-            setDobDay((prev) => prev || parts[2]);
-            serverFurthestDeck = Math.max(serverFurthestDeck, 2);
+            if (!formDataRef.current.dobYear) {
+              setDobYear(parts[0]);
+              formDataRef.current.dobYear = parts[0];
+            }
+            if (!formDataRef.current.dobMonth) {
+              setDobMonth(parts[1]);
+              formDataRef.current.dobMonth = parts[1];
+            }
+            if (!formDataRef.current.dobDay) {
+              setDobDay(parts[2]);
+              formDataRef.current.dobDay = parts[2];
+            }
           }
         }
         if (prof?.city || prof?.location) {
-          const c = prof.city || prof.location || '';
-          setPrimaryCity((prev) => prev || c);
-          setPrimaryLocation((prev) => prev || prof.location || c);
-          serverFurthestDeck = Math.max(serverFurthestDeck, 3);
+          const c = (prof.city || prof.location || '').trim();
+          if (c && !formDataRef.current.primaryCity) {
+            setPrimaryCity(c);
+            formDataRef.current.primaryCity = c;
+            setPrimaryLocation(prof.location || c);
+            formDataRef.current.primaryLocation = prof.location || c;
+          }
         }
         if (typeof prof?.latitude === 'number' && typeof prof?.longitude === 'number') {
-          setCoords((prev) => prev || { lat: prof.latitude!, lng: prof.longitude! });
+          if (!formDataRef.current.coords) {
+            const newCoords = { lat: prof.latitude!, lng: prof.longitude! };
+            setCoords(newCoords);
+            formDataRef.current.coords = newCoords;
+          }
         }
-        if (prof?.gender) setGender((prev) => prev || prof.gender);
-        if (prof?.genderDisplay) {
-          setGenderDisplay((prev) => prev || prof.genderDisplay || '');
-          setTempGenderDisplay((prev) => prev || prof.genderDisplay || '');
+        if (prof?.gender && !formDataRef.current.gender) {
+          setGender(prof.gender);
+          formDataRef.current.gender = prof.gender;
         }
-        if (prof?.genderPreferenceDisplay) {
-          setLookingFor((prev) => prev || prof.genderPreferenceDisplay || '');
-          setTempLookingFor((prev) => prev || prof.genderPreferenceDisplay || '');
+        if (prof?.genderDisplay && !formDataRef.current.genderDisplay) {
+          setGenderDisplay(prof.genderDisplay);
+          setTempGenderDisplay(prof.genderDisplay);
+          formDataRef.current.genderDisplay = prof.genderDisplay;
         }
-        if (prof?.sexualOrientation) {
-          setOrientation((prev) => prev || prof.sexualOrientation || '');
-          setTempOrientation((prev) => prev || prof.sexualOrientation || '');
+        if (prof?.genderPreferenceDisplay && !formDataRef.current.lookingFor) {
+          setLookingFor(prof.genderPreferenceDisplay);
+          setTempLookingFor(prof.genderPreferenceDisplay);
+          formDataRef.current.lookingFor = prof.genderPreferenceDisplay;
         }
-        if (prof?.microCircle) {
-          setMicroCircle((prev) => prev || prof.microCircle || '');
-          serverFurthestDeck = Math.max(serverFurthestDeck, 4);
+        if (prof?.sexualOrientation && !formDataRef.current.orientation) {
+          setOrientation(prof.sexualOrientation);
+          setTempOrientation(prof.sexualOrientation);
+          formDataRef.current.orientation = prof.sexualOrientation;
         }
-        if (prof?.job || prof?.occupation) {
-          setJob((prev) => prev || prof.job || prof.occupation || '');
-          serverFurthestDeck = Math.max(serverFurthestDeck, 5);
+        if (prof?.microCircle && !formDataRef.current.microCircle) {
+          setMicroCircle(prof.microCircle);
+          formDataRef.current.microCircle = prof.microCircle;
         }
-        if (prof?.institute || prof?.education) {
-          setInstitute((prev) => prev || prof.institute || prof.education || '');
+        if ((prof?.job || prof?.occupation) && !formDataRef.current.job) {
+          const j = (prof.job || prof.occupation || '').trim();
+          setJob(j);
+          formDataRef.current.job = j;
         }
-        if (prof?.bio) {
-          setBio((prev) => prev || prof.bio || '');
-          serverFurthestDeck = Math.max(serverFurthestDeck, 5);
+        if ((prof?.institute || prof?.education) && !formDataRef.current.institute) {
+          const inst = (prof.institute || prof.education || '').trim();
+          setInstitute(inst);
+          formDataRef.current.institute = inst;
         }
-        if (prof?.height) {
-          setHeightCm((prev) => (prev !== 175 ? prev : prof.height || 175));
-          serverFurthestDeck = Math.max(serverFurthestDeck, 6);
+        if (prof?.bio && !formDataRef.current.bio) {
+          setBio(prof.bio);
+          formDataRef.current.bio = prof.bio;
         }
-        if (prof?.dietaryPref) {
-          setDietaryPref((prev) => prev || prof.dietaryPref || '');
-          serverFurthestDeck = Math.max(serverFurthestDeck, 6);
+        if (prof?.height && formDataRef.current.heightCm === 175) {
+          setHeightCm(prof.height);
+          formDataRef.current.heightCm = prof.height;
         }
-        if (prof?.drinkingHabit) {
-          setDrinkingHabit((prev) => prev || prof.drinkingHabit || '');
-          serverFurthestDeck = Math.max(serverFurthestDeck, 6);
+        if (prof?.dietaryPref && !formDataRef.current.dietaryPref) {
+          setDietaryPref(prof.dietaryPref);
+          formDataRef.current.dietaryPref = prof.dietaryPref;
+        }
+        if (prof?.drinkingHabit && !formDataRef.current.drinkingHabit) {
+          setDrinkingHabit(prof.drinkingHabit);
+          formDataRef.current.drinkingHabit = prof.drinkingHabit;
         }
 
         const serverPhotos = [
@@ -710,10 +1023,6 @@ export default function OnboardingDecksScreen() {
         ].map((u) => (u && !u.includes('unsplash.com/photo-1534528741775') ? u : ''));
 
         const validServerPhotos = serverPhotos.filter(Boolean);
-        if (validServerPhotos.length >= 2) {
-          serverFurthestDeck = Math.max(serverFurthestDeck, 7);
-        }
-
         if (validServerPhotos.length > 0) {
           setPhotoSlots((currentSlots) => {
             const merged = [...currentSlots];
@@ -721,25 +1030,50 @@ export default function OnboardingDecksScreen() {
               if (p && !merged[idx]) merged[idx] = p;
             });
             photoSlotsRef.current = merged;
+            formDataRef.current.photoSlots = merged;
             return merged;
           });
         }
 
-        if (prof?.selfieUrl) {
+        if (prof?.selfieUrl && !formDataRef.current.selfieUrl) {
           setSelfieUrl(prof.selfieUrl);
+          formDataRef.current.selfieUrl = prof.selfieUrl;
         }
         if (prof?.verificationStatus === 'VERIFIED' || prof?.faceVerified) {
           setVerificationStatus('VERIFIED');
           setIsLivenessVerified(true);
+          formDataRef.current.verificationStatus = 'VERIFIED';
+          formDataRef.current.isLivenessVerified = true;
         } else if (prof?.verificationStatus === 'PENDING' || prof?.selfieUrl) {
           setVerificationStatus('PENDING');
           setIsLivenessVerified(false);
+          formDataRef.current.verificationStatus = 'PENDING';
+          formDataRef.current.isLivenessVerified = false;
         } else if (prof?.verificationStatus === 'REJECTED') {
           setVerificationStatus('REJECTED');
           setIsLivenessVerified(false);
+          formDataRef.current.verificationStatus = 'REJECTED';
+          formDataRef.current.isLivenessVerified = false;
         }
 
-        const finalDeckToResume = Math.max(restoredDeck, serverFurthestDeck);
+        // CRITICAL: Determine the actual furthest SAFE deck to resume.
+        // A user can ONLY resume at Deck N if ALL prior decks (1 .. N-1) are strictly valid!
+        let safeDeckToResume = 1;
+        for (let d = 1; d <= 6; d++) {
+          const check = validateDeck(d);
+          if (check.valid) {
+            safeDeckToResume = d + 1;
+          } else {
+            break;
+          }
+        }
+
+        // The furthest safe deck to resume: if candidateDeck (from local draft) was saved, resume there,
+        // but NEVER higher than safeDeckToResume! If no local draft was saved, resume at safeDeckToResume.
+        const finalDeckToResume = candidateDeck > 1
+          ? Math.min(candidateDeck, safeDeckToResume)
+          : safeDeckToResume;
+
         if (finalDeckToResume > 1 && finalDeckToResume <= 7) {
           setActiveDeck(finalDeckToResume);
           const deckLabels: Record<number, string> = {
@@ -752,56 +1086,83 @@ export default function OnboardingDecksScreen() {
           };
           setResumedBannerText(`⚡ Resumed at Deck ${finalDeckToResume}: ${deckLabels[finalDeckToResume] || 'Progress Restored'}`);
           setTimeout(() => setResumedBannerText(''), 4500);
+        } else {
+          setActiveDeck(1);
         }
       } catch (e) {
         console.warn('[onboarding] Hydration warning:', e);
       } finally {
         isHydratedRef.current = true;
+        setIsHydrated(true);
       }
     })();
   }, []);
 
-  // Continuous Local Auto-Draft Debounce (Runs silently on every keystroke / chip / photo change)
+  // Continuous sync between React state and formDataRef
   useEffect(() => {
-    if (!isHydratedRef.current) return;
-    const timer = setTimeout(async () => {
-      try {
-        const draft = {
-          activeDeck,
-          fullName,
-          dobYear,
-          dobMonth,
-          dobDay,
-          selfieUrl,
-          isLivenessVerified,
-          verificationStatus,
-          primaryCity,
-          primaryLocation,
-          coords,
-          gender,
-          genderDisplay,
-          lookingFor,
-          orientation,
-          microCircle,
-          job,
-          institute,
-          bio,
-          heightCm,
-          dietaryPref,
-          drinkingHabit,
-          photoSlots,
-          birthTime,
-          birthCity,
-          updatedAt: Date.now(),
-        };
-        await AsyncStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(draft));
-      } catch (e) {
-        console.warn('[onboarding] Debounced draft save warning:', e);
-      }
+    formDataRef.current = {
+      fullName,
+      dobYear,
+      dobMonth,
+      dobDay,
+      selfieUrl,
+      isLivenessVerified,
+      verificationStatus,
+      primaryCity,
+      primaryLocation,
+      coords,
+      gender,
+      genderDisplay,
+      lookingFor,
+      orientation,
+      microCircle,
+      job,
+      institute,
+      bio,
+      heightCm,
+      dietaryPref,
+      drinkingHabit,
+      photoSlots,
+      birthTime,
+      birthCity,
+    };
+  }, [
+    fullName,
+    dobYear,
+    dobMonth,
+    dobDay,
+    selfieUrl,
+    isLivenessVerified,
+    verificationStatus,
+    primaryCity,
+    primaryLocation,
+    coords,
+    gender,
+    genderDisplay,
+    lookingFor,
+    orientation,
+    microCircle,
+    job,
+    institute,
+    bio,
+    heightCm,
+    dietaryPref,
+    drinkingHabit,
+    photoSlots,
+    birthTime,
+    birthCity,
+  ]);
+
+  // Continuous Local Auto-Draft Debounce
+  useEffect(() => {
+    if (!isHydrated) return;
+    const timer = setTimeout(() => {
+      saveDraftLocally(activeDeck);
     }, 400);
 
     return () => clearTimeout(timer);
   }, [
+    isHydrated,
     activeDeck,
     fullName,
     dobYear,
@@ -829,69 +1190,91 @@ export default function OnboardingDecksScreen() {
     birthCity,
   ]);
 
-  // Non-blocking step checkpoint sync to PostgreSQL backend
-  const syncDeckCheckpointToCloud = (completedDeck: number) => {
+  // Non-blocking cumulative step checkpoint sync to PostgreSQL backend
+  const syncDeckCheckpointToCloud = (currentOrTargetDeck: number) => {
     try {
-      const formattedDob = `${dobYear.trim()}-${dobMonth.trim().padStart(2, '0')}-${dobDay.trim().padStart(2, '0')}`;
-      const cleanName = fullName.trim();
+      const data = getMergedFormData();
 
-      if (completedDeck === 1) {
-        api.updateMyProfile({
-          fullName: cleanName || undefined,
-          displayName: cleanName || undefined,
-          birthDate: (dobYear.trim() && dobMonth.trim() && dobDay.trim()) ? formattedDob : undefined,
-          selfieUrl: selfieUrl && !selfieUrl.startsWith('file:') ? selfieUrl : undefined,
-          verificationStatus: selfieUrl ? (verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING') : undefined,
-        } as any).catch(() => {});
-      } else if (completedDeck === 2) {
-        api.updateMyProfile({
-          gender,
-          genderDisplay: genderDisplay || undefined,
-          genderPreferenceDisplay: lookingFor || undefined,
-          sexualOrientation: orientation || undefined,
-        } as any).catch(() => {});
-      } else if (completedDeck === 3) {
-        if (coords) {
-          api.updateLocation(
-            coords.lat,
-            coords.lng,
-            primaryCity.trim(),
-            (primaryLocation || primaryCity).trim()
-          ).catch(() => {});
-        }
-        api.updateMyProfile({
-          city: primaryCity.trim() || undefined,
-          location: (primaryLocation || primaryCity).trim() || undefined,
-          latitude: coords?.lat,
-          longitude: coords?.lng,
-          microCircle: microCircle || undefined,
-        } as any).catch(() => {});
-      } else if (completedDeck === 4) {
-        api.updateMyProfile({
-          bio: bio || undefined,
-          job: job.trim() || undefined,
-          occupation: job.trim() || undefined,
-          institute: institute.trim() || undefined,
-          education: institute.trim() || undefined,
-        } as any).catch(() => {});
-      } else if (completedDeck === 5) {
-        api.updateMyProfile({
-          height: heightCm,
-          dietaryPref: (dietaryPref || 'PURE_VEG') as DietaryPreference,
-          drinkingHabit: drinkingHabit || undefined,
-        } as any).catch(() => {});
-      } else if (completedDeck === 6) {
-        // Photo slots are already uploaded and saved in real-time by uploadSingleAssetToSlot
-      } else if (completedDeck === 7) {
-        if (birthTime.trim() || birthCity.trim()) {
-          api.updateMyBirthDetails({
-            birthTime: birthTime.trim(),
-            birthCity: birthCity.trim(),
-          }).catch(() => {});
-        }
+      const cleanName = data.fullName;
+      const dy = data.dobDay;
+      const mo = data.dobMonth;
+      const yr = data.dobYear;
+      const isDobComplete = Boolean(dy && mo && yr && yr.length === 4);
+      const formattedDob = isDobComplete ? `${yr}-${mo.padStart(2, '0')}-${dy.padStart(2, '0')}` : undefined;
+
+      const cleanPhotos = (photoSlotsRef.current || data.photoSlots || []).filter(
+        (p) => p && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
+      );
+
+      const payload: Record<string, any> = {};
+
+      if (cleanName) {
+        payload.displayName = cleanName;
+        payload.fullName = cleanName;
+      }
+      if (formattedDob) {
+        payload.birthDate = formattedDob;
+      }
+      if (data.primaryCity?.trim()) {
+        payload.city = data.primaryCity.trim();
+        payload.location = (data.primaryLocation || data.primaryCity).trim();
+      }
+      if (data.coords) {
+        payload.latitude = data.coords.lat;
+        payload.longitude = data.coords.lng;
+        api.updateLocation(
+          data.coords.lat,
+          data.coords.lng,
+          data.primaryCity.trim(),
+          (data.primaryLocation || data.primaryCity).trim()
+        ).catch(() => {});
+      }
+      if (data.gender) payload.gender = data.gender;
+      if (data.genderDisplay) payload.genderDisplay = data.genderDisplay;
+      if (data.lookingFor) payload.genderPreferenceDisplay = data.lookingFor;
+      if (data.orientation) payload.sexualOrientation = data.orientation;
+      if (data.microCircle) payload.microCircle = data.microCircle;
+      if (data.job?.trim()) {
+        payload.job = data.job.trim();
+        payload.occupation = data.job.trim();
+      }
+      if (data.institute?.trim()) {
+        payload.institute = data.institute.trim();
+        payload.education = data.institute.trim();
+      }
+      if (data.bio?.trim()) payload.bio = data.bio.trim();
+      if (typeof data.heightCm === 'number' && data.heightCm >= 100) {
+        payload.height = data.heightCm;
+      }
+      if (data.dietaryPref) payload.dietaryPref = data.dietaryPref;
+      if (data.drinkingHabit) payload.drinkingHabit = data.drinkingHabit;
+
+      if (data.selfieUrl && !data.selfieUrl.startsWith('file:') && !data.selfieUrl.startsWith('content:')) {
+        payload.selfieUrl = data.selfieUrl;
+        payload.verificationStatus = data.verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING';
+      }
+
+      if (cleanPhotos.length > 0) {
+        payload.photos = cleanPhotos;
+        cleanPhotos.forEach((p, idx) => {
+          if (idx < 6) payload[`photo${idx + 1}`] = p;
+        });
+      }
+
+      if (Object.keys(payload).length > 0) {
+        api.updateMyProfile(payload as any).catch((err) => {
+          console.warn('[onboarding] Cumulative cloud checkpoint warning:', err);
+        });
+      }
+
+      if (currentOrTargetDeck >= 7 && (data.birthTime?.trim() || data.birthCity?.trim())) {
+        api.updateMyBirthDetails({
+          birthTime: data.birthTime.trim(),
+          birthCity: data.birthCity.trim(),
+        }).catch(() => {});
       }
     } catch (e) {
-      console.warn('[onboarding] Non-blocking cloud checkpoint failed:', e);
+      console.warn('[onboarding] Cumulative sync exception:', e);
     }
   };
 
@@ -981,108 +1364,6 @@ export default function OnboardingDecksScreen() {
     []
   );
 
-  const validateDeck = (deck: number): { valid: boolean; message?: string } => {
-    switch (deck) {
-      case 1: {
-        if (!fullName || fullName.trim().length < 2) {
-          return { valid: false, message: 'Please enter your first name (at least 2 characters) to continue.' };
-        }
-        const dy = parseInt(dobDay, 10);
-        const mo = parseInt(dobMonth, 10);
-        const yr = parseInt(dobYear, 10);
-        const currentYr = new Date().getFullYear();
-        if (isNaN(dy) || dy < 1 || dy > 31) {
-          return { valid: false, message: 'Please enter a valid birth day (01 to 31).' };
-        }
-        if (isNaN(mo) || mo < 1 || mo > 12) {
-          return { valid: false, message: 'Please enter a valid birth month (01 to 12).' };
-        }
-        if (isNaN(yr) || yr < 1920 || yr > currentYr) {
-          return { valid: false, message: 'Please enter a valid birth year (YYYY, e.g. 1999).' };
-        }
-        const today = new Date();
-        let age = today.getFullYear() - yr;
-        const m = today.getMonth() - (mo - 1);
-        if (m < 0 || (m === 0 && today.getDate() < dy)) {
-          age--;
-        }
-        if (age < 18) {
-          return { valid: false, message: `You are currently ${age} years old. You must be at least 18 years old to join BlunderR.` };
-        }
-        if (!selfieUrl || selfieUrl.trim().length === 0) {
-          return { valid: false, message: 'Please take or upload your verification selfie to continue.' };
-        }
-        if (!primaryCity || !primaryCity.trim()) {
-          return { valid: false, message: 'Please select or auto-detect your primary residence city for local matching.' };
-        }
-        return { valid: true };
-      }
-      case 2: {
-        if (!genderDisplay || !genderDisplay.trim()) {
-          return { valid: false, message: 'Please select how you identify.' };
-        }
-        if (!lookingFor || !lookingFor.trim()) {
-          return { valid: false, message: 'Please select who you are looking to meet.' };
-        }
-        if (!orientation || !orientation.trim()) {
-          return { valid: false, message: 'Please select your sexual orientation.' };
-        }
-        return { valid: true };
-      }
-      case 3: {
-        // Micro-circle neighborhood tribe is now completely optional
-        if (!job || !job.trim()) {
-          return { valid: false, message: 'Please enter your career / profession to continue.' };
-        }
-        return { valid: true };
-      }
-      case 4: {
-        if (!bio || bio.trim().length < 10) {
-          return { valid: false, message: 'Please select an archetype or write a bio (at least 10 characters).' };
-        }
-        return { valid: true };
-      }
-      case 5: {
-        if (!heightCm || heightCm < 100) {
-          return { valid: false, message: 'Please set your height to continue.' };
-        }
-        if (!dietaryPref) {
-          return { valid: false, message: 'Please select your food preference.' };
-        }
-        if (!drinkingHabit) {
-          return { valid: false, message: 'Please select your social drinking preference.' };
-        }
-        return { valid: true };
-      }
-      case 6: {
-        const validPhotos = photoSlotsRef.current.filter((u) => u && u.trim().length > 0);
-        if (validPhotos.length < 2) {
-          return {
-            valid: false,
-            message: `Please upload at least 2 photos (${validPhotos.length}/2 uploaded). You can upload up to 6 photos!`,
-          };
-        }
-        return { valid: true };
-      }
-      case 7: {
-        // Cosmic Chemistry / Vedic Janampatri is completely optional
-        if (birthTime && birthTime.trim().length > 0) {
-          const cleanTime = birthTime.trim();
-          const timeRegex = /^([01]?\d|2[0-3]):([0-5]\d)$/;
-          if (!timeRegex.test(cleanTime)) {
-            return {
-              valid: false,
-              message: 'Birth time format should be HH:MM in 24-hr format (e.g. 14:30), or leave blank to skip.',
-            };
-          }
-        }
-        return { valid: true };
-      }
-      default:
-        return { valid: true };
-    }
-  };
-
   // Whenever the active deck changes (Next, Previous, or Quick-Jump Strip), instantly scroll to the top
   useEffect(() => {
     try {
@@ -1097,20 +1378,25 @@ export default function OnboardingDecksScreen() {
     } catch (e) {}
   }, [activeDeck]);
 
-  const advanceToDeck = (targetDeck: number) => {
+  const advanceToDeck = async (targetDeck: number) => {
     if (targetDeck < 1 || targetDeck > 7) return;
+
     if (targetDeck > activeDeck) {
-      for (let d = activeDeck; d < targetDeck; d++) {
+      for (let d = 1; d < targetDeck; d++) {
         const validation = validateDeck(d);
         if (!validation.valid) {
           hapticFeedback.warning();
           Alert.alert('Incomplete Step ⚠️', validation.message);
+          if (d !== activeDeck) {
+            setActiveDeck(d);
+            await saveDraftLocally(d);
+          }
           return;
         }
       }
 
-      // Sync completed deck to cloud backend in background
-      syncDeckCheckpointToCloud(activeDeck);
+      // Sync cumulative completed profile to cloud backend in background
+      syncDeckCheckpointToCloud(targetDeck);
     }
 
     // Reset scroll position to top immediately so user starts from the top of the next deck
@@ -1136,39 +1422,7 @@ export default function OnboardingDecksScreen() {
     ]).start();
 
     setActiveDeck(targetDeck);
-
-    // Immediately persist updated deck location to AsyncStorage (crash-proof)
-    AsyncStorage.setItem(
-      ONBOARDING_DRAFT_STORAGE_KEY,
-      JSON.stringify({
-        activeDeck: targetDeck,
-        fullName,
-        dobYear,
-        dobMonth,
-        dobDay,
-        selfieUrl,
-        isLivenessVerified,
-        verificationStatus,
-        primaryCity,
-        primaryLocation,
-        coords,
-        gender,
-        genderDisplay,
-        lookingFor,
-        orientation,
-        microCircle,
-        job,
-        institute,
-        bio,
-        heightCm,
-        dietaryPref,
-        drinkingHabit,
-        photoSlots,
-        birthTime,
-        birthCity,
-        updatedAt: Date.now(),
-      })
-    ).catch(() => {});
+    await saveDraftLocally(targetDeck);
   };
 
   const handleRerollBio = () => {
@@ -1187,14 +1441,20 @@ export default function OnboardingDecksScreen() {
     hapticFeedback.success();
     setVerificationStatus('PENDING');
     setIsLivenessVerified(false);
+    formDataRef.current.verificationStatus = 'PENDING';
+    formDataRef.current.isLivenessVerified = false;
     if (capturedUri) {
       setSelfieUrl(capturedUri);
+      formDataRef.current.selfieUrl = capturedUri;
+      saveDraftLocally(1);
       (async () => {
         try {
           const uploadedUrl = await api.uploadImage(capturedUri, capturedBase64);
           const finalSelfie = uploadedUrl || capturedUri;
           if (uploadedUrl) {
             setSelfieUrl(uploadedUrl);
+            formDataRef.current.selfieUrl = uploadedUrl;
+            saveDraftLocally(1);
           }
           await api.submitSelfieAsync(finalSelfie);
         } catch (e) {
@@ -1212,6 +1472,8 @@ export default function OnboardingDecksScreen() {
       const next = [...prev];
       next[slotIndex] = localUri;
       photoSlotsRef.current = next;
+      formDataRef.current.photoSlots = next;
+      saveDraftLocally(6);
       return next;
     });
 
@@ -1223,6 +1485,8 @@ export default function OnboardingDecksScreen() {
         const next = [...prev];
         next[slotIndex] = finalUrl;
         photoSlotsRef.current = next;
+        formDataRef.current.photoSlots = next;
+        saveDraftLocally(6);
         const cleanList = next.filter(
           (p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
         );
@@ -1247,6 +1511,8 @@ export default function OnboardingDecksScreen() {
           const next = [...prev];
           next[slotIndex] = '';
           photoSlotsRef.current = next;
+          formDataRef.current.photoSlots = next;
+          saveDraftLocally(6);
           return next;
         });
       }
@@ -1346,6 +1612,8 @@ export default function OnboardingDecksScreen() {
       const next = [...prev];
       next[slotIndex] = '';
       photoSlotsRef.current = next;
+      formDataRef.current.photoSlots = next;
+      saveDraftLocally(6);
       const cleanList = next.filter(
         (p) => p && p.trim().length > 0 && !p.startsWith('file:') && !p.startsWith('content:') && !p.startsWith('data:') && !p.startsWith('blob:')
       );
@@ -1364,7 +1632,8 @@ export default function OnboardingDecksScreen() {
       if (!check.valid) {
         hapticFeedback.warning();
         Alert.alert('Incomplete Step ⚠️', check.message);
-        advanceToDeck(d);
+        setActiveDeck(d);
+        await saveDraftLocally(d);
         return;
       }
     }
@@ -1373,11 +1642,13 @@ export default function OnboardingDecksScreen() {
     setIsSubmitting(true);
     hapticFeedback.success();
 
-    const formattedDob = `${dobYear.trim()}-${dobMonth.trim().padStart(2, '0')}-${dobDay.trim().padStart(2, '0')}`;
-    const cleanName = fullName.trim();
+    const data = getMergedFormData();
+
+    const formattedDob = `${data.dobYear}-${data.dobMonth.padStart(2, '0')}-${data.dobDay.padStart(2, '0')}`;
+    const cleanName = data.fullName;
 
     try {
-      const resolvedSlots = [...photoSlotsRef.current];
+      const resolvedSlots = [...(photoSlotsRef.current || data.photoSlots)];
       for (let i = 0; i < 6; i++) {
         const uri = resolvedSlots[i];
         if (uri && (uri.startsWith('file:') || uri.startsWith('content:') || uri.startsWith('data:') || uri.startsWith('blob:'))) {
@@ -1388,6 +1659,7 @@ export default function OnboardingDecksScreen() {
         }
       }
       photoSlotsRef.current = resolvedSlots;
+      formDataRef.current.photoSlots = resolvedSlots;
       setPhotoSlots(resolvedSlots);
 
       const remotePhotos = resolvedSlots.filter(
@@ -1395,12 +1667,12 @@ export default function OnboardingDecksScreen() {
       );
 
       // 1. Persist GPS / Primary Residence Location for Discovery Matching Engine
-      if (coords) {
+      if (data.coords) {
         await api.updateLocation(
-          coords.lat,
-          coords.lng,
-          primaryCity.trim(),
-          (primaryLocation || primaryCity).trim()
+          data.coords.lat,
+          data.coords.lng,
+          data.primaryCity.trim(),
+          (data.primaryLocation || data.primaryCity).trim()
         ).catch(() => {});
       }
 
@@ -1409,23 +1681,23 @@ export default function OnboardingDecksScreen() {
         displayName: cleanName,
         fullName: cleanName,
         birthDate: formattedDob,
-        city: primaryCity.trim(),
-        location: (primaryLocation || primaryCity).trim(),
-        latitude: coords?.lat,
-        longitude: coords?.lng,
-        gender,
-        genderDisplay,
-        genderPreferenceDisplay: lookingFor,
-        sexualOrientation: orientation,
-        microCircle,
-        job,
-        occupation: job,
-        education: institute,
-        institute,
-        bio,
-        height: heightCm,
-        dietaryPref: (dietaryPref || 'PURE_VEG') as DietaryPreference,
-        drinkingHabit,
+        city: data.primaryCity.trim(),
+        location: (data.primaryLocation || data.primaryCity).trim(),
+        latitude: data.coords?.lat,
+        longitude: data.coords?.lng,
+        gender: data.gender,
+        genderDisplay: data.genderDisplay,
+        genderPreferenceDisplay: data.lookingFor,
+        sexualOrientation: data.orientation,
+        microCircle: data.microCircle,
+        job: data.job.trim(),
+        occupation: data.job.trim(),
+        education: data.institute.trim(),
+        institute: data.institute.trim(),
+        bio: data.bio.trim(),
+        height: data.heightCm,
+        dietaryPref: (data.dietaryPref || 'PURE_VEG') as DietaryPreference,
+        drinkingHabit: data.drinkingHabit,
         photo1: resolvedSlots[0] || '',
         photo2: resolvedSlots[1] || '',
         photo3: resolvedSlots[2] || '',
@@ -1433,16 +1705,16 @@ export default function OnboardingDecksScreen() {
         photo5: resolvedSlots[4] || '',
         photo6: resolvedSlots[5] || '',
         photos: remotePhotos,
-        selfieUrl: selfieUrl && !selfieUrl.startsWith('file:') ? selfieUrl : undefined,
-        verificationStatus: selfieUrl ? (verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING') : undefined,
+        selfieUrl: data.selfieUrl && !data.selfieUrl.startsWith('file:') && !data.selfieUrl.startsWith('content:') ? data.selfieUrl : undefined,
+        verificationStatus: data.selfieUrl ? (data.verificationStatus === 'VERIFIED' ? 'VERIFIED' : 'PENDING') : undefined,
       });
 
       // 3. Update Vedic Janampatri (optional)
-      if (birthTime.trim() || birthCity.trim()) {
+      if (data.birthTime.trim() || data.birthCity.trim()) {
         try {
           await api.updateMyBirthDetails({
-            birthTime: birthTime.trim(),
-            birthCity: birthCity.trim(),
+            birthTime: data.birthTime.trim(),
+            birthCity: data.birthCity.trim(),
           });
         } catch (e) {
           console.warn('[onboarding] Optional Vedic birth details update skipped/failed:', e);
@@ -1704,7 +1976,7 @@ export default function OnboardingDecksScreen() {
                       placeholder="Enter your first name..."
                       placeholderTextColor="#64748B"
                       value={fullName}
-                      onChangeText={setFullName}
+                      onChangeText={handleFullNameChange}
                     />
                   </View>
 
@@ -2076,6 +2348,9 @@ export default function OnboardingDecksScreen() {
                         hapticFeedback.light();
                         setGender('MALE');
                         setGenderDisplay('Man');
+                        formDataRef.current.gender = 'MALE';
+                        formDataRef.current.genderDisplay = 'Man';
+                        saveDraftLocally(2);
                       }}>
                       {genderDisplay === 'Man' && (
                         <View style={styles.rapidCheckDot}>
@@ -2094,6 +2369,9 @@ export default function OnboardingDecksScreen() {
                         hapticFeedback.light();
                         setGender('FEMALE');
                         setGenderDisplay('Woman');
+                        formDataRef.current.gender = 'FEMALE';
+                        formDataRef.current.genderDisplay = 'Woman';
+                        saveDraftLocally(2);
                       }}>
                       {genderDisplay === 'Woman' && (
                         <View style={styles.rapidCheckDot}>
@@ -2141,6 +2419,8 @@ export default function OnboardingDecksScreen() {
                       onPress={() => {
                         hapticFeedback.light();
                         setLookingFor('Women');
+                        formDataRef.current.lookingFor = 'Women';
+                        saveDraftLocally(2);
                       }}>
                       {lookingFor === 'Women' && (
                         <View style={styles.rapidCheckDot}>
@@ -2158,6 +2438,8 @@ export default function OnboardingDecksScreen() {
                       onPress={() => {
                         hapticFeedback.light();
                         setLookingFor('Men');
+                        formDataRef.current.lookingFor = 'Men';
+                        saveDraftLocally(2);
                       }}>
                       {lookingFor === 'Men' && (
                         <View style={styles.rapidCheckDot}>
@@ -2175,6 +2457,8 @@ export default function OnboardingDecksScreen() {
                       onPress={() => {
                         hapticFeedback.light();
                         setLookingFor('Everyone');
+                        formDataRef.current.lookingFor = 'Everyone';
+                        saveDraftLocally(2);
                       }}>
                       {lookingFor === 'Everyone' && (
                         <View style={styles.rapidCheckDot}>
@@ -2226,6 +2510,8 @@ export default function OnboardingDecksScreen() {
                           onPress={() => {
                             hapticFeedback.light();
                             setOrientation(ori);
+                            formDataRef.current.orientation = ori;
+                            saveDraftLocally(2);
                           }}>
                           <Text style={[styles.microPillText, isSel && styles.microPillTextSelected]}>
                             {ori} {isSel ? '✓' : ''}
@@ -2486,7 +2772,7 @@ export default function OnboardingDecksScreen() {
                       placeholder="e.g. Product Designer, Founder, Architect..."
                       placeholderTextColor="#64748B"
                       value={job}
-                      onChangeText={setJob}
+                      onChangeText={handleJobChange}
                     />
                   </View>
 
@@ -2497,7 +2783,7 @@ export default function OnboardingDecksScreen() {
                       placeholder="e.g. IIT Delhi, BITS Pilani, NID, St. Xavier's..."
                       placeholderTextColor="#64748B"
                       value={institute}
-                      onChangeText={setInstitute}
+                      onChangeText={handleInstituteChange}
                     />
                   </View>
                 </View>
@@ -2639,7 +2925,7 @@ export default function OnboardingDecksScreen() {
                       placeholder="Tap an archetype card above or type your own witty bio here..."
                       placeholderTextColor="#64748B"
                       value={bio}
-                      onChangeText={setBio}
+                      onChangeText={handleBioChange}
                       multiline
                       numberOfLines={3}
                     />
@@ -2775,6 +3061,8 @@ export default function OnboardingDecksScreen() {
                             onPress={() => {
                               hapticFeedback.medium();
                               setHeightCm(chip.cm);
+                              formDataRef.current.heightCm = chip.cm;
+                              saveDraftLocally(5);
                             }}>
                             <Text style={[styles.statureQuickChipText, isSelected && styles.statureQuickChipTextActive]}>
                               {chip.label}
@@ -2803,6 +3091,8 @@ export default function OnboardingDecksScreen() {
                         onPress={() => {
                           hapticFeedback.light();
                           setDietaryPref(d.key as DietaryPreference);
+                          formDataRef.current.dietaryPref = d.key as DietaryPreference;
+                          saveDraftLocally(5);
                         }}>
                         <Text
                           style={[
@@ -2827,6 +3117,8 @@ export default function OnboardingDecksScreen() {
                         onPress={() => {
                           hapticFeedback.light();
                           setDrinkingHabit(dr);
+                          formDataRef.current.drinkingHabit = dr;
+                          saveDraftLocally(5);
                         }}>
                         <Text
                           style={[
@@ -3073,7 +3365,7 @@ export default function OnboardingDecksScreen() {
                     <TextInput
                       style={styles.glowInput}
                       value={birthCity}
-                      onChangeText={setBirthCity}
+                      onChangeText={handleBirthCityChange}
                       placeholder="e.g. New Delhi, Mumbai, Jaipur..."
                       placeholderTextColor="#64748B"
                     />
@@ -3213,14 +3505,17 @@ export default function OnboardingDecksScreen() {
                 onPress={() => {
                   const chosen = (customGenderInput.trim() || tempGenderDisplay || 'Non-binary').trim();
                   hapticFeedback.success();
+                  let g: Gender = 'NON_BINARY';
                   if (chosen === 'Man') {
-                    setGender('MALE');
+                    g = 'MALE';
                   } else if (chosen === 'Woman') {
-                    setGender('FEMALE');
-                  } else {
-                    setGender('NON_BINARY');
+                    g = 'FEMALE';
                   }
+                  setGender(g);
                   setGenderDisplay(chosen);
+                  formDataRef.current.gender = g;
+                  formDataRef.current.genderDisplay = chosen;
+                  saveDraftLocally(2);
                   setShowGenderModal(false);
                 }}>
                 <Text style={styles.modalDoneBottomBtnText}>
@@ -3302,6 +3597,8 @@ export default function OnboardingDecksScreen() {
                   const chosen = (customLookingForInput.trim() || tempLookingFor || 'Everyone').trim();
                   hapticFeedback.success();
                   setLookingFor(chosen);
+                  formDataRef.current.lookingFor = chosen;
+                  saveDraftLocally(2);
                   setShowPreferenceModal(false);
                 }}>
                 <Text style={styles.modalDoneBottomBtnText}>
@@ -3377,6 +3674,8 @@ export default function OnboardingDecksScreen() {
                   const chosen = (customOrientationInput.trim() || tempOrientation || 'Straight').trim();
                   hapticFeedback.success();
                   setOrientation(chosen);
+                  formDataRef.current.orientation = chosen;
+                  saveDraftLocally(2);
                   setShowOrientationModal(false);
                 }}>
                 <Text style={styles.modalDoneBottomBtnText}>

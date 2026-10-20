@@ -326,6 +326,8 @@ export interface BlockedUserItem {
   reason?: string;
   remarks?: string;
   createdAt?: string;
+  adminActionStatus?: 'UNDER_REVIEW' | 'ACTION_TAKEN' | 'RESOLVED' | 'DISMISSED';
+  adminActionMessage?: string;
 }
 
 export interface AppNotification {

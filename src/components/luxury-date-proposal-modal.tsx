@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { hapticFeedback } from '@/utils/haptics';
 
 export interface DateProposalPayload {
@@ -18,6 +19,10 @@ export interface DateProposalPayload {
   timeVibe: string;
   venue: string;
   note: string;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+  };
 }
 
 interface LuxuryDateProposalModalProps {
@@ -26,6 +31,7 @@ interface LuxuryDateProposalModalProps {
   onSendProposal: (proposal: DateProposalPayload) => void;
   candidateName?: string;
   isSending?: boolean;
+  userGender?: string;
 }
 
 const DEFAULT_TIME_SLOTS = [
@@ -48,7 +54,26 @@ export default function LuxuryDateProposalModal({
   onSendProposal,
   candidateName = 'your match',
   isSending = false,
+  userGender,
 }: LuxuryDateProposalModalProps) {
+  // Check if non-male user (for SafeDate emergency contact feature)
+  const isNonMale = userGender ? userGender.toUpperCase() !== 'MALE' : true;
+  const [emergencyName, setEmergencyName] = useState('');
+  const [emergencyPhone, setEmergencyPhone] = useState('');
+
+  // Hydrate saved emergency contact
+  useEffect(() => {
+    AsyncStorage.getItem('@blunderr_emergency_contact').then((val) => {
+      if (val) {
+        try {
+          const parsed = JSON.parse(val);
+          if (parsed.name) setEmergencyName(parsed.name);
+          if (parsed.phone) setEmergencyPhone(parsed.phone);
+        } catch {}
+      }
+    }).catch(() => {});
+  }, []);
+
   // Generate next 5 calendar days
   const dateOptions = useMemo(() => {
     const days: { label: string; dayNum: string; fullDate: string }[] = [];
@@ -83,12 +108,25 @@ export default function LuxuryDateProposalModal({
   const handleSend = () => {
     hapticFeedback.success();
     const finalVenue = isCustomVenue && customVenue.trim() ? customVenue.trim() : selectedVenue;
+    
+    // Save emergency contact locally for convenience
+    if (emergencyName.trim() || emergencyPhone.trim()) {
+      AsyncStorage.setItem(
+        '@blunderr_emergency_contact',
+        JSON.stringify({ name: emergencyName.trim(), phone: emergencyPhone.trim() })
+      ).catch(() => {});
+    }
+
     onSendProposal({
       date: selectedDate,
       time: selectedTime,
       timeVibe: selectedTimeVibe,
       venue: finalVenue,
       note: note.trim(),
+      emergencyContact: (emergencyName.trim() || emergencyPhone.trim()) ? {
+        name: emergencyName.trim(),
+        phone: emergencyPhone.trim(),
+      } : undefined,
     });
   };
 
@@ -284,6 +322,40 @@ export default function LuxuryDateProposalModal({
               />
             </View>
 
+            {/* 5. SAFEDATE EMERGENCY CONTACT (FOR NON-MALE USERS) */}
+            {isNonMale && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionLabel}>🛡️ SAFEDATE EMERGENCY CONTACT</Text>
+                  <Text style={styles.sectionHint}>Optional • SafeDate Shield</Text>
+                </View>
+                <Text style={styles.emergencyNoticeText}>
+                  Add a trusted friend or family member's details. Prior to the date, our automated safety daemon can discretely notify them with the venue and time details.
+                </Text>
+
+                <View style={styles.emergencyBox}>
+                  <Text style={styles.emergencyFieldLabel}>FRIEND / CONTACT NAME</Text>
+                  <TextInput
+                    style={styles.emergencyTextInput}
+                    placeholder="e.g. Priya Sharma (Best Friend)"
+                    placeholderTextColor="#64748B"
+                    value={emergencyName}
+                    onChangeText={setEmergencyName}
+                  />
+
+                  <Text style={[styles.emergencyFieldLabel, { marginTop: 10 }]}>PHONE NUMBER</Text>
+                  <TextInput
+                    style={styles.emergencyTextInput}
+                    placeholder="e.g. +91 98765 43210"
+                    placeholderTextColor="#64748B"
+                    keyboardType="phone-pad"
+                    value={emergencyPhone}
+                    onChangeText={setEmergencyPhone}
+                  />
+                </View>
+              </View>
+            )}
+
             {/* SUBMIT BUTTON */}
             <TouchableOpacity
               style={[
@@ -397,6 +469,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#CBD5E1',
     letterSpacing: 0.8,
+  },
+  sectionHint: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
   },
   sectionSelectedPill: {
     fontSize: 11,
@@ -573,5 +650,35 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 12,
     fontWeight: '600',
+  },
+  emergencyNoticeText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  emergencyBox: {
+    backgroundColor: '#0D101C',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.25)',
+    borderRadius: 14,
+    padding: 12,
+  },
+  emergencyFieldLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#E2E8F0',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  emergencyTextInput: {
+    backgroundColor: '#15192B',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    color: '#FFFFFF',
+    fontSize: 13,
   },
 });

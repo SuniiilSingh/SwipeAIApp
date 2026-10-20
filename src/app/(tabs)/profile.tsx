@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { api, normalizeImageUrl } from '@/services/api';
@@ -245,6 +245,8 @@ export default function ProfileScreen() {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const nativeAudioPlayerRef = React.useRef<AudioPlayer | null>(null);
 
+  const [blockedCount, setBlockedCount] = useState(0);
+
   useEffect(() => {
     loadProfile();
     return () => {
@@ -256,6 +258,16 @@ export default function ProfileScreen() {
     };
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      api.getBlockedAndReportedUsers()
+        .then((list) => {
+          if (Array.isArray(list)) setBlockedCount(list.length);
+        })
+        .catch(() => {});
+    }, [])
+  );
+
   useEffect(() => {
     if (searchParams.edit === 'true') {
       setIsEditingProfile(true);
@@ -265,13 +277,17 @@ export default function ProfileScreen() {
   const loadProfile = async () => {
     setLoading(true);
     try {
-      const [p, desire] = await Promise.all([
+      const [p, desire, blocked] = await Promise.all([
         api.getMyProfile(),
         api.getDesireProfile().catch(() => null),
+        api.getBlockedAndReportedUsers().catch(() => []),
       ]);
       setProfile(p);
       if (desire) {
         setDesireProfile(desire);
+      }
+      if (Array.isArray(blocked)) {
+        setBlockedCount(blocked.length);
       }
       populateFormStates(p);
 
@@ -1855,6 +1871,31 @@ export default function ProfileScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.safeDateTitle}>Safe Date Spots & Live SOS Hub</Text>
                 <Text style={styles.privacySub}>Blue Tokai, Third Wave partner cafes & 15% discount coupons.</Text>
+              </View>
+              <Text style={styles.privacyArrow}>→</Text>
+            </TouchableOpacity>
+
+            {/* Dedicated Blocked & Reported Profiles Section */}
+            <TouchableOpacity
+              style={styles.blockedShortcutCard}
+              onPress={() => {
+                hapticFeedback.light();
+                router.push('/blocked-profiles' as any);
+              }}
+              activeOpacity={0.85}>
+              <Text style={styles.privacyIcon}>🚫</Text>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={styles.blockedShortcutTitle}>Blocked & Reported Profiles</Text>
+                  {blockedCount > 0 && (
+                    <View style={styles.blockedBadgeCount}>
+                      <Text style={styles.blockedBadgeCountText}>{blockedCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.privacySub}>
+                  Review blocked accounts, check admin action on reports, and unblock anytime.
+                </Text>
               </View>
               <Text style={styles.privacyArrow}>→</Text>
             </TouchableOpacity>
@@ -4224,6 +4265,33 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginVertical: 6,
     gap: 12,
+  },
+  blockedShortcutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1418',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    padding: 14,
+    borderRadius: 16,
+    marginVertical: 6,
+    gap: 12,
+  },
+  blockedShortcutTitle: {
+    color: '#F87171',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  blockedBadgeCount: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: 10,
+  },
+  blockedBadgeCountText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
   },
   supportShortcut: {
     flexDirection: 'row',

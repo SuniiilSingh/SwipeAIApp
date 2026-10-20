@@ -696,6 +696,7 @@ export default function DiscoveryScreen() {
 
 interface SwipeableCardProps {
   item: CandidateCard;
+  nextItem?: CandidateCard | null;
   feedDimensions: { width: number; height: number };
   onLike: (item: CandidateCard) => void;
   onPass: (item: CandidateCard) => void;
@@ -710,6 +711,7 @@ interface SwipeableCardProps {
 
 function SwipeableCandidateCard({
   item,
+  nextItem,
   feedDimensions,
   onLike,
   onPass,
@@ -722,6 +724,71 @@ function SwipeableCandidateCard({
   hasFreeSparkNote = true,
 }: SwipeableCardProps) {
   const pan = useRef(new Animated.ValueXY()).current;
+  const entryPopAnim = useRef(new Animated.Value(1)).current;
+
+  // Trigger tactile upward pop when a new card arrives at top
+  useEffect(() => {
+    entryPopAnim.setValue(0);
+    Animated.spring(entryPopAnim, {
+      toValue: 1,
+      friction: 6,
+      tension: 65,
+      useNativeDriver: false,
+    }).start();
+  }, [item.userId]);
+
+  const entryTranslateY = entryPopAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [16, 0],
+  });
+
+  const entryScale = entryPopAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.95, 1],
+  });
+
+  // Animated values for the below card popping upwards as the active card is swiped
+  const belowCardScale = pan.x.interpolate({
+    inputRange: [-feedDimensions.width * 0.7, 0, feedDimensions.width * 0.7],
+    outputRange: [1, 0.93, 1],
+    extrapolate: 'clamp',
+  });
+
+  const belowCardTranslateY = pan.x.interpolate({
+    inputRange: [-feedDimensions.width * 0.7, 0, feedDimensions.width * 0.7],
+    outputRange: [0, 20, 0],
+    extrapolate: 'clamp',
+  });
+
+  const belowCardOpacity = pan.x.interpolate({
+    inputRange: [-feedDimensions.width * 0.7, 0, feedDimensions.width * 0.7],
+    outputRange: [1, 0.55, 1],
+    extrapolate: 'clamp',
+  });
+
+  const handleButtonLike = () => {
+    if (!canLike) {
+      onLike(item);
+      return;
+    }
+    Animated.timing(pan, {
+      toValue: { x: feedDimensions.width * 1.5, y: 0 },
+      duration: 220,
+      useNativeDriver: false,
+    }).start(() => {
+      onLike(item);
+    });
+  };
+
+  const handleButtonPass = () => {
+    Animated.timing(pan, {
+      toValue: { x: -feedDimensions.width * 1.5, y: 0 },
+      duration: 220,
+      useNativeDriver: false,
+    }).start(() => {
+      onPass(item);
+    });
+  };
 
   const panResponder = useMemo(
     () =>
@@ -810,16 +877,84 @@ function SwipeableCandidateCard({
         paddingHorizontal: 12,
         paddingBottom: 8,
         paddingTop: 4,
+        position: 'relative',
       }}>
+      {/* Below Card Preview in Stack (Pops upwards as top card is swiped) */}
+      {nextItem && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.cardContainer,
+            styles.belowCardContainer,
+            {
+              transform: [
+                { scale: belowCardScale },
+                { translateY: belowCardTranslateY },
+              ],
+              opacity: belowCardOpacity,
+            },
+          ]}>
+          <ExpoImage
+            source={{
+              uri: nextItem.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
+            }}
+            style={styles.heroImage}
+            contentFit="cover"
+            contentPosition="top center"
+            cachePolicy="memory-disk"
+          />
+          <View style={styles.photoTopRow}>
+            {Boolean(nextItem.isFaceVerified ?? (nextItem.livenessScore && nextItem.livenessScore >= 85)) && (
+              <View style={styles.datingVerifiedPill}>
+                <Text style={styles.datingVerifiedPillText}>🛡️ 100% Biometric Verified</Text>
+              </View>
+            )}
+            <View style={styles.photoCountPill}>
+              <Text style={styles.photoCountPillText}>
+                📷 {nextItem.photos?.length || 4} Photos
+              </Text>
+            </View>
+          </View>
+          <View style={styles.photoBottomScrim}>
+            <View style={styles.scrimPillsRow}>
+              <View style={styles.compatPill}>
+                <Text style={styles.compatPillText}>
+                  🔥 {nextItem.compatibilityScore || 95}% Chemistry Vibe
+                </Text>
+              </View>
+              <View style={styles.locationPill}>
+                <Text style={styles.locationPillText}>
+                  📍 {nextItem.fuzzyDistance || '< 2 km'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.nameWithShieldRow}>
+              <Text style={styles.candidateNameText}>
+                {nextItem.fullName || nextItem.displayName}, {nextItem.age}
+              </Text>
+              <View style={styles.verifiedCheckBadge}>
+                <Text style={styles.verifiedCheckText}>✓</Text>
+              </View>
+            </View>
+            <Text style={styles.jobText} numberOfLines={1}>
+              💼 {nextItem.occupation || nextItem.job || 'Professional'}{nextItem.company ? ` @ ${nextItem.company}` : ''}
+            </Text>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Top Active Card (Swiped with PanResponder) */}
       <Animated.View
         {...panResponder.panHandlers}
         style={[
           styles.cardContainer,
           {
+            zIndex: 10,
             transform: [
               { translateX: pan.x },
-              { translateY: pan.y },
+              { translateY: Animated.add(pan.y, entryTranslateY) },
               { rotate: rotate },
+              { scale: entryScale },
             ],
           },
         ]}>
@@ -968,7 +1103,7 @@ function SwipeableCandidateCard({
           <TouchableOpacity
             style={styles.passBtn}
             activeOpacity={0.7}
-            onPress={() => onPass(item)}
+            onPress={handleButtonPass}
             accessibilityLabel="Pass Profile">
             <Text style={styles.passBtnIcon}>✕</Text>
           </TouchableOpacity>
@@ -999,7 +1134,7 @@ function SwipeableCandidateCard({
           <TouchableOpacity
             style={styles.likeBtn}
             activeOpacity={0.7}
-            onPress={() => onLike(item)}
+            onPress={handleButtonLike}
             accessibilityLabel="Like Profile">
             <Text style={styles.likeBtnIcon}>❤️</Text>
           </TouchableOpacity>
@@ -1009,13 +1144,15 @@ function SwipeableCandidateCard({
   );
 }
 
-  const renderCandidateCard = ({ item }: { item: CandidateCard }) => {
+  const renderCandidateCard = ({ item, index }: { item: CandidateCard; index: number }) => {
     const isVip = Boolean(userProfile?.hasActivePass);
     const canLike = isVip || remainingSwipes > 0;
     const isFreeSparkAvailable = sparkNoteQuota ? sparkNoteQuota.canSendFree : true;
+    const nextItem = filteredCandidates[index + 1] || null;
     return (
       <SwipeableCandidateCard
         item={item}
+        nextItem={nextItem}
         feedDimensions={feedDimensions}
         onLike={(cand) => handleAction(cand, 'LIKE')}
         onPass={(cand) => handleAction(cand, 'PASS')}
@@ -1903,6 +2040,17 @@ const styles = StyleSheet.create({
       },
     }),
     justifyContent: 'space-between',
+  },
+  belowCardContainer: {
+    position: 'absolute',
+    top: 4,
+    left: 12,
+    right: 12,
+    bottom: 8,
+    zIndex: 0,
+    backgroundColor: '#0F1117',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   heroTouchWrap: {
     flex: 1,

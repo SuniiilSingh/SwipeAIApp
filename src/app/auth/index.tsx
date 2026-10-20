@@ -346,6 +346,43 @@ export default function AuthScreen() {
   const likeStampOpacity = swipeAnim.x.interpolate({ inputRange: [0, 90], outputRange: [0, 1], extrapolate: 'clamp' });
   const nopeStampOpacity = swipeAnim.x.interpolate({ inputRange: [-90, 0], outputRange: [1, 0], extrapolate: 'clamp' });
 
+  // Upward pop animation for the below card as the top card is swiped
+  const backCardTranslateY = swipeAnim.x.interpolate({
+    inputRange: [-220, 0, 220],
+    outputRange: [0, 22, 0],
+    extrapolate: 'clamp',
+  });
+  const backCardScale = swipeAnim.x.interpolate({
+    inputRange: [-220, 0, 220],
+    outputRange: [1, 0.93, 1],
+    extrapolate: 'clamp',
+  });
+  const backCardOpacity = swipeAnim.x.interpolate({
+    inputRange: [-220, 0, 220],
+    outputRange: [1, 0.55, 1],
+    extrapolate: 'clamp',
+  });
+
+  const cardEntryPopAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    cardEntryPopAnim.setValue(0);
+    Animated.spring(cardEntryPopAnim, {
+      toValue: 1,
+      friction: 6,
+      tension: 65,
+      useNativeDriver: false,
+    }).start();
+  }, [teaserIndex]);
+
+  const cardEntryTranslateY = cardEntryPopAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [18, 0],
+  });
+  const cardEntryScale = cardEntryPopAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.95, 1],
+  });
+
   const openPhoneMode = (focus: boolean = true) => {
     setPhoneMode(true);
     setIsKeyboardVisible(true);
@@ -1142,13 +1179,18 @@ export default function AuthScreen() {
                       height: animDeckHeight,
                     },
                   ]}>
-                  {/* Background Card (Preview of next profile) */}
+                  {/* Background Card (Preview of next profile with upward pop) */}
                   <Animated.View
                     style={[
                       styles.optACardBack,
                       {
                         width: deckWidth,
                         height: animDeckHeight,
+                        transform: [
+                          { scale: backCardScale },
+                          { translateY: backCardTranslateY },
+                        ],
+                        opacity: backCardOpacity,
                       },
                     ]}
                     pointerEvents="none">
@@ -1190,8 +1232,9 @@ export default function AuthScreen() {
                         height: animDeckHeight,
                         transform: [
                           { translateX: swipeAnim.x },
-                          { translateY: swipeAnim.y },
+                          { translateY: Animated.add(swipeAnim.y, cardEntryTranslateY) },
                           { rotate: cardRotate },
+                          { scale: cardEntryScale },
                         ],
                       },
                     ]}>
@@ -4105,8 +4148,8 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#0F1219',
-    transform: [{ scale: 0.95 }, { translateY: 6 }],
-    opacity: 0.55,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   optACardFront: {
     position: 'absolute',

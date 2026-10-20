@@ -19,6 +19,8 @@ import { CandidateCard, ContextType, DietaryPreference, LivingStatus } from '@/t
 import { FEATURE_FLAGS } from '@/config/features';
 import { playAudibleVoiceNote, stopAudibleVoiceNote } from '@/utils/audioPlayer';
 import CosmicKundaliModal from '@/components/cosmic-kundali-modal';
+import ScheduledDateCardModal from '@/components/scheduled-date-card-modal';
+import { DateProposalData } from '@/components/date-proposal-bubble';
 import { hapticFeedback } from '@/utils/haptics';
 import { api, normalizeImageUrl } from '@/services/api';
 import { formatHeight } from '@/utils/height';
@@ -40,6 +42,7 @@ interface ProfileDetailModalProps {
   hasFreeSparkNote?: boolean;
   onStartChat?: () => void;
   onVirtualChai?: () => void;
+  scheduledDate?: DateProposalData | null;
 }
 
 const getDietLabel = (diet?: DietaryPreference | string) => {
@@ -86,12 +89,14 @@ export default function ProfileDetailModal({
   hasFreeSparkNote = true,
   onStartChat,
   onVirtualChai,
+  scheduledDate,
 }: ProfileDetailModalProps) {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 16);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showKundaliModal, setShowKundaliModal] = useState(false);
+  const [showScheduledDateModal, setShowScheduledDateModal] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReportReason, setSelectedReportReason] = useState<string | null>(null);
@@ -233,15 +238,30 @@ export default function ProfileDetailModal({
                 : 'VibeCheck Pass'}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => {
-              hapticFeedback.light();
-              setShowActionSheet(true);
-            }}
-            style={styles.moreOptionsBtn}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <Text style={styles.moreOptionsText}>•••</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRightActions}>
+            {scheduledDate && (
+              <TouchableOpacity
+                onPress={() => {
+                  hapticFeedback.light();
+                  setShowScheduledDateModal(true);
+                }}
+                style={styles.headerDateBtn}
+                activeOpacity={0.8}
+                accessibilityLabel="View Scheduled Date Card">
+                <Text style={{ fontSize: 16 }}>🥂</Text>
+                <View style={styles.headerDateBadgeDot} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              onPress={() => {
+                hapticFeedback.light();
+                setShowActionSheet(true);
+              }}
+              style={styles.moreOptionsBtn}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={styles.moreOptionsText}>•••</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -312,6 +332,37 @@ export default function ProfileDetailModal({
                 </View>
               ) : null}
             </View>
+
+            {/* Real Scheduled Date Card in Profile */}
+            {scheduledDate && (
+              <TouchableOpacity
+                style={styles.profileScheduledDateCard}
+                onPress={() => {
+                  hapticFeedback.light();
+                  setShowScheduledDateModal(true);
+                }}
+                activeOpacity={0.85}>
+                <View style={styles.profileScheduledDateTop}>
+                  <View style={styles.profileScheduledDateBadge}>
+                    <Text style={styles.profileScheduledDateBadgeText}>🥂 REAL DATE SCHEDULED</Text>
+                  </View>
+                  <Text style={styles.profileScheduledDateViewPill}>View Date Card ›</Text>
+                </View>
+                <View style={styles.profileScheduledDateDetails}>
+                  <Text style={styles.profileScheduledDateText}>
+                    📅 {scheduledDate.date} • ⏰ {scheduledDate.time}
+                  </Text>
+                  <Text style={styles.profileScheduledDateVenue} numberOfLines={1}>
+                    📍 {scheduledDate.venue}
+                  </Text>
+                </View>
+                <View style={styles.profileScheduledDateShieldPill}>
+                  <Text style={styles.profileScheduledDateShieldText}>
+                    🛡️ SafeDate Shield™ Active • Rule of 5 Slot Freed
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
             {/* Occupation & Education */}
             {(candidate.job || candidate.occupation || candidate.company) && (
@@ -976,6 +1027,15 @@ export default function ProfileDetailModal({
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Scheduled Date Card Modal */}
+      <ScheduledDateCardModal
+        visible={showScheduledDateModal}
+        onClose={() => setShowScheduledDateModal(false)}
+        candidateName={candidate.displayName}
+        candidatePhoto={candidate.photos?.[0]}
+        dateData={scheduledDate || null}
+      />
     </Modal>
   );
 }
@@ -1020,6 +1080,90 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginTop: 2,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerDateBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 56, 92, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  headerDateBadgeDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: '#0E0F13',
+  },
+  profileScheduledDateCard: {
+    backgroundColor: 'rgba(255, 56, 92, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    borderRadius: 16,
+    padding: 12,
+    marginVertical: 10,
+  },
+  profileScheduledDateTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profileScheduledDateBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  profileScheduledDateBadgeText: {
+    color: '#34D399',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  profileScheduledDateViewPill: {
+    color: '#FF758F',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  profileScheduledDateDetails: {
+    gap: 3,
+  },
+  profileScheduledDateText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  profileScheduledDateVenue: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  profileScheduledDateShieldPill: {
+    marginTop: 8,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  profileScheduledDateShieldText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '500',
   },
   moreOptionsBtn: {
     width: 36,

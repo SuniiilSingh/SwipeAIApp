@@ -289,6 +289,29 @@ const MONTH_NAMES_FULL = [
 ];
 const QUICK_YEAR_PRESETS = [2006, 2005, 2004, 2003, 2002, 2001, 2000, 1998, 1996, 1994, 1992, 1990];
 
+const CAREER_PRESET_CHIPS = [
+  { label: '🚀 Tech Founder', value: 'Founder / Tech' },
+  { label: '💻 Software Eng', value: 'Software Engineer' },
+  { label: '🎨 Product Designer', value: 'Product Designer' },
+  { label: '📈 VC / Finance', value: 'Finance & Investment' },
+  { label: '🩺 Doctor / Healthcare', value: 'Doctor / Healthcare' },
+  { label: '⚖️ Lawyer / Legal', value: 'Lawyer / Legal' },
+  { label: '✍️ Creative / Media', value: 'Creative & Media' },
+  { label: '📊 Product / Strategy', value: 'Product Manager' },
+  { label: '🎓 Student / Scholar', value: 'Student' },
+];
+
+const COLLEGE_PRESET_CHIPS = [
+  'IIT',
+  'BITS Pilani',
+  'IIM',
+  'Delhi Univ',
+  'St. Xavier\'s',
+  'NID / NIFT',
+  'Ashoka Univ',
+  'Abroad / Ivy',
+];
+
 export default function OnboardingDecksScreen() {
   const router = useRouter();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -410,9 +433,23 @@ export default function OnboardingDecksScreen() {
     formDataRef.current.job = text;
   };
 
+  const handleCareerChipPress = (val: string) => {
+    hapticFeedback.selection();
+    const nextVal = job === val ? '' : val;
+    setJob(nextVal);
+    formDataRef.current.job = nextVal;
+  };
+
   const handleInstituteChange = (text: string) => {
     setInstitute(text);
     formDataRef.current.institute = text;
+  };
+
+  const handleCollegeChipPress = (val: string) => {
+    hapticFeedback.selection();
+    const nextVal = institute === val ? '' : val;
+    setInstitute(nextVal);
+    formDataRef.current.institute = nextVal;
   };
 
   const handleBioChange = (text: string) => {
@@ -1996,7 +2033,8 @@ export default function OnboardingDecksScreen() {
           ======================================================== */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 48 : 0}>
         <ScrollView
           ref={mainScrollRef}
           contentContainerStyle={[
@@ -2910,25 +2948,95 @@ export default function OnboardingDecksScreen() {
                     </ScrollView>
                   )}
 
-                  <View style={[styles.fieldBox, { marginTop: 8 }]}>
-                    <Text style={styles.fieldLabel}>CAREER / WHAT PAYS THE BILLS?</Text>
+                  {/* CAREER / WHAT PAYS THE BILLS? */}
+                  <View style={[styles.fieldBox, { marginTop: 10 }]}>
+                    <View style={styles.dobSectionHeader}>
+                      <Text style={styles.fieldLabel}>CAREER / WHAT PAYS THE BILLS?</Text>
+                      {job ? (
+                        <Text style={styles.dobSectionSubtitle}>✓ Selected</Text>
+                      ) : (
+                        <Text style={[styles.dobSectionSubtitle, { color: '#94A3B8' }]}>Required</Text>
+                      )}
+                    </View>
+
+                    {/* Quick 1-Tap Career Chips Grid */}
+                    <View style={styles.smartChipsGrid}>
+                      {CAREER_PRESET_CHIPS.map((chip) => {
+                        const isSelected = job === chip.value || job === chip.label;
+                        return (
+                          <TouchableOpacity
+                            key={chip.label}
+                            style={[styles.smartCareerChip, isSelected && styles.smartCareerChipActive]}
+                            onPress={() => handleCareerChipPress(chip.value)}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={[styles.smartCareerChipText, isSelected && styles.smartCareerChipTextActive]} numberOfLines={1}>
+                              {chip.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {/* Custom Text Input with Auto-Scroll on Focus */}
                     <TextInput
-                      style={styles.glowInput}
-                      placeholder="e.g. Product Designer, Founder, Architect..."
+                      style={[styles.glowInput, { marginTop: 8 }]}
+                      placeholder="Or type custom career title..."
                       placeholderTextColor="#64748B"
                       value={job}
                       onChangeText={handleJobChange}
+                      onFocus={() => {
+                        setTimeout(() => {
+                          mainScrollRef.current?.scrollToEnd({ animated: true });
+                        }, 150);
+                      }}
                     />
                   </View>
 
+                  {/* COLLEGE / ALMA MATER */}
                   <View style={styles.fieldBox}>
-                    <Text style={styles.fieldLabel}>COLLEGE / ALMA MATER (OPTIONAL)</Text>
+                    <View style={styles.dobSectionHeader}>
+                      <Text style={styles.fieldLabel}>COLLEGE / ALMA MATER (OPTIONAL)</Text>
+                      {institute ? (
+                        <Text style={styles.dobSectionSubtitle}>✓ Added</Text>
+                      ) : null}
+                    </View>
+
+                    {/* Quick 1-Tap College Chips Row */}
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.smartCollegeScrollContainer}
+                    >
+                      {COLLEGE_PRESET_CHIPS.map((college) => {
+                        const isSelected = institute === college;
+                        return (
+                          <TouchableOpacity
+                            key={college}
+                            style={[styles.smartCollegeChip, isSelected && styles.smartCollegeChipActive]}
+                            onPress={() => handleCollegeChipPress(college)}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={[styles.smartCollegeChipText, isSelected && styles.smartCollegeChipTextActive]}>
+                              {college}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+
+                    {/* Custom Text Input with Auto-Scroll on Focus */}
                     <TextInput
-                      style={styles.glowInput}
-                      placeholder="e.g. IIT Delhi, BITS Pilani, NID, St. Xavier's..."
+                      style={[styles.glowInput, { marginTop: 8 }]}
+                      placeholder="Or type custom college / university..."
                       placeholderTextColor="#64748B"
                       value={institute}
                       onChangeText={handleInstituteChange}
+                      onFocus={() => {
+                        setTimeout(() => {
+                          mainScrollRef.current?.scrollToEnd({ animated: true });
+                        }, 150);
+                      }}
                     />
                   </View>
                 </View>
@@ -4454,6 +4562,64 @@ const styles = StyleSheet.create({
   },
   dobDayCircleTextActive: {
     color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  smartChipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
+  smartCareerChip: {
+    width: '48.5%',
+    flexGrow: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+  },
+  smartCareerChipActive: {
+    backgroundColor: 'rgba(255, 56, 92, 0.2)',
+    borderColor: '#FF385C',
+  },
+  smartCareerChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#CBD5E1',
+  },
+  smartCareerChipTextActive: {
+    color: '#FF6B8B',
+    fontWeight: '800',
+  },
+  smartCollegeScrollContainer: {
+    paddingVertical: 2,
+    gap: 6,
+    marginBottom: 4,
+  },
+  smartCollegeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smartCollegeChipActive: {
+    backgroundColor: 'rgba(255, 56, 92, 0.2)',
+    borderColor: '#FF385C',
+  },
+  smartCollegeChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#CBD5E1',
+  },
+  smartCollegeChipTextActive: {
+    color: '#FF6B8B',
     fontWeight: '800',
   },
   fieldLabelRow: {

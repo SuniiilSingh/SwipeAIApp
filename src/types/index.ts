@@ -176,6 +176,7 @@ export interface CandidateCard {
   contextTargetId?: string;
   isFaceVerified?: boolean;
   photosVerificationJson?: string;
+  isSharedCommunity?: boolean;
 }
 
 export interface SparkNoteQuota {

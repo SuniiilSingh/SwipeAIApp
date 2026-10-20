@@ -618,11 +618,13 @@ export default function DiscoveryScreen() {
       const candidateComm = (c.microCircle || '').toLowerCase();
       const candidateCity = (c.city || '').toLowerCase();
 
+      // Micro-community matching: candidate matches explicit community filter if candidate's community or city matches
       const matchesCircle =
-        !candidateComm ||
-        candidateComm.includes(commName) ||
-        commName.includes(candidateComm) ||
-        (commSlug && (candidateComm.includes(commSlug) || commSlug.includes(candidateComm))) ||
+        (candidateComm && (
+          candidateComm.includes(commName) ||
+          commName.includes(candidateComm) ||
+          (commSlug && (candidateComm.includes(commSlug) || commSlug.includes(candidateComm)))
+        )) ||
         (candidateCity && commCity && (candidateCity.includes(commCity) || commCity.includes(candidateCity)));
 
       if (!matchesCircle) {
@@ -671,6 +673,11 @@ export default function DiscoveryScreen() {
 
     return true;
   }).sort((a, b) => {
+    // Prioritize shared community members to top of deck
+    const aShared = (a as any).isSharedCommunity ? 0 : 1;
+    const bShared = (b as any).isSharedCommunity ? 0 : 1;
+    if (aShared !== bShared) return aShared - bShared;
+
     const distA = typeof a.distanceKm === 'number' ? a.distanceKm : 999;
     const distB = typeof b.distanceKm === 'number' ? b.distanceKm : 999;
     return distA - distB;
@@ -922,6 +929,13 @@ function SwipeableCandidateCard({
                   📍 {nextItem.fuzzyDistance || '< 2 km'}
                 </Text>
               </View>
+              {Boolean(nextItem.microCircle) && (
+                <View style={styles.communityPill}>
+                  <Text style={styles.communityPillText} numberOfLines={1}>
+                    🏙️ {nextItem.microCircle}
+                  </Text>
+                </View>
+              )}
             </View>
             <View style={styles.nameWithShieldRow}>
               <Text style={styles.candidateNameText}>
@@ -1029,6 +1043,14 @@ function SwipeableCandidateCard({
                   📍 {item.fuzzyDistance ? item.fuzzyDistance : (item.distanceKm ? `${item.distanceKm < 2 ? '< 2 km' : `${Math.round(item.distanceKm)} km`}` : '< 2 km')}
                 </Text>
               </View>
+
+              {Boolean(item.microCircle) && (
+                <View style={styles.communityPill}>
+                  <Text style={styles.communityPillText} numberOfLines={1}>
+                    🏙️ {item.microCircle}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Row 2: Name & Age with Verified Blue Checkmark */}
@@ -2123,6 +2145,20 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 10,
     fontWeight: '600',
+  },
+  communityPill: {
+    backgroundColor: 'rgba(255, 184, 0, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    maxWidth: 160,
+  },
+  communityPillText: {
+    color: '#FFD700',
+    fontSize: 10,
+    fontWeight: '700',
   },
   nameWithShieldRow: {
     flexDirection: 'row',

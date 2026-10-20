@@ -38,12 +38,25 @@ class LivenessRecoveryManager {
     const cached = api.getCachedProfile();
     if (!cached) return false;
 
-    // A single source of truth driven by backend user state
-    return Boolean(
+    // 1. Explicit retry from failed verification or dim lighting
+    const isExplicitRetry = Boolean(
       cached.needsLivenessRetry ||
       cached.verificationStatus === 'RETRY_NEEDED' ||
-      cached.verificationStatus === 'REJECTED'
+      cached.verificationStatus === 'REJECTED' ||
+      cached.livenessStatus === 'RETRY_NEEDED'
     );
+
+    // 2. Confirmed verified presence
+    const isVerified = Boolean(
+      cached.faceVerified ||
+      cached.verificationStatus === 'VERIFIED' ||
+      cached.livenessStatus === 'VERIFIED' ||
+      cached.digilockerVerified ||
+      (cached.livenessScore != null && cached.livenessScore >= 0.85)
+    );
+
+    // If user failed OR skipped/unverified, 3D liveness check is required!
+    return isExplicitRetry || !isVerified;
   }
 
   setRetryNeeded(val: boolean) {

@@ -33,6 +33,23 @@ export default function LivenessRetakeModal({
     setShowCameraScanner(true);
   };
 
+  const cachedProfile = api.getCachedProfile();
+  const isFailedAttempt = Boolean(
+    cachedProfile?.needsLivenessRetry ||
+    cachedProfile?.verificationStatus === 'RETRY_NEEDED' ||
+    cachedProfile?.verificationStatus === 'REJECTED' ||
+    cachedProfile?.livenessStatus === 'RETRY_NEEDED'
+  );
+
+  const modalTitle = isFailedAttempt ? '3D Liveness Retake' : '3D Liveness Verification Required';
+  const modalSubtitle = isFailedAttempt
+    ? (referrer
+        ? `Prompted from ${referrer}. Let's get you into bright lighting to confirm your authentic 3D depth.`
+        : 'Lighting was a bit dim on your previous attempt. Snap a quick 3-second selfie facing the light.')
+    : (referrer
+        ? `Prompted from ${referrer}. 3D verification is required to unlock mutual matching and chat.`
+        : 'BlunderR requires 100% authentic 3D presence to eliminate catfishes. Snap a quick 3-second selfie to unlock mutual matching & chat.');
+
   const handleCameraSuccess = async (score: number, centerPhotoUri?: string) => {
     setShowCameraScanner(false);
     onClose();
@@ -74,12 +91,8 @@ export default function LivenessRetakeModal({
               <View style={styles.iconCircle}>
                 <Text style={{ fontSize: 24 }}>📸</Text>
               </View>
-              <Text style={styles.title}>3D Liveness Retake</Text>
-              <Text style={styles.subtitle}>
-                {referrer
-                  ? `Prompted from ${referrer}. Let's get you into bright lighting to confirm your authentic 3D depth.`
-                  : 'Lighting was a bit dim on your previous attempt. Snap a quick 3-second selfie facing the light.'}
-              </Text>
+              <Text style={styles.title}>{modalTitle}</Text>
+              <Text style={styles.subtitle}>{modalSubtitle}</Text>
             </View>
 
             {/* 3 Friendly Tips Card */}

@@ -1464,9 +1464,15 @@ export default function ProfileScreen() {
                     <Text style={{ fontSize: 20 }}>⚠️</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.profileLivenessTitle}>3D Liveness Incomplete</Text>
+                    <Text style={styles.profileLivenessTitle}>
+                      {profile.verificationStatus === 'RETRY_NEEDED' || profile.needsLivenessRetry
+                        ? '3D Liveness Incomplete'
+                        : '3D Liveness Skipped'}
+                    </Text>
                     <Text style={styles.profileLivenessSub}>
-                      The room was a bit dim to detect your 3D depth contours. Retake a quick 3-second selfie to activate your Blue Shield.
+                      {profile.verificationStatus === 'RETRY_NEEDED' || profile.needsLivenessRetry
+                        ? 'The room was a bit dim to detect your 3D depth contours. Retake a quick 3-second selfie to activate your Blue Shield.'
+                        : 'You skipped 3D verification. Take a quick 3-second selfie to activate your Verified Shield and unlock matching.'}
                     </Text>
                   </View>
                 </View>
@@ -1479,7 +1485,11 @@ export default function ProfileScreen() {
                       setShowLivenessRetakeModal(true);
                     }}
                     activeOpacity={0.85}>
-                    <Text style={styles.profileLivenessRetakeBtnText}>Retake Selfie 📸</Text>
+                    <Text style={styles.profileLivenessRetakeBtnText}>
+                      {profile.verificationStatus === 'RETRY_NEEDED' || profile.needsLivenessRetry
+                        ? 'Retake Selfie 📸'
+                        : 'Verify Selfie 📸'}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.profileLivenessWhyBtn}

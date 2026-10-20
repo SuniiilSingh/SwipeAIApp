@@ -1132,11 +1132,19 @@ function SwipeableCandidateCard({
           activeOpacity={0.85}>
           <Text style={styles.discoveryLivenessIcon}>⚠️</Text>
           <View style={styles.discoveryLivenessTextWrap}>
-            <Text style={styles.discoveryLivenessTitle}>Verification paused: Dim lighting</Text>
-            <Text style={styles.discoveryLivenessSub}>Tap to retake 3s selfie & unlock mutual matching →</Text>
+            <Text style={styles.discoveryLivenessTitle}>
+              {api.getCachedProfile()?.needsLivenessRetry || api.getCachedProfile()?.verificationStatus === 'RETRY_NEEDED'
+                ? 'Verification paused: Dim lighting'
+                : '3D verification needed to match'}
+            </Text>
+            <Text style={styles.discoveryLivenessSub}>Tap to verify 3s selfie & unlock mutual matching →</Text>
           </View>
           <View style={styles.discoveryLivenessActionBtn}>
-            <Text style={styles.discoveryLivenessActionText}>Retake</Text>
+            <Text style={styles.discoveryLivenessActionText}>
+              {api.getCachedProfile()?.needsLivenessRetry || api.getCachedProfile()?.verificationStatus === 'RETRY_NEEDED'
+                ? 'Retake'
+                : 'Verify'}
+            </Text>
           </View>
         </TouchableOpacity>
       )}

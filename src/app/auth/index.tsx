@@ -41,6 +41,7 @@ import { FEATURE_FLAGS } from '@/config/features';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 import { hapticFeedback } from '@/utils/haptics';
 import { ForwardArrowIcon } from '@/components/chat-icons';
+import { livenessRecovery } from '@/services/liveness-recovery';
 
 const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
@@ -1527,7 +1528,31 @@ export default function AuthScreen() {
 
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => setStep(3)}>
+              onPress={() => {
+                if (!livenessDone && !digilockerVerified) {
+                  Alert.alert(
+                    '⚠️ 3D Liveness Skipped',
+                    'You have skipped 3D Biometric Liveness check. You can continue profile setup, but mutual matching and messaging will stay locked until your 3D presence is verified.',
+                    [
+                      {
+                        text: 'Verify Now 📸',
+                        style: 'default',
+                        onPress: () => setShowLivenessModal(true),
+                      },
+                      {
+                        text: 'Skip for Now ›',
+                        style: 'destructive',
+                        onPress: () => {
+                          livenessRecovery.setRetryNeeded(true);
+                          setStep(3);
+                        },
+                      },
+                    ]
+                  );
+                } else {
+                  setStep(3);
+                }
+              }}>
               <Text style={styles.primaryButtonText}>Continue to Safety Shield →</Text>
             </TouchableOpacity>
           </View>

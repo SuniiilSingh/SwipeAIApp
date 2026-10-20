@@ -1472,67 +1472,13 @@ export default function ProfileScreen() {
               );
             })()}
 
-            {/* Surface 3: Profile 3D Liveness Incomplete Card (Single Flag) */}
-            {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && (
-              <View style={styles.profileLivenessRecoveryCard}>
-                <View style={styles.profileLivenessHeaderRow}>
-                  <View style={styles.profileLivenessIconWrap}>
-                    <Text style={{ fontSize: 20 }}>⚠️</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.profileLivenessTitle}>
-                      {profile.verificationStatus === 'RETRY_NEEDED' || profile.needsLivenessRetry
-                        ? '3D Liveness Incomplete'
-                        : '3D Liveness Skipped'}
-                    </Text>
-                    <Text style={styles.profileLivenessSub}>
-                      {profile.verificationStatus === 'RETRY_NEEDED' || profile.needsLivenessRetry
-                        ? 'The room was a bit dim to detect your 3D depth contours. Retake a quick 3-second selfie to activate your Blue Shield.'
-                        : 'You skipped 3D verification. Take a quick 3-second selfie to activate your Verified Shield and unlock matching.'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.profileLivenessActionsRow}>
-                  <TouchableOpacity
-                    style={styles.profileLivenessRetakeBtn}
-                    onPress={() => {
-                      hapticFeedback.medium();
-                      setShowLivenessRetakeModal(true);
-                    }}
-                    activeOpacity={0.85}>
-                    <Text style={styles.profileLivenessRetakeBtnText}>
-                      {profile.verificationStatus === 'RETRY_NEEDED' || profile.needsLivenessRetry
-                        ? 'Retake Selfie 📸'
-                        : 'Verify Selfie 📸'}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.profileLivenessWhyBtn}
-                    onPress={() => {
-                      Alert.alert(
-                        'Why is this needed?',
-                        'BlunderR enforces 100% genuine humans. In low lighting, our AI cannot verify 3D depth contours to protect you against stolen photos and AI deepfakes.'
-                      );
-                    }}
-                    activeOpacity={0.8}>
-                    <Text style={styles.profileLivenessWhyBtnText}>Why?</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
             {/* Main Info Card */}
             <View style={styles.sectionCard}>
               <View style={styles.nameRow}>
                 <Text style={styles.displayName}>
                   {profile.fullName || profile.displayName || 'Set Up Your Name'}{profile.age > 0 ? `, ${profile.age}` : ''}
                 </Text>
-                {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry ? (
-                  <View style={styles.pendingBadge}>
-                    <Text style={styles.pendingBadgeText}>⚠️ CHECK NEEDED</Text>
-                  </View>
-                ) : profile.digilockerVerified || profile.faceVerified ? (
+                {profile.digilockerVerified || profile.faceVerified || (profile.livenessScore != null && profile.livenessScore >= 0.85) ? (
                   <View style={styles.goldBadge}>
                     <Text style={styles.goldBadgeText}>🛡️ VERIFIED</Text>
                   </View>

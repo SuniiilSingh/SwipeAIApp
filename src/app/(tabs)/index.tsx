@@ -471,13 +471,6 @@ export default function DiscoveryScreen() {
   ) => {
     if (!targetCandidate) return;
 
-    // 0. 3D LIVENESS RECOVERY GATE (Single Flag):
-    if (FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && actionType === 'LIKE') {
-      hapticFeedback.warning();
-      setShowLivenessRetakeModal(true);
-      return;
-    }
-
     // 1. PLAN GATING CHECKS (Skipped in 100% Free Launch mode):
     if (FEATURE_FLAGS.ENABLE_STORE) {
       if (actionType === 'LIKE' && !noteText) {
@@ -1257,34 +1250,6 @@ function SwipeableCandidateCard({
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Surface 1: Discovery 3D Liveness Recovery Floating Pill */}
-      {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && (
-        <TouchableOpacity
-          style={styles.discoveryLivenessPill}
-          onPress={() => {
-            hapticFeedback.light();
-            setShowLivenessRetakeModal(true);
-          }}
-          activeOpacity={0.85}>
-          <Text style={styles.discoveryLivenessIcon}>⚠️</Text>
-          <View style={styles.discoveryLivenessTextWrap}>
-            <Text style={styles.discoveryLivenessTitle}>
-              {api.getCachedProfile()?.needsLivenessRetry || api.getCachedProfile()?.verificationStatus === 'RETRY_NEEDED'
-                ? 'Verification paused: Dim lighting'
-                : '3D verification needed to match'}
-            </Text>
-            <Text style={styles.discoveryLivenessSub}>Tap to verify 3s selfie & unlock mutual matching →</Text>
-          </View>
-          <View style={styles.discoveryLivenessActionBtn}>
-            <Text style={styles.discoveryLivenessActionText}>
-              {api.getCachedProfile()?.needsLivenessRetry || api.getCachedProfile()?.verificationStatus === 'RETRY_NEEDED'
-                ? 'Retake'
-                : 'Verify'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      )}
 
       {/* Horizontal Filter Bar with Full-Width ScrollView */}
       <View style={styles.filterBarContainer}>

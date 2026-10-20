@@ -366,11 +366,6 @@ export default function MatchesScreen() {
       <TouchableOpacity
         style={styles.matchCard}
         onPress={() => {
-          if (FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry) {
-            hapticFeedback.warning();
-            setShowLivenessRetakeModal(true);
-            return;
-          }
           if (item.status === 'QUEUED_CAPACITY') {
             hapticFeedback.medium();
             setPendingQueuedMatch(item);
@@ -558,30 +553,6 @@ export default function MatchesScreen() {
             })}
           </ScrollView>
         </View>
-      )}
-
-      {/* Surface 2: Matches Messaging Safely Locked Banner (Single Flag) */}
-      {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry && (
-        <TouchableOpacity
-          style={styles.matchesLivenessGateCard}
-          onPress={() => {
-            hapticFeedback.light();
-            setShowLivenessRetakeModal(true);
-          }}
-          activeOpacity={0.85}>
-          <View style={styles.matchesLivenessIconWrap}>
-            <Text style={{ fontSize: 18 }}>🔒</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.matchesLivenessTitle}>Messaging Safely Locked</Text>
-            <Text style={styles.matchesLivenessSub}>
-              Your matches are waiting! Snap a quick well-lit selfie to start chatting.
-            </Text>
-          </View>
-          <View style={styles.matchesLivenessBtn}>
-            <Text style={styles.matchesLivenessBtnText}>Unlock 📸</Text>
-          </View>
-        </TouchableOpacity>
       )}
 
       {/* Rule of 5 Active Match Capacity Bar */}

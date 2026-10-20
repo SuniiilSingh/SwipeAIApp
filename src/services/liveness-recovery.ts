@@ -40,23 +40,14 @@ class LivenessRecoveryManager {
 
     // 1. Explicit retry from failed verification or dim lighting
     const isExplicitRetry = Boolean(
-      cached.needsLivenessRetry ||
+      cached.needsLivenessRetry === true ||
       cached.verificationStatus === 'RETRY_NEEDED' ||
       cached.verificationStatus === 'REJECTED' ||
       cached.livenessStatus === 'RETRY_NEEDED'
     );
 
-    // 2. Confirmed verified presence
-    const isVerified = Boolean(
-      cached.faceVerified ||
-      cached.verificationStatus === 'VERIFIED' ||
-      cached.livenessStatus === 'VERIFIED' ||
-      cached.digilockerVerified ||
-      (cached.livenessScore != null && cached.livenessScore >= 0.85)
-    );
-
-    // If user failed OR skipped/unverified, 3D liveness check is required!
-    return isExplicitRetry || !isVerified;
+    // Active users with accounts / active chats should never be locked out
+    return isExplicitRetry;
   }
 
   setRetryNeeded(val: boolean) {

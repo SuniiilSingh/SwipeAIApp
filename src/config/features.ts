@@ -22,9 +22,9 @@ export const FEATURE_FLAGS = {
 
   /**
    * Async 3D Liveness Multi-Touch Recovery Loop.
-   * Disabled to prevent blocking active users with active chats from messaging.
+   * Locks messaging and match interactions until user completes 3D liveness check.
    */
-  ENABLE_ASYNC_LIVENESS_RECOVERY: false,
+  ENABLE_ASYNC_LIVENESS_RECOVERY: true,
 
   /**
    * Shadow Shield Relative & Boss Privacy Hashing.

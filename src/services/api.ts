@@ -184,6 +184,15 @@ export const initAuth = async (): Promise<string | null> => {
   try {
     const storedToken = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
     const storedUserId = await AsyncStorage.getItem(STORAGE_KEYS.USER_ID);
+    const storedProfile = await AsyncStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+    if (storedProfile) {
+      try {
+        const parsed = JSON.parse(storedProfile);
+        if (parsed && typeof parsed === 'object') {
+          cachedProfile = normalizeProfilePhotos({ ...emptyUserProfile, ...parsed });
+        }
+      } catch (err) {}
+    }
     if (storedToken) {
       authToken = storedToken;
       if (storedUserId) currentUserId = storedUserId;
@@ -474,6 +483,7 @@ export const api = {
           cachedProfile.livenessScore = data.livenessScore || 0.95;
           cachedProfile.verificationStatus = 'PENDING';
           cachedProfile.faceVerified = false;
+          AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(cachedProfile)).catch(() => {});
         }
         return data;
       }
@@ -594,6 +604,7 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         cachedProfile = normalizeProfilePhotos(data);
+        AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(cachedProfile)).catch(() => {});
         return cachedProfile;
       }
     } catch (e) {}
@@ -624,6 +635,7 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         cachedProfile = normalizeProfilePhotos(data);
+        AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(cachedProfile)).catch(() => {});
         return cachedProfile;
       }
       console.warn(`[api] Profile update returned HTTP ${res.status}`);
@@ -631,6 +643,7 @@ export const api = {
       console.warn('[api] Failed to update profile on server:', e);
     }
     cachedProfile = normalizeProfilePhotos({ ...cachedProfile, ...updates });
+    AsyncStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(cachedProfile)).catch(() => {});
     return cachedProfile;
   },
 

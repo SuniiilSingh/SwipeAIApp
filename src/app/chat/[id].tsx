@@ -403,6 +403,12 @@ export default function ChatScreen() {
     const rawContent = (textToSend || inputText).trim();
     if (!rawContent || !matchId) return;
 
+    if (FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry) {
+      hapticFeedback.warning();
+      setShowLivenessRetakeModal(true);
+      return;
+    }
+
     setInputText('');
 
     // Instant Optimistic Bubble (0ms UI latency!)
@@ -1507,7 +1513,31 @@ export default function ChatScreen() {
         )}
 
         {/* Bottom Message & Voice Note Input Bar */}
-        {isRecording ? (
+        {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry ? (
+          <TouchableOpacity
+            style={[
+              styles.chatLivenessLockedBar,
+              { paddingBottom: Math.max(insets.bottom, 12) },
+            ]}
+            onPress={() => {
+              hapticFeedback.medium();
+              setShowLivenessRetakeModal(true);
+            }}
+            activeOpacity={0.85}>
+            <View style={styles.chatLivenessIconWrap}>
+              <Text style={{ fontSize: 16 }}>🔒</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.chatLivenessLockedTitle}>Messaging Safely Locked</Text>
+              <Text style={styles.chatLivenessLockedSub} numberOfLines={1}>
+                Complete 3s selfie check to chat with {matchProfile?.displayName || candidateName || 'this match'}
+              </Text>
+            </View>
+            <View style={styles.chatLivenessUnlockBtn}>
+              <Text style={styles.chatLivenessUnlockText}>Verify 📸</Text>
+            </View>
+          </TouchableOpacity>
+        ) : isRecording ? (
           <View
             style={[
               styles.inputBar,

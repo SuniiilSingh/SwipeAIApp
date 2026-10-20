@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '@/services/api';
 import { FEATURE_FLAGS } from '@/config/features';
 
@@ -46,8 +47,18 @@ class LivenessRecoveryManager {
       cached.livenessStatus === 'RETRY_NEEDED'
     );
 
-    // Active users with accounts / active chats should never be locked out
-    return isExplicitRetry;
+    // 2. Confirmed verified presence
+    const isVerified = Boolean(
+      cached.faceVerified ||
+      cached.verificationStatus === 'VERIFIED' ||
+      cached.livenessStatus === 'VERIFIED' ||
+      cached.digilockerVerified ||
+      (cached.livenessScore != null && cached.livenessScore >= 0.85) ||
+      Boolean(cached.selfieUrl)
+    );
+
+    // Chat will be locked unless/until user verifies 3D liveness
+    return isExplicitRetry || !isVerified;
   }
 
   setRetryNeeded(val: boolean) {
@@ -71,6 +82,9 @@ class LivenessRecoveryManager {
       if (cached.livenessScore < 0.85) {
         cached.livenessScore = 0.98;
       }
+      try {
+        AsyncStorage.setItem('@swipeai_user_profile', JSON.stringify(cached)).catch(() => {});
+      } catch (err) {}
     }
     this.notify(false);
   }

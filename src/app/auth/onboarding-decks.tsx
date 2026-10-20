@@ -336,28 +336,148 @@ export default function OnboardingDecksScreen() {
     formDataRef.current.fullName = text;
   };
 
+  const clampDayForMonth = (currentDay: string, monthStr: string) => {
+    if (!currentDay) return;
+    const dy = parseInt(currentDay, 10);
+    const mo = parseInt(monthStr, 10);
+    if (isNaN(dy) || isNaN(mo)) return;
+
+    let maxDays = 31;
+    if (mo === 2) {
+      maxDays = 29;
+    } else if ([4, 6, 9, 11].includes(mo)) {
+      maxDays = 30;
+    }
+
+    if (dy > maxDays) {
+      const adjusted = String(maxDays).padStart(2, '0');
+      setDobDay(adjusted);
+      formDataRef.current.dobDay = adjusted;
+    }
+  };
+
   const handleDobDayChange = (text: string) => {
-    const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
+    let clean = text.replace(/[^0-9]/g, '');
+    if (!clean) {
+      setDobDay('');
+      formDataRef.current.dobDay = '';
+      return;
+    }
+
+    // If first digit typed is 4-9, it can only be 04, 05... 09
+    if (clean.length === 1 && parseInt(clean, 10) >= 4) {
+      clean = `0${clean}`;
+      setDobDay(clean);
+      formDataRef.current.dobDay = clean;
+      dobMonthRef.current?.focus();
+      return;
+    }
+
+    clean = clean.slice(0, 2);
+
+    if (clean.length === 2) {
+      let num = parseInt(clean, 10);
+      if (num === 0) num = 1;
+      if (num > 31) num = 31;
+
+      // Check current month limits if month is already filled
+      const mo = parseInt(formDataRef.current.dobMonth || '', 10);
+      if (!isNaN(mo)) {
+        if (mo === 2 && num > 29) num = 29;
+        if ([4, 6, 9, 11].includes(mo) && num > 30) num = 30;
+      }
+
+      clean = String(num).padStart(2, '0');
+      setDobDay(clean);
+      formDataRef.current.dobDay = clean;
+      dobMonthRef.current?.focus();
+      return;
+    }
+
     setDobDay(clean);
     formDataRef.current.dobDay = clean;
-    if (clean.length === 2) {
-      dobMonthRef.current?.focus();
-    }
   };
 
   const handleDobMonthChange = (text: string) => {
-    const clean = text.replace(/[^0-9]/g, '').slice(0, 2);
+    let clean = text.replace(/[^0-9]/g, '');
+    if (!clean) {
+      setDobMonth('');
+      formDataRef.current.dobMonth = '';
+      return;
+    }
+
+    // If first digit typed is 2-9, it can only be 02, 03... 09
+    if (clean.length === 1 && parseInt(clean, 10) >= 2) {
+      clean = `0${clean}`;
+      setDobMonth(clean);
+      formDataRef.current.dobMonth = clean;
+      clampDayForMonth(formDataRef.current.dobDay, clean);
+      dobYearRef.current?.focus();
+      return;
+    }
+
+    clean = clean.slice(0, 2);
+
+    if (clean.length === 2) {
+      let num = parseInt(clean, 10);
+      if (num === 0) num = 1;
+      if (num > 12) num = 12;
+      clean = String(num).padStart(2, '0');
+      setDobMonth(clean);
+      formDataRef.current.dobMonth = clean;
+      clampDayForMonth(formDataRef.current.dobDay, clean);
+      dobYearRef.current?.focus();
+      return;
+    }
+
     setDobMonth(clean);
     formDataRef.current.dobMonth = clean;
-    if (clean.length === 2) {
-      dobYearRef.current?.focus();
-    }
   };
 
   const handleDobYearChange = (text: string) => {
-    const clean = text.replace(/[^0-9]/g, '').slice(0, 4);
+    let clean = text.replace(/[^0-9]/g, '').slice(0, 4);
+    if (!clean) {
+      setDobYear('');
+      formDataRef.current.dobYear = '';
+      return;
+    }
+
+    // 1st digit: Must be 1 or 2 (rejects inputs starting with 3-9 like 9999)
+    if (clean.length >= 1) {
+      if (clean[0] !== '1' && clean[0] !== '2') {
+        return;
+      }
+    }
+
+    // 2nd digit: If 1 -> 9 (19xx). If 2 -> 0 (20xx).
+    if (clean.length >= 2) {
+      if (clean[0] === '1' && clean[1] !== '9') {
+        clean = '19' + clean.slice(2);
+      } else if (clean[0] === '2' && clean[1] !== '0') {
+        clean = '20' + clean.slice(2);
+      }
+    }
+
+    // 4 digits validation:
+    if (clean.length === 4) {
+      const yr = parseInt(clean, 10);
+      const currentYr = new Date().getFullYear();
+      if (yr > currentYr) {
+        clean = String(currentYr - 18);
+      } else if (yr < 1920) {
+        clean = '1920';
+      }
+    }
+
     setDobYear(clean);
     formDataRef.current.dobYear = clean;
+  };
+
+  const handleQuickYearSelect = (yearNum: number) => {
+    hapticFeedback.selection();
+    const str = String(yearNum);
+    setDobYear(str);
+    formDataRef.current.dobYear = str;
   };
 
   const handleJobChange = (text: string) => {
@@ -408,6 +528,23 @@ export default function OnboardingDecksScreen() {
     }
     return age;
   }, [dobYear, dobMonth, dobDay]);
+
+  const activeZodiac = useMemo(() => {
+    const dy = parseInt(dobDay, 10);
+    const mo = parseInt(dobMonth, 10);
+    if (isNaN(dy) || isNaN(mo) || dy < 1 || mo < 1 || mo > 12) return '';
+    const dates = [20, 19, 21, 20, 21, 21, 23, 23, 23, 23, 22, 22];
+    const signs = [
+      '♑ Capricorn', '♒ Aquarius', '♓ Pisces', '♈ Aries',
+      '♉ Taurus', '♊ Gemini', '♋ Cancer', '♌ Leo',
+      '♍ Virgo', '♎ Libra', '♏ Scorpio', '♐ Sagittarius'
+    ];
+    let signIndex = mo - 1;
+    if (dy >= dates[mo - 1]) {
+      signIndex = (signIndex + 1) % 12;
+    }
+    return signs[signIndex];
+  }, [dobDay, dobMonth]);
 
   const handleBirthTimeChange = (text: string) => {
     const digits = text.replace(/[^0-9]/g, '');
@@ -688,6 +825,15 @@ export default function OnboardingDecksScreen() {
         }
         if (isNaN(mo) || mo < 1 || mo > 12) {
           return { valid: false, message: 'Please enter a valid birth month (01 to 12).' };
+        }
+        let maxDays = 31;
+        if (mo === 2) {
+          maxDays = 29;
+        } else if ([4, 6, 9, 11].includes(mo)) {
+          maxDays = 30;
+        }
+        if (dy > maxDays) {
+          return { valid: false, message: `The selected month only has ${maxDays} days. Please enter a valid day.` };
         }
         if (isNaN(yr) || yr < 1920 || yr > currentYr) {
           return { valid: false, message: 'Please enter a valid birth year (YYYY, e.g. 1999).' };
@@ -2045,6 +2191,37 @@ export default function OnboardingDecksScreen() {
                           selectTextOnFocus
                         />
                       </View>
+                    </View>
+
+                    {/* Live Validation & Astrological Status Pill */}
+                    {calculatedAge !== null && (
+                      <View style={[styles.dobStatusCard, calculatedAge >= 18 ? styles.dobStatusSuccess : styles.dobStatusError]}>
+                        <Text style={[styles.dobStatusText, calculatedAge >= 18 ? styles.dobStatusTextSuccess : styles.dobStatusTextError]}>
+                          {calculatedAge >= 18
+                            ? `✓ ${calculatedAge} years old (18+ Verified)${activeZodiac ? ` • ${activeZodiac}` : ''}`
+                            : `⚠️ Must be at least 18 years old to join BlunderR (currently ${calculatedAge} yrs)`}
+                        </Text>
+                      </View>
+                    )}
+
+                    {/* Quick 1-Tap Year Shortcut Chips */}
+                    <View style={styles.quickYearRow}>
+                      <Text style={styles.quickYearTitle}>QUICK YEAR:</Text>
+                      {[2006, 2004, 2002, 2000, 1998, 1996, 1994].map((yr) => {
+                        const isSelected = dobYear === String(yr);
+                        return (
+                          <TouchableOpacity
+                            key={yr}
+                            style={[styles.quickYearChip, isSelected && styles.quickYearChipActive]}
+                            onPress={() => handleQuickYearSelect(yr)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.quickYearChipText, isSelected && styles.quickYearChipTextActive]}>
+                              {yr}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
 
@@ -4122,6 +4299,68 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '700',
     marginTop: 14,
+  },
+  dobStatusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  dobStatusSuccess: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
+  },
+  dobStatusError: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+  },
+  dobStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dobStatusTextSuccess: {
+    color: '#34D399',
+  },
+  dobStatusTextError: {
+    color: '#F87171',
+  },
+  quickYearRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  quickYearTitle: {
+    fontSize: 10,
+    color: '#64748B',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginRight: 2,
+  },
+  quickYearChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  quickYearChipActive: {
+    backgroundColor: 'rgba(255, 56, 92, 0.2)',
+    borderColor: '#FF385C',
+  },
+  quickYearChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  quickYearChipTextActive: {
+    color: '#FF6B8B',
+    fontWeight: '700',
   },
   fieldLabelRow: {
     flexDirection: 'row',

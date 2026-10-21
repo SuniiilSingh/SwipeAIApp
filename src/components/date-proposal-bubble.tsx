@@ -38,7 +38,7 @@ function sanitizeTimeText(t?: string): string {
 }
 
 export function parseDateProposal(content?: string): {
-  type: 'PROPOSAL' | 'ACCEPTED' | 'RESCHEDULE' | 'DECLINED' | 'NONE';
+  type: 'PROPOSAL' | 'ACCEPTED' | 'RESCHEDULE' | 'DECLINED' | 'POSTPONE' | 'CANCELLED' | 'NONE';
   data: DateProposalData | null;
 } {
   if (!content) return { type: 'NONE', data: null };
@@ -56,6 +56,24 @@ export function parseDateProposal(content?: string): {
     try {
       const jsonStr = content.replace('[BLUNDERR_DATE_ACCEPTED]', '').trim();
       return { type: 'ACCEPTED', data: JSON.parse(jsonStr) };
+    } catch {
+      return { type: 'NONE', data: null };
+    }
+  }
+
+  if (content.startsWith('[BLUNDERR_DATE_POSTPONE]')) {
+    try {
+      const jsonStr = content.replace('[BLUNDERR_DATE_POSTPONE]', '').trim();
+      return { type: 'POSTPONE', data: JSON.parse(jsonStr) };
+    } catch {
+      return { type: 'NONE', data: null };
+    }
+  }
+
+  if (content.startsWith('[BLUNDERR_DATE_CANCELLED]')) {
+    try {
+      const jsonStr = content.replace('[BLUNDERR_DATE_CANCELLED]', '').trim();
+      return { type: 'CANCELLED', data: JSON.parse(jsonStr) };
     } catch {
       return { type: 'NONE', data: null };
     }
@@ -83,7 +101,7 @@ export function parseDateProposal(content?: string): {
 }
 
 interface DateProposalBubbleProps {
-  type: 'PROPOSAL' | 'ACCEPTED' | 'RESCHEDULE' | 'DECLINED';
+  type: 'PROPOSAL' | 'ACCEPTED' | 'RESCHEDULE' | 'DECLINED' | 'POSTPONE' | 'CANCELLED';
   data: DateProposalData;
   isFromMe: boolean;
   onAccept?: () => void;
@@ -91,6 +109,8 @@ interface DateProposalBubbleProps {
   onDecline?: () => void;
   onAcceptCounter?: () => void;
   onProposeNew?: () => void;
+  onAcceptPostpone?: () => void;
+  onProposePostponeOther?: () => void;
   partnerName?: string;
   isDateConfirmed?: boolean;
 }
@@ -104,6 +124,8 @@ export default function DateProposalBubble({
   onDecline,
   onAcceptCounter,
   onProposeNew,
+  onAcceptPostpone,
+  onProposePostponeOther,
   partnerName = 'your match',
   isDateConfirmed = false,
 }: DateProposalBubbleProps) {
@@ -327,6 +349,116 @@ export default function DateProposalBubble({
           ) : null}
           <Text style={styles.declinedSub}>
             You can continue chatting or propose another date anytime.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // 5. POSTPONE / RESCHEDULE
+  if (type === 'POSTPONE') {
+    return (
+      <View style={styles.postponeCard}>
+        <View style={styles.postponeHeader}>
+          <Text style={styles.postponeIcon}>🔄</Text>
+          <View style={{ flex: 1 }}>
+            <View style={styles.postponeTopRow}>
+              <Text style={styles.postponeTitle}>
+                {isFromMe ? 'Reschedule Request Sent' : `${partnerName} Requested Reschedule`}
+              </Text>
+              <View style={styles.postponeTag}>
+                <Text style={styles.postponeTagText}>
+                  {isFromMe ? 'Pending' : 'Action Required'}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.postponeSub}>
+              {isFromMe
+                ? `Waiting for ${partnerName} to confirm or propose other`
+                : `Suggested an alternative time for your planned date`}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.postponeDetailsBox}>
+          <Text style={styles.postponeDetailsLabel}>NEW PROPOSED TIME:</Text>
+          <Text style={styles.postponeDetailsValue}>
+            📅 {sanitizeDateText(data.newDate || data.date)} • ⏰ {sanitizeTimeText(data.newTime || data.time)}
+          </Text>
+          {data.venue ? (
+            <Text style={styles.postponeVenueValue}>📍 {data.venue}</Text>
+          ) : null}
+        </View>
+
+        {data.reason || data.note ? (
+          <View style={styles.postponeNoteBox}>
+            <Text style={styles.postponeNoteText}>
+              {data.reason ? `Reason: ${data.reason}` : ''}
+              {data.reason && data.note ? ' • ' : ''}
+              {data.note ? `"${data.note}"` : ''}
+            </Text>
+          </View>
+        ) : null}
+
+        {!isFromMe ? (
+          <View style={styles.postponeActionRow}>
+            <TouchableOpacity
+              style={styles.postponeAcceptBtn}
+              activeOpacity={0.85}
+              onPress={onAcceptPostpone}>
+              <Text style={styles.postponeAcceptBtnText}>
+                ✓ Accept New Time
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.postponeOtherBtn}
+              activeOpacity={0.8}
+              onPress={onProposePostponeOther}>
+              <Text style={styles.postponeOtherBtnText}>
+                Propose Other
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+
+  // 6. CANCELLED
+  if (type === 'CANCELLED') {
+    return (
+      <View style={styles.cancelledCard}>
+        <View style={styles.cancelledHeader}>
+          <Text style={styles.cancelledIcon}>⚠️</Text>
+          <View style={{ flex: 1 }}>
+            <View style={styles.postponeTopRow}>
+              <Text style={styles.cancelledTitle}>Date Gracefully Cancelled</Text>
+              <View style={styles.cancelledBadge}>
+                <Text style={styles.cancelledBadgeText}>Closed</Text>
+              </View>
+            </View>
+            <Text style={styles.cancelledSub}>
+              {isFromMe
+                ? 'You cancelled the upcoming date'
+                : `${partnerName} had to cancel the upcoming date`}
+            </Text>
+          </View>
+        </View>
+
+        {data.reason || data.note ? (
+          <View style={styles.cancelledReasonBox}>
+            <Text style={styles.cancelledReasonText}>
+              {data.reason ? `Reason: ${data.reason}` : ''}
+              {data.reason && data.note ? ' • ' : ''}
+              {data.note ? `"${data.note}"` : ''}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.cancelledShieldFooter}>
+          <Text style={styles.cancelledShieldText}>
+            🛡️ Active Rule-of-5 Slot Freed Up • Karma Preserved
           </Text>
         </View>
       </View>
@@ -762,5 +894,198 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94A3B8',
     marginTop: 2,
+  },
+
+  // Postpone Card Styles
+  postponeCard: {
+    backgroundColor: 'rgba(18, 22, 34, 0.95)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.45)',
+    borderRadius: 22,
+    padding: 14,
+    marginVertical: 6,
+    width: '92%',
+    alignSelf: 'center',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  postponeHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 10,
+  },
+  postponeIcon: {
+    fontSize: 22,
+  },
+  postponeTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  postponeTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FCD34D',
+    flex: 1,
+  },
+  postponeTag: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  postponeTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FCD34D',
+  },
+  postponeSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  postponeDetailsBox: {
+    backgroundColor: '#0F1322',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
+  },
+  postponeDetailsLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  postponeDetailsValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  postponeVenueValue: {
+    fontSize: 11,
+    color: '#34D399',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  postponeNoteBox: {
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderRadius: 10,
+    padding: 8,
+    marginBottom: 10,
+  },
+  postponeNoteText: {
+    fontSize: 11,
+    color: '#FDE68A',
+    fontStyle: 'italic',
+  },
+  postponeActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  postponeAcceptBtn: {
+    flex: 1.4,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postponeAcceptBtnText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  postponeOtherBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postponeOtherBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E2E8F0',
+  },
+
+  // Cancelled Card Styles
+  cancelledCard: {
+    backgroundColor: 'rgba(28, 16, 24, 0.9)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(244, 63, 94, 0.45)',
+    borderRadius: 20,
+    padding: 12,
+    marginVertical: 6,
+    width: '92%',
+    alignSelf: 'center',
+  },
+  cancelledHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  cancelledIcon: {
+    fontSize: 22,
+  },
+  cancelledTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FDA4AF',
+    flex: 1,
+  },
+  cancelledBadge: {
+    backgroundColor: 'rgba(244, 63, 94, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  cancelledBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FECDD3',
+  },
+  cancelledSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  cancelledReasonBox: {
+    backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    borderRadius: 10,
+    padding: 8,
+    marginVertical: 6,
+  },
+  cancelledReasonText: {
+    fontSize: 11,
+    color: '#FECDD3',
+  },
+  cancelledShieldFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  cancelledShieldText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#34D399',
   },
 });

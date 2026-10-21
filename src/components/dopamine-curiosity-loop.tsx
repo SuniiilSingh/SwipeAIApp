@@ -216,7 +216,6 @@ export default function DopamineCuriosityLoop({
   const bubbleScale3 = useRef(new Animated.Value(0)).current;
   const lockAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const fadeOutAnim = useRef(new Animated.Value(1)).current;
 
   // Trigger profile lock when data arrives or when ready
   useEffect(() => {
@@ -233,6 +232,15 @@ export default function DopamineCuriosityLoop({
     }
   }, [candidates, minTimePassed, isProfileLocked]);
 
+  // Reset scan cycle state if new load is initiated
+  useEffect(() => {
+    if (isLoading) {
+      hasFinishedRef.current = false;
+      setMinTimePassed(false);
+      setIsProfileLocked(false);
+    }
+  }, [isLoading]);
+
   // 1. Min duration tracker
   useEffect(() => {
     const minTimer = setTimeout(() => {
@@ -241,18 +249,12 @@ export default function DopamineCuriosityLoop({
     return () => clearTimeout(minTimer);
   }, [minDurationMs]);
 
-  // 2. Synchronized transition: Only transition out when BOTH minimum time has passed AND data loading has finished
+  // 2. Direct seamless transition: Trigger onComplete without an internal black-fade gap
   useEffect(() => {
     if (minTimePassed && !isLoading && !hasFinishedRef.current) {
       hasFinishedRef.current = true;
       hapticFeedback.success();
-      Animated.timing(fadeOutAnim, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => {
-        onComplete?.();
-      });
+      onComplete?.();
     }
   }, [minTimePassed, isLoading, onComplete]);
 
@@ -262,13 +264,7 @@ export default function DopamineCuriosityLoop({
       if (!hasFinishedRef.current) {
         hasFinishedRef.current = true;
         hapticFeedback.success();
-        Animated.timing(fadeOutAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }).start(() => {
-          onComplete?.();
-        });
+        onComplete?.();
       }
     }, Math.max(minDurationMs + 1600, 4500));
     return () => clearTimeout(safetyTimer);
@@ -453,7 +449,7 @@ export default function DopamineCuriosityLoop({
   const avatarScales = [bubbleScale1, bubbleScale2, bubbleScale3];
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeOutAnim }]}>
+    <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         {/* TOP STATUS HEADER */}
         <View style={styles.topHeader}>
@@ -631,7 +627,7 @@ export default function DopamineCuriosityLoop({
           </View>
         </View>
       </SafeAreaView>
-    </Animated.View>
+    </View>
   );
 }
 

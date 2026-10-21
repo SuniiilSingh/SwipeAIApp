@@ -26,6 +26,7 @@ import { hapticFeedback } from '@/utils/haptics';
 import { useCall } from '@/context/call-context';
 import { FEATURE_FLAGS } from '@/config/features';
 import { useLivenessRecovery } from '@/services/liveness-recovery';
+import { getEngagementStatus } from '@/utils/engagement-cadence';
 import LivenessRetakeModal from '@/components/liveness-retake-modal';
 
 export type MatchFilterType = 'ALL' | 'ACTIVE' | 'QUIZ' | 'EXPIRING' | 'DATES_PLANNED';
@@ -39,6 +40,7 @@ export default function MatchesScreen() {
   const [likesReceived, setLikesReceived] = useState<CandidateCard[]>([]);
   const [selectedLikeCandidate, setSelectedLikeCandidate] = useState<CandidateCard | null>(null);
   const [showLikeRevealGateModal, setShowLikeRevealGateModal] = useState(false);
+  const [isEngagementEligible, setIsEngagementEligible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<MatchItem | null>(null);
@@ -236,6 +238,9 @@ export default function MatchesScreen() {
       setFilterType('ALL');
       setSearchQuery('');
       loadMatches(matches.length > 0);
+      getEngagementStatus()
+        .then((status) => setIsEngagementEligible(status.isEligibleForPrompt))
+        .catch(() => {});
     }, [loadMatches, matches.length])
   );
 
@@ -525,7 +530,8 @@ export default function MatchesScreen() {
               const hasSparkNote = Boolean(item.commentText);
               const myPhotos = userProfile?.photos || [];
               const hasFivePhotos = myPhotos.length >= 5 || Boolean(userProfile?.photo5);
-              const isLocked = !hasFivePhotos;
+              // Strict drop-off prevention: Only lock/blur admirers after user is engaged (>20 swipes Day 1, >5 swipes Day 2+)
+              const isLocked = !hasFivePhotos && isEngagementEligible;
 
               return (
                 <TouchableOpacity

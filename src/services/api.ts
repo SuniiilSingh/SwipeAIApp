@@ -1325,6 +1325,20 @@ export const api = {
     }
   },
 
+  cancelPlannedDate: async (matchId: string, note?: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/cancel-date`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ note }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('cancelPlannedDate error:', e);
+      return false;
+    }
+  },
+
   gracefulExit: async (matchId: string, note?: string): Promise<boolean> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/graceful-exit`, {

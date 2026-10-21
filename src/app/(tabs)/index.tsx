@@ -4,6 +4,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Easing,
   FlatList,
   Image,
   Modal,
@@ -186,9 +187,24 @@ export default function DiscoveryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isCuriosityLoopActive, setIsCuriosityLoopActive] = useState(true);
+  const [radarCycleKey, setRadarCycleKey] = useState(1);
+  const [isRadarDismissing, setIsRadarDismissing] = useState(false);
   const radarFadeAnim = useRef(new Animated.Value(1)).current;
   const loopTimerFinishedRef = useRef(false);
   const feedLoadedRef = useRef(false);
+
+  const dismissRadar = useCallback(() => {
+    setIsRadarDismissing(true);
+    Animated.timing(radarFadeAnim, {
+      toValue: 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => {
+      setIsCuriosityLoopActive(false);
+      setIsRadarDismissing(false);
+    });
+  }, [radarFadeAnim]);
   const [candidates, setCandidates] = useState<CandidateCard[]>([]);
   const [selectedFilter, setSelectedFilter] = useState('ALL');
   const [remainingSwipes, setRemainingSwipes] = useState(25);
@@ -294,8 +310,10 @@ export default function DiscoveryScreen() {
   const loadFeed = async (communityOverride?: MicroCircle | null, filterOverride?: string) => {
     feedLoadedRef.current = false;
     loopTimerFinishedRef.current = false;
+    setIsRadarDismissing(false);
     radarFadeAnim.setValue(1);
     setIsCuriosityLoopActive(true);
+    setRadarCycleKey((prev) => prev + 1);
     try {
       // 1. Discovery Gating Check: Name, Gender, Sexual Orientation and >= 30% completion required
       const myProfile = await api.getMyProfile();
@@ -376,13 +394,7 @@ export default function DiscoveryScreen() {
       setLoading(false);
       setRefreshing(false);
       if (loopTimerFinishedRef.current) {
-        Animated.timing(radarFadeAnim, {
-          toValue: 0,
-          duration: 220,
-          useNativeDriver: true,
-        }).start(() => {
-          setIsCuriosityLoopActive(false);
-        });
+        dismissRadar();
       }
     }
   };
@@ -390,13 +402,7 @@ export default function DiscoveryScreen() {
   const handleLoopComplete = () => {
     loopTimerFinishedRef.current = true;
     if (feedLoadedRef.current) {
-      Animated.timing(radarFadeAnim, {
-        toValue: 0,
-        duration: 220,
-        useNativeDriver: true,
-      }).start(() => {
-        setIsCuriosityLoopActive(false);
-      });
+      dismissRadar();
     }
   };
 
@@ -1543,8 +1549,12 @@ function SwipeableCandidateCard({
           renderItem={renderCandidateCard}
           pagingEnabled={true}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={2}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           getItemLayout={
-            feedDisplayCards.length > 0
+            feedDisplayCards.length > 0 && feedDimensions.height > 50
               ? (_, index) => ({
                   length: feedDimensions.height,
                   offset: feedDimensions.height * index,
@@ -1949,8 +1959,9 @@ function SwipeableCandidateCard({
               opacity: radarFadeAnim,
             },
           ]}
-          pointerEvents="auto">
+          pointerEvents={isRadarDismissing ? 'none' : 'auto'}>
           <DopamineCuriosityLoop
+            key={`radar_cycle_${radarCycleKey}`}
             city={userProfile?.city || userProfile?.location || 'Bangalore'}
             minDurationMs={1200}
             isLoading={loading}

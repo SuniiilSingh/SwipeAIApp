@@ -36,6 +36,7 @@ import SelfieCameraModal from '@/components/selfie-camera-modal';
 import MicroCommunityModal from '@/components/micro-community-modal';
 import KundaliProfileModal from '@/components/kundali-profile-modal';
 import LivenessRetakeModal from '@/components/liveness-retake-modal';
+import { LifestyleSyncModal } from '@/components/lifestyle-sync-modal';
 import { useLivenessRecovery } from '@/services/liveness-recovery';
 import { FEATURE_FLAGS } from '@/config/features';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
@@ -207,6 +208,7 @@ export default function ProfileScreen() {
   // Vedic Zodiac state
   const [setupZodiacSign, setSetupZodiacSign] = useState('');
   const [showZodiacPickerModal, setShowZodiacPickerModal] = useState(false);
+  const [showLifestyleSyncModal, setShowLifestyleSyncModal] = useState(false);
 
   // 15-Second Voice Note state & refs
   const [setupVoicePromptUrl, setSetupVoicePromptUrl] = useState('');
@@ -597,6 +599,7 @@ export default function ProfileScreen() {
         voicePromptUrl: url,
         voicePromptDuration: dur,
         voicePromptText: txt,
+        sparksBalance: (prev.sparksBalance || 0) + 1,
       }) : prev);
 
       // 2. Persist voice note both to dedicated endpoint and general profile update
@@ -610,7 +613,10 @@ export default function ProfileScreen() {
       ]);
 
       setShowVoiceRecorderModal(false);
-      Alert.alert('Voice Note Saved 🎙️', 'Your 15-second vernacular voice note has been saved and added to your profile!');
+      Alert.alert(
+        '🎙️ 15s Voice Bio Published! ☕',
+        'Your voice note is live! You earned +1 Free Super Chai and your Profile Reach Multiplier is boosted to 3.8x VIP Spotlight 👑!'
+      );
     } catch (e) {
       console.warn('Voice note save general error:', e);
       setShowVoiceRecorderModal(false);
@@ -1575,37 +1581,49 @@ export default function ProfileScreen() {
               )}
             </View>
 
-            {/* Lifestyle & Habits (Smoking, Drinking & Vacation Vibe) */}
+            {/* Lifestyle & Habits (Living, Smoking, Drinking & Vacation Vibe) */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🌿 Lifestyle Habits & Vacation Vibe</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <Text style={styles.sectionTitle}>🌿 Lifestyle Habits & Living Setup</Text>
+                <TouchableOpacity
+                  onPress={() => setShowLifestyleSyncModal(true)}
+                  style={{
+                    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+                    borderColor: '#FF385C',
+                    borderWidth: 1,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                  }}>
+                  <Text style={{ color: '#FF385C', fontSize: 11, fontWeight: '800' }}>⚡ Quick Sync</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.traitsRow}>
                 <TouchableOpacity
                   style={[styles.traitChip, { minWidth: '48%' }]}
-                  onPress={() => {
-                    setIsEditingProfile(true);
-                    setShowSmokingPickerModal(true);
-                  }}>
+                  onPress={() => setShowLifestyleSyncModal(true)}>
+                  <Text style={styles.traitLabel}>Living Setup</Text>
+                  <Text style={styles.traitValue}>{getLivingLabel(profile.livingStatus || setupLiving) || 'Not specified'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.traitChip, { minWidth: '48%' }]}
+                  onPress={() => setShowLifestyleSyncModal(true)}>
+                  <Text style={styles.traitLabel}>Alcohol / Drinking</Text>
+                  <Text style={styles.traitValue}>{profile.drinkingHabit || setupDrinking || 'Not specified'}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.traitChip, { minWidth: '48%' }]}
+                  onPress={() => setShowLifestyleSyncModal(true)}>
                   <Text style={styles.traitLabel}>Smoking Habit</Text>
                   <Text style={styles.traitValue}>{profile.smokingHabit || setupSmoking || 'Not specified'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.traitChip, { minWidth: '48%' }]}
-                  onPress={() => {
-                    setIsEditingProfile(true);
-                    setShowDrinkingPickerModal(true);
-                  }}>
-                  <Text style={styles.traitLabel}>Alcohol / Drinking</Text>
-                  <Text style={styles.traitValue}>{profile.drinkingHabit || setupDrinking || 'Not specified'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.traitChip, { width: '100%' }]}
-                  onPress={() => {
-                    setIsEditingProfile(true);
-                    setShowVacationPickerModal(true);
-                  }}>
-                  <Text style={styles.traitLabel}>Vacation Vibe: Mountains vs Beaches</Text>
+                  onPress={() => setShowLifestyleSyncModal(true)}>
+                  <Text style={styles.traitLabel}>Vacation Vibe</Text>
                   <Text style={styles.traitValue}>{profile.vacationPreference || setupVacation || 'Not specified'}</Text>
                 </TouchableOpacity>
               </View>
@@ -3618,6 +3636,24 @@ export default function ProfileScreen() {
           </View>
         </Modal>
       )}
+
+      {/* Smart Lifestyle & Living Sync Modal */}
+      <LifestyleSyncModal
+        visible={showLifestyleSyncModal}
+        onClose={() => setShowLifestyleSyncModal(false)}
+        userProfile={profile}
+        onSave={async (updates) => {
+          if (updates.livingStatus) setSetupLiving(updates.livingStatus);
+          if (updates.drinkingHabit) setSetupDrinking(updates.drinkingHabit);
+          if (updates.smokingHabit) setSetupSmoking(updates.smokingHabit);
+          if (updates.vacationPreference) setSetupVacation(updates.vacationPreference);
+
+          setProfile((prev) => (prev ? { ...prev, ...updates } : prev));
+          try {
+            await api.updateMyProfile(updates);
+          } catch (e) {}
+        }}
+      />
 
       {/* 14. Profile Meme Selector Modal */}
       {showMemePickerModal && (

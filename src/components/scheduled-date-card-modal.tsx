@@ -23,6 +23,8 @@ interface ScheduledDateCardModalProps {
   candidatePhoto?: string;
   dateData: DateProposalData | null;
   onOpenSafetyGuidelines?: () => void;
+  onPostponePress?: () => void;
+  onCancelPress?: () => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -34,6 +36,8 @@ export default function ScheduledDateCardModal({
   candidatePhoto,
   dateData,
   onOpenSafetyGuidelines,
+  onPostponePress,
+  onCancelPress,
 }: ScheduledDateCardModalProps) {
   if (!visible) return null;
 
@@ -202,6 +206,32 @@ export default function ScheduledDateCardModal({
                 <Text style={styles.shieldBullet}>
                   • <Text style={styles.boldWhite}>Emergency SOS:</Text> 1-tap discrete assistance and trusted friend live location sharing available in Shield 360 menu.
                 </Text>
+              </View>
+            </View>
+
+            {/* Postpone & Cancel Date Management Row */}
+            <View style={styles.manageDateSection}>
+              <Text style={styles.manageDateLabel}>DATE MANAGEMENT</Text>
+              <View style={styles.manageDateRow}>
+                <TouchableOpacity
+                  style={styles.postponeBtn}
+                  onPress={() => {
+                    hapticFeedback.light();
+                    onPostponePress?.();
+                  }}
+                  activeOpacity={0.85}>
+                  <Text style={styles.postponeBtnText}>🔄 Postpone Date</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelDateBtn}
+                  onPress={() => {
+                    hapticFeedback.light();
+                    onCancelPress?.();
+                  }}
+                  activeOpacity={0.85}>
+                  <Text style={styles.cancelDateBtnText}>⚠️ Cancel Date</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -453,6 +483,54 @@ const styles = StyleSheet.create({
   boldWhite: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  manageDateSection: {
+    backgroundColor: '#181A22',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  manageDateLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  manageDateRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  postponeBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.5)',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postponeBtnText: {
+    color: '#FCD34D',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  cancelDateBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(244, 63, 94, 0.5)',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelDateBtnText: {
+    color: '#FDA4AF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   actionRow: {
     flexDirection: 'row',

@@ -34,18 +34,25 @@ interface LuxuryDateProposalModalProps {
   userGender?: string;
 }
 
-const DEFAULT_TIME_SLOTS = [
-  { time: '5:30 PM', vibe: 'Sunset Coffee ☕' },
-  { time: '8:00 PM', vibe: 'Dinner & Drinks 🍸' },
-  { time: '9:30 PM', vibe: 'Late Night Jazz 🎷' },
-  { time: '4:00 PM', vibe: 'Low-key Chai 🫖' },
+const DAYTIME_TIME_SLOTS = [
+  { time: '9:00 AM', vibe: 'Morning Coffee ☕', badge: 'Quiet' },
+  { time: '10:30 AM', vibe: 'Coffee & Croissant 🥐', badge: 'Top Pick' },
+  { time: '12:00 PM', vibe: 'Weekend Brunch 🥑', badge: 'Popular' },
+  { time: '1:30 PM', vibe: 'Lunch Date & Walk 🥪', badge: 'Relaxed' },
+];
+
+const EVENING_TIME_SLOTS = [
+  { time: '4:00 PM', vibe: 'Low-key Chai 🫖', badge: 'Afternoon' },
+  { time: '6:00 PM', vibe: 'Sunset Drinks 🌇', badge: 'Golden Hour' },
+  { time: '8:00 PM', vibe: 'Dinner Prime 🍸', badge: 'Romantic' },
+  { time: '9:30 PM', vibe: 'Late Night Jazz 🎷', badge: 'Acoustic' },
 ];
 
 const CURATED_VENUES = [
+  { name: 'Blue Tokai Coffee, Indiranagar', desc: 'Artisanal roastery & relaxed banter • 12th Main' },
   { name: 'Toit Brewpub, Indiranagar', desc: 'Craft beers & rooftop energy • Indiranagar 100ft Rd' },
   { name: 'The Reservoire, Koramangala', desc: 'Candlelit cocktails & live acoustic • 5th Block' },
   { name: 'Smoke House Deli, Lavelle Road', desc: 'Chic European bistro & wine • Lavelle Rd' },
-  { name: 'Blue Tokai Coffee, Indiranagar', desc: 'Artisanal roastery & relaxed banter • 12th Main' },
 ];
 
 export default function LuxuryDateProposalModal({
@@ -74,21 +81,28 @@ export default function LuxuryDateProposalModal({
     }).catch(() => {});
   }, []);
 
-  // Generate next 5 calendar days
+  // Generate next 7 calendar days with contextual tags
   const dateOptions = useMemo(() => {
-    const days: { label: string; dayNum: string; fullDate: string }[] = [];
+    const days: { label: string; dayNum: string; fullDate: string; tag?: string }[] = [];
     const now = new Date();
     const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 7; i++) {
       const d = new Date(now);
       d.setDate(now.getDate() + i);
       const isTomorrow = i === 1;
-      const dayName = isTomorrow ? 'TOM' : dayNames[d.getDay()];
+      const dayOfWeek = d.getDay();
+      const dayName = isTomorrow ? 'TOM' : dayNames[dayOfWeek];
       const dayNum = d.getDate().toString();
-      const fullDate = `${dayNames[d.getDay()]}, ${monthNames[d.getMonth()]} ${dayNum}`;
-      days.push({ label: dayName, dayNum, fullDate });
+      const fullDate = `${dayNames[dayOfWeek]}, ${monthNames[d.getMonth()]} ${dayNum}`;
+
+      let tag: string | undefined = undefined;
+      if (isTomorrow) tag = 'Tomorrow';
+      else if (dayOfWeek === 6 || dayOfWeek === 0) tag = 'Weekend';
+      else if (dayOfWeek === 5) tag = 'Fri Night';
+
+      days.push({ label: dayName, dayNum, fullDate, tag });
     }
     return days;
   }, []);
@@ -96,18 +110,24 @@ export default function LuxuryDateProposalModal({
   const [selectedDate, setSelectedDate] = useState<string>(
     dateOptions[0]?.fullDate || 'Tomorrow'
   );
-  const [selectedTime, setSelectedTime] = useState<string>(DEFAULT_TIME_SLOTS[1].time);
-  const [selectedTimeVibe, setSelectedTimeVibe] = useState<string>(DEFAULT_TIME_SLOTS[1].vibe);
+  const [dayPeriod, setDayPeriod] = useState<'day' | 'eve'>('day');
+  const [selectedTime, setSelectedTime] = useState<string>(DAYTIME_TIME_SLOTS[1].time);
+  const [selectedTimeVibe, setSelectedTimeVibe] = useState<string>(DAYTIME_TIME_SLOTS[1].vibe);
+  const [isCustomTime, setIsCustomTime] = useState<boolean>(false);
+  const [customTimeInput, setCustomTimeInput] = useState<string>('');
+
   const [selectedVenue, setSelectedVenue] = useState<string>(CURATED_VENUES[0].name);
   const [customVenue, setCustomVenue] = useState<string>('');
   const [isCustomVenue, setIsCustomVenue] = useState<boolean>(false);
   const [note, setNote] = useState<string>(
-    "First round of drinks is on me! Can't wait to meet in person."
+    "Looking forward to meeting in person! Coffee & treats are on me ☕"
   );
 
   const handleSend = () => {
     hapticFeedback.success();
     const finalVenue = isCustomVenue && customVenue.trim() ? customVenue.trim() : selectedVenue;
+    const finalTime = isCustomTime && customTimeInput.trim() ? customTimeInput.trim() : selectedTime;
+    const finalVibe = isCustomTime && customTimeInput.trim() ? 'Custom Planned Time ⏰' : selectedTimeVibe;
     
     // Save emergency contact locally for convenience
     if (emergencyName.trim() || emergencyPhone.trim()) {
@@ -119,8 +139,8 @@ export default function LuxuryDateProposalModal({
 
     onSendProposal({
       date: selectedDate,
-      time: selectedTime,
-      timeVibe: selectedTimeVibe,
+      time: finalTime,
+      timeVibe: finalVibe,
       venue: finalVenue,
       note: note.trim(),
       emergencyContact: (emergencyName.trim() || emergencyPhone.trim()) ? {
@@ -186,6 +206,13 @@ export default function LuxuryDateProposalModal({
                         hapticFeedback.light();
                         setSelectedDate(opt.fullDate);
                       }}>
+                      {opt.tag ? (
+                        <View style={[styles.dateChipTag, isSelected && styles.dateChipTagSelected]}>
+                          <Text style={[styles.dateChipTagText, isSelected && styles.dateChipTagTextSelected]}>
+                            {opt.tag}
+                          </Text>
+                        </View>
+                      ) : null}
                       <Text
                         style={[
                           styles.dateChipDay,
@@ -206,47 +233,116 @@ export default function LuxuryDateProposalModal({
               </ScrollView>
             </View>
 
-            {/* 2. TIME SLOT SELECTOR */}
+            {/* 2. TIME SLOT SELECTOR WITH DAYTIME / EVENING SWITCHER */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionLabel}>2. TIME & VIBE</Text>
-                <Text style={styles.sectionSelectedPill}>{selectedTime}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => setIsCustomTime(!isCustomTime)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={styles.toggleCustomText}>
+                      {isCustomTime ? '‹ Presets' : '+ Custom Time'}
+                    </Text>
+                  </TouchableOpacity>
+                  <Text style={styles.sectionSelectedPill}>
+                    {isCustomTime && customTimeInput ? customTimeInput : selectedTime}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.timeGrid}>
-                {DEFAULT_TIME_SLOTS.map((slot, idx) => {
-                  const isSelected = selectedTime === slot.time;
-                  return (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.timeChip,
-                        isSelected && styles.timeChipSelected,
-                      ]}
-                      activeOpacity={0.8}
-                      onPress={() => {
-                        hapticFeedback.light();
-                        setSelectedTime(slot.time);
-                        setSelectedTimeVibe(slot.vibe);
-                      }}>
-                      <Text
+
+              {/* Day Period Switcher */}
+              {!isCustomTime && (
+                <View style={styles.periodSwitcher}>
+                  <TouchableOpacity
+                    style={[styles.periodBtn, dayPeriod === 'day' && styles.periodBtnActiveDay]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      setDayPeriod('day');
+                      setSelectedTime(DAYTIME_TIME_SLOTS[1].time);
+                      setSelectedTimeVibe(DAYTIME_TIME_SLOTS[1].vibe);
+                    }}>
+                    <Text style={[styles.periodBtnText, dayPeriod === 'day' && styles.periodBtnTextActiveDay]}>
+                      ☀️ Daytime (Before 3 PM)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.periodBtn, dayPeriod === 'eve' && styles.periodBtnActiveEve]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      setDayPeriod('eve');
+                      setSelectedTime(EVENING_TIME_SLOTS[2].time);
+                      setSelectedTimeVibe(EVENING_TIME_SLOTS[2].vibe);
+                    }}>
+                    <Text style={[styles.periodBtnText, dayPeriod === 'eve' && styles.periodBtnTextActiveEve]}>
+                      🌙 Evening (After 3 PM)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {isCustomTime ? (
+                <View style={styles.customTimeWrap}>
+                  <TextInput
+                    style={styles.customTimeInput}
+                    placeholder="Enter custom time (e.g. 11:15 AM or 2:30 PM)..."
+                    placeholderTextColor="#64748B"
+                    value={customTimeInput}
+                    onChangeText={setCustomTimeInput}
+                  />
+                  <Text style={styles.customTimeHint}>
+                    💡 Enter any specific time before 3 PM or evening that suits you both.
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.timeGrid}>
+                  {(dayPeriod === 'day' ? DAYTIME_TIME_SLOTS : EVENING_TIME_SLOTS).map((slot, idx) => {
+                    const isSelected = selectedTime === slot.time;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
                         style={[
-                          styles.timeChipTime,
-                          isSelected && styles.timeChipTimeSelected,
-                        ]}>
-                        {slot.time}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.timeChipVibe,
-                          isSelected && styles.timeChipVibeSelected,
+                          styles.timeChip,
+                          isSelected && (dayPeriod === 'day' ? styles.timeChipSelectedDay : styles.timeChipSelectedEve),
                         ]}
-                        numberOfLines={1}>
-                        {slot.vibe}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSelectedTime(slot.time);
+                          setSelectedTimeVibe(slot.vibe);
+                        }}>
+                        <View style={styles.timeChipHeaderRow}>
+                          <Text
+                            style={[
+                              styles.timeChipTime,
+                              isSelected && (dayPeriod === 'day' ? styles.timeChipTimeSelectedDay : styles.timeChipTimeSelectedEve),
+                            ]}>
+                            {slot.time}
+                          </Text>
+                          {slot.badge ? (
+                            <View style={[styles.slotBadge, isSelected && styles.slotBadgeSelected]}>
+                              <Text style={[styles.slotBadgeText, isSelected && styles.slotBadgeTextSelected]}>
+                                {slot.badge}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <Text
+                          style={[
+                            styles.timeChipVibe,
+                            isSelected && styles.timeChipVibeSelected,
+                          ]}
+                          numberOfLines={1}>
+                          {slot.vibe}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
 
             {/* 3. VERIFIED VENUE SELECTOR */}
@@ -489,7 +585,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dateChip: {
-    width: 62,
+    width: 68,
     paddingVertical: 10,
     borderRadius: 16,
     backgroundColor: '#111526',
@@ -497,6 +593,30 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  dateChipTag: {
+    position: 'absolute',
+    top: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  dateChipTagSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+  },
+  dateChipTagText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#FCD34D',
+    textTransform: 'uppercase',
+  },
+  dateChipTagTextSelected: {
+    color: '#FFFFFF',
   },
   dateChipSelected: {
     backgroundColor: '#FF385C',
@@ -512,6 +632,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#94A3B8',
     letterSpacing: 0.6,
+    marginTop: 8,
   },
   dateChipDaySelected: {
     color: '#FFE4E6',
@@ -524,6 +645,76 @@ const styles = StyleSheet.create({
   },
   dateChipNumSelected: {
     color: '#FFFFFF',
+  },
+  periodSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
+    padding: 3,
+    marginBottom: 10,
+    gap: 4,
+  },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 11,
+  },
+  periodBtnActiveDay: {
+    backgroundColor: '#F59E0B',
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  periodBtnActiveEve: {
+    backgroundColor: '#FF385C',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  periodBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  periodBtnTextActiveDay: {
+    color: '#0F172A',
+    fontWeight: '800',
+  },
+  periodBtnTextActiveEve: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  customTimeWrap: {
+    backgroundColor: '#111526',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 12,
+  },
+  customTimeInput: {
+    backgroundColor: '#0A0D18',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  customTimeHint: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 6,
+    lineHeight: 15,
   },
   timeGrid: {
     flexDirection: 'row',
@@ -538,14 +729,50 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.08)',
   },
+  timeChipSelectedDay: {
+    backgroundColor: 'rgba(245, 158, 11, 0.16)',
+    borderColor: '#F59E0B',
+  },
+  timeChipSelectedEve: {
+    backgroundColor: 'rgba(255, 56, 92, 0.16)',
+    borderColor: '#FF385C',
+  },
   timeChipSelected: {
     backgroundColor: 'rgba(255, 56, 92, 0.16)',
     borderColor: '#FF385C',
+  },
+  timeChipHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  slotBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+  },
+  slotBadgeSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  slotBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  slotBadgeTextSelected: {
+    color: '#FFFFFF',
   },
   timeChipTime: {
     fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
+  },
+  timeChipTimeSelectedDay: {
+    color: '#FCD34D',
+  },
+  timeChipTimeSelectedEve: {
+    color: '#FF385C',
   },
   timeChipTimeSelected: {
     color: '#FF385C',

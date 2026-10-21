@@ -49,6 +49,8 @@ import LuxuryDateProposalModal, { DateProposalPayload } from '@/components/luxur
 import RescheduleDateModal, { CounterProposalPayload } from '@/components/reschedule-date-modal';
 import DateProposalBubble, { parseDateProposal, DateProposalData } from '@/components/date-proposal-bubble';
 import ScheduledDateCardModal from '@/components/scheduled-date-card-modal';
+import PostponeDateModal, { PostponeDatePayload } from '@/components/postpone-date-modal';
+import CancelDateModal from '@/components/cancel-date-modal';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -80,6 +82,10 @@ export default function ChatScreen() {
   const [showKundaliModal, setShowKundaliModal] = useState(false);
   const [showDatePlanModal, setShowDatePlanModal] = useState(false);
   const [showScheduledDateModal, setShowScheduledDateModal] = useState(false);
+  const [showPostponeModal, setShowPostponeModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isPostponingDate, setIsPostponingDate] = useState(false);
+  const [isCancellingDate, setIsCancellingDate] = useState(false);
   const [dateVenue, setDateVenue] = useState('');
   const [dateNote, setDateNote] = useState('');
   const [showFlowerShower, setShowFlowerShower] = useState(false);
@@ -688,6 +694,83 @@ export default function ChatScreen() {
     }
   };
 
+  const handleOpenPostponeModal = () => {
+    setShowScheduledDateModal(false);
+    setShowPostponeModal(true);
+  };
+
+  const handleOpenCancelModal = () => {
+    setShowScheduledDateModal(false);
+    setShowCancelModal(true);
+  };
+
+  const handleSubmitPostpone = async (payload: PostponeDatePayload) => {
+    if (!matchId) return;
+    setIsPostponingDate(true);
+    try {
+      const currentConfirmed = confirmedProposalData;
+      const postponeData: DateProposalData = {
+        date: currentConfirmed?.date || 'Upcoming Date',
+        time: currentConfirmed?.time || '7:30 PM',
+        newDate: payload.newDate,
+        newTime: payload.newTime,
+        newVenue: currentConfirmed?.venue || matchDetails?.dateVenue || 'SafeDate Hub',
+        timeVibe: payload.newTimeVibe,
+        venue: currentConfirmed?.venue || matchDetails?.dateVenue || 'SafeDate Hub',
+        status: 'RESCHEDULED',
+        reason: payload.reason,
+        note: payload.note,
+      };
+      const postponeText = `[BLUNDERR_DATE_POSTPONE]${JSON.stringify(postponeData)}`;
+      setShowPostponeModal(false);
+      hapticFeedback.success();
+      await handleSendMessage(postponeText);
+      Alert.alert(
+        '🔄 Reschedule Request Sent',
+        `Proposed ${payload.newDate} at ${payload.newTime} to ${matchProfile?.displayName || candidateName || 'your match'}. Waiting for confirmation.`
+      );
+    } catch (e) {
+      console.error('Failed to submit postpone:', e);
+      Alert.alert('Error', 'Unable to send reschedule request. Please try again.');
+    } finally {
+      setIsPostponingDate(false);
+    }
+  };
+
+  const handleConfirmCancelDate = async (reason: string, note: string) => {
+    if (!matchId) return;
+    setIsCancellingDate(true);
+    try {
+      hapticFeedback.warning();
+      const currentConfirmed = confirmedProposalData;
+      const cancelData: DateProposalData = {
+        date: currentConfirmed?.date || 'Upcoming Date',
+        time: currentConfirmed?.time || '7:30 PM',
+        venue: currentConfirmed?.venue || matchDetails?.dateVenue || 'SafeDate Hub',
+        status: 'DECLINED',
+        reason: reason,
+        note: note,
+      };
+      const cancelText = `[BLUNDERR_DATE_CANCELLED]${JSON.stringify(cancelData)}`;
+      await handleSendMessage(cancelText);
+
+      // Call backend cancel endpoint
+      await api.cancelPlannedDate(matchId, `${reason} - ${note}`);
+
+      setMatchDetails((prev) => (prev ? { ...prev, status: 'ACTIVE_CHAT' } : prev));
+      setShowCancelModal(false);
+      Alert.alert(
+        '⚠️ Date Cancelled with Respect',
+        'Upcoming date has been cancelled respectfully. Your Rule of 5 slot is freed up with zero karma penalty.'
+      );
+    } catch (e) {
+      console.error('Failed to cancel date:', e);
+      Alert.alert('Error', 'Unable to cancel date. Please check your network.');
+    } finally {
+      setIsCancellingDate(false);
+    }
+  };
+
   const handleConfirmDatePlan = async () => {
     if (!matchId) return;
     setActionLoading(true);
@@ -1012,6 +1095,32 @@ export default function ChatScreen() {
 
   // Derive whether date is confirmed and the latest confirmed details
   const confirmedProposalData = useMemo<DateProposalData | null>(() => {
+    // 0. If the most recent date event is a cancellation, date is NOT planned!
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (typeof msg.content === 'string') {
+        if (msg.content.startsWith('[BLUNDERR_DATE_CANCELLED]')) {
+          return null;
+        }
+        if (msg.content.startsWith('[BLUNDERR_DATE_ACCEPTED]')) {
+          try {
+            const jsonStr = msg.content.replace('[BLUNDERR_DATE_ACCEPTED]', '').trim();
+            const parsed = JSON.parse(jsonStr) as DateProposalData;
+            if (parsed && (parsed.date || parsed.venue)) {
+              return {
+                ...parsed,
+                date: cleanDateStr(parsed.date),
+                time: cleanTimeStr(parsed.time),
+                venue: parsed.venue || 'Confirmed SafeDate Hub',
+                status: 'ACCEPTED',
+              };
+            }
+          } catch {}
+          break;
+        }
+      }
+    }
+
     // 1. Check messages in reverse for accepted date proposal
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
@@ -1033,6 +1142,9 @@ export default function ChatScreen() {
     }
 
     // 2. If match is marked DATE_PLANNED or an accepted message exists, check proposal for sender's view
+    const isCancelled = messages.some((m) => typeof m.content === 'string' && m.content.startsWith('[BLUNDERR_DATE_CANCELLED]'));
+    if (isCancelled) return null;
+
     const isPlanned = matchDetails?.status === 'DATE_PLANNED' || messages.some(
       (m) => typeof m.content === 'string' && m.content.startsWith('[BLUNDERR_DATE_ACCEPTED]')
     );
@@ -1082,7 +1194,7 @@ export default function ChatScreen() {
     return null;
   }, [messages, matchDetails?.status, matchDetails?.datePlannedAt, matchDetails?.dateVenue, matchDetails?.dateNote]);
 
-  const isDateConfirmed = Boolean(confirmedProposalData || matchDetails?.status === 'DATE_PLANNED');
+  const isDateConfirmed = Boolean(confirmedProposalData && matchDetails?.status !== 'UNMATCHED');
 
   const hasAnyProposalSentOrConfirmed = useMemo(() => {
     if (isDateConfirmed || matchDetails?.status === 'DATE_PLANNED') return true;
@@ -1091,6 +1203,7 @@ export default function ChatScreen() {
       return (
         m.content.startsWith('[BLUNDERR_DATE_PROPOSAL]') ||
         m.content.startsWith('[BLUNDERR_DATE_ACCEPTED]') ||
+        m.content.startsWith('[BLUNDERR_DATE_POSTPONE]') ||
         m.content.startsWith('[BLUNDERR_DATE_RESCHEDULE]')
       );
     });
@@ -1113,6 +1226,10 @@ export default function ChatScreen() {
             setShowRescheduleModal(true);
           }}
           onAcceptCounter={() => handleAcceptCounterOffer(parsedProposal.data!)}
+          onAcceptPostpone={() => handleAcceptCounterOffer(parsedProposal.data!)}
+          onProposePostponeOther={() => {
+            setShowPostponeModal(true);
+          }}
           onProposeNew={() => {
             if (isDateConfirmed) {
               setShowScheduledDateModal(true);
@@ -1969,6 +2086,32 @@ export default function ChatScreen() {
           venue: matchDetails?.dateVenue || 'Verified SafeDate Partner Hub',
           status: 'ACCEPTED',
         }}
+        onPostponePress={handleOpenPostponeModal}
+        onCancelPress={handleOpenCancelModal}
+      />
+
+      {/* Postpone Date Modal */}
+      <PostponeDateModal
+        visible={showPostponeModal}
+        onClose={() => setShowPostponeModal(false)}
+        candidateName={matchProfile?.displayName || candidateName || 'your match'}
+        currentDate={confirmedProposalData?.date || 'Upcoming Date'}
+        currentTime={confirmedProposalData?.time || '7:30 PM'}
+        currentVenue={confirmedProposalData?.venue || matchDetails?.dateVenue || 'SafeDate Hub'}
+        onSubmitPostpone={handleSubmitPostpone}
+        isSubmitting={isPostponingDate}
+      />
+
+      {/* Cancel Date Modal */}
+      <CancelDateModal
+        visible={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        candidateName={matchProfile?.displayName || candidateName || 'your match'}
+        currentDate={confirmedProposalData?.date || 'Upcoming Date'}
+        currentTime={confirmedProposalData?.time || '7:30 PM'}
+        currentVenue={confirmedProposalData?.venue || matchDetails?.dateVenue || 'SafeDate Hub'}
+        onConfirmCancel={handleConfirmCancelDate}
+        isSubmitting={isCancellingDate}
       />
 
       {/* Polite Reschedule & Counter-Offer Modal */}

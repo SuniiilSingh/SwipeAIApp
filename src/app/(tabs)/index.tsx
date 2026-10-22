@@ -1451,26 +1451,6 @@ function SwipeableCandidateCard({
             )}
           </TouchableOpacity>
 
-          {/* Smart Lifestyle Sync Button (Flow 3) */}
-          <TouchableOpacity
-            style={[styles.communityHeaderButton, { borderColor: '#2ED573' }, isCompactScreen && styles.compactCommunityBtn]}
-            onPress={() => setShowLifestyleSyncModal(true)}
-            activeOpacity={0.8}
-            accessibilityLabel="Lifestyle Sync">
-            <Text style={[styles.communityHeaderIcon, isCompactScreen && { fontSize: 10 }]}>🌿</Text>
-            {!isTinyScreen && (
-              <Text
-                style={[
-                  styles.communityHeaderText,
-                  { color: '#2ED573' },
-                  isCompactScreen && { fontSize: 10 },
-                ]}
-                numberOfLines={1}>
-                Vibe
-              </Text>
-            )}
-          </TouchableOpacity>
-
           {/* Boost Button (Gated by ENABLE_STORE feature flag for Google Play compliance) */}
           {FEATURE_FLAGS.ENABLE_STORE && (
             <TouchableOpacity

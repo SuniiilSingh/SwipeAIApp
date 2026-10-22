@@ -903,7 +903,14 @@ export default function ProfileScreen() {
             api.updateMyProfile({
               [`photo${slotIdx}`]: uploadedUrl,
               photos: syncPhotos,
-            } as any).catch(err => {
+            } as any).then(updated => {
+              if (updated) setProfile(updated);
+              setTimeout(() => {
+                api.getMyProfile().then(fresh => {
+                  if (fresh) setProfile(fresh);
+                }).catch(() => {});
+              }, 3500);
+            }).catch(err => {
               console.warn('Profile sync warning:', err);
             });
           } else {
@@ -2065,7 +2072,7 @@ export default function ProfileScreen() {
                       {hasPhoto && verificationMap[item.slotIdx] && (
                         (() => {
                           const v = verificationMap[item.slotIdx];
-                          if (v.status === 'MATCHED' || v.status === 'GROUP_MATCHED') {
+                          if (v.status === 'MATCHED' || v.status === 'GROUP_MATCHED' || v.status === 'STYLED_MATCH') {
                             return (
                               <View style={styles.photoVerifiedBadge}>
                                 <Text style={styles.photoVerifiedBadgeText}>

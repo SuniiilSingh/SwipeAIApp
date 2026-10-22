@@ -8,19 +8,55 @@ import '@/global.css';
 import { Platform } from 'react-native';
 
 export const Colors = {
+  /**
+   * Warm Ivory Daylight Palette (#FAF7F2)
+   * Soft alabaster canvas with pure white floating cards, warm stone borders,
+   * and deep espresso-charcoal typography for zero harsh white glare.
+   */
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: '#14151A',
+    background: '#FAF7F2',
+    backgroundElement: '#F2ECE4',
+    backgroundSelected: '#E7E0D6',
+    textSecondary: '#57534E',
+    textMuted: '#78716C',
+    card: '#FFFFFF',
+    cardElevated: '#FFFFFF',
+    border: '#E7E0D6',
+    pillBg: '#EFECE6',
+    tabBarBg: '#FFFFFF',
+    brandCoral: '#E11D48',
+    brandCoralSoft: 'rgba(225, 29, 72, 0.10)',
+    goldAccent: '#D97706',
+    goldSoft: 'rgba(217, 119, 6, 0.12)',
+    emeraldText: '#059669',
+    emeraldSoft: 'rgba(5, 150, 105, 0.12)',
+    chatIncoming: '#F0ECE3',
+    chatOutgoing: '#E11D48',
   },
+  /**
+   * Signature Obsidian Dark Mode (#0E0F13) — Default App Theme
+   */
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#F8FAFC',
+    background: '#0E0F13',
+    backgroundElement: '#14161E',
+    backgroundSelected: '#1F2332',
+    textSecondary: '#94A3B8',
+    textMuted: '#64748B',
+    card: '#181B26',
+    cardElevated: '#1F2332',
+    border: '#232634',
+    pillBg: '#1D202C',
+    tabBarBg: '#121318',
+    brandCoral: '#FF385C',
+    brandCoralSoft: 'rgba(255, 56, 92, 0.15)',
+    goldAccent: '#F59E0B',
+    goldSoft: 'rgba(245, 158, 11, 0.15)',
+    emeraldText: '#34D399',
+    emeraldSoft: 'rgba(16, 185, 129, 0.15)',
+    chatIncoming: '#1E2230',
+    chatOutgoing: '#FF385C',
   },
 } as const;
 

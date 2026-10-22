@@ -19,9 +19,11 @@ import {
 } from '@/services/notifications';
 import { BackArrowIcon } from '@/components/chat-icons';
 import { hapticFeedback } from '@/utils/haptics';
+import { useThemedStyles } from '@/context/theme-context';
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(baseStyles);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadOnly, setUnreadOnly] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -373,7 +375,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

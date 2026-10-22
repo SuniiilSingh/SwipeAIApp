@@ -17,11 +17,13 @@ import { api, normalizeImageUrl } from '@/services/api';
 import { BlockedUserItem } from '@/types';
 import { MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
 import { hapticFeedback } from '@/utils/haptics';
+import { useThemedStyles } from '@/context/theme-context';
 
 type FilterTab = 'ALL' | 'BLOCKED' | 'REPORTED';
 
 export default function BlockedProfilesScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(baseStyles);
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL');
   const [loading, setLoading] = useState(true);
@@ -327,7 +329,7 @@ export default function BlockedProfilesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0A0C10',

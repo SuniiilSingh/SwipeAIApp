@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { FaqItem, SupportTicket, TicketCategory, TicketStatus } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
+import { useThemedStyles } from '@/context/theme-context';
 
 type SupportTab = 'FAQS' | 'RAISE_TICKET' | 'MY_TICKETS';
 
@@ -31,6 +32,7 @@ const CATEGORIES: { id: TicketCategory; label: string; icon: string }[] = [
 
 export default function SupportScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(baseStyles);
   const [activeTab, setActiveTab] = useState<SupportTab>('FAQS');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -533,7 +535,7 @@ export default function SupportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F14',

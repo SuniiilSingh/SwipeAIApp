@@ -21,6 +21,7 @@ import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 import MicroCommunityModal from '@/components/micro-community-modal';
 import { hapticFeedback } from '@/utils/haptics';
 import { MEME_ASSETS, resolveImageSource } from '@/constants/assets';
+import { useThemedStyles } from '@/context/theme-context';
 
 const { width } = Dimensions.get('window');
 
@@ -81,6 +82,7 @@ interface KundaliVibeFact {
 }
 
 export default function ExploreScreen() {
+  const styles = useThemedStyles(baseStyles);
   const [circles, setCircles] = useState<MicroCircle[]>([]);
   const [loadingCircles, setLoadingCircles] = useState(false);
   const [selectedCircle, setSelectedCircle] = useState<string | null>(null);
@@ -666,7 +668,7 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

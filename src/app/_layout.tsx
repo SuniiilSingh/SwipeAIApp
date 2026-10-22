@@ -21,6 +21,7 @@ import {
   setupNotificationObserver,
 } from '@/services/notifications';
 import { CallProvider } from '@/context/call-context';
+import { ThemeProvider, useAppTheme } from '@/context/theme-context';
 import { FlexibleUpdateBanner } from '@/components/flexible-update-banner';
 
 function NativeScreenGuard() {
@@ -62,8 +63,19 @@ export const handleDirectDownload = (url: string) => {
 };
 
 export default function RootLayout() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <RootLayoutInner />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function RootLayoutInner() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { isDark, colors } = useAppTheme();
   const isDesktop = Platform.OS === 'web' && width > 960;
 
   useEffect(() => {
@@ -136,10 +148,10 @@ export default function RootLayout() {
   }, [router]);
 
   return (
-    <SafeAreaProvider>
+    <>
       {Platform.OS !== 'web' && <NativeScreenGuard />}
       <CallProvider>
-        <StatusBar style="light" />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
         
         {isDesktop ? (
           /* ========================================================
@@ -228,12 +240,12 @@ export default function RootLayout() {
             {/* Right Column: Sleek Phone Mockup Device */}
             <View style={webStyles.desktopRightPane}>
               <View style={webStyles.phoneShell}>
-                <View style={webStyles.phoneScreen}>
+                <View style={[webStyles.phoneScreen, { backgroundColor: colors.background }]}>
                   <Stack
                     initialRouteName="index"
                     screenOptions={{
                       headerShown: false,
-                      contentStyle: { backgroundColor: '#0E0F13' },
+                      contentStyle: { backgroundColor: colors.background },
                       animation: 'slide_from_right',
                     }}>
                     <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -253,7 +265,7 @@ export default function RootLayout() {
           /* ========================================================
              MOBILE NATIVE / MOBILE WEB RESPONSIVE EXPERIENCE
              ======================================================== */
-          <View style={webStyles.mobileWrapper}>
+          <View style={[webStyles.mobileWrapper, { backgroundColor: colors.background }]}>
             {Platform.OS === 'web' && (
               <View style={webStyles.mobileWebHeader}>
                 <Text style={webStyles.mobileWebTitle}>⚡ BlunderR Web View</Text>
@@ -273,12 +285,12 @@ export default function RootLayout() {
                 </View>
               </View>
             )}
-            <View style={webStyles.mobileAppContainer}>
+            <View style={[webStyles.mobileAppContainer, { backgroundColor: colors.background }]}>
               <Stack
                 initialRouteName="index"
                 screenOptions={{
                   headerShown: false,
-                  contentStyle: { backgroundColor: '#0E0F13' },
+                  contentStyle: { backgroundColor: colors.background },
                   animation: 'slide_from_right',
                 }}>
                 <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -295,7 +307,7 @@ export default function RootLayout() {
         )}
         <FlexibleUpdateBanner />
       </CallProvider>
-    </SafeAreaProvider>
+    </>
   );
 }
 

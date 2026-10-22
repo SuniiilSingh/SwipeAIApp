@@ -26,6 +26,7 @@ import {
   PaymentRail,
 } from '@/services/payments';
 import { hapticFeedback } from '@/utils/haptics';
+import { useThemedStyles } from '@/context/theme-context';
 
 export interface BenefitBreakdown {
   messages: string;       // e.g. "10 Direct DMs (Pre-Match)"
@@ -178,6 +179,7 @@ export function getBenefitBreakdown(sku?: string): BenefitBreakdown {
 }
 
 export default function StoreScreen() {
+  const styles = useThemedStyles(baseStyles);
   if (!FEATURE_FLAGS.ENABLE_STORE) {
     return <Redirect href="/(tabs)" />;
   }
@@ -1015,7 +1017,7 @@ export default function StoreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

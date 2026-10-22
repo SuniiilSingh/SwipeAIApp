@@ -14,9 +14,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { api } from '@/services/api';
 import { SafeDateSpot } from '@/types';
+import { useThemedStyles } from '@/context/theme-context';
 
 export default function SafeDateScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(baseStyles);
   const [spots, setSpots] = useState<SafeDateSpot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpot, setSelectedSpot] = useState<SafeDateSpot | null>(null);
@@ -150,7 +152,7 @@ export default function SafeDateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

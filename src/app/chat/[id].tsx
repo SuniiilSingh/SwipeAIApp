@@ -52,9 +52,11 @@ import DateProposalBubble, { parseDateProposal, DateProposalData } from '@/compo
 import ScheduledDateCardModal from '@/components/scheduled-date-card-modal';
 import PostponeDateModal, { PostponeDatePayload } from '@/components/postpone-date-modal';
 import CancelDateModal from '@/components/cancel-date-modal';
+import { useThemedStyles } from '@/context/theme-context';
 
 export default function ChatScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(baseStyles);
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   const aesKeyRef = useRef<AESEncryptionKey | null>(null);
@@ -2138,7 +2140,7 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

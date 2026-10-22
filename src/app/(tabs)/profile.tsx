@@ -63,6 +63,7 @@ import {
   VOICE_PROMPT_TOPICS,
   MEME_PRESETS,
 } from '@/constants/profile-presets';
+import { useAppTheme, useThemedStyles } from '@/context/theme-context';
 
 export {
   LANGUAGE_OPTIONS,
@@ -73,6 +74,8 @@ export {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { isDark, toggleTheme } = useAppTheme();
+  const styles = useThemedStyles(baseStyles);
   const searchParams = useLocalSearchParams<{ edit?: string; reason?: string }>();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1287,7 +1290,20 @@ export default function ProfileScreen() {
           {isEditingProfile ? 'Edit Profile ✍️' : 'My Profile 👤'}
         </Text>
         {isEditingProfile ? (
-          <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+              style={[
+                styles.themeHeaderBtn,
+                isDark
+                  ? { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.45)' }
+                  : { backgroundColor: '#EFECE6', borderColor: '#D6CFC2' },
+              ]}>
+              <Text style={[styles.themeHeaderBtnText, { color: isDark ? '#FCD34D' : '#14151A' }]}>
+                {isDark ? '☀️ Light' : '🌙 Dark'}
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={handleCancelEdit} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
@@ -1296,9 +1312,24 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.editHeaderBtn}>
-            <Text style={styles.editHeaderBtnText}>Edit Profile ✍️</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              onPress={toggleTheme}
+              activeOpacity={0.8}
+              style={[
+                styles.themeHeaderBtn,
+                isDark
+                  ? { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.45)' }
+                  : { backgroundColor: '#EFECE6', borderColor: '#D6CFC2' },
+              ]}>
+              <Text style={[styles.themeHeaderBtnText, { color: isDark ? '#FCD34D' : '#14151A' }]}>
+                {isDark ? '☀️ Light' : '🌙 Dark'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.editHeaderBtn}>
+              <Text style={styles.editHeaderBtnText}>Edit Profile ✍️</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -3937,7 +3968,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',
@@ -3961,6 +3992,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#ffffff',
+  },
+  themeHeaderBtn: {
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  themeHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
   editHeaderBtn: {
     backgroundColor: '#1E1F28',

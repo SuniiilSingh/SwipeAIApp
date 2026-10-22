@@ -44,6 +44,21 @@ import DiscoveryVoiceSnippet from '@/components/discovery-voice-snippet';
 import { VibeQuizCard } from '@/components/vibe-quiz-card';
 import { LifestyleSyncModal } from '@/components/lifestyle-sync-modal';
 import { getEngagementStatus, recordSwipeEvent, markInterstitialShownToday } from '@/utils/engagement-cadence';
+import { useThemedStyles } from '@/context/theme-context';
+
+const PRESERVE_PHOTO_SCRIM_STYLES = [
+  'photoBottomScrim',
+  'candidateNameText',
+  'promptTeaserText',
+  'lifestyleChip',
+  'lifestyleChipText',
+  'voicePromptPill',
+  'voicePromptDuration',
+  'voicePromptLabel',
+  'photoCountPill',
+  'locationPill',
+  'datingVerifiedPill',
+] as const;
 
 const { width, height } = Dimensions.get('window');
 const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
@@ -182,6 +197,7 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
 
 export default function DiscoveryScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(baseStyles, PRESERVE_PHOTO_SCRIM_STYLES as any);
   const { width: windowWidth } = useWindowDimensions();
   const isCompactScreen = windowWidth < 390;
   const isTinyScreen = windowWidth < 355;
@@ -1976,7 +1992,7 @@ function SwipeableCandidateCard({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   floatingReflectedToast: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 100 : 70,

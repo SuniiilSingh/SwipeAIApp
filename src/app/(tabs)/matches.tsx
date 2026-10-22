@@ -29,11 +29,13 @@ import { FEATURE_FLAGS } from '@/config/features';
 import { useLivenessRecovery } from '@/services/liveness-recovery';
 import { getEngagementStatus } from '@/utils/engagement-cadence';
 import LivenessRetakeModal from '@/components/liveness-retake-modal';
+import { useThemedStyles } from '@/context/theme-context';
 
 export type MatchFilterType = 'ALL' | 'ACTIVE' | 'QUIZ' | 'EXPIRING' | 'DATES_PLANNED';
 
 export default function MatchesScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(baseStyles);
   const { subscribeToWebSocket } = useCall();
   const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
   const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
@@ -1186,7 +1188,7 @@ export default function MatchesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

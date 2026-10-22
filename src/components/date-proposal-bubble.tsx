@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useThemedStyles } from '@/context/theme-context';
 
 export interface DateProposalData {
   date: string;
@@ -129,6 +130,7 @@ export default function DateProposalBubble({
   partnerName = 'your match',
   isDateConfirmed = false,
 }: DateProposalBubbleProps) {
+  const styles = useThemedStyles(baseStyles);
   // 1. ORIGINAL DATE PROPOSAL
   if (type === 'PROPOSAL') {
     return (
@@ -468,7 +470,7 @@ export default function DateProposalBubble({
   return null;
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   proposalCard: {
     backgroundColor: 'rgba(14, 18, 32, 0.95)',
     borderWidth: 1.5,

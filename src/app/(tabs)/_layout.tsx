@@ -4,9 +4,11 @@ import { StyleSheet, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { registerForPushNotificationsAsync } from '@/services/notifications';
 import { FEATURE_FLAGS } from '@/config/features';
+import { useAppTheme } from '@/context/theme-context';
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useAppTheme();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 0);
   const calculatedHeight = 60 + bottomInset;
 
@@ -19,15 +21,18 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: colors.background },
         tabBarStyle: [
           styles.tabBar,
           {
+            backgroundColor: colors.tabBarBg,
+            borderTopColor: colors.border,
             height: calculatedHeight,
             paddingBottom: Math.max(bottomInset, 8),
           },
         ],
-        tabBarActiveTintColor: '#E94057',
-        tabBarInactiveTintColor: '#6B7082',
+        tabBarActiveTintColor: colors.brandCoral,
+        tabBarInactiveTintColor: isDark ? '#6B7082' : colors.textMuted,
         tabBarLabelStyle: styles.tabLabel,
       }}>
       <Tabs.Screen

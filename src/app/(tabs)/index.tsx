@@ -34,6 +34,7 @@ import SubscriptionGatingModal, { GatingFeatureType } from '@/components/subscri
 import { MicroCircle } from '@/types';
 import { FEATURE_FLAGS } from '@/config/features';
 import { Image as ExpoImage } from 'expo-image';
+import { MODEL_ASSETS, MEME_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
 import { hapticFeedback } from '@/utils/haptics';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 import DopamineCuriosityLoop from '@/components/dopamine-curiosity-loop';
@@ -93,8 +94,8 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
     institute: 'NID Ahmedabad',
     height: 168,
     photos: [
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80',
+      MODEL_ASSETS.tara,
+      MODEL_ASSETS.ananya,
     ],
     bio: 'Designing user journeys by day, hunting for sour beers & indie gig spots by night. Low social battery for small talk.',
     culturalBadges: {
@@ -109,7 +110,7 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
       score: 96,
     },
     selectedMemeTitle: 'Sunday brunch priorities 🥐',
-    selectedMemeUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&auto=format&fit=crop&q=80',
+    selectedMemeUrl: MEME_ASSETS[3],
   },
   {
     userId: 'c_aarav_26',
@@ -126,8 +127,8 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
     institute: 'IIT Roorkee',
     height: 181,
     photos: [
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&auto=format&fit=crop&q=80',
+      MODEL_ASSETS.kabir,
+      MODEL_ASSETS.rohan,
     ],
     bio: 'Training LLMs by sunrise, deadlifting by sunset. If you enjoy spontaneous weekend road trips and filter coffee, say hi.',
     culturalBadges: {
@@ -142,7 +143,7 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
       score: 92,
     },
     selectedMemeTitle: 'Pushing code straight to production 💻',
-    selectedMemeUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80',
+    selectedMemeUrl: MEME_ASSETS[1],
   },
   {
     userId: 'c_meera_25',
@@ -159,8 +160,8 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
     institute: 'St. Xavier’s College',
     height: 165,
     photos: [
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800&auto=format&fit=crop&q=80',
+      MODEL_ASSETS.meera,
+      MODEL_ASSETS.rhea,
     ],
     bio: 'Curating Spotify playlists instead of talking about feelings. Passionate about street photography, monsoon walks, and old bakeries.',
     culturalBadges: {
@@ -175,7 +176,7 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
       score: 94,
     },
     selectedMemeTitle: 'My social battery at loud parties 🔋',
-    selectedMemeUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80',
+    selectedMemeUrl: MEME_ASSETS[0],
   },
 ];
 
@@ -381,7 +382,10 @@ export default function DiscoveryScreen() {
 
       // Immediately prefetch top candidate hero images while radar is still sweeping
       if (list && list.length > 0) {
-        const topImageUrls = list.slice(0, 6).flatMap(c => (c.photos && c.photos.length > 0 ? c.photos.slice(0, 2) : [])).filter(Boolean);
+        const topImageUrls = list
+          .slice(0, 6)
+          .flatMap((c) => (c.photos && c.photos.length > 0 ? c.photos.slice(0, 2) : []))
+          .filter((u): u is string => typeof u === 'string' && (u.startsWith('http') || u.startsWith('file')));
         if (topImageUrls.length > 0) {
           ExpoImage.prefetch(topImageUrls).catch(() => {});
         }
@@ -762,7 +766,7 @@ export default function DiscoveryScreen() {
       const urlsToPrefetch = filteredCandidates
         .slice(0, 8)
         .flatMap((c) => (c.photos && c.photos.length > 0 ? c.photos.slice(0, 2) : []))
-        .filter(Boolean);
+        .filter((u): u is string => typeof u === 'string' && (u.startsWith('http') || u.startsWith('file')));
       if (urlsToPrefetch.length > 0) {
         ExpoImage.prefetch(urlsToPrefetch).catch(() => {});
       }
@@ -974,9 +978,7 @@ function SwipeableCandidateCard({
             },
           ]}>
           <ExpoImage
-            source={{
-              uri: nextItem.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
-            }}
+            source={resolveImageSource(nextItem.photos?.[0], getModelAsset(nextItem.displayName))}
             style={styles.heroImage}
             contentFit="cover"
             contentPosition="top center"
@@ -1070,9 +1072,7 @@ function SwipeableCandidateCard({
           onPress={() => onOpenDetails(item)}
           style={styles.heroTouchWrap}>
           <ExpoImage
-            source={{
-              uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
-            }}
+            source={resolveImageSource(item.photos?.[0], getModelAsset(item.displayName))}
             priority="high"
             style={styles.heroImage}
             contentFit="cover"

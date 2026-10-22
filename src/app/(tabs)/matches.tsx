@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
+import { MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
 import { api } from '@/services/api';
 import { CandidateCard, MatchItem, UserProfile, MatchCapacityInfo, BlockedUserItem } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
@@ -407,7 +408,7 @@ export default function MatchesScreen() {
               isDatePlannedMatch(item) && styles.avatarRingGold,
             ]}>
             <ExpoImage
-              source={{ uri: item.otherUserPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75' }}
+              source={resolveImageSource(item.otherUserPhoto, MODEL_ASSETS.defaultAvatar)}
               style={styles.avatar}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -547,7 +548,7 @@ export default function MatchesScreen() {
                   }}>
                   <View style={[styles.sparkAvatarWrap, hasSparkNote && styles.sparkAvatarWrapWithNote]}>
                     <ExpoImage
-                      source={{ uri: item.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500' }}
+                      source={resolveImageSource(item.photos?.[0], MODEL_ASSETS.defaultAvatar)}
                       style={styles.sparkAvatar}
                       contentFit="cover"
                       blurRadius={isLocked ? 16 : 0}
@@ -984,7 +985,7 @@ export default function MatchesScreen() {
                       <View key={m.id} style={[styles.slotMatchCard, isExp && styles.slotMatchCardExpired]}>
                         <View style={styles.slotMatchCardLeft}>
                           <ExpoImage
-                            source={{ uri: m.otherUserPhoto || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75' }}
+                            source={resolveImageSource(m.otherUserPhoto, MODEL_ASSETS.defaultAvatar)}
                             style={[
                               styles.slotMatchAvatar,
                               { borderColor: getUrgencyRingColor(m) },

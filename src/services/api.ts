@@ -1043,9 +1043,6 @@ export const api = {
                   cleaned.push(p1);
                 }
               }
-              if (cleaned.length === 0) {
-                cleaned.push('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800');
-              }
               return cleaned;
             })(),
             voicePrompt: (c.voicePrompt?.audioUrl && typeof c.voicePrompt.audioUrl === 'string' && c.voicePrompt.audioUrl.trim() !== '')

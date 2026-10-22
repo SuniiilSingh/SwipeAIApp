@@ -14,6 +14,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { CandidateCard } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
 import { normalizeImageUrl } from '@/services/api';
+import { MODEL_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
 
 const { width } = Dimensions.get('window');
 
@@ -89,8 +90,8 @@ export default function MatchCelebrationModal({
 
   if (!visible || !candidate) return null;
 
-  const candidatePhoto = normalizeImageUrl(candidate.photos?.[0] || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500');
-  const currentMyPhoto = normalizeImageUrl(myPhoto || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=500');
+  const candidatePhoto = resolveImageSource(normalizeImageUrl(candidate.photos?.[0]), getModelAsset(candidate.displayName));
+  const currentMyPhoto = resolveImageSource(normalizeImageUrl(myPhoto), MODEL_ASSETS.defaultAvatar);
 
   const handleSendMessage = () => {
     hapticFeedback.medium();
@@ -123,7 +124,7 @@ export default function MatchCelebrationModal({
           <View style={styles.avatarsWrapper}>
             <View style={[styles.avatarBox, styles.avatarLeft]}>
               <ExpoImage
-                source={{ uri: currentMyPhoto }}
+                source={currentMyPhoto}
                 style={styles.avatarImage}
                 contentFit="cover"
               />
@@ -142,7 +143,7 @@ export default function MatchCelebrationModal({
 
             <View style={[styles.avatarBox, styles.avatarRight]}>
               <ExpoImage
-                source={{ uri: candidatePhoto }}
+                source={candidatePhoto}
                 style={styles.avatarImage}
                 contentFit="cover"
               />

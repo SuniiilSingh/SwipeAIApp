@@ -166,8 +166,8 @@ export interface CandidateCard {
   city?: string;
   neighborhood?: string;
   microCircle?: string;
-  photos: string[];
-  photo1?: string;
+  photos: (string | any)[];
+  photo1?: string | any;
   photo2?: string;
   desireMatchPercent?: number;
   desireMatchHighlights?: string[];

@@ -20,6 +20,7 @@ import { MicroCircle, UserAstrology, UserProfile } from '@/types';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 import MicroCommunityModal from '@/components/micro-community-modal';
 import { hapticFeedback } from '@/utils/haptics';
+import { MEME_ASSETS, resolveImageSource } from '@/constants/assets';
 
 const { width } = Dimensions.get('window');
 
@@ -41,31 +42,31 @@ const DAILY_MEMES = [
   {
     id: 'm1',
     title: 'Silk Board Peak Hour vs Saturday 2 AM',
-    url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=700',
+    url: MEME_ASSETS[0],
     tag: 'Bangalore Struggles',
   },
   {
     id: 'm2',
     title: 'Auto Driver saying "Double Meter Lagega"',
-    url: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=700',
+    url: MEME_ASSETS[1],
     tag: 'Auto Logic',
   },
   {
     id: 'm3',
     title: 'Saying "I am leaving now" while still in bed',
-    url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=700',
+    url: MEME_ASSETS[2],
     tag: 'Relatable',
   },
   {
     id: 'm4',
     title: 'Trying to find charging points in Indiranagar cafes',
-    url: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=700',
+    url: MEME_ASSETS[3],
     tag: 'Techie Life',
   },
   {
     id: 'm5',
     title: 'Ordering biryani at midnight after a long week',
-    url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=700',
+    url: MEME_ASSETS[4],
     tag: 'Weekend Vibe',
   },
 ];
@@ -308,7 +309,7 @@ export default function ExploreScreen() {
           {!memeDone ? (
             <View style={styles.memeContainer}>
               <ExpoImage
-                source={{ uri: currentMeme.url }}
+                source={resolveImageSource(currentMeme.url, MEME_ASSETS[0])}
                 style={styles.memeImage}
                 contentFit="cover"
                 cachePolicy="memory-disk"

@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
 import { api, normalizeImageUrl } from '@/services/api';
 import { BlockedUserItem } from '@/types';
+import { MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
 import { hapticFeedback } from '@/utils/haptics';
 
 type FilterTab = 'ALL' | 'BLOCKED' | 'REPORTED';
@@ -202,11 +203,7 @@ export default function BlockedProfilesScreen() {
                   {/* Top Profile Summary */}
                   <View style={styles.cardHeaderRow}>
                     <ExpoImage
-                      source={{
-                        uri:
-                          normalizeImageUrl(item.photoUrl) ||
-                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
-                      }}
+                      source={resolveImageSource(normalizeImageUrl(item.photoUrl), MODEL_ASSETS.defaultAvatar)}
                       style={styles.avatar}
                       contentFit="cover"
                     />

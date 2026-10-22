@@ -18,6 +18,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
+import { MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
 import { api, normalizeImageUrl } from '@/services/api';
 import { CandidateCard, ChatMessage, MatchItem, VirtualChaiSession } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
@@ -1348,11 +1349,10 @@ export default function ChatScreen() {
             activeOpacity={0.8}>
             <View style={styles.headerAvatarWrapper}>
               <ExpoImage
-                source={{
-                  uri:
-                    normalizeImageUrl(matchProfile?.photos?.[0] || matchDetails?.otherUserPhoto) ||
-                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=75',
-                }}
+                source={resolveImageSource(
+                  normalizeImageUrl(matchProfile?.photos?.[0] || matchDetails?.otherUserPhoto),
+                  MODEL_ASSETS.defaultAvatar
+                )}
                 style={styles.headerSmallAvatar}
                 contentFit="cover"
                 cachePolicy="memory-disk"

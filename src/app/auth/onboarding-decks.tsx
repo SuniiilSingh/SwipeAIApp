@@ -48,12 +48,14 @@ const TRIBE_CITIES = [
   'Chennai',
 ];
 
+import { CITY_ASSETS, resolveImageSource } from '@/constants/assets';
+
 interface MetroHub {
   id: string;
   city: string;
   hubs: string;
   vibe: string;
-  photo: string;
+  photo: any;
   lat: number;
   lng: number;
 }
@@ -64,7 +66,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Bengaluru',
     hubs: 'Indiranagar • Koramangala • HSR',
     vibe: '☕ Tech & Rooftops',
-    photo: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.bengaluru,
     lat: 12.9716,
     lng: 77.5946,
   },
@@ -73,7 +75,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Mumbai',
     hubs: 'Bandra West • Lower Parel • Juhu',
     vibe: '🌊 Sunset & Cinema',
-    photo: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.mumbai,
     lat: 19.076,
     lng: 72.8777,
   },
@@ -82,7 +84,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Delhi NCR',
     hubs: 'Hauz Khas • CyberHub • Khan Market',
     vibe: '🍸 Heritage & Nightlife',
-    photo: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.delhi,
     lat: 28.6139,
     lng: 77.209,
   },
@@ -91,7 +93,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Pune',
     hubs: 'Koregaon Park • Baner • Kalyani Nagar',
     vibe: '🌿 Cafes & Indie Music',
-    photo: 'https://images.unsplash.com/photo-1566552881560-0be862a7c445?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.pune,
     lat: 18.5204,
     lng: 73.8567,
   },
@@ -100,7 +102,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Hyderabad',
     hubs: 'Jubilee Hills • Banjara Hills • Gachibowli',
     vibe: '👑 Royal & High-Tech',
-    photo: 'https://images.unsplash.com/photo-1626014303757-6366ef55c4ab?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.hyderabad,
     lat: 17.385,
     lng: 78.4867,
   },
@@ -109,7 +111,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Goa',
     hubs: 'Assagao • Anjuna • Panjim',
     vibe: '🏖️ Slow Life & Creators',
-    photo: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.goa,
     lat: 15.2993,
     lng: 74.124,
   },
@@ -118,7 +120,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Chennai',
     hubs: 'ECR • Besant Nagar • Alwarpet',
     vibe: '🌊 Coast & Culture',
-    photo: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.chennai,
     lat: 13.0827,
     lng: 80.2707,
   },
@@ -127,7 +129,7 @@ const METRO_HUBS: MetroHub[] = [
     city: 'Kolkata',
     hubs: 'Park Street • Salt Lake • Ballygunge',
     vibe: '🎭 Art & Old Charm',
-    photo: 'https://images.unsplash.com/photo-1558431382-27e303142255?w=600&auto=format&fit=crop&q=80',
+    photo: CITY_ASSETS.kolkata,
     lat: 22.5726,
     lng: 88.3639,
   },
@@ -2461,7 +2463,7 @@ export default function OnboardingDecksScreen() {
                               handleSelectPrimaryCity(hub.city, hub.city, hub.lat, hub.lng)
                             }>
                             <Image
-                              source={{ uri: hub.photo }}
+                              source={resolveImageSource(hub.photo, CITY_ASSETS.bengaluru)}
                               style={styles.metroHubImage}
                               contentFit="cover"
                             />

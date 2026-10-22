@@ -24,6 +24,7 @@ import { DateProposalData } from '@/components/date-proposal-bubble';
 import { hapticFeedback } from '@/utils/haptics';
 import { api, normalizeImageUrl } from '@/services/api';
 import { formatHeight } from '@/utils/height';
+import { MODEL_ASSETS, MEME_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
 
 const { width } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.min(Math.round(width * 1.25), 480);
@@ -154,7 +155,7 @@ export default function ProfileDetailModal({
   }
 
   if (photos.length === 0) {
-    photos.push('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800');
+    photos.push(getModelAsset(candidate.displayName) as any);
   }
 
   const interestsList = candidate.interests
@@ -290,7 +291,7 @@ export default function ProfileDetailModal({
               {photos.map((photoUrl, idx) => (
                 <View key={idx} style={styles.photoSlide}>
                   <Image
-                    source={{ uri: photoUrl }}
+                    source={resolveImageSource(photoUrl, getModelAsset(candidate.displayName, idx))}
                     style={styles.carouselImg}
                     contentFit="cover"
                     contentPosition="top center"
@@ -711,7 +712,7 @@ export default function ProfileDetailModal({
                 </Text>
               </View>
               <Image
-                source={{ uri: candidate.selectedMemeUrl || candidate.memeMatch?.memeImageUrl }}
+                source={resolveImageSource(candidate.selectedMemeUrl || candidate.memeMatch?.memeImageUrl, MEME_ASSETS[0])}
                 style={styles.memePhoto}
                 contentFit="contain"
                 transition={200}

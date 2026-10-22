@@ -13,6 +13,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { hapticFeedback } from '@/utils/haptics';
 import { CandidateCard, UserProfile } from '@/types';
 import { normalizeImageUrl } from '@/services/api';
+import { MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
 
 const { width } = Dimensions.get('window');
 const RADAR_SIZE = Math.min(width * 0.74, 290);
@@ -54,7 +55,7 @@ export const getSeekingGender = (profile?: UserProfile | null): 'FEMALE' | 'MALE
   return 'ANY';
 };
 
-// 100% Verified Female Fallback Pool (Used ONLY when offline / zero network and seeking women)
+// 100% Verified Female Fallback Pool (Kept inside UI build for zero-network/offline resilience)
 const FEMALE_FALLBACK_AVATARS = [
   {
     id: 'f_1',
@@ -63,7 +64,7 @@ const FEMALE_FALLBACK_AVATARS = [
     vibe: 'Architect ☕ Indiranagar',
     bio: 'Looking for someone who argues about playlists over late craft beers...',
     color: '#FF2E63',
-    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    photo: MODEL_ASSETS.tara,
     top: 22,
     right: 24,
   },
@@ -74,24 +75,24 @@ const FEMALE_FALLBACK_AVATARS = [
     vibe: 'Designer 🎨 Koramangala',
     bio: 'Third-wave coffee, film cameras and sunset drives.',
     color: '#00F0FF',
-    photo: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300&auto=format&fit=crop&q=80',
+    photo: MODEL_ASSETS.ananya,
     bottom: 26,
     left: 18,
   },
   {
     id: 'f_3',
-    name: 'Tara, 25',
+    name: 'Meera, 25',
     distance: '1.6km away',
     vibe: 'Books & Monsoon Chai 📚 HSR',
     bio: 'Reads physical books and orders dessert for the table.',
     color: '#FFB300',
-    photo: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300&auto=format&fit=crop&q=80',
+    photo: MODEL_ASSETS.meera,
     top: 80,
     left: 8,
   },
 ];
 
-// 100% Verified Male Fallback Pool (Used ONLY when offline / zero network and seeking men)
+// 100% Verified Male Fallback Pool (Kept inside UI build for zero-network/offline resilience)
 const MALE_FALLBACK_AVATARS = [
   {
     id: 'm_1',
@@ -100,7 +101,7 @@ const MALE_FALLBACK_AVATARS = [
     vibe: 'Tech Founder 🚀 Indiranagar',
     bio: 'Building early-stage AI, running Cubbon Park on Sundays.',
     color: '#00F0FF',
-    photo: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&auto=format&fit=crop&q=80',
+    photo: MODEL_ASSETS.kabir,
     top: 22,
     right: 24,
   },
@@ -111,7 +112,7 @@ const MALE_FALLBACK_AVATARS = [
     vibe: 'Musician 🎸 Koramangala',
     bio: 'Vinyl records, retro synths and late night food hunts.',
     color: '#FF2E63',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    photo: MODEL_ASSETS.rohan,
     bottom: 26,
     left: 18,
   },
@@ -122,7 +123,7 @@ const MALE_FALLBACK_AVATARS = [
     vibe: 'Consultant 💼 Whitefield',
     bio: 'Coffee snob, weekend trekker and sourdough baker.',
     color: '#FFB300',
-    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
+    photo: MODEL_ASSETS.aryan,
     top: 80,
     left: 8,
   },
@@ -159,7 +160,7 @@ export default function DopamineCuriosityLoop({
       const urls = candidates
         .slice(0, 6)
         .flatMap((c) => (c.photos && c.photos.length > 0 ? c.photos.slice(0, 2) : []))
-        .filter(Boolean);
+        .filter((u): u is string => typeof u === 'string' && (u.startsWith('http') || u.startsWith('file')));
       if (urls.length > 0) {
         ExpoImage.prefetch(urls).catch(() => {});
       }
@@ -556,7 +557,7 @@ export default function DopamineCuriosityLoop({
                       },
                     ]}>
                     <ExpoImage
-                      source={{ uri: avatar.photo }}
+                      source={resolveImageSource(avatar.photo, seekingGender === 'MALE' ? MODEL_ASSETS.kabir : MODEL_ASSETS.tara)}
                       style={styles.avatarImage}
                       contentFit="cover"
                       cachePolicy="memory-disk"

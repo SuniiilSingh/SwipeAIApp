@@ -25,6 +25,7 @@ import { hapticFeedback } from '@/utils/haptics';
 import { api, normalizeImageUrl } from '@/services/api';
 import { formatHeight } from '@/utils/height';
 import { MODEL_ASSETS, MEME_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
+import { useThemedStyles } from '@/context/theme-context';
 
 const { width } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.min(Math.round(width * 1.25), 480);
@@ -93,6 +94,7 @@ export default function ProfileDetailModal({
   scheduledDate,
 }: ProfileDetailModalProps) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(baseStyles);
   const bottomInset = Math.max(insets.bottom, 16);
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -1129,7 +1131,7 @@ export default function ProfileDetailModal({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

@@ -1916,7 +1916,7 @@ export default function OnboardingDecksScreen() {
       <View style={[styles.topHud, isCompactPhone && { paddingHorizontal: 12, paddingVertical: 6 }]}>
         <View style={styles.hudRowTop}>
           <View style={styles.brandRow}>
-            <BlunderRWordmark size="sm" />
+            <BlunderRWordmark size="sm" lightMode={false} />
           </View>
 
           <View style={styles.magnetismPill}>

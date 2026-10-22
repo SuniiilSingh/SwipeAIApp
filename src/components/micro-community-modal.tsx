@@ -14,6 +14,7 @@ import {
 import { api } from '@/services/api';
 import { MicroCircle } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
+import { useThemedStyles } from '@/context/theme-context';
 
 const { width } = Dimensions.get('window');
 
@@ -52,6 +53,7 @@ export default function MicroCommunityModal({
   subtitle = 'Find matches in your neighborhood tribe & lifestyle subculture',
   initialCity,
 }: MicroCommunityModalProps) {
+  const styles = useThemedStyles(baseStyles);
   const [selectedCity, setSelectedCity] = useState<string>('All Cities');
   const [searchQuery, setSearchQuery] = useState('');
   const [communities, setCommunities] = useState<MicroCircle[]>([]);
@@ -275,7 +277,7 @@ export default function MicroCommunityModal({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0E0F13',

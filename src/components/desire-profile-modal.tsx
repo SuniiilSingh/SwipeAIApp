@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
 import { DesireProfile } from '@/types';
+import { useThemedStyles } from '@/context/theme-context';
 
 const { width } = Dimensions.get('window');
 
@@ -109,6 +110,7 @@ const PROFESSION_PRESETS = [
 ];
 
 export default function DesireProfileModal({ visible, onClose, onSaved }: DesireProfileModalProps) {
+  const styles = useThemedStyles(baseStyles);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'foundations' | 'vibe' | 'chemistry' | 'greenFlags'>('foundations');
@@ -710,7 +712,7 @@ export default function DesireProfileModal({ visible, onClose, onSaved }: Desire
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   modalSafe: {
     flex: 1,
     backgroundColor: '#08080E',

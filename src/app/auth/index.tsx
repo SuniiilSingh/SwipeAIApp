@@ -1135,7 +1135,7 @@ export default function AuthScreen() {
           {step > 1 && (
             <View style={styles.headerStepAbove}>
               <View style={styles.brandLogoRow}>
-                <BlunderRWordmark size="sm" slant={true} />
+                <BlunderRWordmark size="sm" slant={true} lightMode={false} />
               </View>
               <View style={styles.stepIndicatorPill}>
                 <Text style={styles.stepIndicatorText}>Step {step} of 4</Text>
@@ -1153,7 +1153,7 @@ export default function AuthScreen() {
                   <View style={styles.brandLogoIconGlow}>
                     <Text style={styles.brandLogoIconText}>🔥</Text>
                   </View>
-                  <BlunderRWordmark size="md" slant={true} />
+                  <BlunderRWordmark size="md" slant={true} lightMode={false} />
                 </View>
                 <View style={styles.optAOnlinePill}>
                   <View style={styles.optALiveDot} />

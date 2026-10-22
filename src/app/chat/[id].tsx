@@ -52,10 +52,11 @@ import DateProposalBubble, { parseDateProposal, DateProposalData } from '@/compo
 import ScheduledDateCardModal from '@/components/scheduled-date-card-modal';
 import PostponeDateModal, { PostponeDatePayload } from '@/components/postpone-date-modal';
 import CancelDateModal from '@/components/cancel-date-modal';
-import { useThemedStyles } from '@/context/theme-context';
+import { useAppTheme, useThemedStyles } from '@/context/theme-context';
 
 export default function ChatScreen() {
   const router = useRouter();
+  const { colors } = useAppTheme();
   const styles = useThemedStyles(baseStyles);
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
@@ -1586,10 +1587,10 @@ export default function ChatScreen() {
             ) : (
               <View style={[styles.center, { paddingVertical: 40 }]}>
                 <Text style={{ fontSize: 32, marginBottom: 8 }}>💬</Text>
-                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '700' }}>
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700' }}>
                   No messages yet
                 </Text>
-                <Text style={{ color: '#8E94A5', fontSize: 13, marginTop: 4, textAlign: 'center' }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4, textAlign: 'center' }}>
                   Break the ice! Send a hello or tap a spark below.
                 </Text>
               </View>

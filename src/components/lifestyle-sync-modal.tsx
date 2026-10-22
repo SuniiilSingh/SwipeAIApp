@@ -12,6 +12,7 @@ import {
 import { hapticFeedback } from '@/utils/haptics';
 import { LIVING_OPTIONS, SMOKING_OPTIONS, DRINKING_OPTIONS, VACATION_OPTIONS } from '@/constants/profile-presets';
 import { LivingStatus, UserProfile } from '@/types';
+import { useThemedStyles } from '@/context/theme-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -33,6 +34,7 @@ export const LifestyleSyncModal: React.FC<LifestyleSyncModalProps> = ({
   userProfile,
   onSave,
 }) => {
+  const styles = useThemedStyles(baseStyles);
   const [selectedLiving, setSelectedLiving] = useState<LivingStatus | undefined>(userProfile?.livingStatus);
   const [selectedDrinking, setSelectedDrinking] = useState<string>(userProfile?.drinkingHabit || '');
   const [selectedSmoking, setSelectedSmoking] = useState<string>(userProfile?.smokingHabit || '');
@@ -252,7 +254,7 @@ export const LifestyleSyncModal: React.FC<LifestyleSyncModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',

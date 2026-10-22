@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { useAppTheme } from '@/context/theme-context';
 
 export interface BlunderRWordmarkProps {
   size?: 'sm' | 'md' | 'lg' | number;
@@ -15,6 +16,7 @@ export interface BlunderRWordmarkProps {
 /**
  * BlunderR Official Brand Wordmark (The Flipped R Luxury Direction ⚡)
  * Features tight, bold Swiss/grotesk typography with 'BLUNDER' in pristine cream (#FAF7F2)
+ * in Dark Mode or deep espresso charcoal (#14151A) in Warm Ivory Light Mode,
  * and the iconic signature mirrored 'R' in Electric Coral (#FF385C).
  */
 export const BlunderRWordmark: React.FC<BlunderRWordmarkProps> = ({
@@ -25,8 +27,11 @@ export const BlunderRWordmark: React.FC<BlunderRWordmarkProps> = ({
   rStyle,
   showCommunityPill = false,
   communityName,
-  lightMode = false,
+  lightMode,
 }) => {
+  const { isDark } = useAppTheme();
+  const isLightModeActive = lightMode !== undefined ? lightMode : !isDark;
+
   const getFontSizes = () => {
     if (typeof size === 'number') {
       return { root: size, accent: size, pill: Math.max(9, Math.round(size * 0.45)) };
@@ -43,7 +48,7 @@ export const BlunderRWordmark: React.FC<BlunderRWordmarkProps> = ({
   };
 
   const { root: rootSize, accent: accentSize, pill: pillSize } = getFontSizes();
-  const baseColor = lightMode ? '#08080C' : '#FAF7F2';
+  const baseColor = isLightModeActive ? '#14151A' : '#FAF7F2';
 
   return (
     <View style={[styles.container, style]}>

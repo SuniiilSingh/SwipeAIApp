@@ -52,6 +52,7 @@ import DateProposalBubble, { parseDateProposal, DateProposalData } from '@/compo
 import ScheduledDateCardModal from '@/components/scheduled-date-card-modal';
 import PostponeDateModal, { PostponeDatePayload } from '@/components/postpone-date-modal';
 import CancelDateModal from '@/components/cancel-date-modal';
+import SafeDateDisclaimerModal from '@/components/safedate-disclaimer-modal';
 import { useAppTheme, useThemedStyles } from '@/context/theme-context';
 
 export default function ChatScreen() {
@@ -96,6 +97,14 @@ export default function ChatScreen() {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [activeProposalForReschedule, setActiveProposalForReschedule] = useState<DateProposalData | null>(null);
   const [isSendingProposal, setIsSendingProposal] = useState(false);
+  const [pendingSafetyAction, setPendingSafetyAction] = useState<{
+    type: 'PROPOSE' | 'ACCEPT' | 'POSTPONE' | 'RESCHEDULE';
+    payload?: any;
+    data?: DateProposalData;
+    venueName?: string;
+    dateTimeText?: string;
+    isCounter?: boolean;
+  } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [mutualSparks, setMutualSparks] = useState<string[]>([]);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
@@ -579,7 +588,7 @@ export default function ChatScreen() {
     { key: 'OTHER', emoji: '💬', label: 'Other personal reason' },
   ];
 
-  const handleSendProposal = async (payload: DateProposalPayload) => {
+  const executeSendProposal = async (payload: DateProposalPayload) => {
     setIsSendingProposal(true);
     try {
       const proposalData: DateProposalData = {
@@ -605,7 +614,18 @@ export default function ChatScreen() {
     }
   };
 
-  const handleAcceptProposal = async (data: DateProposalData) => {
+  const handleSendProposal = async (payload: DateProposalPayload) => {
+    // Intercept with SafeDate Safety Advisory Modal (Option C)
+    setShowDatePlanModal(false);
+    setPendingSafetyAction({
+      type: 'PROPOSE',
+      payload,
+      venueName: payload.venue,
+      dateTimeText: `${payload.date} at ${payload.time}`,
+    });
+  };
+
+  const executeAcceptProposal = async (data: DateProposalData) => {
     if (!matchId) return;
     try {
       hapticFeedback.success();
@@ -631,9 +651,38 @@ export default function ChatScreen() {
     }
   };
 
+  const handleAcceptProposal = async (data: DateProposalData) => {
+    // Intercept with SafeDate Safety Advisory Modal (Option C)
+    setPendingSafetyAction({
+      type: 'ACCEPT',
+      data,
+      isCounter: false,
+      venueName: data.venue,
+      dateTimeText: `${data.date} at ${data.time}`,
+    });
+  };
+
   const handleOpenReschedule = (data: DateProposalData) => {
     setActiveProposalForReschedule(data);
     setShowRescheduleModal(true);
+  };
+
+  const executeSubmitReschedule = async (payload: CounterProposalPayload) => {
+    if (!matchId) return;
+    const rescheduleData: DateProposalData = {
+      date: activeProposalForReschedule?.date || '',
+      time: activeProposalForReschedule?.time || '',
+      venue: activeProposalForReschedule?.venue || '',
+      status: 'RESCHEDULED',
+      reason: payload.reason,
+      newDate: payload.newDate,
+      newTime: payload.newTime,
+      newVenue: payload.newVenue,
+      note: payload.note,
+    };
+    const rescheduleText = `[BLUNDERR_DATE_RESCHEDULE]${JSON.stringify(rescheduleData)}`;
+    await handleSendMessage(rescheduleText);
+    Alert.alert('Alternate Plan Sent ➔', `Suggested ${payload.newDate} at ${payload.newTime} to ${matchProfile?.displayName || candidateName || 'your match'}!`);
   };
 
   const handleSubmitReschedule = async (payload: CounterProposalPayload) => {
@@ -651,25 +700,19 @@ export default function ChatScreen() {
       const declineText = `[BLUNDERR_DATE_DECLINED]${JSON.stringify(declineData)}`;
       await handleSendMessage(declineText);
       Alert.alert('Date Declined', 'Polite decline message sent. You can continue chatting anytime.');
-    } else {
-      const rescheduleData: DateProposalData = {
-        date: activeProposalForReschedule?.date || '',
-        time: activeProposalForReschedule?.time || '',
-        venue: activeProposalForReschedule?.venue || '',
-        status: 'RESCHEDULED',
-        reason: payload.reason,
-        newDate: payload.newDate,
-        newTime: payload.newTime,
-        newVenue: payload.newVenue,
-        note: payload.note,
-      };
-      const rescheduleText = `[BLUNDERR_DATE_RESCHEDULE]${JSON.stringify(rescheduleData)}`;
-      await handleSendMessage(rescheduleText);
-      Alert.alert('Alternate Plan Sent ➔', `Suggested ${payload.newDate} at ${payload.newTime} to ${matchProfile?.displayName || candidateName || 'your match'}!`);
+      return;
     }
+
+    // Intercept counter-proposal with SafeDate Safety Advisory Modal (Option C)
+    setPendingSafetyAction({
+      type: 'RESCHEDULE',
+      payload,
+      venueName: payload.newVenue || activeProposalForReschedule?.venue || 'SafeDate Hub',
+      dateTimeText: `${payload.newDate} at ${payload.newTime}`,
+    });
   };
 
-  const handleAcceptCounterOffer = async (data: DateProposalData) => {
+  const executeAcceptCounterOffer = async (data: DateProposalData) => {
     if (!matchId) return;
     try {
       hapticFeedback.success();
@@ -698,6 +741,20 @@ export default function ChatScreen() {
     }
   };
 
+  const handleAcceptCounterOffer = async (data: DateProposalData) => {
+    // Intercept with SafeDate Safety Advisory Modal (Option C)
+    const finalDate = data.newDate || data.date;
+    const finalTime = data.newTime || data.time;
+    const finalVenue = data.newVenue || data.venue;
+    setPendingSafetyAction({
+      type: 'ACCEPT',
+      data,
+      isCounter: true,
+      venueName: finalVenue,
+      dateTimeText: `${finalDate} at ${finalTime}`,
+    });
+  };
+
   const handleOpenPostponeModal = () => {
     setShowScheduledDateModal(false);
     setShowPostponeModal(true);
@@ -708,7 +765,7 @@ export default function ChatScreen() {
     setShowCancelModal(true);
   };
 
-  const handleSubmitPostpone = async (payload: PostponeDatePayload) => {
+  const executeSubmitPostpone = async (payload: PostponeDatePayload) => {
     if (!matchId) return;
     setIsPostponingDate(true);
     try {
@@ -738,6 +795,59 @@ export default function ChatScreen() {
       Alert.alert('Error', 'Unable to send reschedule request. Please try again.');
     } finally {
       setIsPostponingDate(false);
+    }
+  };
+
+  const handleSubmitPostpone = async (payload: PostponeDatePayload) => {
+    // Intercept with SafeDate Safety Advisory Modal (Option C)
+    setShowPostponeModal(false);
+    const currentConfirmed = confirmedProposalData;
+    setPendingSafetyAction({
+      type: 'POSTPONE',
+      payload,
+      venueName: currentConfirmed?.venue || matchDetails?.dateVenue || 'SafeDate Hub',
+      dateTimeText: `${payload.newDate} at ${payload.newTime}`,
+    });
+  };
+
+  // 🛡️ SafeDate Safety Disclaimer Confirm & Cancel Handlers (Option C)
+  const handleConfirmSafetyDisclaimer = async () => {
+    if (!pendingSafetyAction) return;
+    const action = pendingSafetyAction;
+    setPendingSafetyAction(null);
+
+    switch (action.type) {
+      case 'PROPOSE':
+        if (action.payload) await executeSendProposal(action.payload);
+        break;
+      case 'ACCEPT':
+        if (action.isCounter && action.data) {
+          await executeAcceptCounterOffer(action.data);
+        } else if (action.data) {
+          await executeAcceptProposal(action.data);
+        }
+        break;
+      case 'POSTPONE':
+        if (action.payload) await executeSubmitPostpone(action.payload);
+        break;
+      case 'RESCHEDULE':
+        if (action.payload) await executeSubmitReschedule(action.payload);
+        break;
+    }
+  };
+
+  const handleCancelSafetyDisclaimer = () => {
+    if (!pendingSafetyAction) return;
+    const action = pendingSafetyAction;
+    setPendingSafetyAction(null);
+
+    // Reopen previous modal if user cancels disclaimer
+    if (action.type === 'PROPOSE') {
+      setShowDatePlanModal(true);
+    } else if (action.type === 'POSTPONE') {
+      setShowPostponeModal(true);
+    } else if (action.type === 'RESCHEDULE') {
+      setShowRescheduleModal(true);
     }
   };
 
@@ -2130,6 +2240,17 @@ export default function ChatScreen() {
         visible={showLivenessRetakeModal}
         onClose={() => setShowLivenessRetakeModal(false)}
         referrer="Chat Lounge"
+      />
+
+      {/* SafeDate Venue & Safety Advisory Popover Modal (Option C) */}
+      <SafeDateDisclaimerModal
+        visible={!!pendingSafetyAction}
+        onClose={handleCancelSafetyDisclaimer}
+        onConfirm={handleConfirmSafetyDisclaimer}
+        actionType={pendingSafetyAction?.type || 'PROPOSE'}
+        venueName={pendingSafetyAction?.venueName}
+        dateTimeText={pendingSafetyAction?.dateTimeText}
+        partnerName={matchProfile?.displayName || candidateName || 'your match'}
       />
 
       {/* Live Flower Bokeh & Rose Petal Shower Overlay */}

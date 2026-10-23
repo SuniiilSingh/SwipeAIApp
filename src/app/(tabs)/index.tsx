@@ -238,6 +238,9 @@ export default function DiscoveryScreen() {
     height: Math.max(450, height - 160),
   });
 
+  // Reference to main candidate cards FlatList (enables resetting to 1st profile upon returning to tab)
+  const feedFlatListRef = useRef<FlatList<any>>(null);
+
   // Selected Candidate for Full Profile Inspection Sheet
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateCard | null>(null);
   const [showFullProfileModal, setShowFullProfileModal] = useState(false);
@@ -308,12 +311,28 @@ export default function DiscoveryScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // 🚀 Reset discovery feed scroll position back to the beginning (1st profile)
+      // whenever user returns to Discovery tab from Matches, Profile, etc.
+      try {
+        feedFlatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      } catch (_) {}
+
+      const resetTimer = setTimeout(() => {
+        try {
+          feedFlatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        } catch (_) {}
+      }, 60);
+
       loadFeed();
       api.getSparkNoteQuota().then(setSparkNoteQuota).catch(() => {});
       api.getUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => {});
       getEngagementStatus()
         .then((status) => setIsEngagementEligible(status.isEligibleForPrompt))
         .catch(() => {});
+
+      return () => {
+        clearTimeout(resetTimer);
+      };
     }, [])
   );
 
@@ -394,6 +413,9 @@ export default function DiscoveryScreen() {
         : FALLBACK_DISCOVERY_CANDIDATES;
 
       setCandidates(list);
+      try {
+        feedFlatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      } catch (_) {}
       setRemainingSwipes(myProfile.hasActivePass ? 999 : (feed?.remainingDailySwipes ?? 25));
 
       // Immediately prefetch top candidate hero images while radar is still sweeping
@@ -1540,6 +1562,7 @@ function SwipeableCandidateCard({
           }
         }}>
         <FlatList
+          ref={feedFlatListRef}
           data={feedDisplayCards}
           keyExtractor={(item) => item.userId}
           renderItem={renderCandidateCard}

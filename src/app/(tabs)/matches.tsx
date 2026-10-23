@@ -476,7 +476,7 @@ export default function MatchesScreen() {
                       ? styles.timerTextPending
                       : styles.timerTextNormal,
                   ]}>
-                  ⏳ {item.status === 'EXPIRED' || item.remainingHours === 0 ? 'Expired' : `${item.remainingHours}h left`}
+                  ⏳ {item.status === 'EXPIRED' || item.remainingHours === 0 ? 'Expired • Action Needed' : `${item.remainingHours}h left`}
                 </Text>
               </View>
             )}
@@ -487,6 +487,10 @@ export default function MatchesScreen() {
               <Text style={styles.quizPrompt}>⚡ 10s Rapid-Fire Quiz Required</Text>
               <Text style={styles.quizSub}>Answer 1 quick question to unlock chat lounge</Text>
             </View>
+          ) : (item.status === 'EXPIRED' || item.remainingHours === 0) && !isDatePlannedMatch(item) ? (
+            <Text style={[styles.lastMessage, styles.lastMessageExpired]} numberOfLines={1}>
+              ⚡ Tap to Propose Date, Revive +24h, or Farewell ➔
+            </Text>
           ) : (
             <Text style={styles.lastMessage} numberOfLines={1}>
               {formatLastMessagePreview(item.lastMessage)}
@@ -1338,6 +1342,11 @@ const baseStyles = StyleSheet.create({
     color: '#8E94A5',
     fontSize: 13,
     marginTop: 4,
+  },
+  lastMessageExpired: {
+    color: '#F87171',
+    fontWeight: '700',
+    fontSize: 12,
   },
   chevronBox: {
     marginLeft: 8,

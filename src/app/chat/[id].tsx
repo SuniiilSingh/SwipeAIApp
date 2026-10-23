@@ -53,6 +53,7 @@ import ScheduledDateCardModal from '@/components/scheduled-date-card-modal';
 import PostponeDateModal, { PostponeDatePayload } from '@/components/postpone-date-modal';
 import CancelDateModal from '@/components/cancel-date-modal';
 import SafeDateDisclaimerModal from '@/components/safedate-disclaimer-modal';
+import PoliteFarewellModal from '@/components/polite-farewell-modal';
 import { useAppTheme, useThemedStyles } from '@/context/theme-context';
 
 export default function ChatScreen() {
@@ -97,6 +98,9 @@ export default function ChatScreen() {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [activeProposalForReschedule, setActiveProposalForReschedule] = useState<DateProposalData | null>(null);
   const [isSendingProposal, setIsSendingProposal] = useState(false);
+  const [isRevivingMatch, setIsRevivingMatch] = useState(false);
+  const [isFarewellingMatch, setIsFarewellingMatch] = useState(false);
+  const [showFarewellModal, setShowFarewellModal] = useState(false);
   const [pendingSafetyAction, setPendingSafetyAction] = useState<{
     type: 'PROPOSE' | 'ACCEPT' | 'POSTPONE' | 'RESCHEDULE';
     payload?: any;
@@ -885,6 +889,65 @@ export default function ChatScreen() {
     }
   };
 
+  const handleReviveMatch = async () => {
+    if (!matchId) return;
+    setIsRevivingMatch(true);
+    try {
+      hapticFeedback.success();
+      const updatedMatch = await api.reviveMatch(matchId);
+      if (updatedMatch) {
+        setMatchDetails((prev) => (prev ? {
+          ...prev,
+          status: 'ACTIVE_CHAT',
+          remainingHours: 24,
+          expiresAt: updatedMatch.expiresAt,
+        } : prev));
+      } else {
+        setMatchDetails((prev) => (prev ? {
+          ...prev,
+          status: 'ACTIVE_CHAT',
+          remainingHours: 24,
+        } : prev));
+      }
+      setShowFlowerShower(true);
+      Alert.alert(
+        '✨ Match Revived!',
+        `+24 hours added to your chat with ${matchProfile?.displayName || candidateName || 'your match'}. Chat lounge is unlocked!`
+      );
+    } catch (e) {
+      console.warn('Revive match error:', e);
+      Alert.alert('Error', 'Unable to revive match. Please try again.');
+    } finally {
+      setIsRevivingMatch(false);
+    }
+  };
+
+  const handleConfirmFarewell = async (farewellNote: string) => {
+    if (!matchId) return;
+    setIsFarewellingMatch(true);
+    try {
+      hapticFeedback.warning();
+      await handleSendMessage(`[BLUNDERR_FAREWELL] ${farewellNote}`);
+      await api.farewellMatch(matchId, farewellNote);
+      setShowFarewellModal(false);
+      Alert.alert(
+        '🕊️ Respectful Farewell Sent',
+        'Your conversation has been closed with respect. Your active slot has been freed under the Rule of 5!',
+        [
+          {
+            text: 'Return to Matches',
+            onPress: () => router.replace('/(tabs)/matches'),
+          },
+        ]
+      );
+    } catch (e) {
+      console.warn('Farewell error:', e);
+      Alert.alert('Error', 'Unable to complete graceful exit. Please try again.');
+    } finally {
+      setIsFarewellingMatch(false);
+    }
+  };
+
   const handleConfirmDatePlan = async () => {
     if (!matchId) return;
     setActionLoading(true);
@@ -1310,6 +1373,11 @@ export default function ChatScreen() {
 
   const isDateConfirmed = Boolean(confirmedProposalData && matchDetails?.status !== 'UNMATCHED');
 
+  const isMatchExpired = Boolean(
+    !isDateConfirmed &&
+    (matchDetails?.status === 'EXPIRED' || (remainingHours !== null && remainingHours <= 0))
+  );
+
   const hasAnyProposalSentOrConfirmed = useMemo(() => {
     if (isDateConfirmed || matchDetails?.status === 'DATE_PLANNED') return true;
     return messages.some((m) => {
@@ -1574,13 +1642,21 @@ export default function ChatScreen() {
               <Text style={styles.datePlannedDetailsText}>View Card</Text>
             </TouchableOpacity>
           </View>
+        ) : isMatchExpired ? (
+          <View style={[styles.expiryBanner, styles.expiryUrgent]}>
+            <Text style={styles.expiryIcon}>⏳</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.expiryUrgentTitle}>Match Countdown Expired (0h left)</Text>
+              <Text style={styles.expiryUrgentSub}>
+                Casual texting is paused. Propose a real date, revive +24h, or send a polite farewell below.
+              </Text>
+            </View>
+          </View>
         ) : remainingHours !== null && remainingHours < 24 ? (
           <View style={[styles.expiryBanner, remainingHours < 12 ? styles.expiryUrgent : styles.expiryWarning]}>
             <Text style={styles.expiryIcon}>⏳</Text>
             <Text style={styles.expiryText}>
-              {remainingHours === 0
-                ? 'Match window expired • Send a message or Virtual Chai to rekindle!'
-                : `${remainingHours}h left before match expires • Keep the chemistry alive!`}
+              {`${remainingHours}h left before match expires • Keep the chemistry alive!`}
             </Text>
           </View>
         ) : null}
@@ -1743,7 +1819,69 @@ export default function ChatScreen() {
         )}
 
         {/* Bottom Message & Voice Note Input Bar */}
-        {FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry ? (
+        {isMatchExpired ? (
+          <View
+            style={[
+              styles.expiredLoungeBar,
+              { paddingBottom: Math.max(insets.bottom, 12) },
+            ]}>
+            <View style={styles.expiredBadgeRow}>
+              <View style={styles.expiredBadge}>
+                <Text style={styles.expiredBadgeIcon}>⏳</Text>
+                <Text style={styles.expiredBadgeText}>COUNTDOWN EXPIRED • ZERO PENPALS</Text>
+              </View>
+            </View>
+            <Text style={styles.expiredLoungeTitle}>
+              Ready for a real date or moving forward?
+            </Text>
+            <Text style={styles.expiredLoungeSub}>
+              Messaging is paused to eliminate endless texting. Choose your next move:
+            </Text>
+
+            <View style={styles.expiredActionGrid}>
+              <TouchableOpacity
+                style={styles.expiredDateBtn}
+                onPress={() => {
+                  hapticFeedback.medium();
+                  setShowDatePlanModal(true);
+                }}
+                activeOpacity={0.85}>
+                <Text style={styles.expiredDateBtnIcon}>⚡</Text>
+                <Text style={styles.expiredDateBtnText}>Propose Date</Text>
+                <Text style={styles.expiredDateBtnSub}>Bypass & free slot</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.expiredReviveBtn}
+                onPress={handleReviveMatch}
+                disabled={isRevivingMatch}
+                activeOpacity={0.85}>
+                {isRevivingMatch ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Text style={styles.expiredReviveBtnIcon}>⏳</Text>
+                    <Text style={styles.expiredReviveBtnText}>Revive +24h</Text>
+                    <Text style={styles.expiredReviveBtnSub}>Extend window</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.expiredFarewellBtn}
+                onPress={() => {
+                  hapticFeedback.light();
+                  setShowFarewellModal(true);
+                }}
+                disabled={isFarewellingMatch}
+                activeOpacity={0.85}>
+                <Text style={styles.expiredFarewellBtnIcon}>🕊️</Text>
+                <Text style={styles.expiredFarewellBtnText}>Farewell</Text>
+                <Text style={styles.expiredFarewellBtnSub}>Clean exit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : FEATURE_FLAGS.ENABLE_ASYNC_LIVENESS_RECOVERY && needsLivenessRetry ? (
           <TouchableOpacity
             style={[
               styles.chatLivenessLockedBar,
@@ -2251,6 +2389,15 @@ export default function ChatScreen() {
         venueName={pendingSafetyAction?.venueName}
         dateTimeText={pendingSafetyAction?.dateTimeText}
         partnerName={matchProfile?.displayName || candidateName || 'your match'}
+      />
+
+      {/* Polite Farewell & Clean Exit Modal */}
+      <PoliteFarewellModal
+        visible={showFarewellModal}
+        onClose={() => setShowFarewellModal(false)}
+        onConfirm={handleConfirmFarewell}
+        partnerName={matchProfile?.displayName || candidateName || 'your match'}
+        isSubmitting={isFarewellingMatch}
       />
 
       {/* Live Flower Bokeh & Rose Petal Shower Overlay */}
@@ -3381,5 +3528,138 @@ const baseStyles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  expiryUrgentTitle: {
+    color: '#F87171',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  expiryUrgentSub: {
+    color: '#FECACA',
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 2,
+  },
+  expiredLoungeBar: {
+    backgroundColor: '#11131A',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(239, 68, 68, 0.35)',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  expiredBadgeRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  expiredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    borderRadius: 100,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    gap: 4,
+  },
+  expiredBadgeIcon: {
+    fontSize: 10,
+  },
+  expiredBadgeText: {
+    color: '#FCA5A5',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  expiredLoungeTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  expiredLoungeSub: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 10,
+  },
+  expiredActionGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  expiredDateBtn: {
+    flex: 1.2,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expiredDateBtnIcon: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  expiredDateBtnText: {
+    color: '#FBBF24',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  expiredDateBtnSub: {
+    color: '#FDE68A',
+    fontSize: 9,
+    marginTop: 1,
+  },
+  expiredReviveBtn: {
+    flex: 1.1,
+    backgroundColor: 'rgba(255, 56, 92, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#FF385C',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expiredReviveBtnIcon: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  expiredReviveBtnText: {
+    color: '#FF6B8B',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  expiredReviveBtnSub: {
+    color: '#FECDD3',
+    fontSize: 9,
+    marginTop: 1,
+  },
+  expiredFarewellBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expiredFarewellBtnIcon: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  expiredFarewellBtnText: {
+    color: '#D1D5DB',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  expiredFarewellBtnSub: {
+    color: '#9CA3AF',
+    fontSize: 9,
+    marginTop: 1,
   },
 });

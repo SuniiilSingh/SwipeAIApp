@@ -1366,6 +1366,35 @@ export const api = {
     }
   },
 
+  reviveMatch: async (matchId: string): Promise<MatchItem | null> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/revive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('reviveMatch error:', e);
+    }
+    return null;
+  },
+
+  farewellMatch: async (matchId: string, note?: string): Promise<boolean> => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/farewell`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ note: note || 'Polite farewell' }),
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('farewellMatch error:', e);
+      return false;
+    }
+  },
+
   reportUser: async (matchId: string, reason: string, remarks?: string): Promise<boolean> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/matches/${matchId}/report`, {

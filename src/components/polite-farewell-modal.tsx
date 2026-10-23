@@ -173,6 +173,7 @@ const baseStyles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     maxHeight: '90%',
+    flexShrink: 1,
     backgroundColor: '#12141C',
     borderRadius: 24,
     borderWidth: 1,
@@ -221,8 +222,9 @@ const baseStyles = StyleSheet.create({
     fontWeight: '700',
   },
   scrollArea: {
-    maxHeight: 320,
-    marginBottom: 16,
+    maxHeight: 340,
+    flexShrink: 1,
+    marginBottom: 12,
   },
   sectionLabel: {
     color: '#6B7280',
@@ -313,6 +315,7 @@ const baseStyles = StyleSheet.create({
   },
   actionFooter: {
     gap: 8,
+    flexShrink: 0,
   },
   confirmBtn: {
     backgroundColor: '#374151',

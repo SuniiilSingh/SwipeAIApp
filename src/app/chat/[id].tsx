@@ -18,7 +18,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
-import { MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
+import { MODEL_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
 import { api, normalizeImageUrl } from '@/services/api';
 import { CandidateCard, ChatMessage, MatchItem, VirtualChaiSession } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
@@ -1511,7 +1511,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         {/* Dynamic User Watermark Overlay (Anti-Screenshot Protection) */}
         <View style={styles.watermarkCanvas}>
@@ -1532,7 +1532,7 @@ export default function ChatScreen() {
               <ExpoImage
                 source={resolveImageSource(
                   normalizeImageUrl(matchProfile?.photos?.[0] || matchDetails?.otherUserPhoto),
-                  MODEL_ASSETS.defaultAvatar
+                  getModelAsset(matchProfile?.displayName || matchDetails?.otherUserName || candidateName)
                 )}
                 style={styles.headerSmallAvatar}
                 contentFit="cover"

@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Image as ExpoImage } from 'expo-image';
-import { MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
+import { MODEL_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
 import { api } from '@/services/api';
 import { CandidateCard, MatchItem, UserProfile, MatchCapacityInfo, BlockedUserItem } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
@@ -410,7 +410,7 @@ export default function MatchesScreen() {
               isDatePlannedMatch(item) && styles.avatarRingGold,
             ]}>
             <ExpoImage
-              source={resolveImageSource(item.otherUserPhoto, MODEL_ASSETS.defaultAvatar)}
+              source={resolveImageSource(item.otherUserPhoto, getModelAsset(item.otherUserName))}
               style={styles.avatar}
               contentFit="cover"
               cachePolicy="memory-disk"
@@ -554,7 +554,7 @@ export default function MatchesScreen() {
                   }}>
                   <View style={[styles.sparkAvatarWrap, hasSparkNote && styles.sparkAvatarWrapWithNote]}>
                     <ExpoImage
-                      source={resolveImageSource(item.photos?.[0], MODEL_ASSETS.defaultAvatar)}
+                      source={resolveImageSource(item.photos?.[0], getModelAsset(item.displayName))}
                       style={styles.sparkAvatar}
                       contentFit="cover"
                       blurRadius={isLocked ? 16 : 0}
@@ -991,7 +991,7 @@ export default function MatchesScreen() {
                       <View key={m.id} style={[styles.slotMatchCard, isExp && styles.slotMatchCardExpired]}>
                         <View style={styles.slotMatchCardLeft}>
                           <ExpoImage
-                            source={resolveImageSource(m.otherUserPhoto, MODEL_ASSETS.defaultAvatar)}
+                            source={resolveImageSource(m.otherUserPhoto, getModelAsset(m.otherUserName))}
                             style={[
                               styles.slotMatchAvatar,
                               { borderColor: getUrgencyRingColor(m) },

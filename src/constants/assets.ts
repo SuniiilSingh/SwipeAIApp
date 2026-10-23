@@ -83,33 +83,38 @@ export const getModelAsset = (
 ): ImageSourcePropType => {
   if (!nameOrGender) return FEMALE_MODEL_LIST[index % FEMALE_MODEL_LIST.length];
   const lower = nameOrGender.toLowerCase().trim();
-  if (lower === 'tara') return MODEL_ASSETS.tara;
-  if (lower === 'ananya' || lower === 'tanya') return MODEL_ASSETS.ananya;
-  if (lower === 'meera') return MODEL_ASSETS.meera;
-  if (lower === 'rhea') return MODEL_ASSETS.rhea;
-  if (lower === 'aanya') return MODEL_ASSETS.aanya;
-  if (lower === 'kabir' || lower === 'aarav') return MODEL_ASSETS.kabir;
-  if (lower === 'rohan') return MODEL_ASSETS.rohan;
-  if (lower === 'aryan') return MODEL_ASSETS.aryan;
+  if (lower.includes('tara')) return MODEL_ASSETS.tara;
+  if (lower.includes('ananya') || lower.includes('tanya')) return MODEL_ASSETS.ananya;
+  if (lower.includes('meera')) return MODEL_ASSETS.meera;
+  if (lower.includes('rhea')) return MODEL_ASSETS.rhea;
+  if (lower.includes('aanya')) return MODEL_ASSETS.aanya;
+  if (lower.includes('kabir') || lower.includes('aarav')) return MODEL_ASSETS.kabir;
+  if (lower.includes('rohan')) return MODEL_ASSETS.rohan;
+  if (lower.includes('aryan')) return MODEL_ASSETS.aryan;
 
-  if (lower === 'male' || lower === 'm') {
+  if (lower === 'male' || lower === 'm' || lower.includes('man') || lower.includes('men') || lower.includes('guy') || lower.includes('boy')) {
     return MALE_MODEL_LIST[index % MALE_MODEL_LIST.length];
   }
   return FEMALE_MODEL_LIST[index % FEMALE_MODEL_LIST.length];
 };
 
 /**
- * Resolves an image source for ExpoImage or React Native Image.
- * If source is a valid remote/local URI string, returns { uri }.
- * If source is a bundled require(...) number, returns it directly.
- * If source is missing/empty, returns the local bundled fallback.
+ * Resolves an image source for ExpoImage or React Native Image across Web, iOS, and Android.
+ * Handles numbers, objects with uri/default, remote URLs, and bundled asset paths.
  */
 export const resolveImageSource = (
   source?: any,
   fallback: ImageSourcePropType = MODEL_ASSETS.defaultAvatar
 ): any => {
   if (typeof source === 'number') return source;
-  if (source && typeof source === 'object' && source.uri) return source;
+  if (source && typeof source === 'object') {
+    if (source.uri && typeof source.uri === 'string' && source.uri.trim()) {
+      return { uri: source.uri.trim() };
+    }
+    if (source.default && typeof source.default === 'string' && source.default.trim()) {
+      return { uri: source.default.trim() };
+    }
+  }
   if (typeof source === 'string' && source.trim()) {
     const trimmed = source.trim();
     if (
@@ -118,10 +123,27 @@ export const resolveImageSource = (
       trimmed.startsWith('file:') ||
       trimmed.startsWith('content:') ||
       trimmed.startsWith('data:') ||
-      trimmed.startsWith('blob:')
+      trimmed.startsWith('blob:') ||
+      trimmed.startsWith('/') ||
+      trimmed.startsWith('./') ||
+      trimmed.includes('assets/') ||
+      trimmed.includes('images/') ||
+      trimmed.includes('.jpg') ||
+      trimmed.includes('.png') ||
+      trimmed.includes('.jpeg') ||
+      trimmed.includes('.webp')
     ) {
       return { uri: trimmed };
     }
+  }
+
+  // Ensure fallback is properly framed for Web if Metro resolves require(...) to a string
+  const fallbackAny = fallback as any;
+  if (typeof fallbackAny === 'string' && fallbackAny.trim()) {
+    return { uri: fallbackAny.trim() };
+  }
+  if (fallbackAny && typeof fallbackAny === 'object' && fallbackAny.default) {
+    return { uri: fallbackAny.default };
   }
   return fallback;
 };

@@ -232,9 +232,24 @@ function RootLayoutInner() {
 
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://blunderr.in')}
-                style={{ marginTop: 24 }}>
-                <Text style={webStyles.backLinkText}>← Back to Overview & Privacy</Text>
+                style={{ marginTop: 20 }}>
+                <Text style={webStyles.backLinkText}>← Back to Official Website</Text>
               </TouchableOpacity>
+
+              {/* Discreet Bottom Footer Legal Row */}
+              <View style={webStyles.desktopFooterLinks}>
+                <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/safety')}>
+                  <Text style={webStyles.desktopFooterLinkText}>Safety</Text>
+                </TouchableOpacity>
+                <Text style={webStyles.desktopFooterDot}>•</Text>
+                <TouchableOpacity onPress={() => Linking.openURL('https://blunderr.in/privacy')}>
+                  <Text style={webStyles.desktopFooterLinkText}>Privacy</Text>
+                </TouchableOpacity>
+                <Text style={webStyles.desktopFooterDot}>•</Text>
+                <TouchableOpacity onPress={() => Linking.openURL('mailto:admin@blunderr.in')}>
+                  <Text style={webStyles.desktopFooterLinkText}>Contact</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Right Column: Sleek Phone Mockup Device */}
@@ -477,6 +492,21 @@ const webStyles: Record<string, any> = StyleSheet.create({
     color: '#64748B',
     fontSize: 12,
     fontWeight: '700',
+  },
+  desktopFooterLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  desktopFooterLinkText: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  desktopFooterDot: {
+    color: '#334155',
+    fontSize: 11,
   },
 
   // Desktop Phone Shell

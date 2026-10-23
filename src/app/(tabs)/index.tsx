@@ -22,7 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { api } from '@/services/api';
+import { api, normalizeImageUrl } from '@/services/api';
 import { ActionType, CandidateCard, ContextType, SparkNoteQuota, UserProfile } from '@/types';
 import ProfileDetailModal from '@/components/profile-detail-modal';
 import SparkNoteModal from '@/components/spark-note-modal';
@@ -95,70 +95,148 @@ const FILTER_TAGS = [
 
 const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
   {
-    userId: 'c_tanya_24',
-    displayName: 'Tanya',
-    age: 24,
+    userId: 'c_tara_25',
+    displayName: 'Tara',
+    age: 25,
     isDigilockerVerified: true,
     isWhatsappVerified: true,
-    livenessScore: 98,
+    livenessScore: 99,
     distanceKm: 2.1,
     city: 'Bengaluru',
     neighborhood: 'Indiranagar 100ft Rd',
     microCircle: '☕ Indiranagar Third Wave Cafe Club',
-    job: 'Product Designer @ Fintech',
-    institute: 'NID Ahmedabad',
+    job: 'Lead Architect & Interior Designer',
+    institute: 'CEPT University',
     height: 168,
     photos: [
       MODEL_ASSETS.tara,
       MODEL_ASSETS.ananya,
     ],
-    bio: 'Designing user journeys by day, hunting for sour beers & indie gig spots by night. Low social battery for small talk.',
+    bio: 'Designing sustainable urban sanctuaries by day. Hunting for sour beers & indie jazz gigs by night. Low social battery for small talk.',
     culturalBadges: {
       diet: 'PURE_VEG' as any,
-      living: 'WITH_FLATMATES' as any,
+      living: 'INDEPENDENT_FLAT' as any,
       languages: ['English', 'Hindi'],
       zodiac: 'Taurus ♉ (Rohini)',
     },
-    compatibilityScore: 96,
+    drinkingHabit: 'Social / Weekend Drinker 🍷',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Majestic Mountains 🏔️',
+    compatibilityScore: 97,
     cosmicChemistry: {
       synergyTag: 'Rohini & Uttara Phalguni 32/36 Gunas',
-      score: 96,
+      score: 97,
     },
-    selectedMemeTitle: 'Sunday brunch priorities 🥐',
+    selectedMemeTitle: 'Sunday morning artisanal coffee rituals ☕',
     selectedMemeUrl: MEME_ASSETS[3],
   },
   {
-    userId: 'c_aarav_26',
-    displayName: 'Aarav',
-    age: 26,
+    userId: 'c_kabir_27',
+    displayName: 'Kabir',
+    age: 27,
     isDigilockerVerified: true,
     isWhatsappVerified: true,
-    livenessScore: 96,
-    distanceKm: 3.4,
+    livenessScore: 98,
+    distanceKm: 3.2,
     city: 'Bengaluru',
     neighborhood: 'Koramangala 4th Block',
     microCircle: '🚀 Koramangala Tech Founders & Builders',
     job: 'Founding Engineer @ AI Infra',
     institute: 'IIT Roorkee',
-    height: 181,
+    height: 182,
     photos: [
       MODEL_ASSETS.kabir,
       MODEL_ASSETS.rohan,
     ],
-    bio: 'Training LLMs by sunrise, deadlifting by sunset. If you enjoy spontaneous weekend road trips and filter coffee, say hi.',
+    bio: 'Training multi-modal LLMs by sunrise, marathon training by sunset. If you appreciate witty banter and authentic filter coffee, say hi.',
     culturalBadges: {
       diet: 'EGGETARIAN' as any,
       living: 'ALONE' as any,
       languages: ['English', 'Hindi', 'Kannada'],
       zodiac: 'Scorpio ♏ (Anuradha)',
     },
-    compatibilityScore: 92,
+    drinkingHabit: 'Social / Weekend Drinker 🍷',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Sun-Kissed Beaches 🏖️',
+    compatibilityScore: 94,
     cosmicChemistry: {
       synergyTag: 'Deep Graha Maitri Resonance',
-      score: 92,
+      score: 94,
     },
-    selectedMemeTitle: 'Pushing code straight to production 💻',
+    selectedMemeTitle: 'Pushing code directly to production on Friday 💻',
     selectedMemeUrl: MEME_ASSETS[1],
+  },
+  {
+    userId: 'c_ananya_24',
+    displayName: 'Ananya',
+    age: 24,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 98,
+    distanceKm: 1.9,
+    city: 'Bengaluru',
+    neighborhood: 'Lavelle Road',
+    microCircle: '☕ Indiranagar Third Wave Cafe Club',
+    job: 'Fintech Product Strategy Lead',
+    institute: 'SRCC Delhi',
+    height: 167,
+    photos: [
+      MODEL_ASSETS.ananya,
+      MODEL_ASSETS.rhea,
+    ],
+    bio: 'Behavioral economics nerd with an incurable book collection. Always down for sunset terrace drinks or an impromptu road trip.',
+    culturalBadges: {
+      diet: 'PURE_VEG' as any,
+      living: 'INDEPENDENT_FLAT' as any,
+      languages: ['English', 'Hindi', 'Punjabi'],
+      zodiac: 'Virgo ♍ (Hasta)',
+    },
+    drinkingHabit: 'Non-Drinker 🚫',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Majestic Mountains 🏔️',
+    compatibilityScore: 95,
+    cosmicChemistry: {
+      synergyTag: 'Hasta & Rohini High Harmony',
+      score: 95,
+    },
+    selectedMemeTitle: 'Sunday brunch priorities & matcha lattes 🥐',
+    selectedMemeUrl: MEME_ASSETS[2],
+  },
+  {
+    userId: 'c_rohan_26',
+    displayName: 'Rohan',
+    age: 26,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 96,
+    distanceKm: 2.8,
+    city: 'Bengaluru',
+    neighborhood: 'Indiranagar 100ft Rd',
+    microCircle: '🎸 Bangalore Indie Music & Vinyl Heads',
+    job: 'Associate Partner @ Early Stage VC',
+    institute: 'St. Stephen’s College',
+    height: 179,
+    photos: [
+      MODEL_ASSETS.rohan,
+      MODEL_ASSETS.aryan,
+    ],
+    bio: 'Listening to indie rock vinyls and scouting frontier tech founders. Looking for someone with sharp curiosity and easy laughter.',
+    culturalBadges: {
+      diet: 'NON_VEG' as any,
+      living: 'WITH_FLATMATES' as any,
+      languages: ['English', 'Hindi', 'Bengali'],
+      zodiac: 'Gemini ♊ (Ardra)',
+    },
+    drinkingHabit: 'Social / Weekend Drinker 🍷',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Sun-Kissed Beaches 🏖️',
+    compatibilityScore: 91,
+    cosmicChemistry: {
+      synergyTag: 'High Mental Wavelength Match',
+      score: 91,
+    },
+    selectedMemeTitle: 'Pitch deck expectations vs unit economics reality 📈',
+    selectedMemeUrl: MEME_ASSETS[4],
   },
   {
     userId: 'c_meera_25',
@@ -171,27 +249,138 @@ const FALLBACK_DISCOVERY_CANDIDATES: CandidateCard[] = [
     city: 'Bengaluru',
     neighborhood: 'HSR Sector 3',
     microCircle: '🎨 Bangalore Indie Art & Gig Scene',
-    job: 'Brand Strategist & Writer',
+    job: 'Brand Strategist & Essayist',
     institute: 'St. Xavier’s College',
     height: 165,
     photos: [
       MODEL_ASSETS.meera,
-      MODEL_ASSETS.rhea,
+      MODEL_ASSETS.tara,
     ],
-    bio: 'Curating Spotify playlists instead of talking about feelings. Passionate about street photography, monsoon walks, and old bakeries.',
+    bio: 'Curating bespoke Spotify playlists instead of talking about feelings. Passionate about 35mm street photography and old bakeries.',
     culturalBadges: {
       diet: 'PURE_VEG' as any,
       living: 'WITH_FAMILY' as any,
       languages: ['English', 'Hindi', 'Gujarati'],
       zodiac: 'Cancer ♋ (Pushya)',
     },
-    compatibilityScore: 94,
+    drinkingHabit: 'Social / Weekend Drinker 🍷',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Majestic Mountains 🏔️',
+    compatibilityScore: 93,
     cosmicChemistry: {
       synergyTag: 'Pushya Nakshatra High Emotional Bond',
-      score: 94,
+      score: 93,
     },
-    selectedMemeTitle: 'My social battery at loud parties 🔋',
+    selectedMemeTitle: 'My social battery at loud dinner parties 🔋',
     selectedMemeUrl: MEME_ASSETS[0],
+  },
+  {
+    userId: 'c_aryan_28',
+    displayName: 'Aryan',
+    age: 28,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 99,
+    distanceKm: 4.1,
+    city: 'Bengaluru',
+    neighborhood: 'HSR Layout Sector 1',
+    microCircle: '🚀 Koramangala Tech Founders & Builders',
+    job: 'Principal AI Systems Architect',
+    institute: 'BITS Pilani',
+    height: 184,
+    photos: [
+      MODEL_ASSETS.aryan,
+      MODEL_ASSETS.kabir,
+    ],
+    bio: 'Scaling low-latency neural pipelines by day. Mountain biking and brewing specialty espresso by weekend. Big on honesty and zero ego.',
+    culturalBadges: {
+      diet: 'EGGETARIAN' as any,
+      living: 'INDEPENDENT_FLAT' as any,
+      languages: ['English', 'Hindi', 'Telugu'],
+      zodiac: 'Aries ♈ (Ashwini)',
+    },
+    drinkingHabit: 'Social / Weekend Drinker 🍷',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Majestic Mountains 🏔️',
+    compatibilityScore: 92,
+    cosmicChemistry: {
+      synergyTag: 'High Energy Dynamic Alignment',
+      score: 92,
+    },
+    selectedMemeTitle: 'Debugging concurrency bugs at 2 AM ☕',
+    selectedMemeUrl: MEME_ASSETS[1],
+  },
+  {
+    userId: 'c_rhea_26',
+    displayName: 'Rhea',
+    age: 26,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 98,
+    distanceKm: 2.5,
+    city: 'Bengaluru',
+    neighborhood: 'Indiranagar 12th Main',
+    microCircle: '🎨 Bangalore Indie Art & Gig Scene',
+    job: 'Creative Director & Experimental DJ',
+    institute: 'NIFT New Delhi',
+    height: 170,
+    photos: [
+      MODEL_ASSETS.rhea,
+      MODEL_ASSETS.aanya,
+    ],
+    bio: 'Mixing electronic soundscapes and directing fashion visuals. Searching for someone who can hold a deep 2-hour conversation without checking their phone.',
+    culturalBadges: {
+      diet: 'VEGAN' as any,
+      living: 'ALONE' as any,
+      languages: ['English', 'Hindi', 'French'],
+      zodiac: 'Aquarius ♒ (Shatabhisha)',
+    },
+    drinkingHabit: 'Cocktails 🍸',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Sun-Kissed Beaches 🏖️',
+    compatibilityScore: 96,
+    cosmicChemistry: {
+      synergyTag: 'Shatabhisha Nakshatra Intuitive Spark',
+      score: 96,
+    },
+    selectedMemeTitle: 'Finding a hidden rooftop cafe with great acoustics 🎧',
+    selectedMemeUrl: MEME_ASSETS[4],
+  },
+  {
+    userId: 'c_aanya_23',
+    displayName: 'Aanya',
+    age: 23,
+    isDigilockerVerified: true,
+    isWhatsappVerified: true,
+    livenessScore: 99,
+    distanceKm: 1.5,
+    city: 'Bengaluru',
+    neighborhood: 'Lavelle Road',
+    microCircle: '☕ Indiranagar Third Wave Cafe Club',
+    job: 'Cognitive Science & AI Researcher',
+    institute: 'IISc Bangalore',
+    height: 166,
+    photos: [
+      MODEL_ASSETS.aanya,
+      MODEL_ASSETS.meera,
+    ],
+    bio: 'Investigating human perception and neuro-symbolic models. Passionate about sourdough baking, museum tours, and stargazing away from city lights.',
+    culturalBadges: {
+      diet: 'PURE_VEG' as any,
+      living: 'WITH_FLATMATES' as any,
+      languages: ['English', 'Hindi', 'Tamil'],
+      zodiac: 'Libra ♎ (Chitra)',
+    },
+    drinkingHabit: 'Non-Drinker 🚫',
+    smokingHabit: 'Non-Smoker 🚭',
+    vacationPreference: 'Majestic Mountains 🏔️',
+    compatibilityScore: 98,
+    cosmicChemistry: {
+      synergyTag: 'Chitra & Rohini Perfect 34/36 Guna Milan',
+      score: 98,
+    },
+    selectedMemeTitle: 'Explaining quantum logic at a casual house party 🌌',
+    selectedMemeUrl: MEME_ASSETS[2],
   },
 ];
 
@@ -407,8 +596,8 @@ export default function DiscoveryScreen() {
         dietaryFilters,
       });
 
-      // Accurately capture database candidates. If database returns an array, honor it.
-      const list = feed && Array.isArray(feed.candidates)
+      // Accurately capture database candidates. If database returns empty or null, show curated verified fallback deck
+      const list = feed && Array.isArray(feed.candidates) && feed.candidates.length > 0
         ? feed.candidates
         : FALLBACK_DISCOVERY_CANDIDATES;
 
@@ -664,8 +853,43 @@ export default function DiscoveryScreen() {
     handleAction(target, 'SUPER_SPARK');
   };
 
+  // Deduplicate candidates and filter out dummy/gibberish test accounts to prevent repetition
+  const deduplicatedCandidates = useMemo(() => {
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
+
+    return candidates.filter((c) => {
+      if (!c || !c.userId) return false;
+      const cleanId = c.userId.trim().toLowerCase();
+      const rawName = (c.displayName || c.fullName || '').trim();
+      const cleanName = rawName.toLowerCase();
+
+      // Filter out test garbage accounts from dev testing
+      if (
+        cleanName.length < 2 ||
+        cleanName === 'test' ||
+        cleanName.includes('shh') ||
+        cleanName.includes('sbs') ||
+        cleanName === 'efefe' ||
+        cleanName === 'sags' ||
+        cleanName.startsWith('test ')
+      ) {
+        return false;
+      }
+
+      if (seenIds.has(cleanId)) return false;
+      seenIds.add(cleanId);
+
+      // Prevent identical duplicate names (e.g. multiple "BlunderR Star") from repeating in the deck
+      if (cleanName && seenNames.has(cleanName)) return false;
+      if (cleanName) seenNames.add(cleanName);
+
+      return true;
+    });
+  }, [candidates]);
+
   // Filter candidates based on selected tag
-  const filteredCandidates = candidates.filter((c) => {
+  const filteredCandidates = deduplicatedCandidates.filter((c) => {
     if (selectedCommunityFilter) {
       const commName = selectedCommunityFilter.name.toLowerCase();
       const commSlug = (selectedCommunityFilter.slug || '').toLowerCase();
@@ -1016,7 +1240,12 @@ function SwipeableCandidateCard({
             },
           ]}>
           <ExpoImage
-            source={resolveImageSource(nextItem.photos?.[0], getModelAsset(nextItem.displayName))}
+            source={resolveImageSource(
+              typeof nextItem.photos?.[0] === 'string'
+                ? normalizeImageUrl(nextItem.photos[0])
+                : nextItem.photos?.[0],
+              getModelAsset(nextItem.displayName)
+            )}
             style={styles.heroImage}
             contentFit="cover"
             contentPosition="top center"
@@ -1055,7 +1284,7 @@ function SwipeableCandidateCard({
               )}
             </View>
             <View style={styles.nameWithShieldRow}>
-              <Text style={styles.candidateNameText}>
+              <Text style={styles.candidateNameText} numberOfLines={1}>
                 {nextItem.fullName || nextItem.displayName}, {nextItem.age}
               </Text>
               <View style={styles.verifiedCheckBadge}>
@@ -1110,7 +1339,12 @@ function SwipeableCandidateCard({
           onPress={() => onOpenDetails(item)}
           style={styles.heroTouchWrap}>
           <ExpoImage
-            source={resolveImageSource(item.photos?.[0], getModelAsset(item.displayName))}
+            source={resolveImageSource(
+              typeof item.photos?.[0] === 'string'
+                ? normalizeImageUrl(item.photos[0])
+                : item.photos?.[0],
+              getModelAsset(item.displayName)
+            )}
             priority="high"
             style={styles.heroImage}
             contentFit="cover"
@@ -1162,7 +1396,7 @@ function SwipeableCandidateCard({
 
             {/* Row 2: Name & Age with Verified Blue Checkmark */}
             <View style={styles.nameWithShieldRow}>
-              <Text style={styles.candidateNameText}>
+              <Text style={styles.candidateNameText} numberOfLines={1}>
                 {item.fullName || item.displayName}, {item.age}
               </Text>
               <View style={styles.verifiedCheckBadge}>
@@ -2512,6 +2746,7 @@ const baseStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.3,
+    flexShrink: 1,
   },
   activeDot: {
     width: 8,
@@ -2631,7 +2866,7 @@ const baseStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-evenly',
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     backgroundColor: 'rgba(10, 11, 16, 0.96)',
     borderTopWidth: 1,

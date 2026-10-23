@@ -52,14 +52,14 @@ export default function SafeDateDisclaimerModal({
     }
     switch (actionType) {
       case 'PROPOSE':
-        return '⚠️ I Have Read Warning • Send Proposal';
+        return 'Send Proposal';
       case 'ACCEPT':
-        return '⚠️ I Understand Risks • Confirm Date Safely';
+        return 'Confirm Date';
       case 'POSTPONE':
       case 'RESCHEDULE':
-        return '⚠️ I Understand Warning • Send New Plan';
+        return 'Send New Plan';
       default:
-        return '⚠️ I Understand & Accept Responsibility';
+        return 'Confirm & Proceed';
     }
   };
 
@@ -251,14 +251,15 @@ const baseStyles = StyleSheet.create({
   containerCard: {
     width: '100%',
     maxWidth: 440,
-    maxHeight: '88%',
+    maxHeight: '90%',
+    flexShrink: 1,
     backgroundColor: '#0E111A',
     borderRadius: 28,
     borderWidth: 2,
     borderColor: '#F59E0B',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 18,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 16,
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
@@ -334,7 +335,8 @@ const baseStyles = StyleSheet.create({
     fontWeight: '700',
   },
   scrollArea: {
-    maxHeight: 310,
+    maxHeight: 340,
+    flexShrink: 1,
     marginVertical: 4,
   },
   scrollContent: {
@@ -446,10 +448,11 @@ const baseStyles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 12,
+    marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    flexShrink: 0,
   },
   cancelBtn: {
     flex: 1,

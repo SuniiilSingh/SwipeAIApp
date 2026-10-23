@@ -273,52 +273,51 @@ export default function AuthScreen() {
   const nextTeaser = TEASER_PROFILES[(teaserIndex + 1) % TEASER_PROFILES.length];
 
   // Stable physical screen dimensions: immune to keyboard toggle resizes & SSR 0-width collapse
+  const isWeb = Platform.OS === 'web';
   const screenDimensions = Dimensions.get('screen');
   const windowDimensions = Dimensions.get('window');
   const clientWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
   const clientHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
-  const effectiveWidth = Math.max(
-    windowWidth || 0,
-    windowDimensions.width || 0,
-    screenDimensions.width || 0,
-    clientWidth || 0,
-    320
-  );
-  const effectiveHeight = Math.max(
-    windowHeight || 0,
-    windowDimensions.height || 0,
-    screenDimensions.height || 0,
-    clientHeight || 0,
-    480
-  );
+
+  // On Web: Always use the visible browser viewport (window.innerWidth / window.innerHeight)
+  // On Native: Use window dimensions or physical screen dimensions
+  const effectiveWidth = isWeb
+    ? Math.max(320, Math.min(clientWidth || windowDimensions.width || 375, 420))
+    : Math.max(windowWidth || 0, windowDimensions.width || 0, 320);
+
+  const effectiveHeight = isWeb
+    ? Math.max(480, clientHeight || windowDimensions.height || 667)
+    : Math.max(windowHeight || 0, windowDimensions.height || 0, 480);
 
   const isUltraCompactScreen = effectiveHeight < 640;
   const isCompactScreen = effectiveHeight < 760;
 
   // Responsive deck sizing: Single Canvas Hero Overlay
   // The card expands fluidly to fill the available screen budget between the top bar and bottom insets.
-  const deckWidth = Math.max(280, Math.min(effectiveWidth - 20, 390));
+  const deckWidth = Math.max(280, Math.min(effectiveWidth - 20, 380));
   const safeHeight = effectiveHeight - (insets.top || 0) - (insets.bottom || 0);
-  const nonDeckFootprint = isUltraCompactScreen ? 82 : isCompactScreen ? 90 : 98;
+  const nonDeckFootprint = isUltraCompactScreen ? 90 : isCompactScreen ? 100 : 115;
   const availableForDeck = Math.max(300, safeHeight - nonDeckFootprint);
-  const deckHeight = availableForDeck;
 
-  // Responsive deck sizing with active keypad clearance:
-  // When keyboard is visible, card shrinks so input/OTP sits ABOVE keypad.
-  // When keypad is dismissed (clicking anywhere), card smoothly expands so text box moves to down.
+  // On Web, clamp the deck height so it never exceeds 540px and always leaves room for the bottom tray & CTA button
+  const deckHeight = isWeb
+    ? Math.min(540, availableForDeck)
+    : availableForDeck;
+
+  const hasTouchScreen = isWeb && typeof window !== 'undefined' && ('ontouchstart' in window || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
   const actualKeyboardHeight = keyboardHeight > 0
     ? keyboardHeight
-    : (isUltraCompactScreen ? 270 : isCompactScreen ? 295 : 320);
+    : (isUltraCompactScreen ? 240 : isCompactScreen ? 270 : 290);
 
   const compactDeckHeight = Math.max(
     240,
     Math.min(
-      deckHeight - 120,
-      effectiveHeight - (insets.top || 0) - actualKeyboardHeight - (isUltraCompactScreen ? 55 : 68)
+      deckHeight - 100,
+      effectiveHeight - (insets.top || 0) - actualKeyboardHeight - (isUltraCompactScreen ? 50 : 60)
     )
   );
 
-  const animDeckHeight = isKeyboardVisible ? compactDeckHeight : deckHeight;
+  const animDeckHeight = (isKeyboardVisible && (!isWeb || hasTouchScreen)) ? compactDeckHeight : deckHeight;
 
   const otpElevateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -1127,7 +1126,7 @@ export default function AuthScreen() {
               : undefined,
           ]}
           keyboardShouldPersistTaps="handled"
-          scrollEnabled={step !== 1 || isKeyboardVisible || phoneMode || otpSent}
+          scrollEnabled={isWeb || step !== 1 || isKeyboardVisible || phoneMode || otpSent}
           bounces={step !== 1}
           alwaysBounceVertical={false}
           showsVerticalScrollIndicator={false}>
@@ -2063,7 +2062,10 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     justifyContent: 'space-between',
-    overflow: 'hidden',
+    ...Platform.select({
+      web: { overflow: 'visible' as any },
+      default: { overflow: 'hidden' },
+    }),
   },
   scrollContentStep1Keyboard: {
     flexGrow: 1,
@@ -4089,7 +4091,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 2,
-    overflow: 'hidden',
+    ...Platform.select({
+      web: { overflow: 'visible' as any, minHeight: '100%' as any },
+      default: { overflow: 'hidden' },
+    }),
   },
   optAMainContent: {
     flex: 1,
@@ -4407,8 +4412,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
+    zIndex: 40,
     ...Platform.select({
       web: {
+        backgroundImage: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 55%, #FF8A00 100%)',
         background: 'linear-gradient(90deg, #FF2E63 0%, #FF655B 55%, #FF8A00 100%)',
         boxShadow: '0 6px 20px rgba(255, 46, 99, 0.4)',
         cursor: 'pointer',

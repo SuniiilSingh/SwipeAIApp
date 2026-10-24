@@ -40,6 +40,7 @@ import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 import DopamineCuriosityLoop from '@/components/dopamine-curiosity-loop';
 import { useLivenessRecovery } from '@/services/liveness-recovery';
 import LivenessRetakeModal from '@/components/liveness-retake-modal';
+import PrimaryPhotoMismatchModal from '@/components/primary-photo-mismatch-modal';
 import DiscoveryVoiceSnippet from '@/components/discovery-voice-snippet';
 import { VibeQuizCard } from '@/components/vibe-quiz-card';
 import { LifestyleSyncModal } from '@/components/lifestyle-sync-modal';
@@ -484,6 +485,7 @@ export default function DiscoveryScreen() {
   // Single-flag Async 3D Liveness Recovery
   const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
   const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
+  const [showPhotoMismatchModal, setShowPhotoMismatchModal] = useState(false);
 
   // Smart Lifestyle Sync & 1-Tap Vibe Quiz (Flow 1, 3, 4)
   const [showLifestyleSyncModal, setShowLifestyleSyncModal] = useState(false);
@@ -547,6 +549,17 @@ export default function DiscoveryScreen() {
       const hasGender = Boolean(myProfile.gender || myProfile.genderDisplay);
       const hasOrientation = Boolean(myProfile.sexualOrientation);
       const completionPct = myProfile.completionPercentage || 0;
+
+      // ⚠️ Check if primary photo failed biometric face match (< 60%) or profile was rejected
+      if (
+        myProfile?.livenessStatus === 'PRIMARY_PHOTO_FAILED' ||
+        myProfile?.livenessStatus === 'MISMATCH_DETECTED' ||
+        (myProfile?.verificationStatus === 'REJECTED' && myProfile?.livenessStatus !== 'RETRY_NEEDED')
+      ) {
+        setShowPhotoMismatchModal(true);
+      } else if (myProfile?.needsLivenessRetry || myProfile?.livenessStatus === 'RETRY_NEEDED') {
+        setShowLivenessRetakeModal(true);
+      }
 
       if (!hasName || !hasGender || !hasOrientation || completionPct < 30) {
         setLoading(false);
@@ -2200,6 +2213,18 @@ function SwipeableCandidateCard({
         onSuccess={() => {
           loadFeed();
         }}
+      />
+
+      {/* PRIMARY PHOTO MISMATCH ALERT MODAL (< 60% MATCH) */}
+      <PrimaryPhotoMismatchModal
+        visible={showPhotoMismatchModal}
+        onClose={() => setShowPhotoMismatchModal(false)}
+        onPhotoUploaded={() => {
+          setShowPhotoMismatchModal(false);
+          loadFeed();
+        }}
+        userSelfieUrl={userProfile?.selfieUrl}
+        userPrimaryPhotoUrl={userProfile?.photos?.[0] || userProfile?.photo1}
       />
       {/* DOPAMINE CURIOSITY PROXIMITY RADAR OVERLAY (Smooth zero-latency reveal) */}
       {isCuriosityLoopActive && (

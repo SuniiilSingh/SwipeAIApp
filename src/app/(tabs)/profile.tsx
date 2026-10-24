@@ -648,21 +648,20 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const handleDeleteAccount = () => {
-    hapticFeedback.warning();
+  const promptDeleteAccountWithReason = (reasonCategory: string) => {
     Alert.alert(
-      '⚠️ Delete Account Permanently?',
-      'Are you sure you want to delete your account? This action cannot be undone.\n\n• Your profile, photos, and voice notes will be permanently erased.\n• All matches, icebreakers, and chat history will be removed immediately.\n• In accordance with India DPDP Act and App Store guidelines, all your personal data will be completely wiped from our servers.',
+      '⚠️ Confirm Permanent Deletion',
+      'This action cannot be undone.\n\n• Your profile, photos, and voice notes will be permanently erased.\n• All matches, icebreakers, and chat history will be removed immediately.\n• In accordance with India DPDP Act and App Store guidelines, all your personal data will be completely wiped from our servers.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete My Account 🗑️',
+          text: 'Confirm & Permanently Erase 🗑️',
           style: 'destructive',
           onPress: async () => {
             try {
               setIsDeletingAccount(true);
               hapticFeedback.heavy();
-              await api.deleteAccount();
+              await api.deleteAccount(reasonCategory, 'Deleted via mobile app profile settings');
               Alert.alert('Account Deleted', 'Your account and personal data have been permanently removed.');
               router.replace('/auth');
             } catch (err) {
@@ -672,6 +671,22 @@ export default function ProfileScreen() {
             }
           },
         },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    hapticFeedback.warning();
+    Alert.alert(
+      '🗑️ Delete Account — Reason',
+      'Please tell us why you are leaving BlunderR so we can improve:',
+      [
+        { text: '💍 Met someone on BlunderR', onPress: () => promptDeleteAccountWithReason('FOUND_MATCH') },
+        { text: '⏳ Taking a break from dating', onPress: () => promptDeleteAccountWithReason('DATING_BREAK') },
+        { text: '🔒 Privacy concerns', onPress: () => promptDeleteAccountWithReason('PRIVACY_CONCERNS') },
+        { text: '📉 Not enough matches', onPress: () => promptDeleteAccountWithReason('NOT_ENOUGH_MATCHES') },
+        { text: '💬 Other reason', onPress: () => promptDeleteAccountWithReason('OTHER') },
+        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };

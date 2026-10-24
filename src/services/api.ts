@@ -313,11 +313,18 @@ export const api = {
     } catch (e) {}
   },
 
-  deleteAccount: async (): Promise<boolean> => {
+  deleteAccount: async (reason?: string, remarks?: string): Promise<boolean> => {
     try {
       await fetchWithTimeout(`${BASE_URL}/v1/profiles/me`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: reason || 'IN_APP_SETTINGS',
+          remarks: remarks || null,
+        }),
       });
     } catch (e) {
       console.warn('[api] Failed to delete account from server:', e);
@@ -1606,7 +1613,7 @@ export const api = {
       { sku: 'SPARKS_PACK_5_79', title: '5 Super Sparks Pack', priceInr: 79, directPriceInr: 79, storePriceInr: 99, subtitle: 'Top-of-feed visibility 5 times (Save ₹16)', tag: 'VOLUME VALUE', perks: ['5 Super Sparks to highlight profile', '3x higher match rate', 'Validity: Valid until used'] },
       { sku: 'BOOST_1X_FRIDAY_29', title: '1 Friday Night Boost', priceInr: 29, directPriceInr: 29, storePriceInr: 49, subtitle: '10x profile visibility during 9 PM - 1 AM peak', tag: 'PEAK CONVERSION', perks: ['Surfaces profile to top of nearby candidates for 1 hour', 'Validity: 90 Days to activate'] },
       { sku: 'DIRECT_DMS_3X_49', title: '3 Direct DMs', priceInr: 49, directPriceInr: 49, storePriceInr: 69, subtitle: 'Skip the queue & message high-intent matches directly', tag: 'SCARCITY PERK', perks: ['Send personalized intro before matching', 'Verified direct inbox placement', 'Validity: Valid until used'] },
-      { sku: 'REVIVE_MATCH_19', title: 'Revive Expired Match', priceInr: 19, directPriceInr: 19, storePriceInr: 29, subtitle: 'Unfreeze 48h timer and restore match', tag: 'SACHET', perks: ['Re-opens chat lounge for 48 hours', 'Unlimited Chat in active window'] },
+      { sku: 'REVIVE_MATCH_19', title: 'Revive Expired Match', priceInr: 99, directPriceInr: 99, storePriceInr: 129, subtitle: 'Unfreeze 48h timer and restore match', tag: 'POPULAR SACHET', perks: ['Re-opens chat lounge for 48 hours', 'Unlimited Chat in active window'] },
       { sku: 'WEEKLY_PASS_149', title: 'Weekly VIP Pass', priceInr: 149, directPriceInr: 149, storePriceInr: 199, subtitle: 'Unlimited Swipes, Likes & Messages for 7 days + 5 Sparks + 1 Boost + 3 DMs', tag: 'POPULAR', perks: ['Unlimited Swipes, Likes & Messaging (7 Days)', '5 Super Sparks Included', '1 Profile Boost Included', '3 Direct DMs Included', 'Validity: 7 Days'] },
       { sku: 'MONTHLY_PASS_349', title: '30-Day Monthly VIP Pass', priceInr: 349, directPriceInr: 349, storePriceInr: 449, subtitle: 'Unlimited Swipes, Likes & Messages for 30 days + 15 Sparks + 4 Boosts + 10 DMs', tag: 'BEST OVERALL VALUE', perks: ['Unlimited Swipes, Likes & Messaging (30 Days)', '15 Super Sparks Included', '4 Profile Boosts Included', '10 Direct DMs Included', 'Priority Gold VIP Badge', 'Validity: 30 Days'] },
       { sku: 'FORTNIGHT_PASS_199', title: '14-Day Fortnight Pass', priceInr: 199, directPriceInr: 199, storePriceInr: 249, subtitle: 'Full VIP access for 14 days + 6 Sparks + 2 Boosts', tag: 'VALUE PASS', perks: ['Unlimited Swipes, Likes & Messaging (14 Days)', '6 Super Sparks Included', '2 Profile Boosts Included', '5 Direct DMs Included', 'Validity: 14 Days'] },
@@ -1634,7 +1641,7 @@ export const api = {
       BOOST_1X_FRIDAY_29: 29,
       DIRECT_DMS_3X_89: 89,
       DIRECT_DMS_3X_49: 49,
-      REVIVE_MATCH_19: 19,
+      REVIVE_MATCH_19: 99,
       WEEKLY_PASS_149: 149,
       WINGMAN_BUNDLE_199: 199,
       MONTHLY_PASS_349: 349,
@@ -1644,7 +1651,10 @@ export const api = {
     };
     const amt = prices[sku] || 29;
     const orderId = `order_sachet_${Date.now()}`;
-    const upiIntentUrl = `upi://pay?pa=payments@blunderr&pn=Blunderr+Dating&am=${amt}&cu=INR&tn=${sku}&tr=${orderId}`;
+    const merchantVpa = 'yb.8120969849@sbi';
+    const merchantName = encodeURIComponent('Bharat Generic Enterprises');
+    const note = encodeURIComponent(`BlunderR ${sku}`);
+    const upiIntentUrl = `upi://pay?pa=${merchantVpa}&pn=${merchantName}&mc=5734&am=${amt}&cu=INR&tn=${note}&tr=${orderId}`;
 
     return {
       orderId,
@@ -1652,12 +1662,23 @@ export const api = {
       amountPaise: amt * 100,
       formattedAmount: `₹${amt}`,
       upiIntentUrl,
+      merchantVpa,
+      merchantName: 'Bharat Generic Enterprises',
       qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiIntentUrl)}`,
       simulated: true,
     };
   },
 
-  confirmUpiPayment: async (orderId: string) => {
+  confirmUpiPayment: async (orderId: string, utr?: string) => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/upi/confirm-direct`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ orderId, utr }),
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/upi/test-confirm/${orderId}`, {
         method: 'POST',
@@ -1668,6 +1689,18 @@ export const api = {
     cachedProfile.hasActivePass = true;
     cachedProfile.sparksBalance += 3;
     return { status: 'success', orderId };
+  },
+
+  confirmDirectUpiPayment: async (orderId: string, utr?: string) => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/upi/confirm-direct`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ orderId, utr }),
+      });
+      if (res.ok) return await res.json();
+    } catch (e) {}
+    return api.confirmUpiPayment(orderId, utr);
   },
 
   // Native In-App Purchase (Google Play / Apple StoreKit)
@@ -1743,7 +1776,7 @@ export const api = {
       BOOST_1X_FRIDAY_29: 29,
       DIRECT_DMS_3X_89: 89,
       DIRECT_DMS_3X_49: 49,
-      REVIVE_MATCH_19: 19,
+      REVIVE_MATCH_19: 99,
       WEEKLY_PASS_149: 149,
       WINGMAN_BUNDLE_199: 199,
       MONTHLY_PASS_349: 349,

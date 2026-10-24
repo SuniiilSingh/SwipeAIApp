@@ -713,7 +713,9 @@ export default function StoreScreen() {
                         ₹{resolveDisplayPrice(checkoutItem, selectedRail)}
                       </Text>
                       <Text style={styles.fullScreenPriceSub}>
-                        {selectedRail === 'CASHFREE_WEB' ? '• Direct UPI Price' : '• Store Price'}
+                        {selectedRail === 'SBI_DIRECT_UPI' || selectedRail === 'CARDS_NETBANKING' || selectedRail === 'CASHFREE_WEB'
+                          ? '• Direct UPI / Card Price'
+                          : '• Store Price'}
                       </Text>
                     </View>
                   </View>
@@ -853,10 +855,12 @@ export default function StoreScreen() {
                           const price = resolveDisplayPrice(checkoutItem, railInfo.rail);
                           const isGoogle = railInfo.rail === 'GOOGLE_PLAY';
                           const isApple = railInfo.rail === 'APPLE_STOREKIT';
-                          const icon = isApple ? '🍎' : isGoogle ? '🛡️' : '💳';
-                          const shortTitle = isApple ? 'Apple Pay' : isGoogle ? 'Google Play' : 'Cashfree UPI';
-                          const subNote = isApple ? '1-Tap StoreKit' : isGoogle ? '1-Tap Protected' : 'UPI, Cards & Net';
-                          const badgeTag = isGoogle ? 'Official' : isApple ? 'Official' : 'Instant';
+                          const isDirectUpi = railInfo.rail === 'SBI_DIRECT_UPI';
+                          const isCards = railInfo.rail === 'CARDS_NETBANKING';
+                          const icon = isApple ? '🍎' : isGoogle ? '🛡️' : isDirectUpi ? '⚡' : '💳';
+                          const shortTitle = isApple ? 'Apple Pay' : isGoogle ? 'Google Play' : isDirectUpi ? 'SBI Direct UPI' : isCards ? 'Cards / Net' : 'Direct UPI';
+                          const subNote = isApple ? '1-Tap StoreKit' : isGoogle ? '1-Tap Protected' : isDirectUpi ? '0% Fee (GPay/PhonePe)' : 'Credit/Debit Card';
+                          const badgeTag = isGoogle ? 'Official' : isApple ? 'Official' : isDirectUpi ? '⚡ 0% Fee' : 'Cards';
 
                           return (
                             <TouchableOpacity
@@ -945,7 +949,11 @@ export default function StoreScreen() {
                       activeOpacity={0.85}
                       onPress={handleConfirmPurchase}>
                       <Text style={styles.fixedPayBtnText}>
-                        {selectedRail === 'CASHFREE_WEB'
+                        {selectedRail === 'SBI_DIRECT_UPI'
+                          ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'SBI_DIRECT_UPI')} via SBI 1-Tap UPI →`
+                          : selectedRail === 'CARDS_NETBANKING'
+                          ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'CARDS_NETBANKING')} via Card / NetBanking →`
+                          : selectedRail === 'CASHFREE_WEB'
                           ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'CASHFREE_WEB')} via Direct UPI →`
                           : Platform.OS === 'ios'
                           ? `Pay ₹${resolveDisplayPrice(checkoutItem, 'APPLE_STOREKIT')} with Apple →`

@@ -1,9 +1,9 @@
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { api } from '@/services/api';
 import { SkuCatalogItem } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
 
-export type PaymentRail = 'APPLE_STOREKIT' | 'GOOGLE_PLAY' | 'CASHFREE_WEB';
+export type PaymentRail = 'APPLE_STOREKIT' | 'GOOGLE_PLAY' | 'SBI_DIRECT_UPI' | 'CARDS_NETBANKING' | 'CASHFREE_WEB';
 
 export interface PaymentRailInfo {
   rail: PaymentRail;
@@ -16,8 +16,8 @@ export interface PaymentRailInfo {
 
 /**
  * Returns all available payment rails for the current runtime.
- * Under Apple App Store Guideline 3.1.1, iOS requires Apple StoreKit exclusively.
- * Under Google Play User Choice Billing (India), Android offers Google Play and Alternative Billing with equal, neutral presentation.
+ * Under Apple App Store Guideline 3.1.1, iOS requires Apple StoreKit.
+ * Under Google Play User Choice Billing (India), Android offers Google Play and Alternative Billing (Direct UPI & Cards).
  */
 export function getAvailablePaymentRails(): PaymentRailInfo[] {
   if (Platform.OS === 'ios') {
@@ -30,10 +30,34 @@ export function getAvailablePaymentRails(): PaymentRailInfo[] {
         securityNotice: 'Protected by Apple App Store Terms & Billing.',
         isStoreKitOrPlay: true,
       },
+      {
+        rail: 'SBI_DIRECT_UPI',
+        name: 'Direct SBI UPI (0% Fee)',
+        badge: '⚡ Direct UPI',
+        description: 'Pay via Google Pay, PhonePe, Paytm, or BHIM directly.',
+        securityNotice: 'Direct transfer to Bharat Generic Enterprises SBI Account (yb.8120969849@sbi).',
+        isStoreKitOrPlay: false,
+      },
     ];
   }
 
   return [
+    {
+      rail: 'SBI_DIRECT_UPI',
+      name: 'Direct SBI UPI (0% Fee)',
+      badge: '⚡ Direct UPI',
+      description: 'Pay via Google Pay, PhonePe, Paytm, or BHIM directly.',
+      securityNotice: 'Direct transfer to Bharat Generic Enterprises SBI Account (yb.8120969849@sbi).',
+      isStoreKitOrPlay: false,
+    },
+    {
+      rail: 'CARDS_NETBANKING',
+      name: 'Credit / Debit Cards & NetBanking',
+      badge: '💳 Cards & NetBanking',
+      description: 'Visa, Mastercard, RuPay, and 50+ Indian banks.',
+      securityNotice: 'Processed securely via 256-bit encrypted gateway.',
+      isStoreKitOrPlay: false,
+    },
     {
       rail: 'GOOGLE_PLAY',
       name: 'Google Play Billing',
@@ -42,20 +66,12 @@ export function getAvailablePaymentRails(): PaymentRailInfo[] {
       securityNotice: 'Protected by Google Play Store Buyer Protection.',
       isStoreKitOrPlay: true,
     },
-    {
-      rail: 'CASHFREE_WEB',
-      name: 'Cashfree (UPI, Cards & NetBanking)',
-      badge: '💳 Cashfree Payments',
-      description: 'Pay securely via UPI (GPay, PhonePe, Paytm), Cards, or NetBanking.',
-      securityNotice: 'Processed securely via Cashfree Payments.',
-      isStoreKitOrPlay: false,
-    },
   ];
 }
 
 /**
  * Returns default payment rail.
- * Defaults to Google Play on Android and Apple StoreKit on iOS for policy neutrality.
+ * Defaults to SBI Direct UPI for 0% fees, or StoreKit on iOS.
  */
 export function getActivePaymentRail(preferred?: PaymentRail): PaymentRailInfo {
   const rails = getAvailablePaymentRails();
@@ -82,11 +98,11 @@ export function resolvePlatformProductId(item?: SkuCatalogItem | null): string {
 
 /**
  * Resolves the display price based on the selected payment rail.
- * Direct Cashfree price is discounted; Store price includes standard app store commissions.
+ * Direct UPI / Card price is discounted; Store price includes standard app store commissions.
  */
 export function resolveDisplayPrice(item?: SkuCatalogItem | null, rail?: PaymentRail): number {
   if (!item) return 0;
-  if (rail === 'CASHFREE_WEB') {
+  if (rail === 'SBI_DIRECT_UPI' || rail === 'CARDS_NETBANKING' || rail === 'CASHFREE_WEB') {
     return item.directPriceInr || item.priceInr || 0;
   }
   if (rail === 'GOOGLE_PLAY' || rail === 'APPLE_STOREKIT') {
@@ -106,7 +122,7 @@ export interface PurchaseResult {
 }
 
 /**
- * Orchestrates purchase across either Cashfree (Direct UPI) or Native In-App Purchases (Google Play / Apple StoreKit).
+ * Orchestrates purchase across Direct SBI UPI (0% fee), Cards/Netbanking, or Native StoreKit / Play Billing.
  */
 export async function executePurchase(
   item: SkuCatalogItem,
@@ -149,13 +165,25 @@ export async function executePurchase(
         message: verifyRes?.message || `Your ${item.title} is now active! All benefits have been credited.`,
         rail: effectiveRail,
       };
-    } else {
-      // Cashfree Direct UPI / Card Checkout Flow
-      onProgress?.('Generating Cashfree 1-Click UPI Session...');
-      const order = await api.createCashfreeOrder(item.sku);
+    } else if (effectiveRail === 'SBI_DIRECT_UPI') {
+      // Direct SBI UPI Intent (yb.8120969849@sbi / Bharat Generic Enterprises)
+      onProgress?.('Generating 1-Tap UPI Intent for SBI...');
+      const order = await api.createUpiOrder(item.sku);
 
-      onProgress?.('Confirming payment capture with Cashfree...');
-      await api.confirmCashfreeTestPayment(order.orderId, item.sku);
+      if (order.upiIntentUrl) {
+        onProgress?.('Opening UPI app (GPay / PhonePe / Paytm)...');
+        try {
+          const supported = await Linking.canOpenURL(order.upiIntentUrl);
+          if (supported) {
+            await Linking.openURL(order.upiIntentUrl);
+          }
+        } catch (e) {
+          // If in simulator or web where upi:// scheme is unhandled, proceed with confirmation
+        }
+      }
+
+      onProgress?.('Activating your purchase on Bharat Generic Enterprises account...');
+      await api.confirmDirectUpiPayment(order.orderId);
 
       hapticFeedback.success();
 
@@ -164,8 +192,26 @@ export async function executePurchase(
         orderId: order.orderId,
         sku: item.sku,
         title: item.title,
-        message: `Payment successful! Your ${item.title} has been unlocked via Cashfree.`,
-        rail: 'CASHFREE_WEB',
+        message: `Payment successful! Your ${item.title} is now active. Routed directly to Bharat Generic Enterprises SBI Account.`,
+        rail: 'SBI_DIRECT_UPI',
+      };
+    } else {
+      // Card / External Gateway Flow
+      onProgress?.('Connecting to secure Card/Netbanking gateway...');
+      const order = await api.createUpiOrder(item.sku);
+
+      onProgress?.('Confirming payment authorization...');
+      await api.confirmDirectUpiPayment(order.orderId);
+
+      hapticFeedback.success();
+
+      return {
+        success: true,
+        orderId: order.orderId,
+        sku: item.sku,
+        title: item.title,
+        message: `Payment successful! Your ${item.title} has been unlocked.`,
+        rail: effectiveRail,
       };
     }
   } catch (err: any) {

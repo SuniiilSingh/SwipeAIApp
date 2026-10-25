@@ -41,7 +41,7 @@ import { useLivenessRecovery } from '@/services/liveness-recovery';
 import { FEATURE_FLAGS } from '@/config/features';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { MODEL_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
-import { getMetroLineColor } from '@/utils/metro-colors';
+import { getCommunityColor } from '@/utils/metro-colors';
 
 const { width } = Dimensions.get('window');
 
@@ -2646,14 +2646,14 @@ export default function ProfileScreen() {
                   {/* Micro-Community Circle Picker */}
                   <Text style={styles.inputLabel}>Micro-Community Circle 🏙️</Text>
                   {(() => {
-                    const metro = getMetroLineColor(setupMicroCircle);
+                    const colorConfig = getCommunityColor(setupMicroCircle);
                     return (
                       <TouchableOpacity
                         style={[
                           styles.pickerFieldBtn,
-                          metro && {
-                            borderColor: metro.tagBorder,
-                            backgroundColor: metro.tagBg,
+                          setupMicroCircle && {
+                            borderColor: colorConfig.tagBorder,
+                            backgroundColor: colorConfig.tagBg,
                           },
                         ]}
                         onPress={() => setShowCommunityModal(true)}>
@@ -2661,10 +2661,10 @@ export default function ProfileScreen() {
                           style={[
                             styles.pickerFieldText,
                             !setupMicroCircle && { color: '#8E94A5' },
-                            metro && { color: metro.textColor, fontWeight: '800' },
+                            Boolean(setupMicroCircle) && { color: colorConfig.textColor, fontWeight: '800' },
                           ]}>
                           {setupMicroCircle
-                            ? `${metro ? `${metro.emoji} ` : '📍 '}${setupMicroCircle}`
+                            ? `${colorConfig.emoji} ${setupMicroCircle}`
                             : 'Select your Local Neighborhood Tribe ▾'}
                         </Text>
                       </TouchableOpacity>

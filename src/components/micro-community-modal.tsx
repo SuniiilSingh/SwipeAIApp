@@ -15,7 +15,7 @@ import { api } from '@/services/api';
 import { MicroCircle } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
 import { useThemedStyles } from '@/context/theme-context';
-import { getMetroLineColor } from '@/utils/metro-colors';
+import { getCommunityColor } from '@/utils/metro-colors';
 
 const { width } = Dimensions.get('window');
 
@@ -208,17 +208,17 @@ export default function MicroCommunityModal({
               const isSelected =
                 (selectedId && (item.id === selectedId || item.slug === selectedId)) ||
                 (selectedName && item.name.toLowerCase() === selectedName.toLowerCase());
-              const metroConfig = getMetroLineColor(item.slug || item.name);
+              const colorConfig = getCommunityColor(item.slug || item.name, item.vibeCategory);
 
               return (
                 <TouchableOpacity
                   style={[
                     styles.card,
-                    metroConfig && {
-                      borderColor: metroConfig.cardBorder,
-                      backgroundColor: isSelected ? '#10222D' : metroConfig.cardBg,
+                    {
+                      borderColor: colorConfig.cardBorder,
+                      backgroundColor: isSelected ? '#10222D' : colorConfig.cardBg,
                       borderLeftWidth: 4,
-                      borderLeftColor: metroConfig.primary,
+                      borderLeftColor: colorConfig.primary,
                     },
                     isSelected && styles.cardSelected,
                   ]}
@@ -227,13 +227,13 @@ export default function MicroCommunityModal({
                   <View
                     style={[
                       styles.badgeCircle,
-                      metroConfig && {
-                        backgroundColor: metroConfig.badgeBg,
-                        borderColor: metroConfig.badgeBorder,
+                      {
+                        backgroundColor: colorConfig.badgeBg,
+                        borderColor: colorConfig.badgeBorder,
                         borderWidth: 1.5,
                       },
                     ]}>
-                    <Text style={styles.badgeIcon}>{item.badgeIcon || metroConfig?.emoji || '🏙️'}</Text>
+                    <Text style={styles.badgeIcon}>{item.badgeIcon || colorConfig.emoji || '🏙️'}</Text>
                   </View>
 
                   <View style={styles.cardContent}>
@@ -241,7 +241,7 @@ export default function MicroCommunityModal({
                       <Text
                         style={[
                           styles.cardTitle,
-                          metroConfig && { color: metroConfig.textColor },
+                          { color: colorConfig.textColor },
                           isSelected && styles.cardTitleSelected,
                         ]}
                         numberOfLines={1}>
@@ -259,21 +259,19 @@ export default function MicroCommunityModal({
                     </Text>
 
                     <View style={styles.metaRow}>
-                      {metroConfig && (
-                        <View
-                          style={[
-                            styles.metaPill,
-                            {
-                              backgroundColor: metroConfig.tagBg,
-                              borderColor: metroConfig.tagBorder,
-                              borderWidth: 1,
-                            },
-                          ]}>
-                          <Text style={[styles.metaPillText, { color: metroConfig.tagText, fontWeight: '800' }]}>
-                            🚇 {metroConfig.name.toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
+                      <View
+                        style={[
+                          styles.metaPill,
+                          {
+                            backgroundColor: colorConfig.tagBg,
+                            borderColor: colorConfig.tagBorder,
+                            borderWidth: 1,
+                          },
+                        ]}>
+                        <Text style={[styles.metaPillText, { color: colorConfig.tagText, fontWeight: '800' }]}>
+                          {colorConfig.emoji} {colorConfig.name.toUpperCase()}
+                        </Text>
+                      </View>
                       {item.city && (
                         <View style={styles.metaPill}>
                           <Text style={styles.metaPillText}>📍 {item.city}</Text>

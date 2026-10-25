@@ -28,7 +28,7 @@ import SelfieCameraModal from '@/components/selfie-camera-modal';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 import MicroCommunityModal from '@/components/micro-community-modal';
 import { BlunderRWordmark } from '@/components/blunderr-wordmark';
-import { getMetroLineColor } from '@/utils/metro-colors';
+import { getCommunityColor } from '@/utils/metro-colors';
 import {
   GENDER_PRESETS,
   GENDER_PREFERENCE_PRESETS,
@@ -2899,17 +2899,17 @@ export default function OnboardingDecksScreen() {
                       ) : (
                         filteredTribeCircles.map((circle) => {
                           const isSel = microCircle === circle.name;
-                          const metro = getMetroLineColor(circle.slug || circle.name);
+                          const colorConfig = getCommunityColor(circle.slug || circle.name, circle.vibeCategory);
                           return (
                             <TouchableOpacity
                               key={circle.id}
                               style={[
                                 styles.tribeCardItem,
-                                metro && {
-                                  borderColor: metro.cardBorder,
-                                  backgroundColor: isSel ? styles.tribeCardItemSelected.backgroundColor : metro.cardBg,
+                                {
+                                  borderColor: colorConfig.cardBorder,
+                                  backgroundColor: isSel ? styles.tribeCardItemSelected.backgroundColor : colorConfig.cardBg,
                                   borderLeftWidth: 4,
-                                  borderLeftColor: metro.primary,
+                                  borderLeftColor: colorConfig.primary,
                                 },
                                 isSel && styles.tribeCardItemSelected,
                               ]}
@@ -2923,27 +2923,25 @@ export default function OnboardingDecksScreen() {
                                   <Text
                                     style={[
                                       styles.tribeCardName,
-                                      metro && { color: metro.textColor },
+                                      { color: colorConfig.textColor },
                                       isSel && styles.tribeCardNameSelected,
                                     ]}
                                     numberOfLines={1}>
                                     {circle.name}
                                   </Text>
-                                  {metro && (
-                                    <View
-                                      style={[
-                                        styles.tribeCityTag,
-                                        {
-                                          backgroundColor: metro.tagBg,
-                                          borderColor: metro.tagBorder,
-                                          borderWidth: 1,
-                                        },
-                                      ]}>
-                                      <Text style={[styles.tribeCityTagText, { color: metro.tagText, fontWeight: '800' }]}>
-                                        🚇 {metro.name.toUpperCase()}
-                                      </Text>
-                                    </View>
-                                  )}
+                                  <View
+                                    style={[
+                                      styles.tribeCityTag,
+                                      {
+                                        backgroundColor: colorConfig.tagBg,
+                                        borderColor: colorConfig.tagBorder,
+                                        borderWidth: 1,
+                                      },
+                                    ]}>
+                                    <Text style={[styles.tribeCityTagText, { color: colorConfig.tagText, fontWeight: '800' }]}>
+                                      {colorConfig.emoji} {colorConfig.name.toUpperCase()}
+                                    </Text>
+                                  </View>
                                   {!!circle.city && (
                                     <View style={styles.tribeCityTag}>
                                       <Text style={styles.tribeCityTagText}>{circle.city}</Text>

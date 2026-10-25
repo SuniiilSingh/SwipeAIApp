@@ -26,7 +26,7 @@ import { api, normalizeImageUrl } from '@/services/api';
 import { formatHeight } from '@/utils/height';
 import { MODEL_ASSETS, MEME_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
 import { useThemedStyles } from '@/context/theme-context';
-import { getMetroLineColor } from '@/utils/metro-colors';
+import { getCommunityColor } from '@/utils/metro-colors';
 
 const { width } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.min(Math.round(width * 1.25), 480);
@@ -785,25 +785,25 @@ export default function ProfileDetailModal({
 
           {/* Micro-Circle Community */}
           {candidate.microCircle && (() => {
-            const metro = getMetroLineColor(candidate.microCircle);
+            const colorConfig = getCommunityColor(candidate.microCircle);
             return (
               <View
                 style={[
                   styles.circleBanner,
-                  metro && {
-                    borderColor: metro.cardBorder,
-                    backgroundColor: metro.cardBg,
+                  {
+                    borderColor: colorConfig.cardBorder,
+                    backgroundColor: colorConfig.cardBg,
                     borderLeftWidth: 4,
-                    borderLeftColor: metro.primary,
+                    borderLeftColor: colorConfig.primary,
                   },
                 ]}>
                 <Text style={styles.circleBannerTitle}>
-                  {metro ? `🚇 ${metro.name.toUpperCase()} COMMUTER TRIBE` : '📍 Micro-Circle Community'}
+                  {colorConfig.emoji} {colorConfig.name.toUpperCase()} TRIBE
                 </Text>
                 <Text
                   style={[
                     styles.circleBannerName,
-                    metro && { color: metro.textColor },
+                    { color: colorConfig.textColor },
                   ]}>
                   "{candidate.microCircle}"
                 </Text>

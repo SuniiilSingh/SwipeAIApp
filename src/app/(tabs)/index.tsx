@@ -46,7 +46,7 @@ import { VibeQuizCard } from '@/components/vibe-quiz-card';
 import { LifestyleSyncModal } from '@/components/lifestyle-sync-modal';
 import { getEngagementStatus, recordSwipeEvent, markInterstitialShownToday } from '@/utils/engagement-cadence';
 import { useThemedStyles } from '@/context/theme-context';
-import { getMetroLineColor } from '@/utils/metro-colors';
+import { getCommunityColor, getMetroLineColor } from '@/utils/metro-colors';
 
 const PRESERVE_PHOTO_SCRIM_STYLES = [
   'photoBottomScrim',
@@ -1295,24 +1295,24 @@ function SwipeableCandidateCard({
                 </Text>
               </View>
               {Boolean(nextItem.microCircle) && (() => {
-                const metro = getMetroLineColor(nextItem.microCircle);
+                const colorConfig = getCommunityColor(nextItem.microCircle);
                 return (
                   <View
                     style={[
                       styles.communityPill,
-                      metro && {
-                        backgroundColor: metro.tagBg,
-                        borderColor: metro.tagBorder,
+                      {
+                        backgroundColor: colorConfig.tagBg,
+                        borderColor: colorConfig.tagBorder,
                         borderWidth: 1,
                       },
                     ]}>
                     <Text
                       style={[
                         styles.communityPillText,
-                        metro && { color: metro.tagText, fontWeight: '800' },
+                        { color: colorConfig.tagText, fontWeight: '800' },
                       ]}
                       numberOfLines={1}>
-                      {metro ? `${metro.emoji} ${nextItem.microCircle}` : `🏙️ ${nextItem.microCircle}`}
+                      {colorConfig.emoji} {nextItem.microCircle}
                     </Text>
                   </View>
                 );
@@ -1422,24 +1422,24 @@ function SwipeableCandidateCard({
               </View>
 
               {Boolean(item.microCircle) && (() => {
-                const metro = getMetroLineColor(item.microCircle);
+                const colorConfig = getCommunityColor(item.microCircle);
                 return (
                   <View
                     style={[
                       styles.communityPill,
-                      metro && {
-                        backgroundColor: metro.tagBg,
-                        borderColor: metro.tagBorder,
+                      {
+                        backgroundColor: colorConfig.tagBg,
+                        borderColor: colorConfig.tagBorder,
                         borderWidth: 1,
                       },
                     ]}>
                     <Text
                       style={[
                         styles.communityPillText,
-                        metro && { color: metro.tagText, fontWeight: '800' },
+                        { color: colorConfig.tagText, fontWeight: '800' },
                       ]}
                       numberOfLines={1}>
-                      {metro ? `${metro.emoji} ${item.microCircle}` : `🏙️ ${item.microCircle}`}
+                      {colorConfig.emoji} {item.microCircle}
                     </Text>
                   </View>
                 );
@@ -1905,28 +1905,28 @@ function SwipeableCandidateCard({
 
                   {/* Active Filter Pill */}
                   {(() => {
-                    const metro = getMetroLineColor(activeFilterLabel);
+                    const colorConfig = getCommunityColor(activeFilterLabel);
                     return (
                       <View
                         style={[
                           styles.activeFilterBadge,
-                          metro && {
-                            backgroundColor: metro.tagBg,
-                            borderColor: metro.tagBorder,
+                          {
+                            backgroundColor: colorConfig.tagBg,
+                            borderColor: colorConfig.tagBorder,
                           },
                         ]}>
                         <View
                           style={[
                             styles.activeFilterDot,
-                            metro && { backgroundColor: metro.primary },
+                            { backgroundColor: colorConfig.primary },
                           ]}
                         />
                         <Text
                           style={[
                             styles.activeFilterBadgeText,
-                            metro && { color: metro.textColor },
+                            { color: colorConfig.textColor },
                           ]}>
-                          {metro ? `🚇 ${metro.name.toUpperCase()} COMMUTER RADAR` : `FILTER ACTIVE: ${activeFilterLabel?.toUpperCase()}`}
+                          {colorConfig.emoji} {activeFilterLabel?.toUpperCase()} RADAR
                         </Text>
                       </View>
                     );

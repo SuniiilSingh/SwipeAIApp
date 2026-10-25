@@ -15,6 +15,7 @@ import { api } from '@/services/api';
 import { MicroCircle } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
 import { useThemedStyles } from '@/context/theme-context';
+import { getMetroLineColor } from '@/utils/metro-colors';
 
 const { width } = Dimensions.get('window');
 
@@ -207,19 +208,43 @@ export default function MicroCommunityModal({
               const isSelected =
                 (selectedId && (item.id === selectedId || item.slug === selectedId)) ||
                 (selectedName && item.name.toLowerCase() === selectedName.toLowerCase());
+              const metroConfig = getMetroLineColor(item.slug || item.name);
 
               return (
                 <TouchableOpacity
-                  style={[styles.card, isSelected && styles.cardSelected]}
+                  style={[
+                    styles.card,
+                    metroConfig && {
+                      borderColor: metroConfig.cardBorder,
+                      backgroundColor: isSelected ? '#10222D' : metroConfig.cardBg,
+                      borderLeftWidth: 4,
+                      borderLeftColor: metroConfig.primary,
+                    },
+                    isSelected && styles.cardSelected,
+                  ]}
                   activeOpacity={0.8}
                   onPress={() => handleSelectCommunity(item)}>
-                  <View style={styles.badgeCircle}>
-                    <Text style={styles.badgeIcon}>{item.badgeIcon || '🏙️'}</Text>
+                  <View
+                    style={[
+                      styles.badgeCircle,
+                      metroConfig && {
+                        backgroundColor: metroConfig.badgeBg,
+                        borderColor: metroConfig.badgeBorder,
+                        borderWidth: 1.5,
+                      },
+                    ]}>
+                    <Text style={styles.badgeIcon}>{item.badgeIcon || metroConfig?.emoji || '🏙️'}</Text>
                   </View>
 
                   <View style={styles.cardContent}>
                     <View style={styles.cardHeaderRow}>
-                      <Text style={[styles.cardTitle, isSelected && styles.cardTitleSelected]} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.cardTitle,
+                          metroConfig && { color: metroConfig.textColor },
+                          isSelected && styles.cardTitleSelected,
+                        ]}
+                        numberOfLines={1}>
                         {item.name}
                       </Text>
                       {isSelected && (
@@ -234,6 +259,21 @@ export default function MicroCommunityModal({
                     </Text>
 
                     <View style={styles.metaRow}>
+                      {metroConfig && (
+                        <View
+                          style={[
+                            styles.metaPill,
+                            {
+                              backgroundColor: metroConfig.tagBg,
+                              borderColor: metroConfig.tagBorder,
+                              borderWidth: 1,
+                            },
+                          ]}>
+                          <Text style={[styles.metaPillText, { color: metroConfig.tagText, fontWeight: '800' }]}>
+                            🚇 {metroConfig.name.toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
                       {item.city && (
                         <View style={styles.metaPill}>
                           <Text style={styles.metaPillText}>📍 {item.city}</Text>

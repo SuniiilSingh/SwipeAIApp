@@ -41,6 +41,7 @@ import { useLivenessRecovery } from '@/services/liveness-recovery';
 import { FEATURE_FLAGS } from '@/config/features';
 import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { MODEL_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
+import { getMetroLineColor } from '@/utils/metro-colors';
 
 const { width } = Dimensions.get('window');
 
@@ -2644,13 +2645,31 @@ export default function ProfileScreen() {
 
                   {/* Micro-Community Circle Picker */}
                   <Text style={styles.inputLabel}>Micro-Community Circle 🏙️</Text>
-                  <TouchableOpacity
-                    style={styles.pickerFieldBtn}
-                    onPress={() => setShowCommunityModal(true)}>
-                    <Text style={[styles.pickerFieldText, !setupMicroCircle && { color: '#8E94A5' }]}>
-                      {setupMicroCircle ? `📍 ${setupMicroCircle}` : 'Select your Local Neighborhood Tribe ▾'}
-                    </Text>
-                  </TouchableOpacity>
+                  {(() => {
+                    const metro = getMetroLineColor(setupMicroCircle);
+                    return (
+                      <TouchableOpacity
+                        style={[
+                          styles.pickerFieldBtn,
+                          metro && {
+                            borderColor: metro.tagBorder,
+                            backgroundColor: metro.tagBg,
+                          },
+                        ]}
+                        onPress={() => setShowCommunityModal(true)}>
+                        <Text
+                          style={[
+                            styles.pickerFieldText,
+                            !setupMicroCircle && { color: '#8E94A5' },
+                            metro && { color: metro.textColor, fontWeight: '800' },
+                          ]}>
+                          {setupMicroCircle
+                            ? `${metro ? `${metro.emoji} ` : '📍 '}${setupMicroCircle}`
+                            : 'Select your Local Neighborhood Tribe ▾'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })()}
 
                   {/* Languages Known */}
                   <Text style={styles.inputLabel}>Languages Known 🗣️</Text>

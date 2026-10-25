@@ -26,6 +26,7 @@ import { api, normalizeImageUrl } from '@/services/api';
 import { formatHeight } from '@/utils/height';
 import { MODEL_ASSETS, MEME_ASSETS, getModelAsset, resolveImageSource } from '@/constants/assets';
 import { useThemedStyles } from '@/context/theme-context';
+import { getMetroLineColor } from '@/utils/metro-colors';
 
 const { width } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.min(Math.round(width * 1.25), 480);
@@ -783,12 +784,32 @@ export default function ProfileDetailModal({
           )}
 
           {/* Micro-Circle Community */}
-          {candidate.microCircle && (
-            <View style={styles.circleBanner}>
-              <Text style={styles.circleBannerTitle}>📍 Micro-Circle Community</Text>
-              <Text style={styles.circleBannerName}>"{candidate.microCircle}"</Text>
-            </View>
-          )}
+          {candidate.microCircle && (() => {
+            const metro = getMetroLineColor(candidate.microCircle);
+            return (
+              <View
+                style={[
+                  styles.circleBanner,
+                  metro && {
+                    borderColor: metro.cardBorder,
+                    backgroundColor: metro.cardBg,
+                    borderLeftWidth: 4,
+                    borderLeftColor: metro.primary,
+                  },
+                ]}>
+                <Text style={styles.circleBannerTitle}>
+                  {metro ? `🚇 ${metro.name.toUpperCase()} COMMUTER TRIBE` : '📍 Micro-Circle Community'}
+                </Text>
+                <Text
+                  style={[
+                    styles.circleBannerName,
+                    metro && { color: metro.textColor },
+                  ]}>
+                  "{candidate.microCircle}"
+                </Text>
+              </View>
+            );
+          })()}
 
           {/* Trust Pass & Liveness Badge */}
           <View style={styles.trustBadgeCard}>

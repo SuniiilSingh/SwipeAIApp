@@ -344,7 +344,12 @@ export default function ProfileScreen() {
     setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '');
     setSetupLatitude(p.latitude);
     setSetupLongitude(p.longitude);
-    setSetupGenderDisplay(p.genderDisplay || '');
+    const genderMap: Record<string, string> = {
+      FEMALE: 'Woman',
+      MALE: 'Man',
+      NON_BINARY: 'Non-binary',
+    };
+    setSetupGenderDisplay(p.genderDisplay || (p.gender && genderMap[p.gender]) || '');
     setSetupShowGender(p.showGenderOnProfile !== undefined ? p.showGenderOnProfile : true);
     setSetupPreferenceDisplay(p.genderPreferenceDisplay || '');
     setSetupJob(p.job || p.occupation || '');
@@ -1358,7 +1363,12 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          isEditingProfile && styles.scrollContentStudio,
+        ]}
+        showsVerticalScrollIndicator={false}>
         {/* Unified Profile Completion Header Banner (View Mode Only) */}
         {!isEditingProfile && ((!setupFullname.trim() || !setupGenderDisplay || !setupOrientation || completionScore < 30) ? (
           <TouchableOpacity
@@ -2247,9 +2257,9 @@ export default function ProfileScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* 2. NAME, AGE & LOCATION CARD */}
+                {/* 2. IDENTITY, GENDER & VITALS CARD */}
                 <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>👤 Name, Vitals & Location</Text>
+                  <Text style={styles.sectionTitle}>👤 Identity, Gender & Vitals</Text>
                   
                   <Text style={styles.inputLabel}>Full Name *</Text>
                   <TextInput
@@ -2260,6 +2270,60 @@ export default function ProfileScreen() {
                     placeholderTextColor="#6B7082"
                     maxLength={30}
                   />
+
+                  {/* Date of Birth Picker Button */}
+                  <Text style={styles.inputLabel}>Date of Birth 📅</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={() => setShowDobPickerModal(true)}>
+                    <Text style={[styles.pickerFieldText, !setupDateOfBirth && { color: '#8E94A5' }]}>
+                      {setupDateOfBirth ? `📅 ${setupDateOfBirth}` : 'Select Date of Birth 📅'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Gender Picker Button */}
+                  <Text style={styles.inputLabel}>Gender 👤</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={() => setShowGenderPickerModal(true)}>
+                    <Text style={styles.pickerFieldText}>{setupGenderDisplay ? `👤 ${setupGenderDisplay}` : 'Select Gender 👤'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Show Gender Toggle */}
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setSetupShowGender(prev => !prev)}>
+                    <View style={[styles.checkboxBox, setupShowGender && styles.checkboxActive]}>
+                      {setupShowGender && <Text style={styles.checkboxTick}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Show my gender on my profile</Text>
+                  </TouchableOpacity>
+
+                  {/* Interested In / Gender Preference */}
+                  <Text style={styles.inputLabel}>Interested In (Match Preference) 👥</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={() => setShowPreferencePickerModal(true)}>
+                    <Text style={styles.pickerFieldText}>{setupPreferenceDisplay ? `👥 ${setupPreferenceDisplay}` : 'Select Match Preference 👥'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Sexual Orientation Picker Button */}
+                  <Text style={styles.inputLabel}>Sexual Orientation * 🏳️‍🌈</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={() => setShowOrientationPickerModal(true)}>
+                    <Text style={styles.pickerFieldText}>{setupOrientation ? `🏳️‍🌈 ${setupOrientation}` : 'Select Orientation 🏳️‍🌈'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Show Orientation Toggle */}
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setSetupShowOrientation(prev => !prev)}>
+                    <View style={[styles.checkboxBox, setupShowOrientation && styles.checkboxActive]}>
+                      {setupShowOrientation && <Text style={styles.checkboxTick}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Show orientation on my profile</Text>
+                  </TouchableOpacity>
 
                   <View style={styles.formGrid}>
                     <View style={{ flex: 1, marginRight: 8 }}>
@@ -2316,22 +2380,24 @@ export default function ProfileScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Date of Birth Picker Button */}
-                  <Text style={styles.inputLabel}>Date of Birth 📅</Text>
-                  <TouchableOpacity
-                    style={styles.pickerFieldBtn}
-                    onPress={() => setShowDobPickerModal(true)}>
-                    <Text style={[styles.pickerFieldText, !setupDateOfBirth && { color: '#8E94A5' }]}>
-                      {setupDateOfBirth || 'Select DOB'}
-                    </Text>
-                  </TouchableOpacity>
+                  {/* Max Discovery Radius */}
+                  <Text style={styles.inputLabel}>Max Discovery Radius (km) 🌐</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={setupMaxDistanceKm}
+                    onChangeText={(t) => setSetupMaxDistanceKm(t.replace(/[^0-9]/g, ''))}
+                    placeholder="e.g. 50 (search radius in km)"
+                    placeholderTextColor="#6B7082"
+                    keyboardType="numeric"
+                    maxLength={4}
+                  />
                 </View>
 
                 {/* 3. 💼 1ST POSITION: PROFESSIONAL & ACADEMIC PEDIGREE */}
                 <View style={styles.studioCareerCard}>
                   <View style={styles.studioCareerHeaderRow}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={styles.studioCareerHeaderTitle}>💼 PROFESSIONAL & ACADEMIC PEDIGREE</Text>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioCareerHeaderTitle} numberOfLines={1}>💼 PROFESSIONAL & ACADEMIC</Text>
                     </View>
                     <View style={styles.careerVerifiedBadge}>
                       <Text style={styles.careerVerifiedBadgeText}>✓ VERIFIED</Text>
@@ -2414,10 +2480,14 @@ export default function ProfileScreen() {
 
                 {/* 5. 🔮 3RD POSITION: VEDIC KUNDALI & COSMIC BLUEPRINT */}
                 <View style={styles.studioCosmicCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={styles.sectionTitle}>🔮 Vedic Zodiac Sign (Rashi / Moon Sign)</Text>
-                    <TouchableOpacity onPress={() => setShowKundaliModal(true)}>
-                      <Text style={{ color: '#FFD700', fontSize: 11, fontWeight: '800' }}>View Chart ↗</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={[styles.sectionTitle, { flex: 1, marginRight: 8, marginBottom: 0 }]} numberOfLines={1}>
+                      🔮 Vedic Zodiac Sign (Rashi)
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.cosmicChartBtn}
+                      onPress={() => setShowKundaliModal(true)}>
+                      <Text style={styles.cosmicChartBtnText}>View Chart ↗</Text>
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.sectionSub}>Match based on authentic Vedic Jyotish compatibility (+2% score).</Text>
@@ -2461,6 +2531,30 @@ export default function ProfileScreen() {
                           setupDiet === d.key && styles.studioVibeChipTextActive,
                         ]}>
                           {d.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Living Situation 1-Tap Chips */}
+                  <Text style={styles.inputLabel}>Living Situation 🏠</Text>
+                  <View style={styles.studioVibePillsRow}>
+                    {LIVING_OPTIONS.map((l) => (
+                      <TouchableOpacity
+                        key={l.key}
+                        style={[
+                          styles.studioVibeChip,
+                          setupLiving === l.key && styles.studioVibeChipActive,
+                        ]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupLiving(l.key);
+                        }}>
+                        <Text style={[
+                          styles.studioVibeChipText,
+                          setupLiving === l.key && styles.studioVibeChipTextActive,
+                        ]}>
+                          {l.emoji} {l.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -2626,7 +2720,7 @@ export default function ProfileScreen() {
 
                 {/* 9. 🏷️ 7TH POSITION: WHAT I'M INTO (INTERESTS & HOBBIES) */}
                 <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>🏷️ Interests & Dating Intent</Text>
+                  <Text style={styles.sectionTitle}>🏷️ Interests, Hobbies & Dating Intent</Text>
 
                   <Text style={styles.inputLabel}>What are you into? (Select at least 3)</Text>
                   <TouchableOpacity
@@ -2637,6 +2731,18 @@ export default function ProfileScreen() {
                     }}>
                     <Text style={styles.pickerFieldText}>
                       {setupInterests || 'Select Interests (60+ Presets) 🏷️'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.inputLabel}>Hobbies & Creative Pursuits 🎨</Text>
+                  <TouchableOpacity
+                    style={[styles.pickerFieldBtn, { minHeight: 48 }]}
+                    onPress={() => {
+                      setTempHobbies(setupHobbies);
+                      setShowHobbiesPickerModal(true);
+                    }}>
+                    <Text style={styles.pickerFieldText}>
+                      {setupHobbies || 'Select Hobbies & Pursuits 🎨'}
                     </Text>
                   </TouchableOpacity>
 
@@ -4084,6 +4190,14 @@ const baseStyles = StyleSheet.create({
     alignSelf: 'center',
     padding: 16,
   },
+  scrollContentStudio: {
+    width: '100%',
+    maxWidth: '100%',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 40,
+    alignSelf: 'stretch',
+  },
   completionCard: {
     backgroundColor: '#16171E',
     borderWidth: 1,
@@ -4742,7 +4856,6 @@ const baseStyles = StyleSheet.create({
   studioModeSwitcherRow: {
     flexDirection: 'row',
     gap: 8,
-    marginHorizontal: 16,
     marginTop: 8,
     marginBottom: 12,
   },
@@ -4770,7 +4883,6 @@ const baseStyles = StyleSheet.create({
     fontWeight: '800',
   },
   studioAuditBanner: {
-    marginHorizontal: 16,
     marginBottom: 14,
     backgroundColor: '#12162A',
     borderWidth: 1.5,
@@ -4851,7 +4963,6 @@ const baseStyles = StyleSheet.create({
     fontWeight: '800',
   },
   studioHeroPhotoWrap: {
-    marginHorizontal: 16,
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#000000',
@@ -4938,7 +5049,6 @@ const baseStyles = StyleSheet.create({
     borderColor: 'rgba(59, 130, 246, 0.35)',
     borderRadius: 20,
     padding: 16,
-    marginHorizontal: 16,
     marginBottom: 14,
   },
   studioCareerHeaderRow: {
@@ -4962,7 +5072,6 @@ const baseStyles = StyleSheet.create({
     borderColor: 'rgba(255, 56, 92, 0.35)',
     borderRadius: 20,
     padding: 16,
-    marginHorizontal: 16,
     marginBottom: 14,
   },
   studioCosmicCard: {
@@ -4971,8 +5080,21 @@ const baseStyles = StyleSheet.create({
     borderColor: 'rgba(168, 85, 247, 0.35)',
     borderRadius: 20,
     padding: 16,
-    marginHorizontal: 16,
     marginBottom: 14,
+  },
+  cosmicChartBtn: {
+    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  cosmicChartBtnText: {
+    color: '#FFD700',
+    fontSize: 11,
+    fontWeight: '800',
   },
   studioVibeCard: {
     backgroundColor: '#121524',
@@ -4980,7 +5102,6 @@ const baseStyles = StyleSheet.create({
     borderColor: '#262838',
     borderRadius: 20,
     padding: 16,
-    marginHorizontal: 16,
     marginBottom: 14,
   },
   studioVibePillsRow: {
@@ -5017,7 +5138,6 @@ const baseStyles = StyleSheet.create({
     borderColor: 'rgba(255, 184, 0, 0.3)',
     borderRadius: 20,
     padding: 16,
-    marginHorizontal: 16,
     marginBottom: 14,
   },
   studioAiPolishBtn: {
@@ -5034,11 +5154,12 @@ const baseStyles = StyleSheet.create({
     fontWeight: '800',
   },
   studioPreviewCardWrapper: {
-    marginHorizontal: 16,
+    width: '100%',
     marginBottom: 20,
   },
   studioPreviewCard: {
-    height: 520,
+    width: '100%',
+    height: 580,
     borderRadius: 28,
     overflow: 'hidden',
     backgroundColor: '#000000',
@@ -5171,6 +5292,7 @@ const baseStyles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 8,
+    flexShrink: 0,
   },
   careerVerifiedBadgeText: {
     color: '#2ED573',

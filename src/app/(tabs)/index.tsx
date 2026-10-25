@@ -532,6 +532,7 @@ export default function DiscoveryScreen() {
     }, [])
   );
 
+  const completionPercentage = userProfile?.completionPercentage || 65;
   const activeFilterLabel = selectedCommunityFilter
     ? `Circle: ${selectedCommunityFilter.name}`
     : selectedFilter !== 'ALL'
@@ -1845,12 +1846,12 @@ function SwipeableCandidateCard({
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               {hasActiveFilter ? (
-                // SPECIFIC FILTER EMPTY STATE
+                // SPECIFIC FILTER EMPTY STATE (SMART RADAR & GROWTH HOOKS)
                 <View style={styles.emptyCardBox}>
                   {/* Glowing Radar Pulse Icon */}
                   <View style={styles.radarPulseRingOuter}>
                     <View style={styles.radarPulseRingInner}>
-                      <Text style={styles.emptyCardIcon}>🔍</Text>
+                      <Text style={styles.emptyCardIcon}>✨</Text>
                     </View>
                   </View>
 
@@ -1863,29 +1864,85 @@ function SwipeableCandidateCard({
                   </View>
 
                   <Text style={styles.emptyCardTitle}>
-                    No {activeFilterLabel} Profiles Found Nearby
+                    No {activeFilterLabel} Singles Nearby
                   </Text>
                   <Text style={styles.emptyCardSub}>
-                    We scanned the database within {userProfile?.maxDistanceKm || 50}km, but found no verified singles matching this specific filter right now.
+                    You've explored all active singles with this filter within {userProfile?.maxDistanceKm || 50}km for now. Complete your profile or tweak your desires to discover more matches!
                   </Text>
 
-                  {/* Action 1: Re-scan DB for this specific filter */}
+                  {/* Hook 1: Complete Profile to 100% to unlock more profiles */}
+                  {completionPercentage < 100 && (
+                    <View style={styles.profileCompletionEmptyCard}>
+                      <View style={styles.profileCompletionEmptyHeader}>
+                        <Text style={styles.profileCompletionEmptyTitle}>
+                          🏆 Unlock More Profiles: 100% Profile
+                        </Text>
+                        <View style={styles.completionBadge}>
+                          <Text style={styles.completionBadgeText}>{completionPercentage}%</Text>
+                        </View>
+                      </View>
+                      <View style={styles.completionProgressBarBg}>
+                        <View
+                          style={[
+                            styles.completionProgressBarFill,
+                            { width: `${Math.max(10, Math.min(100, completionPercentage))}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.profileCompletionEmptyDesc}>
+                        Members at 100% earn 3x higher visibility and unlock +25 priority verified singles in your area!
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.profileCompletionEmptyBtn}
+                        activeOpacity={0.85}
+                        onPress={() => router.push('/(tabs)/profile' as any)}>
+                        <Text style={styles.profileCompletionEmptyBtnText}>
+                          ✨ Complete Profile to 100% (+{100 - completionPercentage}%) →
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Hook 2: Tweak Match Desires & Intent */}
+                  <View style={styles.desiresEmptyCard}>
+                    <View style={styles.desiresEmptyHeader}>
+                      <Text style={styles.desiresEmptyTitle}>
+                        ⚡ Tweak Your Match Desires
+                      </Text>
+                      <View style={styles.desiresPill}>
+                        <Text style={styles.desiresPillText}>Preferences</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.desiresEmptyDesc}>
+                      Widen your age range, distance radius, or relationship intent in Desires to reveal fresh candidates immediately.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.desiresEmptyBtn}
+                      activeOpacity={0.85}
+                      onPress={() => setShowDesireModal(true)}>
+                      <Text style={styles.desiresEmptyBtnText}>
+                        ⚙️ Adjust Match Desires & Intent →
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Action 1: Clear Filter & Show All Profiles */}
                   <TouchableOpacity
                     style={styles.emptyPrimaryBtn}
                     activeOpacity={0.8}
-                    onPress={() => handleSelectFilter(selectedFilter)}>
+                    onPress={handleClearFiltersAndShowAll}>
                     <Text style={styles.emptyPrimaryBtnText}>
-                      🔄 Re-scan Database for {activeFilterLabel}
+                      🌟 Clear Filter & Show All Profiles {candidates.length > 0 ? `(${candidates.length} in area)` : ''}
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Action 2: Show All Profiles */}
+                  {/* Action 2: Explore Metro & Community Circles */}
                   <TouchableOpacity
                     style={styles.emptySecondaryBtn}
                     activeOpacity={0.8}
-                    onPress={handleClearFiltersAndShowAll}>
+                    onPress={() => setShowCommunityModal(true)}>
                     <Text style={styles.emptySecondaryBtnText}>
-                      🌟 Clear Filter & Show All Profiles {candidates.length > 0 ? `(${candidates.length} in area)` : ''}
+                      🚇 Explore Delhi Metro Lines & Vibe Tribes →
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -1905,16 +1962,72 @@ function SwipeableCandidateCard({
                   <View style={styles.liveProximityStatusPill}>
                     <View style={styles.liveBeaconDot} />
                     <Text style={styles.liveProximityStatusText}>
-                      PROXIMITY SCANNER • {userProfile?.city || 'Bangalore'} ({userProfile?.maxDistanceKm || 50}km)
+                      PROXIMITY SCANNER • {userProfile?.city || 'Delhi NCR'} ({userProfile?.maxDistanceKm || 50}km)
                     </Text>
                   </View>
 
                   <Text style={styles.emptyCardTitle}>
-                    You've Seen Everyone Nearby!
+                    You've Explored All Singles Nearby!
                   </Text>
                   <Text style={styles.emptyCardSub}>
-                    You've browsed through all active verified profiles in your area for now. New members join throughout the day. Tap below to query the database for fresh singles!
+                    You've browsed through all active verified profiles in your area for now. Complete your profile to 100% or tweak desires to discover more:
                   </Text>
+
+                  {/* Hook 1: Complete Profile to 100% */}
+                  {completionPercentage < 100 && (
+                    <View style={styles.profileCompletionEmptyCard}>
+                      <View style={styles.profileCompletionEmptyHeader}>
+                        <Text style={styles.profileCompletionEmptyTitle}>
+                          🏆 Unlock More Profiles: 100% Profile
+                        </Text>
+                        <View style={styles.completionBadge}>
+                          <Text style={styles.completionBadgeText}>{completionPercentage}%</Text>
+                        </View>
+                      </View>
+                      <View style={styles.completionProgressBarBg}>
+                        <View
+                          style={[
+                            styles.completionProgressBarFill,
+                            { width: `${Math.max(10, Math.min(100, completionPercentage))}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.profileCompletionEmptyDesc}>
+                        Profiles at 100% earn 3x higher visibility and unlock +25 priority verified singles in your area!
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.profileCompletionEmptyBtn}
+                        activeOpacity={0.85}
+                        onPress={() => router.push('/(tabs)/profile' as any)}>
+                        <Text style={styles.profileCompletionEmptyBtnText}>
+                          ✨ Complete Profile to 100% (+{100 - completionPercentage}%) →
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
+                  {/* Hook 2: Tweak Match Desires & Intent */}
+                  <View style={styles.desiresEmptyCard}>
+                    <View style={styles.desiresEmptyHeader}>
+                      <Text style={styles.desiresEmptyTitle}>
+                        ⚡ Tweak Your Match Desires
+                      </Text>
+                      <View style={styles.desiresPill}>
+                        <Text style={styles.desiresPillText}>Preferences</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.desiresEmptyDesc}>
+                      Widen your age range, distance radius, or relationship intent in Desires to reveal fresh candidates immediately.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.desiresEmptyBtn}
+                      activeOpacity={0.85}
+                      onPress={() => setShowDesireModal(true)}>
+                      <Text style={styles.desiresEmptyBtnText}>
+                        ⚙️ Adjust Match Desires & Intent →
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
                   {/* Action 1: Live DB Fetch */}
                   <TouchableOpacity
@@ -1922,7 +2035,7 @@ function SwipeableCandidateCard({
                     activeOpacity={0.8}
                     onPress={handleScanDatabaseMore}>
                     <Text style={styles.emptyPrimaryBtnText}>
-                      📡 Scan Database for More Profiles
+                      🔄 Refresh For Newly Joined Members
                     </Text>
                   </TouchableOpacity>
 
@@ -1938,13 +2051,13 @@ function SwipeableCandidateCard({
                     </TouchableOpacity>
                   )}
 
-                  {/* Action 3: Expand Search Radius */}
+                  {/* Action 3: Explore Metro Tribes */}
                   <TouchableOpacity
                     style={styles.emptyGhostBtn}
                     activeOpacity={0.8}
-                    onPress={() => setShowDesireModal(true)}>
+                    onPress={() => setShowCommunityModal(true)}>
                     <Text style={styles.emptyGhostBtnText}>
-                      📍 Expand Discovery Radius & Preferences →
+                      🚇 Explore Delhi Metro Lines & Vibe Circles →
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -3178,6 +3291,125 @@ const baseStyles = StyleSheet.create({
     color: '#E2E8F0',
     fontSize: 13,
     fontWeight: '700',
+  },
+  profileCompletionEmptyCard: {
+    width: '100%',
+    backgroundColor: '#121625',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  profileCompletionEmptyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  profileCompletionEmptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    flex: 1,
+  },
+  completionBadge: {
+    backgroundColor: 'rgba(255, 56, 92, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 56, 92, 0.45)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  completionBadgeText: {
+    color: '#FF758C',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  completionProgressBarBg: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  completionProgressBarFill: {
+    height: '100%',
+    backgroundColor: '#FF385C',
+    borderRadius: 3,
+  },
+  profileCompletionEmptyDesc: {
+    color: '#94A3B8',
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  profileCompletionEmptyBtn: {
+    backgroundColor: '#F59E0B',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileCompletionEmptyBtnText: {
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  desiresEmptyCard: {
+    width: '100%',
+    backgroundColor: '#131522',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+  },
+  desiresEmptyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  desiresEmptyTitle: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    flex: 1,
+  },
+  desiresPill: {
+    backgroundColor: 'rgba(139, 92, 246, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.4)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  desiresPillText: {
+    color: '#C4B5FD',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  desiresEmptyDesc: {
+    color: '#94A3B8',
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  desiresEmptyBtn: {
+    backgroundColor: 'rgba(139, 92, 246, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.45)',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  desiresEmptyBtnText: {
+    color: '#DDD6FE',
+    fontSize: 12,
+    fontWeight: '800',
   },
   emptyGhostBtn: {
     paddingVertical: 8,

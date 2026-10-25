@@ -1673,7 +1673,12 @@ function SwipeableCandidateCard({
   };
 
   const renderFeedHeader = () => (
-    <View style={[styles.feedHeaderContainer, isCompactScreen && { paddingHorizontal: 10 }]}>
+    <View
+      style={[
+        styles.feedHeaderContainer,
+        feedDisplayCards.length === 0 && styles.feedHeaderEmpty,
+        isCompactScreen && { paddingHorizontal: 10 },
+      ]}>
       {/* Top App Bar */}
       <View style={styles.brandBar}>
         <View style={styles.brandTitleWrap}>
@@ -1814,7 +1819,10 @@ function SwipeableCandidateCard({
 
       {/* Main Profile Feed: Exactly 1 Profile per screen */}
       <View
-        style={styles.feedWrapper}
+        style={[
+          styles.feedWrapper,
+          feedDisplayCards.length === 0 && styles.feedWrapperEmpty,
+        ]}
         onLayout={(e) => {
           const { height: h, width: w } = e.nativeEvent.layout;
           if (h > 50 && w > 50) {
@@ -1826,8 +1834,9 @@ function SwipeableCandidateCard({
           data={feedDisplayCards}
           keyExtractor={(item) => item.userId}
           renderItem={renderCandidateCard}
-          pagingEnabled={true}
+          pagingEnabled={feedDisplayCards.length > 0}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={feedDisplayCards.length === 0 ? styles.feedEmptyContent : undefined}
           initialNumToRender={2}
           maxToRenderPerBatch={3}
           windowSize={5}
@@ -2434,6 +2443,11 @@ const baseStyles = StyleSheet.create({
     borderBottomColor: '#1A1C24',
     marginBottom: 8,
   },
+  feedHeaderEmpty: {
+    maxWidth: '100%',
+    width: '100%',
+    alignSelf: 'stretch',
+  },
   brandBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -2678,6 +2692,16 @@ const baseStyles = StyleSheet.create({
     width: '100%',
     maxWidth: 440,
     alignSelf: 'center',
+  },
+  feedWrapperEmpty: {
+    maxWidth: '100%',
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  feedEmptyContent: {
+    flexGrow: 1,
+    width: '100%',
+    paddingBottom: 40,
   },
   cardContainer: {
     flex: 1,
@@ -3193,21 +3217,23 @@ const baseStyles = StyleSheet.create({
     display: 'none',
   },
   emptyContainer: {
-    padding: 16,
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    alignItems: 'stretch',
     justifyContent: 'center',
-    marginTop: 20,
     width: '100%',
+    alignSelf: 'stretch',
   },
   emptyCardBox: {
     width: '100%',
-    maxWidth: 380,
+    maxWidth: '100%',
     backgroundColor: '#161822',
     borderWidth: 1,
     borderColor: '#262A38',
     borderRadius: 24,
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
+    alignSelf: 'stretch',
     ...Platform.select({
       web: { boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.45)' },
       default: {

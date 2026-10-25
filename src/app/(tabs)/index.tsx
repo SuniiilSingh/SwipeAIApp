@@ -430,6 +430,7 @@ export default function DiscoveryScreen() {
 
   // Reference to main candidate cards FlatList (enables resetting to 1st profile upon returning to tab)
   const feedFlatListRef = useRef<FlatList<any>>(null);
+  const filterScrollRef = useRef<ScrollView>(null);
 
   // Selected Candidate for Full Profile Inspection Sheet
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateCard | null>(null);
@@ -502,19 +503,23 @@ export default function DiscoveryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      // 🚀 Reset discovery feed scroll position back to the beginning (1st profile)
-      // whenever user returns to Discovery tab from Matches, Profile, etc.
+      // 🚀 Always reset discovery to 'All Profiles' and scroll back to top whenever returning to Discovery tab
+      setSelectedFilter('ALL');
+      setSelectedCommunityFilter(null);
+
       try {
+        filterScrollRef.current?.scrollTo({ x: 0, animated: false });
         feedFlatListRef.current?.scrollToOffset({ offset: 0, animated: false });
       } catch (_) {}
 
       const resetTimer = setTimeout(() => {
         try {
+          filterScrollRef.current?.scrollTo({ x: 0, animated: false });
           feedFlatListRef.current?.scrollToOffset({ offset: 0, animated: false });
         } catch (_) {}
       }, 60);
 
-      loadFeed();
+      loadFeed(null, 'ALL');
       api.getSparkNoteQuota().then(setSparkNoteQuota).catch(() => {});
       api.getUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => {});
       getEngagementStatus()
@@ -1754,6 +1759,7 @@ function SwipeableCandidateCard({
       {/* Horizontal Filter Bar with Full-Width ScrollView */}
       <View style={styles.filterBarContainer}>
         <ScrollView
+          ref={filterScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.filterScrollView}

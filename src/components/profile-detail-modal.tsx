@@ -347,9 +347,10 @@ export default function ProfileDetailModal({
                 {candidate.fullName || candidate.displayName}, {candidate.age}
               </Text>
               {((FEATURE_FLAGS.ENABLE_DIGILOCKER && candidate.isDigilockerVerified) || candidate.livenessScore >= 0.85) && (
-                <View style={styles.goldBadge}>
-                  <Text style={styles.goldBadgeText}>
-                    {FEATURE_FLAGS.ENABLE_DIGILOCKER && candidate.isDigilockerVerified ? '🛡️ VERIFIED' : '👤 VERIFIED'}
+                <View style={styles.livenessBadgeName}>
+                  <View style={styles.livenessDot} />
+                  <Text style={styles.livenessBadgeNameText}>
+                    {FEATURE_FLAGS.ENABLE_DIGILOCKER && candidate.isDigilockerVerified ? '🛡️ DIGILOCKER VERIFIED' : '🛡️ 3D LIVENESS VERIFIED'}
                   </Text>
                 </View>
               )}
@@ -398,27 +399,166 @@ export default function ProfileDetailModal({
               </TouchableOpacity>
             )}
 
-            {/* Occupation & Education */}
-            {(candidate.job || candidate.occupation || candidate.company) && (
-              <Text style={styles.jobText}>
-                💼 {candidate.job || candidate.occupation || 'Professional'}{candidate.company ? ` @ ${candidate.company}` : ''}
-              </Text>
-            )}
-
-            {(candidate.education || candidate.institute) && (
-              <Text style={styles.eduText}>
-                🎓 {candidate.education || 'Degree'}{candidate.institute ? ` @ ${candidate.institute}` : ''}
-              </Text>
-            )}
-
-            {candidate.height && (
-              <Text style={styles.detailRowText}>📏 Height: {formatHeight(candidate.height)}</Text>
-            )}
-
             <Text style={styles.locText}>
               📍 {candidate.neighborhood ? `${candidate.neighborhood}, ` : ''}{candidate.city ? candidate.city : ''} • {typeof candidate.distanceKm === 'number' && candidate.distanceKm >= 0 ? (candidate.distanceKm < 1 ? '< 1 km away' : `${candidate.distanceKm.toFixed(1)} km away`) : 'Nearby'}
             </Text>
           </View>
+
+          {/* 💼 1ST POSITION: Dedicated Career & Education Pedigree Card */}
+          <View style={styles.careerCard}>
+            <View style={styles.careerHeaderRow}>
+              <View style={styles.careerHeaderTitleWrap}>
+                <Text style={styles.careerHeaderTitle}>💼 PROFESSIONAL & ACADEMIC PEDIGREE</Text>
+              </View>
+              <View style={styles.careerVerifiedBadge}>
+                <Text style={styles.careerVerifiedBadgeText}>✓ VERIFIED</Text>
+              </View>
+            </View>
+
+            {/* Job / Occupation */}
+            {(candidate.job || candidate.occupation || candidate.company) ? (
+              <View style={styles.pedigreeRow}>
+                <View style={styles.pedigreeIconBox}>
+                  <Text style={styles.pedigreeIcon}>💼</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pedigreePrimaryText}>
+                    {candidate.job || candidate.occupation || 'Professional'}
+                  </Text>
+                  <Text style={styles.pedigreeSubText}>
+                    {candidate.company ? `${candidate.company} • ` : ''}Professional Career Track
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Education / Institute */}
+            {(candidate.education || candidate.institute) ? (
+              <View style={styles.pedigreeRow}>
+                <View style={styles.pedigreeIconBox}>
+                  <Text style={styles.pedigreeIcon}>🎓</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pedigreePrimaryText}>
+                    {candidate.education || 'Graduate Degree'}
+                  </Text>
+                  <Text style={styles.pedigreeSubText}>
+                    {candidate.institute || 'University / Higher Education'}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Height & Fitness */}
+            {candidate.height ? (
+              <View style={styles.pedigreeRow}>
+                <View style={styles.pedigreeIconBox}>
+                  <Text style={styles.pedigreeIcon}>📏</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pedigreePrimaryText}>
+                    Height: {formatHeight(candidate.height)}
+                  </Text>
+                  <Text style={styles.pedigreeSubText}>
+                    Athletic • Active & Healthy Lifestyle
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          {/* 🎙️ 2ND POSITION: Vernacular Voice Note (if candidate has audio) */}
+          {Boolean(
+            (typeof candidate.voicePrompt?.audioUrl === 'string' && candidate.voicePrompt.audioUrl.trim() !== '') ||
+            (typeof candidate.voicePromptUrl === 'string' && candidate.voicePromptUrl.trim() !== '')
+          ) && (
+            <View style={styles.voicePromptCard}>
+              <View style={styles.voiceHeader}>
+                <Text style={styles.voiceTitle}>🎙️ 15s Vernacular Voice Note</Text>
+                <Text style={styles.voiceDuration}>{candidate.voicePrompt?.durationSec || candidate.voicePromptDuration || 15}s</Text>
+              </View>
+              <Text style={styles.voicePromptText}>"{candidate.voicePrompt?.promptText || candidate.voicePromptText || 'Vernacular voice intro'}"</Text>
+
+              <TouchableOpacity
+                style={styles.audioWaveBtn}
+                onPress={() => {
+                  const targetAudio = (candidate.voicePrompt?.audioUrl && candidate.voicePrompt.audioUrl.trim()) ||
+                                      (candidate.voicePromptUrl && candidate.voicePromptUrl.trim());
+                  if (!targetAudio) return;
+
+                  if (isPlayingAudio) {
+                    stopAudibleVoiceNote();
+                    setIsPlayingAudio(false);
+                  } else {
+                    playAudibleVoiceNote({
+                      audioUrl: targetAudio,
+                      promptText: candidate.voicePrompt?.promptText || candidate.voicePromptText,
+                      durationSec: candidate.voicePrompt?.durationSec || candidate.voicePromptDuration || 15,
+                      onStart: () => setIsPlayingAudio(true),
+                      onEnd: () => setIsPlayingAudio(false),
+                    });
+                  }
+                }}>
+                <Text style={styles.playIcon}>
+                  {isPlayingAudio ? '⏸️ Playing Voice Note...' : '▶ Listen (Authentic Voice Note)'}
+                </Text>
+                <View style={styles.fakeWaveform}>
+                  {[12, 26, 38, 18, 32, 10, 36, 22, 42, 16, 28].map((h, idx) => (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.waveBar,
+                        { height: isPlayingAudio ? (h * 1.2) % 32 + 6 : h },
+                      ]}
+                    />
+                  ))}
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 🔮 3RD POSITION: Cosmic Chemistry & 36-Point Kundali Synergy (Swapped into Career's former slot) */}
+          <TouchableOpacity
+            style={styles.cosmicCard}
+            onPress={() => {
+              hapticFeedback.light();
+              setShowKundaliModal(true);
+            }}
+            activeOpacity={0.85}>
+            <View style={styles.cosmicHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                <Text style={{ fontSize: 18 }}>🔮</Text>
+                <View>
+                  <Text style={styles.cosmicSectionTitle} numberOfLines={1}>
+                    33/36 Guna Milan & Cosmic Vibe
+                  </Text>
+                  <Text style={styles.cosmicSubTitle}>
+                    Nadi & Bhakoot Auspicious • High Energy Match
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.viewKundaliBadge}>
+                <Text style={styles.viewKundaliBadgeText}>View Kundali ↗</Text>
+              </View>
+            </View>
+
+            <View style={styles.astroRow}>
+              <View style={styles.astroPill}>
+                <Text style={styles.astroLabel}>Sun Sign</Text>
+                <Text style={styles.astroValue}>{candidate.sunSign || candidate.culturalBadges?.zodiac || 'Aries'}</Text>
+              </View>
+              <View style={styles.astroPill}>
+                <Text style={styles.astroLabel}>Moon Sign</Text>
+                <Text style={styles.astroValue}>{candidate.moonSign || 'Scorpio'}</Text>
+              </View>
+              <View style={styles.astroPill}>
+                <Text style={styles.astroLabel}>Cosmic Synergy</Text>
+                <Text style={styles.astroValue}>
+                  {candidate.cosmicChemistry?.synergyTag || '89% High Vibe'}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
 
           {/* Dating Goal & Orientation */}
           <View style={styles.card}>
@@ -618,90 +758,6 @@ export default function ProfileDetailModal({
                   );
                 })}
               </View>
-            </View>
-          )}
-
-          {/* Modern Cosmic Chemistry */}
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => {
-              hapticFeedback.light();
-              setShowKundaliModal(true);
-            }}
-            activeOpacity={0.85}>
-            <View style={styles.cosmicHeaderRow}>
-              <Text style={styles.cosmicSectionTitle} numberOfLines={1}>
-                ✨ Cosmic Chemistry & Synergy
-              </Text>
-              <View style={styles.viewKundaliBadge}>
-                <Text style={styles.viewKundaliBadgeText}>View Kundali ↗</Text>
-              </View>
-            </View>
-            <View style={styles.astroRow}>
-              <View style={styles.astroPill}>
-                <Text style={styles.astroLabel}>Sun Sign</Text>
-                <Text style={styles.astroValue}>{candidate.sunSign || candidate.culturalBadges?.zodiac || 'Aries'}</Text>
-              </View>
-              <View style={styles.astroPill}>
-                <Text style={styles.astroLabel}>Moon Sign</Text>
-                <Text style={styles.astroValue}>{candidate.moonSign || 'Scorpio'}</Text>
-              </View>
-              <View style={styles.astroPill}>
-                <Text style={styles.astroLabel}>Cosmic Synergy</Text>
-                <Text style={styles.astroValue}>
-                  {candidate.cosmicChemistry?.synergyTag || '89% High Vibe'}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          {/* Vernacular Voice Note - ONLY if profile has uploaded an authentic audio recording */}
-          {Boolean(
-            (typeof candidate.voicePrompt?.audioUrl === 'string' && candidate.voicePrompt.audioUrl.trim() !== '') ||
-            (typeof candidate.voicePromptUrl === 'string' && candidate.voicePromptUrl.trim() !== '')
-          ) && (
-            <View style={styles.voicePromptCard}>
-              <View style={styles.voiceHeader}>
-                <Text style={styles.voiceTitle}>🎙️ 15s Vernacular Voice Note</Text>
-                <Text style={styles.voiceDuration}>{candidate.voicePrompt?.durationSec || candidate.voicePromptDuration || 15}s</Text>
-              </View>
-              <Text style={styles.voicePromptText}>"{candidate.voicePrompt?.promptText || candidate.voicePromptText || 'Vernacular voice intro'}"</Text>
-
-              <TouchableOpacity
-                style={styles.audioWaveBtn}
-                onPress={() => {
-                  const targetAudio = (candidate.voicePrompt?.audioUrl && candidate.voicePrompt.audioUrl.trim()) ||
-                                      (candidate.voicePromptUrl && candidate.voicePromptUrl.trim());
-                  if (!targetAudio) return;
-
-                  if (isPlayingAudio) {
-                    stopAudibleVoiceNote();
-                    setIsPlayingAudio(false);
-                  } else {
-                    playAudibleVoiceNote({
-                      audioUrl: targetAudio,
-                      promptText: candidate.voicePrompt?.promptText || candidate.voicePromptText,
-                      durationSec: candidate.voicePrompt?.durationSec || candidate.voicePromptDuration || 15,
-                      onStart: () => setIsPlayingAudio(true),
-                      onEnd: () => setIsPlayingAudio(false),
-                    });
-                  }
-                }}>
-                <Text style={styles.playIcon}>
-                  {isPlayingAudio ? '⏸️ Playing Voice Note...' : '▶ Listen (Authentic Voice Note)'}
-                </Text>
-                <View style={styles.fakeWaveform}>
-                  {[12, 26, 38, 18, 32, 10, 36, 22, 42, 16, 28].map((h, idx) => (
-                    <View
-                      key={idx}
-                      style={[
-                        styles.waveBar,
-                        { height: isPlayingAudio ? (h * 1.2) % 32 + 6 : h },
-                      ]}
-                    />
-                  ))}
-                </View>
-              </TouchableOpacity>
             </View>
           )}
 
@@ -1348,6 +1404,126 @@ const baseStyles = StyleSheet.create({
     color: '#000000',
     fontSize: 9,
     fontWeight: '900',
+  },
+  livenessBadgeName: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4.5,
+    backgroundColor: 'rgba(255, 184, 0, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  livenessDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2ED573',
+  },
+  livenessBadgeNameText: {
+    color: '#FFD700',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  careerCard: {
+    backgroundColor: '#101426',
+    borderWidth: 1.5,
+    borderColor: 'rgba(59, 130, 246, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 14,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  careerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  careerHeaderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  careerHeaderTitle: {
+    color: '#60A5FA',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  careerVerifiedBadge: {
+    backgroundColor: 'rgba(46, 213, 115, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(46, 213, 115, 0.35)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  careerVerifiedBadgeText: {
+    color: '#2ED573',
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  pedigreeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
+  },
+  pedigreeIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pedigreeIcon: {
+    fontSize: 16,
+  },
+  pedigreePrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  pedigreeSubText: {
+    color: '#94A3B8',
+    fontSize: 11.5,
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  cosmicCard: {
+    backgroundColor: '#161224',
+    borderWidth: 1.5,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 14,
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  cosmicSubTitle: {
+    color: '#C084FC',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
   },
   vibeRow: {
     flexDirection: 'row',

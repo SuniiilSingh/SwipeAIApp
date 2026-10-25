@@ -59,6 +59,9 @@ const PRESERVE_PHOTO_SCRIM_STYLES = [
   'photoCountPill',
   'locationPill',
   'datingVerifiedPill',
+  'datingVerifiedPillBesideName',
+  'datingVerifiedPillBesideNameText',
+  'livenessPingDot',
 ] as const;
 
 const { width, height } = Dimensions.get('window');
@@ -1271,11 +1274,7 @@ function SwipeableCandidateCard({
             cachePolicy="memory-disk"
           />
           <View style={styles.photoTopRow}>
-            {Boolean(nextItem.isFaceVerified ?? (nextItem.livenessScore && nextItem.livenessScore >= 85)) && (
-              <View style={styles.datingVerifiedPill}>
-                <Text style={styles.datingVerifiedPillText}>🛡️ 100% Biometric Verified</Text>
-              </View>
-            )}
+            <View style={{ flex: 1 }} />
             <View style={styles.photoCountPill}>
               <Text style={styles.photoCountPillText}>
                 📷 {nextItem.photos?.length || 4} Photos
@@ -1306,6 +1305,12 @@ function SwipeableCandidateCard({
               <Text style={styles.candidateNameText} numberOfLines={1}>
                 {nextItem.fullName || nextItem.displayName}, {nextItem.age}
               </Text>
+              {Boolean(nextItem.isFaceVerified ?? (nextItem.livenessScore && nextItem.livenessScore >= 85)) && (
+                <View style={styles.datingVerifiedPillBesideName}>
+                  <View style={styles.livenessPingDot} />
+                  <Text style={styles.datingVerifiedPillBesideNameText}>🛡️ 3D Liveness Verified</Text>
+                </View>
+              )}
               <View style={styles.verifiedCheckBadge}>
                 <Text style={styles.verifiedCheckText}>✓</Text>
               </View>
@@ -1373,14 +1378,9 @@ function SwipeableCandidateCard({
             recyclingKey={item.userId}
           />
 
-          {/* Top Badges Overlaid on Photo */}
+          {/* Top Badges Overlaid on Photo (Head View 100% Unobstructed) */}
           <View style={styles.photoTopRow}>
-            {Boolean(item.isFaceVerified ?? (item.livenessScore && item.livenessScore >= 85)) && (
-              <View style={styles.datingVerifiedPill}>
-                <Text style={styles.datingVerifiedPillText}>🛡️ 100% Biometric Verified</Text>
-              </View>
-            )}
-
+            <View style={{ flex: 1 }} />
             <View style={styles.photoCountPill}>
               <Text style={styles.photoCountPillText}>
                 📷 {item.photos?.length || 4} Photos
@@ -1413,18 +1413,24 @@ function SwipeableCandidateCard({
               )}
             </View>
 
-            {/* Row 2: Name & Age with Verified Blue Checkmark */}
+            {/* Row 2: Name & Age with 3D Biometric Verified Badge beside name */}
             <View style={styles.nameWithShieldRow}>
               <Text style={styles.candidateNameText} numberOfLines={1}>
                 {item.fullName || item.displayName}, {item.age}
               </Text>
+              {Boolean(item.isFaceVerified ?? (item.livenessScore && item.livenessScore >= 85)) && (
+                <View style={styles.datingVerifiedPillBesideName}>
+                  <View style={styles.livenessPingDot} />
+                  <Text style={styles.datingVerifiedPillBesideNameText}>🛡️ 3D Liveness Verified</Text>
+                </View>
+              )}
               <View style={styles.verifiedCheckBadge}>
                 <Text style={styles.verifiedCheckText}>✓</Text>
               </View>
               <View style={styles.activeDot} />
             </View>
 
-            {/* Row 3: Job & College */}
+            {/* Row 3: Primary Career & Education Credentials */}
             <Text style={styles.jobText} numberOfLines={1}>
               💼 {item.occupation || item.job || 'Product Designer'}{item.company ? ` @ ${item.company}` : ''}
               {(item.education || item.institute) ? ` • 🎓 ${item.education || 'Graduate'}` : ''}
@@ -2966,6 +2972,29 @@ const baseStyles = StyleSheet.create({
     color: '#00F2FE',
     fontSize: 10,
     fontWeight: '800',
+  },
+  datingVerifiedPillBesideName: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 184, 0, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.55)',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 12,
+  },
+  datingVerifiedPillBesideNameText: {
+    color: '#FFD700',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  livenessPingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2ED573',
   },
   verifiedCheckBadge: {
     width: 18,

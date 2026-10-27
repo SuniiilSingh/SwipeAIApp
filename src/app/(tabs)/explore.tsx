@@ -178,8 +178,17 @@ export default function ExploreScreen() {
   const [activeFactIdx, setActiveFactIdx] = useState(0);
   const [cardBorderTheme, setCardBorderTheme] = useState<'gold' | 'emerald' | 'rosegold' | 'aurora' | 'diamond'>('gold');
   const [instaCardStep, setInstaCardStep] = useState<'options' | 'preview'>('options');
-  const [selectedPhotoId, setSelectedPhotoId] = useState<string>('user');
-  const [customPromptText, setCustomPromptText] = useState<string>('');
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string>('user-0');
+
+  // Fully Dynamic Instagram Card Data (Synced with profile & fully editable)
+  const [cardName, setCardName] = useState<string>('');
+  const [cardRole, setCardRole] = useState<string>('');
+  const [cardTribe, setCardTribe] = useState<string>('');
+  const [cardNakshatra, setCardNakshatra] = useState<string>('');
+  const [cardMoon, setCardMoon] = useState<string>('');
+  const [cardGunaScore, setCardGunaScore] = useState<string>('34.5');
+  const [cardQuote, setCardQuote] = useState<string>('');
+  const [card3DVerifiedText, setCard3DVerifiedText] = useState<string>('✓ 100% 3D BIOMETRIC VERIFIED');
 
   useEffect(() => {
     loadCircles();
@@ -203,8 +212,30 @@ export default function ExploreScreen() {
         api.getMyProfile().catch(() => null),
         api.getMyAstrology().catch(() => null),
       ]);
-      if (myProf) setProfile(myProf);
-      if (myAstro) setAstrology(myAstro);
+      if (myProf) {
+        setProfile(myProf);
+        setCardName((prev) => prev || myProf.fullName || myProf.displayName || 'Tara Sen');
+        const agePart = myProf.age ? `${myProf.age} • ` : '25 • ';
+        const occPart = myProf.occupation || (myProf.company ? `At ${myProf.company}` : 'Founder & Angel Investor');
+        setCardRole((prev) => prev || `${agePart}${occPart}`);
+        const tribeLoc = myProf.microCircle || (myProf.neighborhood ? `${myProf.neighborhood} • ${myProf.city || 'Bengaluru'}` : 'Indiranagar Founders Club • Bengaluru');
+        setCardTribe((prev) => prev || tribeLoc);
+        if (myProf.profilePromptAnswer) {
+          setCardQuote((prev) => prev || myProf.profilePromptAnswer || '');
+        }
+        if (myProf.livenessScore) {
+          setCard3DVerifiedText(`✓ ${Math.round(myProf.livenessScore)}% 3D BIOMETRIC VERIFIED`);
+        }
+      }
+      if (myAstro) {
+        setAstrology(myAstro);
+        if (myAstro.nakshatraName) {
+          setCardNakshatra((prev) => prev || `${myAstro.nakshatraName} (P${myAstro.nakshatraPada || 2})`);
+        }
+        if (myAstro.chandraRashi) {
+          setCardMoon((prev) => prev || myAstro.chandraRashi);
+        }
+      }
     } catch {
       // Fallback cosmic defaults handled below
     }
@@ -249,26 +280,58 @@ export default function ExploreScreen() {
   const isManglik = Boolean(astrology?.isManglik);
 
   const activeTheme = LUXURY_BORDER_THEMES[cardBorderTheme];
-  const userPhoto = profile?.photos?.[0] || profile?.photo1 || profile?.selfieUrl;
-  const userRole = profile?.occupation || profile?.company
-    ? `${profile?.occupation || 'Member'}${profile?.company ? ` at ${profile.company}` : ''}`
-    : '25 • High-Intent Member';
 
-  const CURATED_PHOTO_OPTIONS = useMemo(
-    () => [
-      { id: 'user', label: 'My Photo', isUser: true, source: userPhoto ? { uri: userPhoto } : MODEL_ASSETS.tara },
+  // Dynamic User Photos List (User's real profile photos + curated editorial looks)
+  const userPhotosList = useMemo(() => {
+    const list: string[] = [];
+    if (profile?.photos && Array.isArray(profile.photos)) {
+      list.push(...profile.photos.filter(Boolean));
+    }
+    if (profile?.photo1 && !list.includes(profile.photo1)) list.push(profile.photo1);
+    if (profile?.selfieUrl && !list.includes(profile.selfieUrl)) list.push(profile.selfieUrl);
+    return list;
+  }, [profile]);
+
+  const CURATED_PHOTO_OPTIONS = useMemo(() => {
+    const options: { id: string; label: string; isUser: boolean; source: any }[] = [];
+    if (userPhotosList.length > 0) {
+      userPhotosList.forEach((uri, idx) => {
+        options.push({
+          id: `user-${idx}`,
+          label: idx === 0 ? 'My Main Photo' : `My Photo ${idx + 1}`,
+          isUser: true,
+          source: { uri },
+        });
+      });
+    } else {
+      options.push({
+        id: 'user-0',
+        label: 'My Photo',
+        isUser: true,
+        source: MODEL_ASSETS.tara,
+      });
+    }
+    options.push(
       { id: 'ivory', label: 'Ivory Blazer', isUser: false, source: MODEL_ASSETS.tara },
       { id: 'rose', label: 'Rose Silk', isUser: false, source: MODEL_ASSETS.ananya },
       { id: 'vogue', label: 'Vogue Red', isUser: false, source: MODEL_ASSETS.meera },
-      { id: 'exec', label: 'Executive', isUser: false, source: MODEL_ASSETS.kabir },
-    ],
-    [userPhoto]
-  );
+      { id: 'exec', label: 'Executive', isUser: false, source: MODEL_ASSETS.kabir }
+    );
+    return options;
+  }, [userPhotosList]);
 
   const activeCardPhotoSource = useMemo(() => {
     const match = CURATED_PHOTO_OPTIONS.find((c) => c.id === selectedPhotoId);
-    return match?.source || (userPhoto ? { uri: userPhoto } : MODEL_ASSETS.tara);
-  }, [CURATED_PHOTO_OPTIONS, selectedPhotoId, userPhoto]);
+    return match?.source || (userPhotosList[0] ? { uri: userPhotosList[0] } : MODEL_ASSETS.tara);
+  }, [CURATED_PHOTO_OPTIONS, selectedPhotoId, userPhotosList]);
+
+  // Dynamic Fallbacks for all card fields
+  const activeName = cardName || userName;
+  const activeRole = cardRole || (profile?.age ? `${profile.age} • ${profile.occupation || 'Founder & Investor'}` : '25 • Founder & Angel Investor');
+  const activeTribe = cardTribe || userTribe;
+  const activeNakshatra = cardNakshatra || `${nakshatraName} (P${nakshatraPada})`;
+  const activeMoon = cardMoon || chandraRashi;
+  const activeGuna = cardGunaScore || '34.5';
 
   // Strict Word Limit Configuration for 9:16 Instagram Story Card
   const MAX_PROMPT_WORDS = 18;
@@ -334,13 +397,13 @@ export default function ExploreScreen() {
 
   const currentFact = kundaliVibeFacts[activeFactIdx % kundaliVibeFacts.length];
 
-  // Guaranteed word-capped editorial quote for the Instagram Story Card
-  const activeCardQuote = useMemo(() => {
-    if (customPromptText && customPromptText.trim().length > 0) {
-      return clampToWordLimit(customPromptText, MAX_PROMPT_WORDS);
+  // Guaranteed word-capped dynamic editorial quote for the Instagram Story Card
+  const activeQuote = useMemo(() => {
+    if (cardQuote && cardQuote.trim().length > 0) {
+      return clampToWordLimit(cardQuote, MAX_PROMPT_WORDS);
     }
     return clampToWordLimit(currentFact.factText, MAX_PROMPT_WORDS);
-  }, [customPromptText, currentFact.factText]);
+  }, [cardQuote, currentFact.factText]);
 
   const handleOpenInstaVibeCard = () => {
     hapticFeedback.medium();
@@ -357,15 +420,16 @@ export default function ExploreScreen() {
     hapticFeedback.light();
     const nextIdx = (activeFactIdx + 1) % kundaliVibeFacts.length;
     setActiveFactIdx(nextIdx);
-    setCustomPromptText(kundaliVibeFacts[nextIdx].factText);
+    setCardQuote(kundaliVibeFacts[nextIdx].factText);
+    setCardGunaScore(kundaliVibeFacts[nextIdx].gunaScore.split(' ')[0]);
   };
 
   const handlePromptChange = (text: string) => {
     const words = text.trim().split(/\s+/).filter(Boolean);
     if (words.length > MAX_PROMPT_WORDS) {
-      setCustomPromptText(clampToWordLimit(text, MAX_PROMPT_WORDS));
+      setCardQuote(clampToWordLimit(text, MAX_PROMPT_WORDS));
     } else {
-      setCustomPromptText(text);
+      setCardQuote(text);
     }
   };
 
@@ -373,13 +437,13 @@ export default function ExploreScreen() {
     hapticFeedback.success();
     const shareMessage =
       `✨ BLUNDERR ULTRA-RICH VEDIC VIBE CARD ✨\n\n` +
-      `👤 ${userName} (${userRole})\n` +
-      `📍 ${userTribe}\n` +
-      `💫 Cosmic Synastry: ${currentFact.gunaScore}\n` +
-      `🌙 Moon: ${chandraRashi} • ⭐ Nakshatra: ${nakshatraName} (Pada ${nakshatraPada})\n\n` +
+      `👤 ${activeName} (${activeRole})\n` +
+      `📍 ${activeTribe}\n` +
+      `💫 Cosmic Synastry: ${activeGuna} / 36 Gunas\n` +
+      `🌙 Moon: ${activeMoon} • ⭐ Nakshatra: ${activeNakshatra}\n\n` +
       `${currentFact.badge}\n` +
-      `"${activeCardQuote}"\n\n` +
-      `🛡️ 100% 3D Biometric Verified • Zero Catfishes\n` +
+      `"${activeQuote}"\n\n` +
+      `🛡️ ${card3DVerifiedText}\n` +
       `⚡ 72-Hour Real Date Rule\n` +
       `📲 Join high-intent dating at: https://blunderr.in`;
 
@@ -762,28 +826,102 @@ export default function ExploreScreen() {
                     </ScrollView>
                   </View>
 
-                  {/* OPTION 3: Card Information & Vibe Prompt */}
+                  {/* OPTION 3: Dynamic Card Information & Vedic Customizer */}
                   <View style={styles.optionSectionBox}>
                     <View style={styles.optionSectionHeader}>
                       <View style={styles.optionStepBadge}>
                         <Text style={styles.optionStepBadgeText}>3</Text>
                       </View>
-                      <Text style={styles.optionSectionTitle}>Card Information & Vibe Prompt</Text>
+                      <Text style={styles.optionSectionTitle}>Dynamic Card Data & Vibe Prompt</Text>
                     </View>
-                    <Text style={styles.optionSectionSub}>Identity details & Vedic compatibility synced from profile</Text>
+                    <Text style={styles.optionSectionSub}>Edit any value in real time — synced from profile & live on your card</Text>
 
                     <View style={styles.optionInfoCard}>
-                      <View style={styles.optionInfoRow}>
-                        <Text style={styles.optionInfoName}>{userName}</Text>
-                        <View style={[styles.optionInfoGunaBadge, { borderColor: activeTheme.borderColor, backgroundColor: activeTheme.badgeBg }]}>
-                          <Text style={[styles.optionInfoGunaText, { color: activeTheme.accentColor }]}>
-                            💫 {currentFact.gunaScore.split(' ')[0]} / 36
-                          </Text>
+                      {/* Name & Guna Score Row */}
+                      <View style={styles.optionFormRow}>
+                        <View style={{ flex: 3 }}>
+                          <Text style={styles.optionFieldLabel}>DISPLAY NAME</Text>
+                          <TextInput
+                            style={styles.optionFieldInput}
+                            value={cardName}
+                            onChangeText={setCardName}
+                            placeholder={userName}
+                            placeholderTextColor="#64748B"
+                          />
+                        </View>
+                        <View style={{ flex: 2 }}>
+                          <Text style={styles.optionFieldLabel}>36-GUNA SCORE</Text>
+                          <TextInput
+                            style={[styles.optionFieldInput, { color: activeTheme.accentColor, fontWeight: '800' }]}
+                            value={cardGunaScore}
+                            onChangeText={setCardGunaScore}
+                            placeholder="34.5"
+                            placeholderTextColor="#64748B"
+                          />
                         </View>
                       </View>
-                      <Text style={styles.optionInfoRole}>{userRole}</Text>
-                      <Text style={styles.optionInfoTribe}>📍 {userTribe}</Text>
 
+                      {/* Age & Role (One-Liner) */}
+                      <View style={{ marginBottom: 9 }}>
+                        <Text style={styles.optionFieldLabel}>AGE & ROLE (ONE-LINER)</Text>
+                        <TextInput
+                          style={styles.optionFieldInput}
+                          value={cardRole}
+                          onChangeText={setCardRole}
+                          placeholder={activeRole}
+                          placeholderTextColor="#64748B"
+                        />
+                      </View>
+
+                      {/* Micro-Tribe / Community (One-Liner) */}
+                      <View style={{ marginBottom: 9 }}>
+                        <Text style={styles.optionFieldLabel}>MICRO-TRIBE / COMMUNITY (ONE-LINER)</Text>
+                        <TextInput
+                          style={styles.optionFieldInput}
+                          value={cardTribe}
+                          onChangeText={setCardTribe}
+                          placeholder={activeTribe}
+                          placeholderTextColor="#64748B"
+                        />
+                      </View>
+
+                      {/* Vedic Kundali: Moon & Nakshatra */}
+                      <View style={styles.optionFormRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.optionFieldLabel}>🌙 MOON SIGN</Text>
+                          <TextInput
+                            style={styles.optionFieldInput}
+                            value={cardMoon}
+                            onChangeText={setCardMoon}
+                            placeholder={activeMoon}
+                            placeholderTextColor="#64748B"
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.optionFieldLabel}>⭐ NAKSHATRA & PADA</Text>
+                          <TextInput
+                            style={styles.optionFieldInput}
+                            value={cardNakshatra}
+                            onChangeText={setCardNakshatra}
+                            placeholder={activeNakshatra}
+                            placeholderTextColor="#64748B"
+                          />
+                        </View>
+                      </View>
+
+                      {/* 3D Biometric Badge text */}
+                      <View style={{ marginBottom: 9 }}>
+                        <Text style={styles.optionFieldLabel}>3D BIOMETRIC BADGE</Text>
+                        <TextInput
+                          style={[styles.optionFieldInput, { color: '#34D399', fontWeight: '700' }]}
+                          value={card3DVerifiedText}
+                          onChangeText={setCard3DVerifiedText}
+                          placeholder="✓ 100% 3D BIOMETRIC VERIFIED"
+                          placeholderTextColor="#64748B"
+                        />
+                      </View>
+
+                      {/* Editorial Vibe Prompt with Word Limit & Reroll */}
                       <View style={styles.optionPromptBox}>
                         <View style={styles.optionPromptHeader}>
                           <Text style={styles.optionPromptTag}>✦ EDITORIAL VIBE PROMPT</Text>
@@ -791,14 +929,14 @@ export default function ExploreScreen() {
                             <View
                               style={[
                                 styles.optionWordLimitPill,
-                                countWords(activeCardQuote) >= MAX_PROMPT_WORDS && styles.optionWordLimitPillMax,
+                                countWords(activeQuote) >= MAX_PROMPT_WORDS && styles.optionWordLimitPillMax,
                               ]}>
                               <Text
                                 style={[
                                   styles.optionWordLimitText,
-                                  countWords(activeCardQuote) >= MAX_PROMPT_WORDS && styles.optionWordLimitTextMax,
+                                  countWords(activeQuote) >= MAX_PROMPT_WORDS && styles.optionWordLimitTextMax,
                                 ]}>
-                                {countWords(activeCardQuote)}/{MAX_PROMPT_WORDS} words
+                                {countWords(activeQuote)}/{MAX_PROMPT_WORDS} words
                               </Text>
                             </View>
                             <TouchableOpacity onPress={handleNextFact} style={styles.optionRerollBtn}>
@@ -808,7 +946,7 @@ export default function ExploreScreen() {
                         </View>
                         <TextInput
                           style={styles.optionPromptInput}
-                          value={customPromptText || currentFact.factText}
+                          value={cardQuote || currentFact.factText}
                           onChangeText={handlePromptChange}
                           multiline
                           numberOfLines={2}
@@ -896,28 +1034,28 @@ export default function ExploreScreen() {
                     <View style={styles.instaBottomTrayMobile}>
                       <View style={styles.instaUserBannerMobile}>
                         <View style={{ flex: 1, marginRight: 8 }}>
-                          {/* 1. Name */}
+                          {/* 1. Dynamic Name */}
                           <Text style={styles.instaUserNameMobile} numberOfLines={1} ellipsizeMode="tail">
-                            {userName}
+                            {activeName}
                           </Text>
 
-                          {/* 2. 3D Biometric (One-liner) */}
+                          {/* 2. Dynamic 3D Biometric (One-liner) */}
                           <View style={styles.insta3DVerifiedRow}>
                             <View style={styles.insta3DVerifiedBadge}>
                               <Text style={styles.insta3DVerifiedBadgeText} numberOfLines={1}>
-                                ✓ 100% 3D BIOMETRIC VERIFIED
+                                {card3DVerifiedText}
                               </Text>
                             </View>
                           </View>
 
-                          {/* 3. Age & Role (One-liner) */}
+                          {/* 3. Dynamic Age & Role (One-liner) */}
                           <Text style={styles.instaUserRoleMobile} numberOfLines={1} ellipsizeMode="tail">
-                            {userRole}
+                            {activeRole}
                           </Text>
 
-                          {/* 4. Micro-Tribe / Community (One-liner) */}
+                          {/* 4. Dynamic Micro-Tribe / Community (One-liner) */}
                           <Text style={styles.instaUserTribeMobile} numberOfLines={1} ellipsizeMode="tail">
-                            📍 {userTribe}
+                            📍 {activeTribe}
                           </Text>
                         </View>
                         <View
@@ -926,7 +1064,7 @@ export default function ExploreScreen() {
                             { borderColor: activeTheme.borderColor, backgroundColor: activeTheme.badgeBg },
                           ]}>
                           <Text style={[styles.instaGunaBadgeNum, { color: activeTheme.accentColor }]}>
-                            {currentFact.gunaScore.split(' ')[0]}
+                            {activeGuna}
                           </Text>
                           <Text style={styles.instaGunaBadgeSub}>/ 36 GUNAS</Text>
                         </View>
@@ -936,11 +1074,11 @@ export default function ExploreScreen() {
                       <View style={styles.instaKundaliGridMobile}>
                         <View style={styles.instaKundaliCellMobile}>
                           <Text style={styles.instaKundaliCellLabel}>🌙 MOON</Text>
-                          <Text style={styles.instaKundaliCellValue}>{chandraRashi}</Text>
+                          <Text style={styles.instaKundaliCellValue}>{activeMoon}</Text>
                         </View>
                         <View style={styles.instaKundaliCellMobile}>
                           <Text style={styles.instaKundaliCellLabel}>⭐ NAKSHATRA</Text>
-                          <Text style={styles.instaKundaliCellValue}>{nakshatraName} (P{nakshatraPada})</Text>
+                          <Text style={styles.instaKundaliCellValue}>{activeNakshatra}</Text>
                         </View>
                       </View>
 
@@ -951,7 +1089,7 @@ export default function ExploreScreen() {
                           <Text style={styles.instaPromptTrayRule}>⚡ 72h Date Rule</Text>
                         </View>
                         <Text style={styles.instaPromptTrayQuote} numberOfLines={2} ellipsizeMode="tail">
-                          &ldquo;{activeCardQuote}&rdquo;
+                          &ldquo;{activeQuote}&rdquo;
                         </Text>
                       </View>
 
@@ -1859,6 +1997,30 @@ const baseStyles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  optionFormRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 9,
+  },
+  optionFieldLabel: {
+    color: '#94A3B8',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+    textTransform: 'uppercase',
+  },
+  optionFieldInput: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 9,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
   },
   optionInfoRow: {
     flexDirection: 'row',

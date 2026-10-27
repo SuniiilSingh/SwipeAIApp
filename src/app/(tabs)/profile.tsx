@@ -2279,9 +2279,21 @@ export default function ProfileScreen() {
                   </View>
                 </TouchableOpacity>
 
-                {/* 2. IDENTITY, GENDER & VITALS CARD */}
-                <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>👤 Identity, Gender & Vitals</Text>
+                {/* 2. 👤 PERSONAL DETAILS, IDENTITY & VITALS STUDIO */}
+                <View style={styles.studioPersonalCard}>
+                  <View style={styles.studioPersonalHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioPersonalHeaderTitle} numberOfLines={1}>
+                        👤 PERSONAL DETAILS & VITALS
+                      </Text>
+                    </View>
+                    <View style={styles.personalCoreBadge}>
+                      <Text style={styles.personalCoreBadgeText}>CORE VITALS</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.sectionSub}>
+                    Essential identity, physical vitals, match preferences & live discovery GPS.
+                  </Text>
                   
                   <Text style={styles.inputLabel}>Full Name *</Text>
                   <TextInput
@@ -2779,13 +2791,18 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* 8. ✍️ 6TH POSITION: BIO DESCRIPTION */}
-                <View style={styles.sectionCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.sectionTitle}>✍️ Bio Description</Text>
-                    <Text style={{ fontSize: 11, color: '#8E94A5' }}>{setupBio.length}/500</Text>
+                <View style={styles.studioBioCard}>
+                  <View style={styles.studioBioHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioBioHeaderTitle} numberOfLines={1}>✍️ BIO DESCRIPTION</Text>
+                    </View>
+                    <View style={styles.bioCountBadge}>
+                      <Text style={styles.bioCountBadgeText}>{setupBio.length}/500</Text>
+                    </View>
                   </View>
+                  <Text style={styles.sectionSub}>Tell your story, quirky habits, favorite food & Sunday routine.</Text>
                   <TextInput
-                    style={[styles.textInput, { height: 90 }]}
+                    style={[styles.textInput, { height: 90, marginTop: 4 }]}
                     value={setupBio}
                     onChangeText={setSetupBio}
                     placeholder="Tell your story, quirky habits, favorite food..."
@@ -2796,8 +2813,16 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* 9. 🏷️ 7TH POSITION: WHAT I'M INTO (INTERESTS & HOBBIES) */}
-                <View style={styles.sectionCard}>
-                  <Text style={styles.sectionTitle}>🏷️ Interests, Hobbies & Dating Intent</Text>
+                <View style={styles.studioInterestsCard}>
+                  <View style={styles.studioInterestsHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioInterestsHeaderTitle} numberOfLines={1}>🏷️ PASSIONS & DATING INTENT</Text>
+                    </View>
+                    <View style={styles.interestsCuratedBadge}>
+                      <Text style={styles.interestsCuratedBadgeText}>CURATED</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.sectionSub}>Select the interests, creative hobbies and relationship goals that define you.</Text>
 
                   <Text style={styles.inputLabel}>What are you into? (Select at least 3)</Text>
                   <TouchableOpacity
@@ -2832,16 +2857,22 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* 10. 🤣 8TH POSITION: PROFILE MEME DNA */}
-                <View style={styles.sectionCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.sectionTitle}>🤣 Profile Meme DNA</Text>
+                <View style={styles.studioMemeCard}>
+                  <View style={styles.studioMemeHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioMemeHeaderTitle} numberOfLines={1}>🤣 PROFILE MEME DNA</Text>
+                    </View>
                     {setupMemeUrl ? (
-                      <TouchableOpacity onPress={handleDeleteMeme}>
-                        <Text style={{ color: '#E94057', fontSize: 12, fontWeight: '700' }}>Remove 🗑️</Text>
+                      <TouchableOpacity onPress={handleDeleteMeme} style={styles.memeDeleteBtn}>
+                        <Text style={styles.memeDeleteBtnText}>Remove 🗑️</Text>
                       </TouchableOpacity>
-                    ) : null}
+                    ) : (
+                      <View style={styles.memeBadge}>
+                        <Text style={styles.memeBadgeText}>+2% SCORE</Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.sectionSub}>Express your personality with relatable Indian dating memes (+2% score).</Text>
+                  <Text style={styles.sectionSub}>Express your personality with relatable Indian dating memes.</Text>
 
                   {setupMemeUrl ? (
                     <View style={styles.editMemePreviewWrap}>
@@ -2869,11 +2900,13 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* 11. 💫 9TH POSITION: MY DESIRE BLUEPRINT */}
-                <View style={styles.sectionCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <Text style={styles.sectionTitle}>💫 My Desire Blueprint</Text>
-                    <TouchableOpacity onPress={() => setShowDesireModal(true)}>
-                      <Text style={{ color: '#00E5FF', fontSize: 13, fontWeight: '700' }}>Configure ✎</Text>
+                <View style={styles.studioDesireCard}>
+                  <View style={styles.studioDesireHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioDesireHeaderTitle} numberOfLines={1}>💫 MY DESIRE BLUEPRINT</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setShowDesireModal(true)} style={styles.desireConfigureBadge}>
+                      <Text style={styles.desireConfigureBadgeText}>Configure ✎</Text>
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.sectionSub}>
@@ -5138,6 +5171,199 @@ const baseStyles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 4,
     textAlign: 'center',
+  },
+  studioPersonalCard: {
+    backgroundColor: '#0F172A',
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioPersonalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  studioPersonalHeaderTitle: {
+    color: '#38BDF8',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  personalCoreBadge: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  personalCoreBadgeText: {
+    color: '#38BDF8',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  studioBioCard: {
+    backgroundColor: '#131124',
+    borderWidth: 1.5,
+    borderColor: 'rgba(244, 114, 182, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioBioHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  studioBioHeaderTitle: {
+    color: '#F472B6',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  bioCountBadge: {
+    backgroundColor: 'rgba(244, 114, 182, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 114, 182, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  bioCountBadgeText: {
+    color: '#F472B6',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  studioInterestsCard: {
+    backgroundColor: '#101428',
+    borderWidth: 1.5,
+    borderColor: 'rgba(129, 140, 248, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioInterestsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  studioInterestsHeaderTitle: {
+    color: '#818CF8',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  interestsCuratedBadge: {
+    backgroundColor: 'rgba(129, 140, 248, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  interestsCuratedBadgeText: {
+    color: '#818CF8',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  studioMemeCard: {
+    backgroundColor: '#161320',
+    borderWidth: 1.5,
+    borderColor: 'rgba(251, 146, 60, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioMemeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  studioMemeHeaderTitle: {
+    color: '#FB923C',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  memeBadge: {
+    backgroundColor: 'rgba(251, 146, 60, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 146, 60, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  memeBadgeText: {
+    color: '#FB923C',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  memeDeleteBtn: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(233, 64, 87, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  memeDeleteBtnText: {
+    color: '#E94057',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  studioDesireCard: {
+    backgroundColor: '#0E1726',
+    borderWidth: 1.5,
+    borderColor: 'rgba(20, 184, 166, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioDesireHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  studioDesireHeaderTitle: {
+    color: '#2DD4BF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  desireConfigureBadge: {
+    backgroundColor: 'rgba(45, 212, 191, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(45, 212, 191, 0.45)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  desireConfigureBadgeText: {
+    color: '#2DD4BF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   studioCareerCard: {
     backgroundColor: '#101426',

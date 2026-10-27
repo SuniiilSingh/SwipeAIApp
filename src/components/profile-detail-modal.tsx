@@ -783,9 +783,16 @@ export default function ProfileDetailModal({
             </View>
           )}
 
-          {/* Micro-Circle Community */}
-          {candidate.microCircle && (() => {
-            const colorConfig = getCommunityColor(candidate.microCircle);
+          {/* Micro-Circle Communities */}
+          {(() => {
+            const candComms = [
+              ...(Array.isArray(candidate.microCircles) ? candidate.microCircles : []),
+              ...(candidate.microCircle ? [candidate.microCircle] : []),
+            ];
+            if (candComms.length === 0) return null;
+            const primaryComm = candComms[0];
+            const colorConfig = getCommunityColor(primaryComm);
+
             return (
               <View
                 style={[
@@ -798,15 +805,29 @@ export default function ProfileDetailModal({
                   },
                 ]}>
                 <Text style={styles.circleBannerTitle}>
-                  {colorConfig.emoji} {colorConfig.name.toUpperCase()} TRIBE
+                  {colorConfig.emoji} {candComms.length > 1 ? `JOINED TRIBES (${candComms.length})` : `${colorConfig.name.toUpperCase()} TRIBE`}
                 </Text>
-                <Text
-                  style={[
-                    styles.circleBannerName,
-                    { color: colorConfig.textColor },
-                  ]}>
-                  "{candidate.microCircle}"
-                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {candComms.map((comm) => {
+                    const cfg = getCommunityColor(comm);
+                    return (
+                      <View
+                        key={comm}
+                        style={{
+                          backgroundColor: cfg.tagBg,
+                          borderColor: cfg.tagBorder,
+                          borderWidth: 1,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 12,
+                        }}>
+                        <Text style={{ color: cfg.textColor, fontSize: 12, fontWeight: '700' }}>
+                          {cfg.emoji} {comm}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             );
           })()}

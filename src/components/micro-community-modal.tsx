@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -36,9 +37,13 @@ const INDIAN_CITIES = [
 interface MicroCommunityModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (community: MicroCircle | null) => void;
+  onSelect?: (community: MicroCircle | null) => void;
+  onSelectMultiple?: (communities: MicroCircle[]) => void;
   selectedName?: string | null;
+  selectedNames?: string[];
   selectedId?: string | null;
+  selectedIds?: string[];
+  maxSelections?: number;
   title?: string;
   subtitle?: string;
   initialCity?: string;
@@ -48,10 +53,14 @@ export default function MicroCommunityModal({
   visible,
   onClose,
   onSelect,
+  onSelectMultiple,
   selectedName,
+  selectedNames,
   selectedId,
+  selectedIds,
+  maxSelections = 5,
   title = 'Micro-Community Circles 🏙️',
-  subtitle = 'Find matches in your neighborhood tribe & lifestyle subculture',
+  subtitle = 'Join up to 5 communities & match across your lifestyle subcultures',
   initialCity,
 }: MicroCommunityModalProps) {
   const styles = useThemedStyles(baseStyles);
@@ -59,6 +68,7 @@ export default function MicroCommunityModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [communities, setCommunities] = useState<MicroCircle[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedList, setSelectedList] = useState<MicroCircle[]>([]);
 
   useEffect(() => {
     if (visible) {
@@ -80,6 +90,38 @@ export default function MicroCommunityModal({
       loadCommunities(startCity === 'All Cities' ? undefined : startCity);
     }
   }, [visible, initialCity]);
+
+  // Sync initial selections
+  useEffect(() => {
+    if (visible && communities.length > 0) {
+      const activeNames = selectedNames && selectedNames.length > 0
+        ? selectedNames
+        : (selectedName ? [selectedName] : []);
+      
+      const preselected: MicroCircle[] = [];
+      activeNames.forEach((name) => {
+        const found = communities.find(
+          (c) => c.name.toLowerCase() === name.toLowerCase() || c.slug?.toLowerCase() === name.toLowerCase()
+        );
+        if (found) {
+          preselected.push(found);
+        } else {
+          // create stub so user's existing community is preserved
+          preselected.push({
+            id: name,
+            name,
+            city: initialCity || 'Bengaluru',
+            description: 'Local Community Circle',
+            vibeCategory: 'LIFESTYLE',
+            badgeIcon: '🏙️',
+            icon: '🏙️',
+            activeMembers: 150,
+          });
+        }
+      });
+      setSelectedList(preselected.slice(0, maxSelections));
+    }
+  }, [visible, communities]);
 
   const loadCommunities = async (city?: string) => {
     setLoading(true);
@@ -124,15 +166,52 @@ export default function MicroCommunityModal({
     return nameMatch || tagMatch || descMatch || cityMatch;
   });
 
-  const handleSelectCommunity = (item: MicroCircle) => {
+  const handleToggleCommunity = (item: MicroCircle) => {
+    const isAlreadySelected = selectedList.some(
+      (c) => c.id === item.id || c.name.toLowerCase() === item.name.toLowerCase()
+    );
+
+    if (isAlreadySelected) {
+      hapticFeedback.light();
+      setSelectedList((prev) =>
+        prev.filter((c) => c.id !== item.id && c.name.toLowerCase() !== item.name.toLowerCase())
+      );
+    } else {
+      if (selectedList.length >= maxSelections) {
+        hapticFeedback.warning();
+        alert(`You can join up to ${maxSelections} communities. Deselect an existing circle to add this one.`);
+        return;
+      }
+      hapticFeedback.selection();
+      setSelectedList((prev) => [...prev, item]);
+    }
+  };
+
+  const handleRemoveChip = (name: string) => {
+    hapticFeedback.light();
+    setSelectedList((prev) => prev.filter((c) => c.name.toLowerCase() !== name.toLowerCase()));
+  };
+
+  const handleConfirm = () => {
     hapticFeedback.success();
-    onSelect(item);
+    if (onSelectMultiple) {
+      onSelectMultiple(selectedList);
+    }
+    if (onSelect) {
+      onSelect(selectedList[0] || null);
+    }
     onClose();
   };
 
   const handleClear = () => {
     hapticFeedback.light();
-    onSelect(null);
+    setSelectedList([]);
+    if (onSelectMultiple) {
+      onSelectMultiple([]);
+    }
+    if (onSelect) {
+      onSelect(null);
+    }
     onClose();
   };
 
@@ -167,6 +246,34 @@ export default function MicroCommunityModal({
             <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={{ color: '#8E94A5', fontSize: 13, fontWeight: '700' }}>✕</Text>
             </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Active Selections Bar (Up to 5 Communities) */}
+        <View style={styles.selectionBar}>
+          <View style={styles.selectionBarHeader}>
+            <Text style={styles.selectionBarTitle}>JOINED COMMUNITIES</Text>
+            <Text style={styles.selectionBarCount}>
+              {selectedList.length}/{maxSelections} Selected
+            </Text>
+          </View>
+          {selectedList.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+              {selectedList.map((c) => (
+                <View key={c.id || c.name} style={styles.chipItem}>
+                  <Text style={styles.chipText} numberOfLines={1}>
+                    {c.badgeIcon || '🏙️'} {c.name}
+                  </Text>
+                  <TouchableOpacity onPress={() => handleRemoveChip(c.name)} style={styles.chipRemoveBtn}>
+                    <Text style={styles.chipRemoveText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.selectionHint}>
+              Join up to 5 neighborhood, marathon, solo travel or live concert circles to match across all
+            </Text>
           )}
         </View>
 
@@ -205,9 +312,9 @@ export default function MicroCommunityModal({
             keyExtractor={(item) => item.id || item.slug || item.name}
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => {
-              const isSelected =
-                (selectedId && (item.id === selectedId || item.slug === selectedId)) ||
-                (selectedName && item.name.toLowerCase() === selectedName.toLowerCase());
+              const isSelected = selectedList.some(
+                (c) => c.id === item.id || c.name.toLowerCase() === item.name.toLowerCase()
+              );
               const colorConfig = getCommunityColor(item.slug || item.name, item.vibeCategory);
 
               return (
@@ -223,7 +330,7 @@ export default function MicroCommunityModal({
                     isSelected && styles.cardSelected,
                   ]}
                   activeOpacity={0.8}
-                  onPress={() => handleSelectCommunity(item)}>
+                  onPress={() => handleToggleCommunity(item)}>
                   <View
                     style={[
                       styles.badgeCircle,
@@ -247,9 +354,13 @@ export default function MicroCommunityModal({
                         numberOfLines={1}>
                         {item.name}
                       </Text>
-                      {isSelected && (
+                      {isSelected ? (
                         <View style={styles.checkBadge}>
-                          <Text style={styles.checkBadgeText}>✓ SELECTED</Text>
+                          <Text style={styles.checkBadgeText}>✓ JOINED</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.joinActionPill}>
+                          <Text style={styles.joinActionPillText}>+ JOIN</Text>
                         </View>
                       )}
                     </View>
@@ -307,7 +418,12 @@ export default function MicroCommunityModal({
         {/* Footer Actions */}
         <View style={styles.footer}>
           <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
-            <Text style={styles.clearBtnText}>Show All / No Circle Filter</Text>
+            <Text style={styles.clearBtnText}>Clear All</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.confirmBtn} onPress={handleConfirm}>
+            <Text style={styles.confirmBtnText}>
+              Confirm ({selectedList.length}/{maxSelections}) ➔
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -541,13 +657,96 @@ const baseStyles = StyleSheet.create({
     maxWidth: 240,
     lineHeight: 17,
   },
+  selectionBar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
+    backgroundColor: '#13151D',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F222A',
+  },
+  selectionBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  selectionBarTitle: {
+    color: '#00E5FF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  selectionBarCount: {
+    color: '#FCD34D',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  chipsScroll: {
+    gap: 8,
+    paddingBottom: 4,
+  },
+  chipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.35)',
+    borderRadius: 20,
+    paddingLeft: 10,
+    paddingRight: 6,
+    paddingVertical: 5,
+    gap: 6,
+    maxWidth: 240,
+  },
+  chipText: {
+    color: '#E0F7FA',
+    fontSize: 11,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  chipRemoveBtn: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipRemoveText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  selectionHint: {
+    color: '#6B7082',
+    fontSize: 11,
+    paddingBottom: 4,
+  },
+  joinActionPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  joinActionPillText: {
+    color: '#00E5FF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   footer: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 10,
     borderTopWidth: 1,
     borderTopColor: '#1F222A',
     backgroundColor: '#12141A',
   },
   clearBtn: {
+    flex: 1,
     backgroundColor: '#1C1E26',
     borderWidth: 1,
     borderColor: '#2F3444',
@@ -557,7 +756,25 @@ const baseStyles = StyleSheet.create({
   },
   clearBtnText: {
     color: '#A0A6B8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  confirmBtn: {
+    flex: 2,
+    backgroundColor: '#00E5FF',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  confirmBtnText: {
+    color: '#000000',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '900',
+    letterSpacing: 0.2,
   },
 });

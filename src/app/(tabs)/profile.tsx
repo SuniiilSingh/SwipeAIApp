@@ -91,6 +91,7 @@ export default function ProfileScreen() {
   const [setupHeight, setSetupHeight] = useState('');
   const [setupLocation, setSetupLocation] = useState('');
   const [setupMicroCircle, setSetupMicroCircle] = useState('');
+  const [setupMicroCircles, setSetupMicroCircles] = useState<string[]>([]);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
   const [showKundaliModal, setShowKundaliModal] = useState(false);
   const [setupMaxDistanceKm, setSetupMaxDistanceKm] = useState('');
@@ -341,7 +342,11 @@ export default function ProfileScreen() {
     }
     setSetupHeight(p.height ? String(p.height) : '');
     setSetupLocation(p.location || p.city || '');
-    setSetupMicroCircle(p.microCircle || '');
+    const userCircles: string[] = Array.isArray(p.microCircles) && p.microCircles.length > 0
+      ? p.microCircles
+      : (p.microCircle ? [p.microCircle] : []);
+    setSetupMicroCircles(userCircles);
+    setSetupMicroCircle(userCircles[0] || '');
     setSetupMaxDistanceKm(p.maxDistanceKm ? String(p.maxDistanceKm) : '');
     setSetupLatitude(p.latitude);
     setSetupLongitude(p.longitude);
@@ -1234,7 +1239,8 @@ export default function ProfileScreen() {
       selectedMemeTitle: setupMemeTitle,
       height: setupHeight ? parseInt(setupHeight) : 165,
       location: setupLocation,
-      microCircle: setupMicroCircle || undefined,
+      microCircle: (setupMicroCircles.length > 0 ? setupMicroCircles[0] : setupMicroCircle) || undefined,
+      microCircles: setupMicroCircles,
       maxDistanceKm: setupMaxDistanceKm && setupMaxDistanceKm.trim() ? parseInt(setupMaxDistanceKm.trim(), 10) : undefined,
       latitude: setupLatitude,
       longitude: setupLongitude,
@@ -2658,33 +2664,70 @@ export default function ProfileScreen() {
                     ))}
                   </View>
 
-                  {/* Micro-Community Circle Picker */}
-                  <Text style={styles.inputLabel}>Micro-Community Circle 🏙️</Text>
-                  {(() => {
-                    const colorConfig = getCommunityColor(setupMicroCircle);
-                    return (
-                      <TouchableOpacity
-                        style={[
-                          styles.pickerFieldBtn,
-                          setupMicroCircle && {
-                            borderColor: colorConfig.tagBorder,
-                            backgroundColor: colorConfig.tagBg,
-                          },
-                        ]}
-                        onPress={() => setShowCommunityModal(true)}>
-                        <Text
-                          style={[
-                            styles.pickerFieldText,
-                            !setupMicroCircle && { color: '#8E94A5' },
-                            Boolean(setupMicroCircle) && { color: colorConfig.textColor, fontWeight: '800' },
-                          ]}>
-                          {setupMicroCircle
-                            ? `${colorConfig.emoji} ${setupMicroCircle}`
-                            : 'Select your Local Neighborhood Tribe ▾'}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })()}
+                  {/* Micro-Community Circles Multi-Picker (Up to 5) */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                    <Text style={styles.inputLabel}>Micro-Community Tribes 🏙️</Text>
+                    <Text style={{ fontSize: 11, color: '#D4AF37', fontWeight: '800' }}>
+                      {setupMicroCircles.length}/5 Selected
+                    </Text>
+                  </View>
+                  {setupMicroCircles.length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 }}>
+                      {setupMicroCircles.map((comm) => {
+                        const colorConfig = getCommunityColor(comm);
+                        return (
+                          <View
+                            key={comm}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: colorConfig.tagBg,
+                              borderColor: colorConfig.tagBorder,
+                              borderWidth: 1,
+                              borderRadius: 20,
+                              paddingVertical: 6,
+                              paddingHorizontal: 12,
+                              gap: 6,
+                            }}>
+                            <Text style={{ fontSize: 12, color: colorConfig.textColor, fontWeight: '700' }}>
+                              {colorConfig.emoji} {comm}
+                            </Text>
+                            <TouchableOpacity
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              onPress={() => {
+                                hapticFeedback.light();
+                                const next = setupMicroCircles.filter((c) => c !== comm);
+                                setSetupMicroCircles(next);
+                                setSetupMicroCircle(next[0] || '');
+                              }}>
+                              <Text style={{ fontSize: 12, color: colorConfig.textColor, fontWeight: '900', marginLeft: 2 }}>
+                                ✕
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={[
+                      styles.pickerFieldBtn,
+                      setupMicroCircles.length >= 5 && { opacity: 0.65 },
+                    ]}
+                    onPress={() => setShowCommunityModal(true)}>
+                    <Text
+                      style={[
+                        styles.pickerFieldText,
+                        setupMicroCircles.length === 0 && { color: '#8E94A5' },
+                        setupMicroCircles.length > 0 && { color: '#E94057', fontWeight: '800' },
+                      ]}>
+                      {setupMicroCircles.length === 0
+                        ? '+ Join Local Tribes (Marathons, Concerts, Tech... up to 5) ▾'
+                        : setupMicroCircles.length < 5
+                          ? `+ Add Another Tribe (${setupMicroCircles.length}/5) ▾`
+                          : 'Manage Joined Tribes (5/5 Selected) ▾'}
+                    </Text>
+                  </TouchableOpacity>
 
                   {/* Languages Known */}
                   <Text style={styles.inputLabel}>Languages Known 🗣️</Text>
@@ -4130,8 +4173,27 @@ export default function ProfileScreen() {
         <MicroCommunityModal
           visible={true}
           onClose={() => setShowCommunityModal(false)}
-          onSelect={(comm) => setSetupMicroCircle(comm ? comm.name : '')}
-          selectedName={setupMicroCircle}
+          selectedName={setupMicroCircles[0] || setupMicroCircle}
+          selectedNames={setupMicroCircles}
+          maxSelections={5}
+          onSelectMultiple={(chosen) => {
+            const names = chosen.map((c) => c.name);
+            setSetupMicroCircles(names);
+            setSetupMicroCircle(names[0] || '');
+          }}
+          onSelect={(comm) => {
+            if (comm) {
+              if (!setupMicroCircles.includes(comm.name)) {
+                if (setupMicroCircles.length < 5) {
+                  const updated = [...setupMicroCircles, comm.name];
+                  setSetupMicroCircles(updated);
+                  setSetupMicroCircle(updated[0] || '');
+                } else {
+                  Alert.alert('Maximum 5 Communities', 'You can join up to 5 communities. Deselect one first.');
+                }
+              }
+            }
+          }}
           initialCity={setupLocation || undefined}
         />
       )}

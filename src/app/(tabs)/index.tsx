@@ -917,16 +917,20 @@ export default function DiscoveryScreen() {
       const commName = selectedCommunityFilter.name.toLowerCase();
       const commSlug = (selectedCommunityFilter.slug || '').toLowerCase();
       const commCity = (selectedCommunityFilter.city || '').toLowerCase();
-      const candidateComm = (c.microCircle || '').toLowerCase();
+      const candidateComms = [
+        ...(Array.isArray(c.microCircles) ? c.microCircles : []),
+        ...(c.microCircle ? [c.microCircle] : []),
+      ].map((s) => s.toLowerCase().trim());
       const candidateCity = (c.city || '').toLowerCase();
 
       // Micro-community matching: candidate matches explicit community filter if candidate's community or city matches
       const matchesCircle =
-        (candidateComm && (
-          candidateComm.includes(commName) ||
-          commName.includes(candidateComm) ||
-          (commSlug && (candidateComm.includes(commSlug) || commSlug.includes(candidateComm)))
-        )) ||
+        candidateComms.some(
+          (candComm) =>
+            candComm.includes(commName) ||
+            commName.includes(candComm) ||
+            (commSlug && (candComm.includes(commSlug) || commSlug.includes(candComm)))
+        ) ||
         (candidateCity && commCity && (candidateCity.includes(commCity) || commCity.includes(candidateCity)));
 
       if (!matchesCircle) {
@@ -975,9 +979,26 @@ export default function DiscoveryScreen() {
 
     return true;
   }).sort((a, b) => {
-    // Prioritize shared community members to top of deck
-    const aShared = (a as any).isSharedCommunity ? 0 : 1;
-    const bShared = (b as any).isSharedCommunity ? 0 : 1;
+    // Prioritize candidates who share any of the user's up to 5 joined communities
+    const userComms = [
+      ...(Array.isArray(userProfile?.microCircles) ? userProfile.microCircles : []),
+      ...(userProfile?.microCircle ? [userProfile.microCircle] : []),
+    ].map((s) => s.toLowerCase().trim());
+
+    const hasSharedCommMatch = (cand: CandidateCard) => {
+      if ((cand as any).isSharedCommunity) return true;
+      if (userComms.length === 0) return false;
+      const candComms = [
+        ...(Array.isArray(cand.microCircles) ? cand.microCircles : []),
+        ...(cand.microCircle ? [cand.microCircle] : []),
+      ].map((s) => s.toLowerCase().trim());
+      return candComms.some((cc) =>
+        userComms.some((uc) => uc === cc || uc.includes(cc) || cc.includes(uc))
+      );
+    };
+
+    const aShared = hasSharedCommMatch(a) ? 0 : 1;
+    const bShared = hasSharedCommMatch(b) ? 0 : 1;
     if (aShared !== bShared) return aShared - bShared;
 
     const distA = typeof a.distanceKm === 'number' ? a.distanceKm : 999;
@@ -1294,16 +1315,31 @@ function SwipeableCandidateCard({
                   📍 {nextItem.fuzzyDistance || '< 2 km'}
                 </Text>
               </View>
-              {Boolean(nextItem.microCircle) && (() => {
-                const colorConfig = getCommunityColor(nextItem.microCircle);
+              {(() => {
+                const myComms = [
+                  ...(Array.isArray(userProfile?.microCircles) ? userProfile.microCircles : []),
+                  ...(userProfile?.microCircle ? [userProfile.microCircle] : []),
+                ].map((s) => s.toLowerCase().trim());
+                const itemComms = [
+                  ...(Array.isArray(nextItem.microCircles) ? nextItem.microCircles : []),
+                  ...(nextItem.microCircle ? [nextItem.microCircle] : []),
+                ];
+                if (itemComms.length === 0) return null;
+                const shared = itemComms.find((ic) =>
+                  myComms.some((uc) => uc === ic.toLowerCase().trim() || uc.includes(ic.toLowerCase().trim()) || ic.toLowerCase().trim().includes(uc))
+                );
+                const displayComm = shared || itemComms[0];
+                const isShared = Boolean(shared && myComms.length > 0);
+                const colorConfig = getCommunityColor(displayComm);
+
                 return (
                   <View
                     style={[
                       styles.communityPill,
                       {
                         backgroundColor: colorConfig.tagBg,
-                        borderColor: colorConfig.tagBorder,
-                        borderWidth: 1,
+                        borderColor: isShared ? '#2ED573' : colorConfig.tagBorder,
+                        borderWidth: isShared ? 1.5 : 1,
                       },
                     ]}>
                     <Text
@@ -1312,7 +1348,7 @@ function SwipeableCandidateCard({
                         { color: colorConfig.tagText, fontWeight: '800' },
                       ]}
                       numberOfLines={1}>
-                      {colorConfig.emoji} {nextItem.microCircle}
+                      {isShared ? '🤝 ' : ''}{colorConfig.emoji} {displayComm}
                     </Text>
                   </View>
                 );
@@ -1421,16 +1457,31 @@ function SwipeableCandidateCard({
                 </Text>
               </View>
 
-              {Boolean(item.microCircle) && (() => {
-                const colorConfig = getCommunityColor(item.microCircle);
+              {(() => {
+                const myComms = [
+                  ...(Array.isArray(userProfile?.microCircles) ? userProfile.microCircles : []),
+                  ...(userProfile?.microCircle ? [userProfile.microCircle] : []),
+                ].map((s) => s.toLowerCase().trim());
+                const itemComms = [
+                  ...(Array.isArray(item.microCircles) ? item.microCircles : []),
+                  ...(item.microCircle ? [item.microCircle] : []),
+                ];
+                if (itemComms.length === 0) return null;
+                const shared = itemComms.find((ic) =>
+                  myComms.some((uc) => uc === ic.toLowerCase().trim() || uc.includes(ic.toLowerCase().trim()) || ic.toLowerCase().trim().includes(uc))
+                );
+                const displayComm = shared || itemComms[0];
+                const isShared = Boolean(shared && myComms.length > 0);
+                const colorConfig = getCommunityColor(displayComm);
+
                 return (
                   <View
                     style={[
                       styles.communityPill,
                       {
                         backgroundColor: colorConfig.tagBg,
-                        borderColor: colorConfig.tagBorder,
-                        borderWidth: 1,
+                        borderColor: isShared ? '#2ED573' : colorConfig.tagBorder,
+                        borderWidth: isShared ? 1.5 : 1,
                       },
                     ]}>
                     <Text
@@ -1439,7 +1490,7 @@ function SwipeableCandidateCard({
                         { color: colorConfig.tagText, fontWeight: '800' },
                       ]}
                       numberOfLines={1}>
-                      {colorConfig.emoji} {item.microCircle}
+                      {isShared ? '🤝 ' : ''}{colorConfig.emoji} {displayComm}
                     </Text>
                   </View>
                 );

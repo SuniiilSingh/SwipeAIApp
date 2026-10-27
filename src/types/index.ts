@@ -96,6 +96,7 @@ export interface UserProfile {
   city?: string;
   neighborhood?: string;
   microCircle?: string;
+  microCircles?: string[];
   photos: string[];
   sparksBalance: number;
   boostsBalance: number;
@@ -166,6 +167,7 @@ export interface CandidateCard {
   city?: string;
   neighborhood?: string;
   microCircle?: string;
+  microCircles?: string[];
   photos: (string | any)[];
   photo1?: string | any;
   photo2?: string;

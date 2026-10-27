@@ -163,7 +163,7 @@ export default function ExploreScreen() {
   const styles = useThemedStyles(baseStyles);
   const [circles, setCircles] = useState<MicroCircle[]>([]);
   const [loadingCircles, setLoadingCircles] = useState(false);
-  const [selectedCircle, setSelectedCircle] = useState<string | null>(null);
+  const [selectedCircles, setSelectedCircles] = useState<string[]>([]);
   const [cityFilter, setCityFilter] = useState<string>('All Cities');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showCircleDirectoryModal, setShowCircleDirectoryModal] = useState(false);
@@ -214,11 +214,17 @@ export default function ExploreScreen() {
       ]);
       if (myProf) {
         setProfile(myProf);
+        const myComms: string[] = Array.isArray(myProf.microCircles) && myProf.microCircles.length > 0
+          ? myProf.microCircles
+          : (myProf.microCircle ? [myProf.microCircle] : []);
+        setSelectedCircles(myComms);
         setCardName((prev) => prev || myProf.fullName || myProf.displayName || 'Tara Sen');
         const agePart = myProf.age ? `${myProf.age} • ` : '25 • ';
         const occPart = myProf.occupation || (myProf.company ? `At ${myProf.company}` : 'Founder & Angel Investor');
         setCardRole((prev) => prev || `${agePart}${occPart}`);
-        const tribeLoc = myProf.microCircle || (myProf.neighborhood ? `${myProf.neighborhood} • ${myProf.city || 'Bengaluru'}` : 'Indiranagar Founders Club • Bengaluru');
+        const tribeLoc = myComms.length > 0
+          ? myComms.slice(0, 2).join(' • ')
+          : (myProf.neighborhood ? `${myProf.neighborhood} • ${myProf.city || 'Bengaluru'}` : 'Indiranagar Founders Club • Bengaluru');
         setCardTribe((prev) => prev || tribeLoc);
         if (myProf.profilePromptAnswer) {
           setCardQuote((prev) => prev || myProf.profilePromptAnswer || '');
@@ -247,6 +253,29 @@ export default function ExploreScreen() {
     loadCircles(city);
   };
 
+  const handleToggleCircle = (circleName: string) => {
+    hapticFeedback.light();
+    const isJoined = selectedCircles.includes(circleName);
+    let updated: string[];
+    if (isJoined) {
+      updated = selectedCircles.filter((c) => c !== circleName);
+    } else {
+      if (selectedCircles.length >= 5) {
+        Alert.alert(
+          'Maximum 5 Communities',
+          'You can join up to 5 communities. Deselect one first to add this community.'
+        );
+        return;
+      }
+      updated = [...selectedCircles, circleName];
+    }
+    setSelectedCircles(updated);
+    api.updateMyProfile({
+      microCircles: updated,
+      microCircle: updated[0] || '',
+    }).catch((err) => console.warn('Failed to persist community selection:', err));
+  };
+
   const filteredCircles = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return circles.filter((c) => {
@@ -268,7 +297,7 @@ export default function ExploreScreen() {
 
   // Derived Kundali attributes (with authentic Vedic defaults if not yet calibrated)
   const userName = profile?.fullName || profile?.displayName || 'Cosmic Explorer';
-  const userTribe = profile?.microCircle || profile?.neighborhood || 'Indiranagar Cafe Hoppers';
+  const userTribe = (selectedCircles.length > 0 ? selectedCircles[0] : profile?.microCircle) || profile?.neighborhood || 'Indiranagar Cafe Hoppers';
   const chandraRashi = astrology?.chandraRashi || profile?.moonSign || profile?.zodiacSign || 'Taurus (वृषभ)';
   const nakshatraName = astrology?.nakshatraName || 'Rohini';
   const nakshatraPada = astrology?.nakshatraPada || 2;
@@ -559,23 +588,50 @@ export default function ExploreScreen() {
         {/* SECTION 2: Micro-Community Circles (with Search & City-Wise Filter) */}
         <View style={styles.sectionCard}>
           <View style={styles.cardTitleRow}>
-            <Text style={styles.sectionHeading}>📍 Micro-Community Circles</Text>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.sectionHeading}>
+                📍 Micro-Communities ({selectedCircles.length}/5)
+              </Text>
+              <Text style={{ fontSize: 11, color: '#A0A5B5', marginTop: 2 }}>
+                Join up to 5 verified tribes to discover and match across all of them
+              </Text>
+            </View>
             <TouchableOpacity
               style={styles.browseAllPenBtn}
               onPress={() => setShowCircleDirectoryModal(true)}>
               <Text style={styles.browseAllPenBtnText}>✏️ Full Directory</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.sectionDesc}>
-            Search & filter verified neighborhood and lifestyle tribes city-wise for hyper-relevant matches.
-          </Text>
+
+          {/* Active Joined Communities Bar */}
+          {selectedCircles.length > 0 && (
+            <View style={styles.activeJoinedBar}>
+              <Text style={styles.activeJoinedBarTitle}>YOUR ACTIVE TRIBES ({selectedCircles.length}/5):</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.activeJoinedScroll}>
+                {selectedCircles.map((name) => (
+                  <TouchableOpacity
+                    key={name}
+                    style={styles.activeJoinedChip}
+                    onPress={() => handleToggleCircle(name)}>
+                    <Text style={styles.activeJoinedChipText} numberOfLines={1}>
+                      ✓ {name}
+                    </Text>
+                    <Text style={styles.activeJoinedChipRemove}>✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Search Input */}
           <View style={styles.searchBarBox}>
             <Text style={styles.searchBarIcon}>🔍</Text>
             <TextInput
               style={styles.searchBarInput}
-              placeholder="Search circle, neighborhood, tech hub..."
+              placeholder="Search marathon, solo travel, tech, gigs..."
               placeholderTextColor="#6B7082"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -614,22 +670,13 @@ export default function ExploreScreen() {
             </View>
           ) : (
             <View style={styles.circlesList}>
-              {filteredCircles.slice(0, 8).map((circle) => {
-                const isSelected = selectedCircle === circle.id || selectedCircle === circle.name;
+              {filteredCircles.slice(0, 10).map((circle) => {
+                const isSelected = selectedCircles.includes(circle.name) || (circle.id && selectedCircles.includes(circle.id));
                 return (
                   <TouchableOpacity
                     key={circle.id}
                     style={[styles.circleCard, isSelected && styles.circleCardActive]}
-                    onPress={() => {
-                      const next = isSelected ? null : circle.name;
-                      setSelectedCircle(next);
-                      Alert.alert(
-                        next ? `Joined Circle: ${circle.name}` : 'Showing Pan-City Feed',
-                        next
-                          ? `Your discovery feed is now prioritized for members of ${circle.name}.`
-                          : 'Filter reset.'
-                      );
-                    }}>
+                    onPress={() => handleToggleCircle(circle.name)}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <Text style={[styles.circleName, isSelected && styles.circleNameActive]}>
@@ -648,7 +695,7 @@ export default function ExploreScreen() {
                     </View>
                     <View style={[styles.joinBtn, isSelected && styles.joinBtnActive]}>
                       <Text style={[styles.joinBtnText, isSelected && styles.joinBtnTextActive]}>
-                        {isSelected ? 'Active ✓' : 'Join'}
+                        {isSelected ? '✓ Joined' : '+ Join'}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -688,14 +735,22 @@ export default function ExploreScreen() {
         <MicroCommunityModal
           visible={showCircleDirectoryModal}
           onClose={() => setShowCircleDirectoryModal(false)}
-          selectedName={selectedCircle || undefined}
+          selectedName={selectedCircles[0]}
+          selectedNames={selectedCircles}
+          maxSelections={5}
           initialCity={cityFilter !== 'All Cities' ? cityFilter : undefined}
+          onSelectMultiple={(chosen) => {
+            const names = chosen.map((c) => c.name);
+            setSelectedCircles(names);
+            api.updateMyProfile({
+              microCircles: names,
+              microCircle: names[0] || '',
+            }).catch((err) => console.warn('Failed to persist community selection:', err));
+          }}
           onSelect={(circle) => {
             if (circle) {
-              setSelectedCircle(circle.name);
+              handleToggleCircle(circle.name);
               if (circle.city) setCityFilter(circle.city);
-            } else {
-              setSelectedCircle(null);
             }
           }}
         />
@@ -1360,6 +1415,46 @@ const baseStyles = StyleSheet.create({
     color: '#E94057',
     fontSize: 12,
     fontWeight: '700',
+  },
+  activeJoinedBar: {
+    marginBottom: 12,
+    backgroundColor: 'rgba(233, 64, 87, 0.08)',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(233, 64, 87, 0.25)',
+  },
+  activeJoinedBarTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#E94057',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  activeJoinedScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activeJoinedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E94057',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 6,
+  },
+  activeJoinedChipText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    maxWidth: 160,
+  },
+  activeJoinedChipRemove: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: 10,
+    fontWeight: '800',
   },
   circlesList: {
     gap: 10,

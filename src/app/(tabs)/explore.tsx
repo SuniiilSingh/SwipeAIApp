@@ -81,6 +81,84 @@ interface KundaliVibeFact {
   gunaScore: string;
 }
 
+type LuxuryThemeKey = 'gold' | 'emerald' | 'rosegold' | 'aurora' | 'diamond';
+
+interface LuxuryBorderConfig {
+  name: string;
+  borderColor: string;
+  innerBorderColor: string;
+  accentColor: string;
+  glowColor: string;
+  badgeEmoji: string;
+  badgeText: string;
+  badgeBg: string;
+  badgeBorder: string;
+  tagline: string;
+}
+
+const LUXURY_BORDER_THEMES: Record<LuxuryThemeKey, LuxuryBorderConfig> = {
+  gold: {
+    name: '24K Gold',
+    borderColor: '#D4AF37',
+    innerBorderColor: 'rgba(255, 229, 127, 0.45)',
+    accentColor: '#FFE57F',
+    glowColor: 'rgba(212, 175, 55, 0.45)',
+    badgeEmoji: '👑',
+    badgeText: '36-GUNA VEDIC AI',
+    badgeBg: 'rgba(212, 175, 55, 0.18)',
+    badgeBorder: '#D4AF37',
+    tagline: 'ROYAL VEDIC PATRON • ULTRA RICH',
+  },
+  emerald: {
+    name: 'Emerald',
+    borderColor: '#10B981',
+    innerBorderColor: 'rgba(110, 231, 183, 0.45)',
+    accentColor: '#A7F3D0',
+    glowColor: 'rgba(16, 185, 129, 0.45)',
+    badgeEmoji: '💎',
+    badgeText: 'IMPERIAL VERIFIED',
+    badgeBg: 'rgba(16, 185, 129, 0.18)',
+    badgeBorder: '#10B981',
+    tagline: 'IMPERIAL ELITE MATCH • VERIFIED',
+  },
+  rosegold: {
+    name: 'Rose Gold',
+    borderColor: '#FB7185',
+    innerBorderColor: 'rgba(255, 228, 230, 0.45)',
+    accentColor: '#FDA4AF',
+    glowColor: 'rgba(251, 113, 133, 0.45)',
+    badgeEmoji: '✨',
+    badgeText: 'HAUTE EDITORIAL',
+    badgeBg: 'rgba(251, 113, 133, 0.18)',
+    badgeBorder: '#FB7185',
+    tagline: 'HAUTE HORLOGERIE • PRIVATE CLUB',
+  },
+  aurora: {
+    name: 'Aurora',
+    borderColor: '#00F5D4',
+    innerBorderColor: 'rgba(168, 85, 247, 0.45)',
+    accentColor: '#00F5D4',
+    glowColor: 'rgba(0, 245, 212, 0.45)',
+    badgeEmoji: '🪐',
+    badgeText: 'CYBER SYNASTRY',
+    badgeBg: 'rgba(0, 245, 212, 0.18)',
+    badgeBorder: '#00F5D4',
+    tagline: 'CYBERPUNK NEON • COSMIC RADAR',
+  },
+  diamond: {
+    name: 'Diamond',
+    borderColor: '#FFFFFF',
+    innerBorderColor: 'rgba(226, 232, 240, 0.45)',
+    accentColor: '#F8FAFC',
+    glowColor: 'rgba(255, 255, 255, 0.35)',
+    badgeEmoji: '⚡',
+    badgeText: 'NOIR CAVIAR',
+    badgeBg: 'rgba(255, 255, 255, 0.18)',
+    badgeBorder: '#FFFFFF',
+    tagline: 'HIGH-INTENT MONOCHROME • VIP',
+  },
+};
+
 export default function ExploreScreen() {
   const styles = useThemedStyles(baseStyles);
   const [circles, setCircles] = useState<MicroCircle[]>([]);
@@ -98,6 +176,7 @@ export default function ExploreScreen() {
   const [astrology, setAstrology] = useState<UserAstrology | null>(null);
   const [showInstaVibeModal, setShowInstaVibeModal] = useState(false);
   const [activeFactIdx, setActiveFactIdx] = useState(0);
+  const [cardBorderTheme, setCardBorderTheme] = useState<'gold' | 'emerald' | 'rosegold' | 'aurora' | 'diamond'>('gold');
 
   useEffect(() => {
     loadCircles();
@@ -165,6 +244,9 @@ export default function ExploreScreen() {
   const yoniAnimal = astrology?.yoniAnimal || 'Serpent';
   const nadi = astrology?.nadi || 'Antya (Kapha)';
   const isManglik = Boolean(astrology?.isManglik);
+
+  const activeTheme = LUXURY_BORDER_THEMES[cardBorderTheme];
+  const userPhoto = profile?.photos?.[0] || profile?.photo1 || profile?.selfieUrl;
 
   // Personalized Interesting Kundali & Cosmic Facts for Instagram Story Card
   const kundaliVibeFacts: KundaliVibeFact[] = useMemo(
@@ -509,7 +591,7 @@ export default function ExploreScreen() {
                 <View>
                   <Text style={styles.vibeModalTopTitle}>📲 Instagram Vibe Card</Text>
                   <Text style={styles.vibeModalTopSub}>
-                    Screenshot or share directly to your Instagram Story
+                    Ultra-rich styling with 24K Gold, Emerald & Rose Titanium borders
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -519,12 +601,69 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Luxury Border Theme Selector */}
+              <View style={styles.luxuryThemeSelectorRow}>
+                <Text style={styles.luxuryThemeLabel}>CHOOSE LUXURY BORDER:</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.luxuryThemeScroll}>
+                  {(Object.keys(LUXURY_BORDER_THEMES) as LuxuryThemeKey[]).map((key) => {
+                    const th = LUXURY_BORDER_THEMES[key];
+                    const isSelected = cardBorderTheme === key;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[
+                          styles.luxuryThemePill,
+                          isSelected && {
+                            borderColor: th.borderColor,
+                            backgroundColor: th.badgeBg,
+                          },
+                        ]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setCardBorderTheme(key);
+                        }}>
+                        <View style={[styles.luxuryThemeSwatch, { backgroundColor: th.borderColor }]} />
+                        <Text
+                          style={[
+                            styles.luxuryThemePillText,
+                            isSelected && { color: th.accentColor, fontWeight: '900' },
+                          ]}>
+                          {th.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+
               <ScrollView
                 style={{ width: '100%' }}
                 contentContainerStyle={{ paddingBottom: 12 }}
                 showsVerticalScrollIndicator={false}>
                 {/* THE SHAREABLE INSTAGRAM STORY CARD */}
-                <View style={styles.instaStoryCard}>
+                <View
+                  style={[
+                    styles.instaStoryCard,
+                    {
+                      borderColor: activeTheme.borderColor,
+                      shadowColor: activeTheme.glowColor,
+                      shadowOffset: { width: 0, height: 8 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 18,
+                      elevation: 8,
+                    },
+                  ]}>
+                  {/* Fine Inner Bezel Frame */}
+                  <View
+                    style={[
+                      styles.instaInnerBezel,
+                      { borderColor: activeTheme.innerBorderColor },
+                    ]}
+                  />
+
                   {/* Decorative Cosmic Glow Orbs */}
                   <View style={styles.instaGlowOrbTop} />
                   <View style={styles.instaGlowOrbBottom} />
@@ -532,7 +671,7 @@ export default function ExploreScreen() {
                   {/* 1. BLUNDERR BRAND HEADER (Logo + Name) */}
                   <View style={styles.instaBrandHeader}>
                     <View style={styles.instaBrandLeft}>
-                      <View style={styles.instaLogoWrap}>
+                      <View style={[styles.instaLogoWrap, { borderColor: activeTheme.borderColor }]}>
                         <ExpoImage
                           source={require('../../../assets/images/icon.png')}
                           style={styles.instaLogoImg}
@@ -546,24 +685,50 @@ export default function ExploreScreen() {
                             <Text style={styles.instaVerifiedDotText}>✓</Text>
                           </View>
                         </View>
-                        <Text style={styles.instaBrandTagline}>
-                          VEDIC KUNDALI × COSMIC VIBE CHECK
+                        <Text style={[styles.instaBrandTagline, { color: activeTheme.accentColor }]}>
+                          {activeTheme.tagline}
                         </Text>
                       </View>
                     </View>
-                    <View style={styles.instaStoryPill}>
-                      <Text style={styles.instaStoryPillText}>🪐 36-GUNA AI</Text>
+                    <View
+                      style={[
+                        styles.instaStoryPill,
+                        { borderColor: activeTheme.badgeBorder, backgroundColor: activeTheme.badgeBg },
+                      ]}>
+                      <Text style={[styles.instaStoryPillText, { color: activeTheme.accentColor }]}>
+                        {activeTheme.badgeEmoji} {activeTheme.badgeText}
+                      </Text>
                     </View>
                   </View>
 
                   {/* 2. USER IDENTITY & TRIBE BANNER */}
                   <View style={styles.instaUserBanner}>
+                    {userPhoto ? (
+                      <View
+                        style={[
+                          styles.instaUserPhotoWrap,
+                          { borderColor: activeTheme.borderColor },
+                        ]}>
+                        <ExpoImage
+                          source={{ uri: userPhoto }}
+                          style={styles.instaUserPhotoImg}
+                          contentFit="cover"
+                        />
+                        <View style={styles.instaAvatarVerifiedDot}>
+                          <Text style={styles.instaAvatarVerifiedText}>✓</Text>
+                        </View>
+                      </View>
+                    ) : null}
                     <View style={{ flex: 1 }}>
                       <Text style={styles.instaUserName}>{userName}</Text>
                       <Text style={styles.instaUserTribe}>📍 {userTribe}</Text>
                     </View>
-                    <View style={styles.instaGunaBadge}>
-                      <Text style={styles.instaGunaBadgeNum}>
+                    <View
+                      style={[
+                        styles.instaGunaBadge,
+                        { borderColor: activeTheme.borderColor, backgroundColor: activeTheme.badgeBg },
+                      ]}>
+                      <Text style={[styles.instaGunaBadgeNum, { color: activeTheme.accentColor }]}>
                         {currentFact.gunaScore.split(' ')[0]}
                       </Text>
                       <Text style={styles.instaGunaBadgeSub}>/ 36 GUNAS</Text>
@@ -1049,6 +1214,85 @@ const baseStyles = StyleSheet.create({
     color: '#F8FAFC',
     fontSize: 12,
     fontWeight: '800',
+  },
+  luxuryThemeSelectorRow: {
+    marginBottom: 12,
+  },
+  luxuryThemeLabel: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  luxuryThemeScroll: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  luxuryThemePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  luxuryThemeSwatch: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  luxuryThemePillText: {
+    color: '#CBD5E1',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  instaInnerBezel: {
+    position: 'absolute',
+    top: 3,
+    bottom: 3,
+    left: 3,
+    right: 3,
+    borderRadius: 19,
+    borderWidth: 1,
+    pointerEvents: 'none',
+    zIndex: 1,
+  },
+  instaUserPhotoWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    position: 'relative',
+    marginRight: 10,
+    overflow: 'visible',
+  },
+  instaUserPhotoImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+  },
+  instaAvatarVerifiedDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#000',
+  },
+  instaAvatarVerifiedText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontWeight: '900',
   },
   instaStoryCard: {
     backgroundColor: '#090714',

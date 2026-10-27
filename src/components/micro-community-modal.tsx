@@ -259,16 +259,30 @@ export default function MicroCommunityModal({
           </View>
           {selectedList.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
-              {selectedList.map((c) => (
-                <View key={c.id || c.name} style={styles.chipItem}>
-                  <Text style={styles.chipText} numberOfLines={1}>
-                    {c.badgeIcon || '🏙️'} {c.name}
-                  </Text>
-                  <TouchableOpacity onPress={() => handleRemoveChip(c.name)} style={styles.chipRemoveBtn}>
-                    <Text style={styles.chipRemoveText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
+              {selectedList.map((c) => {
+                const colorConfig = getCommunityColor(c.slug || c.name, c.vibeCategory);
+                return (
+                  <View
+                    key={c.id || c.name}
+                    style={[
+                      styles.chipItem,
+                      {
+                        backgroundColor: colorConfig.tagBg,
+                        borderColor: colorConfig.tagBorder,
+                        borderWidth: 1,
+                      },
+                    ]}>
+                    <Text style={[styles.chipText, { color: colorConfig.textColor }]} numberOfLines={1}>
+                      {colorConfig.emoji} {c.name}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveChip(c.name)}
+                      style={[styles.chipRemoveBtn, { backgroundColor: colorConfig.tagBorder }]}>
+                      <Text style={[styles.chipRemoveText, { color: colorConfig.textColor }]}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
             </ScrollView>
           ) : (
             <Text style={styles.selectionHint}>

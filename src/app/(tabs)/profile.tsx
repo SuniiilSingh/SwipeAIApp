@@ -1601,6 +1601,51 @@ export default function ProfileScreen() {
               </View>
             </View>
 
+            {/* Joined Micro-Community Tribes (My Profile View) */}
+            {(() => {
+              const myComms: string[] = (Array.isArray(profile.microCircles) && profile.microCircles.length > 0)
+                ? profile.microCircles
+                : (setupMicroCircles && setupMicroCircles.length > 0
+                  ? setupMicroCircles
+                  : (profile.microCircle ? [profile.microCircle] : []));
+              if (myComms.length === 0) return null;
+
+              return (
+                <View style={styles.sectionCard}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={styles.sectionTitle}>🏙️ Joined Micro-Community Tribes</Text>
+                    <TouchableOpacity onPress={() => setIsEditingProfile(true)}>
+                      <Text style={{ color: '#00E5FF', fontSize: 12, fontWeight: '700' }}>Manage ({myComms.length}/5) ✎</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {myComms.map((comm) => {
+                      const colorConfig = getCommunityColor(comm);
+                      return (
+                        <View
+                          key={comm}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: colorConfig.tagBg,
+                            borderColor: colorConfig.tagBorder,
+                            borderWidth: 1,
+                            borderRadius: 20,
+                            paddingVertical: 6,
+                            paddingHorizontal: 12,
+                            gap: 6,
+                          }}>
+                          <Text style={{ fontSize: 12, color: colorConfig.textColor, fontWeight: '700' }}>
+                            {colorConfig.emoji} {comm}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
+
             {/* Cultural Markers (Diet & Living) Display Card */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>🥗 Cultural & Dietary Markers</Text>

@@ -22,6 +22,7 @@ import MicroCommunityModal from '@/components/micro-community-modal';
 import { hapticFeedback } from '@/utils/haptics';
 import { MEME_ASSETS, MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
 import { useThemedStyles } from '@/context/theme-context';
+import { getCommunityColor } from '@/utils/metro-colors';
 
 const { width } = Dimensions.get('window');
 
@@ -611,17 +612,27 @@ export default function ExploreScreen() {
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.activeJoinedScroll}>
-                {selectedCircles.map((name) => (
-                  <TouchableOpacity
-                    key={name}
-                    style={styles.activeJoinedChip}
-                    onPress={() => handleToggleCircle(name)}>
-                    <Text style={styles.activeJoinedChipText} numberOfLines={1}>
-                      ✓ {name}
-                    </Text>
-                    <Text style={styles.activeJoinedChipRemove}>✕</Text>
-                  </TouchableOpacity>
-                ))}
+                {selectedCircles.map((name) => {
+                  const colorConfig = getCommunityColor(name);
+                  return (
+                    <TouchableOpacity
+                      key={name}
+                      style={[
+                        styles.activeJoinedChip,
+                        {
+                          backgroundColor: colorConfig.tagBg,
+                          borderColor: colorConfig.tagBorder,
+                          borderWidth: 1,
+                        },
+                      ]}
+                      onPress={() => handleToggleCircle(name)}>
+                      <Text style={[styles.activeJoinedChipText, { color: colorConfig.textColor }]} numberOfLines={1}>
+                        {colorConfig.emoji} {name}
+                      </Text>
+                      <Text style={[styles.activeJoinedChipRemove, { color: colorConfig.textColor }]}>✕</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             </View>
           )}
@@ -672,19 +683,41 @@ export default function ExploreScreen() {
             <View style={styles.circlesList}>
               {filteredCircles.slice(0, 10).map((circle) => {
                 const isSelected = selectedCircles.includes(circle.name) || (circle.id && selectedCircles.includes(circle.id));
+                const colorConfig = getCommunityColor(circle.slug || circle.name, circle.vibeCategory);
                 return (
                   <TouchableOpacity
                     key={circle.id}
-                    style={[styles.circleCard, isSelected && styles.circleCardActive]}
+                    style={[
+                      styles.circleCard,
+                      {
+                        borderLeftWidth: 4,
+                        borderLeftColor: colorConfig.primary,
+                        backgroundColor: isSelected ? colorConfig.cardBg : '#20222B',
+                        borderColor: isSelected ? colorConfig.primary : '#2D303E',
+                      },
+                    ]}
                     onPress={() => handleToggleCircle(circle.name)}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <Text style={[styles.circleName, isSelected && styles.circleNameActive]}>
-                          {circle.name}
+                        <Text
+                          style={[
+                            styles.circleName,
+                            { color: isSelected ? colorConfig.textColor : '#ffffff' },
+                          ]}>
+                          {colorConfig.emoji} {circle.name}
                         </Text>
                         {!!circle.city && (
-                          <View style={styles.circleCityBadge}>
-                            <Text style={styles.circleCityBadgeText}>{circle.city}</Text>
+                          <View
+                            style={[
+                              styles.circleCityBadge,
+                              {
+                                backgroundColor: colorConfig.tagBg,
+                                borderColor: colorConfig.tagBorder,
+                              },
+                            ]}>
+                            <Text style={[styles.circleCityBadgeText, { color: colorConfig.textColor }]}>
+                              {circle.city}
+                            </Text>
                           </View>
                         )}
                       </View>
@@ -693,8 +726,18 @@ export default function ExploreScreen() {
                         👥 {(circle.activeMembers || 150).toLocaleString()} active singles
                       </Text>
                     </View>
-                    <View style={[styles.joinBtn, isSelected && styles.joinBtnActive]}>
-                      <Text style={[styles.joinBtnText, isSelected && styles.joinBtnTextActive]}>
+                    <View
+                      style={[
+                        styles.joinBtn,
+                        isSelected
+                          ? { backgroundColor: colorConfig.primary }
+                          : { backgroundColor: '#2C2F3C' },
+                      ]}>
+                      <Text
+                        style={[
+                          styles.joinBtnText,
+                          isSelected ? { color: '#FFFFFF', fontWeight: '800' } : { color: '#CACDD8' },
+                        ]}>
                         {isSelected ? '✓ Joined' : '+ Join'}
                       </Text>
                     </View>
@@ -1108,10 +1151,35 @@ export default function ExploreScreen() {
                             {activeRole}
                           </Text>
 
-                          {/* 4. Dynamic Micro-Tribe / Community (One-liner) */}
-                          <Text style={styles.instaUserTribeMobile} numberOfLines={1} ellipsizeMode="tail">
-                            📍 {activeTribe}
-                          </Text>
+                          {/* 4. Dynamic Micro-Tribe / Community (One-liner in category colors) */}
+                          {(() => {
+                            const tribeColor = getCommunityColor(activeTribe);
+                            return (
+                              <View
+                                style={{
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  backgroundColor: tribeColor.tagBg,
+                                  borderColor: tribeColor.tagBorder,
+                                  borderWidth: 1,
+                                  borderRadius: 12,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  marginTop: 3,
+                                  gap: 4,
+                                  alignSelf: 'flex-start',
+                                  maxWidth: '100%',
+                                }}>
+                                <Text style={{ fontSize: 10 }}>{tribeColor.emoji}</Text>
+                                <Text
+                                  style={[styles.instaUserTribeMobile, { color: tribeColor.textColor, marginTop: 0 }]}
+                                  numberOfLines={1}
+                                  ellipsizeMode="tail">
+                                  {activeTribe}
+                                </Text>
+                              </View>
+                            );
+                          })()}
                         </View>
                         <View
                           style={[

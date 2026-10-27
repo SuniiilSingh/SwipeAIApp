@@ -207,6 +207,94 @@ export function getCommunityColor(
     };
   }
 
+  // 1B. MARATHON & RUNNING TRIBES
+  if (
+    s.includes('marathon') ||
+    s.includes('running') ||
+    s.includes('runner') ||
+    s.includes('ultra run') ||
+    s.includes('5k') ||
+    s.includes('10k') ||
+    s.includes('21k') ||
+    v === 'MARATHON' ||
+    v === 'RUNNING'
+  ) {
+    return {
+      key: 'marathon',
+      name: 'Marathon & Running Tribe',
+      primary: '#F97316',
+      badgeBg: 'rgba(249, 115, 22, 0.22)',
+      badgeBorder: 'rgba(249, 115, 22, 0.65)',
+      cardBg: 'rgba(249, 115, 22, 0.08)',
+      cardBorder: 'rgba(249, 115, 22, 0.45)',
+      textColor: '#FB923C',
+      tagBg: 'rgba(249, 115, 22, 0.20)',
+      tagBorder: 'rgba(249, 115, 22, 0.55)',
+      tagText: '#FDBA74',
+      emoji: '🏃',
+    };
+  }
+
+  // 1C. SOLO TRAVELERS, BACKPACKERS & NOMADS
+  if (
+    s.includes('solo travel') ||
+    s.includes('traveler') ||
+    s.includes('traveller') ||
+    s.includes('backpacker') ||
+    s.includes('nomad') ||
+    s.includes('wanderer') ||
+    s.includes('trekker') ||
+    s.includes('voyager') ||
+    s.includes('road-tripper') ||
+    v === 'TRAVEL' ||
+    v === 'SOLO_TRAVEL'
+  ) {
+    return {
+      key: 'solo-travel',
+      name: 'Solo Travelers & Nomads',
+      primary: '#06B6D4',
+      badgeBg: 'rgba(6, 182, 212, 0.22)',
+      badgeBorder: 'rgba(6, 182, 212, 0.65)',
+      cardBg: 'rgba(6, 182, 212, 0.08)',
+      cardBorder: 'rgba(6, 182, 212, 0.45)',
+      textColor: '#22D3EE',
+      tagBg: 'rgba(6, 182, 212, 0.20)',
+      tagBorder: 'rgba(6, 182, 212, 0.55)',
+      tagText: '#67E8F9',
+      emoji: '🎒',
+    };
+  }
+
+  // 1D. LIVE CONCERTS, MUSIC FESTIVALS & GIGS
+  if (
+    s.includes('concert') ||
+    s.includes('festival') ||
+    s.includes('sunburn') ||
+    s.includes('live music') ||
+    s.includes('music fest') ||
+    s.includes('indie gig') ||
+    s.includes('amphitheatre') ||
+    s.includes('jazz') ||
+    s.includes('acoustic') ||
+    v === 'CONCERT' ||
+    v === 'FESTIVAL'
+  ) {
+    return {
+      key: 'concerts',
+      name: 'Live Concerts & Festivals',
+      primary: '#D946EF',
+      badgeBg: 'rgba(217, 70, 239, 0.22)',
+      badgeBorder: 'rgba(217, 70, 239, 0.65)',
+      cardBg: 'rgba(217, 70, 239, 0.08)',
+      cardBorder: 'rgba(217, 70, 239, 0.45)',
+      textColor: '#E879F9',
+      tagBg: 'rgba(217, 70, 239, 0.20)',
+      tagBorder: 'rgba(217, 70, 239, 0.55)',
+      tagText: '#F0ABFC',
+      emoji: '🎸',
+    };
+  }
+
   // 2. COFFEE, CAFES, CHAI & BRUNCH
   if (
     s.includes('cafe') ||

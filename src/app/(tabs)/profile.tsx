@@ -2080,6 +2080,21 @@ export default function ProfileScreen() {
               </View>
             </View>
 
+            {/* Direct Instagram Story Card Generator CTA */}
+            <TouchableOpacity
+              style={styles.instaCardProfileBanner}
+              activeOpacity={0.85}
+              onPress={() => router.push('/(tabs)/explore')}>
+              <View style={styles.instaCardProfileBannerLeft}>
+                <Text style={styles.instaCardProfileBannerIcon}>📸</Text>
+                <View>
+                  <Text style={styles.instaCardProfileBannerTitle}>Generate Ultra-Rich Instagram Card</Text>
+                  <Text style={styles.instaCardProfileBannerSub}>Customize 24K Gold & Emerald borders • Share to Story</Text>
+                </View>
+              </View>
+              <Text style={styles.instaCardProfileBannerArrow}>➔</Text>
+            </TouchableOpacity>
+
             {/* PREVIEW MODE VIEW */}
             {editViewMode === 'preview' ? (
               <View style={styles.studioPreviewCardWrapper}>
@@ -5171,6 +5186,44 @@ const baseStyles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 10.5,
     fontWeight: '800',
+  },
+  instaCardProfileBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 56, 92, 0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginVertical: 10,
+  },
+  instaCardProfileBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  instaCardProfileBannerIcon: {
+    fontSize: 24,
+  },
+  instaCardProfileBannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  instaCardProfileBannerSub: {
+    color: '#FDA4AF',
+    fontSize: 10.5,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  instaCardProfileBannerArrow: {
+    color: '#FF385C',
+    fontSize: 16,
+    fontWeight: '900',
+    marginLeft: 8,
   },
   studioPreviewCardWrapper: {
     width: '100%',

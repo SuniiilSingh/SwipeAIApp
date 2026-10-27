@@ -20,7 +20,7 @@ import { MicroCircle, UserAstrology, UserProfile } from '@/types';
 import KundaliChartDiamond from '@/components/kundali-chart-diamond';
 import MicroCommunityModal from '@/components/micro-community-modal';
 import { hapticFeedback } from '@/utils/haptics';
-import { MEME_ASSETS, resolveImageSource } from '@/constants/assets';
+import { MEME_ASSETS, MODEL_ASSETS, resolveImageSource } from '@/constants/assets';
 import { useThemedStyles } from '@/context/theme-context';
 
 const { width } = Dimensions.get('window');
@@ -177,6 +177,8 @@ export default function ExploreScreen() {
   const [showInstaVibeModal, setShowInstaVibeModal] = useState(false);
   const [activeFactIdx, setActiveFactIdx] = useState(0);
   const [cardBorderTheme, setCardBorderTheme] = useState<'gold' | 'emerald' | 'rosegold' | 'aurora' | 'diamond'>('gold');
+  const [instaCardStep, setInstaCardStep] = useState<'options' | 'preview'>('options');
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string>('user');
 
   useEffect(() => {
     loadCircles();
@@ -247,6 +249,25 @@ export default function ExploreScreen() {
 
   const activeTheme = LUXURY_BORDER_THEMES[cardBorderTheme];
   const userPhoto = profile?.photos?.[0] || profile?.photo1 || profile?.selfieUrl;
+  const userRole = profile?.occupation || profile?.company
+    ? `${profile?.occupation || 'Member'}${profile?.company ? ` at ${profile.company}` : ''}`
+    : '25 • High-Intent Member';
+
+  const CURATED_PHOTO_OPTIONS = useMemo(
+    () => [
+      { id: 'user', label: 'My Photo', isUser: true, source: userPhoto ? { uri: userPhoto } : MODEL_ASSETS.tara },
+      { id: 'ivory', label: 'Ivory Blazer', isUser: false, source: MODEL_ASSETS.tara },
+      { id: 'rose', label: 'Rose Silk', isUser: false, source: MODEL_ASSETS.ananya },
+      { id: 'vogue', label: 'Vogue Red', isUser: false, source: MODEL_ASSETS.meera },
+      { id: 'exec', label: 'Executive', isUser: false, source: MODEL_ASSETS.kabir },
+    ],
+    [userPhoto]
+  );
+
+  const activeCardPhotoSource = useMemo(() => {
+    const match = CURATED_PHOTO_OPTIONS.find((c) => c.id === selectedPhotoId);
+    return match?.source || (userPhoto ? { uri: userPhoto } : MODEL_ASSETS.tara);
+  }, [CURATED_PHOTO_OPTIONS, selectedPhotoId, userPhoto]);
 
   // Personalized Interesting Kundali & Cosmic Facts for Instagram Story Card
   const kundaliVibeFacts: KundaliVibeFact[] = useMemo(
@@ -303,7 +324,13 @@ export default function ExploreScreen() {
 
   const handleOpenInstaVibeCard = () => {
     hapticFeedback.medium();
+    setInstaCardStep('options');
     setShowInstaVibeModal(true);
+  };
+
+  const handleGeneratePreview = () => {
+    hapticFeedback.success();
+    setInstaCardStep('preview');
   };
 
   const handleNextFact = () => {
@@ -314,21 +341,22 @@ export default function ExploreScreen() {
   const handleShareInstaStory = async () => {
     hapticFeedback.success();
     const shareMessage =
-      `✨ My BlunderR Cosmic Kundali Vibe Card ✨\n\n` +
-      `👤 ${userName} • 📍 ${userTribe}\n` +
-      `🌙 Moon (Rashi): ${chandraRashi}\n` +
-      `⭐ Nakshatra: ${nakshatraName} (Pada ${nakshatraPada})\n` +
-      `☀️ Sun Sign: ${sunSign} | 🪐 Lord: ${rashiLord}\n\n` +
+      `✨ BLUNDERR ULTRA-RICH VEDIC VIBE CARD ✨\n\n` +
+      `👤 ${userName} (${userRole})\n` +
+      `📍 ${userTribe}\n` +
+      `💫 Cosmic Synastry: ${currentFact.gunaScore}\n` +
+      `🌙 Moon: ${chandraRashi} • ⭐ Nakshatra: ${nakshatraName} (Pada ${nakshatraPada})\n\n` +
       `${currentFact.badge}\n` +
       `"${currentFact.factText}"\n\n` +
-      `💫 ${currentFact.gunaScore}\n` +
-      `🔥 Check our 36-Guna Kundali & Neighborhood Vibe on BlunderR: https://blunderr.in`;
+      `🛡️ 100% 3D Biometric Verified • Zero Catfishes\n` +
+      `⚡ 72-Hour Real Date Rule\n` +
+      `📲 Join high-intent dating at: https://blunderr.in`;
 
     try {
       if (Platform.OS === 'web') {
         if (typeof navigator !== 'undefined' && navigator.share) {
           await navigator.share({
-            title: 'My BlunderR Cosmic Kundali Vibe Card',
+            title: 'My BlunderR Ultra-Rich Vibe Card',
             text: shareMessage,
             url: 'https://blunderr.in',
           });
@@ -338,19 +366,20 @@ export default function ExploreScreen() {
           await navigator.clipboard.writeText(shareMessage);
           Alert.alert(
             'Copied for Instagram Story! 📸',
-            'Your BlunderR Kundali Vibe Card caption & cosmic fact have been copied. Screenshot this card and post it to your Instagram Story!'
+            'Your BlunderR Ultra-Rich Vibe Card caption & stats have been copied. Screenshot this 9:16 card and share directly to your Instagram Story!'
           );
           return;
         }
       }
       await Share.share({
-        title: 'My BlunderR Cosmic Kundali Vibe Card',
+        title: 'My BlunderR Ultra-Rich Vibe Card',
         message: shareMessage,
+        url: 'https://blunderr.in',
       });
     } catch {
       Alert.alert(
         'Ready for Instagram! 📸',
-        'Take a screenshot of this BlunderR Kundali Vibe Card and share it directly to your Instagram Story!'
+        'Take a screenshot of this BlunderR Story Card and share it directly to your Instagram Story!'
       );
     }
   };
@@ -586,12 +615,16 @@ export default function ExploreScreen() {
           onRequestClose={() => setShowInstaVibeModal(false)}>
           <View style={styles.vibeModalOverlay}>
             <View style={styles.vibeModalContainer}>
-              {/* Modal Top Controls */}
+              {/* Modal Top Header */}
               <View style={styles.vibeModalTopRow}>
-                <View>
-                  <Text style={styles.vibeModalTopTitle}>📲 Instagram Vibe Card</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.vibeModalTopTitle}>
+                    {instaCardStep === 'options' ? '✨ Generate Instagram Story Card' : '📲 Your Instagram Story Card'}
+                  </Text>
                   <Text style={styles.vibeModalTopSub}>
-                    Ultra-rich styling with 24K Gold, Emerald & Rose Titanium borders
+                    {instaCardStep === 'options'
+                      ? 'Configure options 1, 2 & 3 to generate your 9:16 card'
+                      : 'Preview ready • Tap Share to export to external apps'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -601,230 +634,287 @@ export default function ExploreScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Luxury Border Theme Selector */}
-              <View style={styles.luxuryThemeSelectorRow}>
-                <Text style={styles.luxuryThemeLabel}>CHOOSE LUXURY BORDER:</Text>
+              {instaCardStep === 'options' ? (
+                /* ================= STAGE 1: OPTIONS 1, 2, 3 ================= */
                 <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.luxuryThemeScroll}>
-                  {(Object.keys(LUXURY_BORDER_THEMES) as LuxuryThemeKey[]).map((key) => {
-                    const th = LUXURY_BORDER_THEMES[key];
-                    const isSelected = cardBorderTheme === key;
-                    return (
-                      <TouchableOpacity
-                        key={key}
-                        style={[
-                          styles.luxuryThemePill,
-                          isSelected && {
-                            borderColor: th.borderColor,
-                            backgroundColor: th.badgeBg,
-                          },
-                        ]}
-                        onPress={() => {
-                          hapticFeedback.light();
-                          setCardBorderTheme(key);
-                        }}>
-                        <View style={[styles.luxuryThemeSwatch, { backgroundColor: th.borderColor }]} />
-                        <Text
-                          style={[
-                            styles.luxuryThemePillText,
-                            isSelected && { color: th.accentColor, fontWeight: '900' },
-                          ]}>
-                          {th.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
+                  style={{ width: '100%' }}
+                  contentContainerStyle={{ paddingBottom: 16 }}
+                  showsVerticalScrollIndicator={false}>
+                  
+                  {/* OPTION 1: Choose Luxury Border Style */}
+                  <View style={styles.optionSectionBox}>
+                    <View style={styles.optionSectionHeader}>
+                      <View style={styles.optionStepBadge}>
+                        <Text style={styles.optionStepBadgeText}>1</Text>
+                      </View>
+                      <Text style={styles.optionSectionTitle}>Choose Luxury Border Style</Text>
+                    </View>
+                    <Text style={styles.optionSectionSub}>24K Gold, Imperial Emerald, Rose Titanium & Neon Auroras</Text>
+                    
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.luxuryThemeScroll}>
+                      {(Object.keys(LUXURY_BORDER_THEMES) as LuxuryThemeKey[]).map((key) => {
+                        const th = LUXURY_BORDER_THEMES[key];
+                        const isSelected = cardBorderTheme === key;
+                        return (
+                          <TouchableOpacity
+                            key={key}
+                            style={[
+                              styles.luxuryThemePill,
+                              isSelected && {
+                                borderColor: th.borderColor,
+                                backgroundColor: th.badgeBg,
+                                borderWidth: 2,
+                              },
+                            ]}
+                            onPress={() => {
+                              hapticFeedback.light();
+                              setCardBorderTheme(key);
+                            }}>
+                            <View style={[styles.luxuryThemeSwatch, { backgroundColor: th.borderColor }]} />
+                            <Text
+                              style={[
+                                styles.luxuryThemePillText,
+                                isSelected && { color: th.accentColor, fontWeight: '900' },
+                              ]}>
+                              {th.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
 
-              <ScrollView
-                style={{ width: '100%' }}
-                contentContainerStyle={{ paddingBottom: 12 }}
-                showsVerticalScrollIndicator={false}>
-                {/* THE SHAREABLE INSTAGRAM STORY CARD */}
-                <View
-                  style={[
-                    styles.instaStoryCard,
-                    {
-                      borderColor: activeTheme.borderColor,
-                      shadowColor: activeTheme.glowColor,
-                      shadowOffset: { width: 0, height: 8 },
-                      shadowOpacity: 0.5,
-                      shadowRadius: 18,
-                      elevation: 8,
-                    },
-                  ]}>
-                  {/* Fine Inner Bezel Frame */}
+                  {/* OPTION 2: Choose Photo / Editorial Style */}
+                  <View style={styles.optionSectionBox}>
+                    <View style={styles.optionSectionHeader}>
+                      <View style={styles.optionStepBadge}>
+                        <Text style={styles.optionStepBadgeText}>2</Text>
+                      </View>
+                      <Text style={styles.optionSectionTitle}>Choose Photo / Editorial Style</Text>
+                    </View>
+                    <Text style={styles.optionSectionSub}>Use your profile selfie or select high-fashion editorial portraits</Text>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.photoOptionsScroll}>
+                      {CURATED_PHOTO_OPTIONS.map((item) => {
+                        const isSelected = selectedPhotoId === item.id;
+                        return (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={[
+                              styles.photoOptionThumbWrap,
+                              isSelected && { borderColor: activeTheme.borderColor, borderWidth: 2.5 },
+                            ]}
+                            onPress={() => {
+                              hapticFeedback.light();
+                              setSelectedPhotoId(item.id);
+                            }}>
+                            <ExpoImage source={item.source} style={styles.photoOptionThumbImg} contentFit="cover" />
+                            <View style={styles.photoOptionThumbLabelBox}>
+                              <Text style={styles.photoOptionThumbLabelText} numberOfLines={1}>
+                                {item.label}
+                              </Text>
+                            </View>
+                            {isSelected && (
+                              <View style={[styles.photoOptionActiveCheck, { backgroundColor: activeTheme.borderColor }]}>
+                                <Text style={styles.photoOptionActiveCheckText}>✓</Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* OPTION 3: Card Information & Vibe Prompt */}
+                  <View style={styles.optionSectionBox}>
+                    <View style={styles.optionSectionHeader}>
+                      <View style={styles.optionStepBadge}>
+                        <Text style={styles.optionStepBadgeText}>3</Text>
+                      </View>
+                      <Text style={styles.optionSectionTitle}>Card Information & Vibe Prompt</Text>
+                    </View>
+                    <Text style={styles.optionSectionSub}>Identity details & Vedic compatibility synced from profile</Text>
+
+                    <View style={styles.optionInfoCard}>
+                      <View style={styles.optionInfoRow}>
+                        <Text style={styles.optionInfoName}>{userName}</Text>
+                        <View style={[styles.optionInfoGunaBadge, { borderColor: activeTheme.borderColor, backgroundColor: activeTheme.badgeBg }]}>
+                          <Text style={[styles.optionInfoGunaText, { color: activeTheme.accentColor }]}>
+                            💫 {currentFact.gunaScore.split(' ')[0]} / 36
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.optionInfoRole}>{userRole}</Text>
+                      <Text style={styles.optionInfoTribe}>📍 {userTribe}</Text>
+
+                      <View style={styles.optionPromptBox}>
+                        <View style={styles.optionPromptHeader}>
+                          <Text style={styles.optionPromptTag}>✦ VEDIC VIBE PROMPT</Text>
+                          <TouchableOpacity onPress={handleNextFact} style={styles.optionRerollBtn}>
+                            <Text style={styles.optionRerollBtnText}>🎲 Reroll</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.optionPromptQuote}>&ldquo;{currentFact.factText}&rdquo;</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Big Action Button to Generate */}
+                  <TouchableOpacity
+                    style={[styles.generateCardActionBtn, { backgroundColor: activeTheme.borderColor }]}
+                    activeOpacity={0.88}
+                    onPress={handleGeneratePreview}>
+                    <Text style={styles.generateCardActionBtnText}>✨ Generate 9:16 Story Card ➔</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              ) : (
+                /* ================= STAGE 2: 9:16 MOBILE STORY CARD PREVIEW ================= */
+                <ScrollView
+                  style={{ width: '100%' }}
+                  contentContainerStyle={{ alignItems: 'center', paddingBottom: 16 }}
+                  showsVerticalScrollIndicator={false}>
+
+                  {/* 9:16 STORY CARD */}
                   <View
                     style={[
-                      styles.instaInnerBezel,
-                      { borderColor: activeTheme.innerBorderColor },
-                    ]}
-                  />
-
-                  {/* Decorative Cosmic Glow Orbs */}
-                  <View style={styles.instaGlowOrbTop} />
-                  <View style={styles.instaGlowOrbBottom} />
-
-                  {/* 1. BLUNDERR BRAND HEADER (Logo + Name) */}
-                  <View style={styles.instaBrandHeader}>
-                    <View style={styles.instaBrandLeft}>
-                      <View style={[styles.instaLogoWrap, { borderColor: activeTheme.borderColor }]}>
-                        <ExpoImage
-                          source={require('../../../assets/images/icon.png')}
-                          style={styles.instaLogoImg}
-                          contentFit="cover"
-                        />
-                      </View>
-                      <View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                          <Text style={styles.instaBrandName}>BlunderR</Text>
-                          <View style={styles.instaVerifiedDot}>
-                            <Text style={styles.instaVerifiedDotText}>✓</Text>
-                          </View>
-                        </View>
-                        <Text style={[styles.instaBrandTagline, { color: activeTheme.accentColor }]}>
-                          {activeTheme.tagline}
-                        </Text>
-                      </View>
-                    </View>
+                      styles.instaStoryCardMobileView,
+                      {
+                        borderColor: activeTheme.borderColor,
+                        shadowColor: activeTheme.glowColor,
+                      },
+                    ]}>
+                    {/* Fine Inner Bezel */}
                     <View
                       style={[
-                        styles.instaStoryPill,
-                        { borderColor: activeTheme.badgeBorder, backgroundColor: activeTheme.badgeBg },
-                      ]}>
-                      <Text style={[styles.instaStoryPillText, { color: activeTheme.accentColor }]}>
-                        {activeTheme.badgeEmoji} {activeTheme.badgeText}
-                      </Text>
-                    </View>
-                  </View>
+                        styles.instaInnerBezel,
+                        { borderColor: activeTheme.innerBorderColor },
+                      ]}
+                    />
 
-                  {/* 2. USER IDENTITY & TRIBE BANNER */}
-                  <View style={styles.instaUserBanner}>
-                    {userPhoto ? (
+                    {/* Background Photo (Centered on face, zero overlays on face) */}
+                    <ExpoImage
+                      source={activeCardPhotoSource}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                    />
+
+                    {/* Soft Cinematic Vignette: Clear in center for face, dark at bottom for text */}
+                    <View style={styles.instaVignetteTop} />
+                    <View style={styles.instaVignetteBottom} />
+
+                    {/* Top Minimal Brand Header (Above the Head — Never touches the face) */}
+                    <View style={styles.instaBrandHeaderMobile}>
+                      <View style={styles.instaBrandLeft}>
+                        <View style={[styles.instaLogoWrap, { borderColor: activeTheme.borderColor }]}>
+                          <ExpoImage
+                            source={require('../../../assets/images/icon.png')}
+                            style={styles.instaLogoImg}
+                            contentFit="cover"
+                          />
+                        </View>
+                        <Text style={styles.instaBrandNameMobile}>BlunderR</Text>
+                      </View>
                       <View
                         style={[
-                          styles.instaUserPhotoWrap,
-                          { borderColor: activeTheme.borderColor },
+                          styles.instaStoryPill,
+                          { borderColor: activeTheme.badgeBorder, backgroundColor: activeTheme.badgeBg },
                         ]}>
-                        <ExpoImage
-                          source={{ uri: userPhoto }}
-                          style={styles.instaUserPhotoImg}
-                          contentFit="cover"
-                        />
-                        <View style={styles.instaAvatarVerifiedDot}>
-                          <Text style={styles.instaAvatarVerifiedText}>✓</Text>
+                        <Text style={[styles.instaStoryPillText, { color: activeTheme.accentColor }]}>
+                          {activeTheme.badgeEmoji} {activeTheme.badgeText}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* 100% CLEAR FACE WINDOW */}
+                    <View style={{ flex: 1 }} />
+
+                    {/* Bottom Luxury Frosted Tray (All info docked safely below the face) */}
+                    <View style={styles.instaBottomTrayMobile}>
+                      <View style={styles.instaUserBannerMobile}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text style={styles.instaUserNameMobile}>{userName}</Text>
+                            <View style={styles.insta3DVerifiedBadge}>
+                              <Text style={styles.insta3DVerifiedBadgeText}>✓ 3D BIOMETRIC</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.instaUserRoleMobile}>{userRole}</Text>
+                          <Text style={styles.instaUserTribeMobile}>📍 {userTribe}</Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.instaGunaBadge,
+                            { borderColor: activeTheme.borderColor, backgroundColor: activeTheme.badgeBg },
+                          ]}>
+                          <Text style={[styles.instaGunaBadgeNum, { color: activeTheme.accentColor }]}>
+                            {currentFact.gunaScore.split(' ')[0]}
+                          </Text>
+                          <Text style={styles.instaGunaBadgeSub}>/ 36 GUNAS</Text>
                         </View>
                       </View>
-                    ) : null}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.instaUserName}>{userName}</Text>
-                      <Text style={styles.instaUserTribe}>📍 {userTribe}</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.instaGunaBadge,
-                        { borderColor: activeTheme.borderColor, backgroundColor: activeTheme.badgeBg },
-                      ]}>
-                      <Text style={[styles.instaGunaBadgeNum, { color: activeTheme.accentColor }]}>
-                        {currentFact.gunaScore.split(' ')[0]}
-                      </Text>
-                      <Text style={styles.instaGunaBadgeSub}>/ 36 GUNAS</Text>
-                    </View>
-                  </View>
 
-                  {/* 3. KUNDALI PLANETARY PILLS GRID */}
-                  <View style={styles.instaKundaliGrid}>
-                    <View style={styles.instaKundaliCell}>
-                      <Text style={styles.instaKundaliCellLabel}>🌙 CHANDRA RASHI</Text>
-                      <Text style={styles.instaKundaliCellValue}>{chandraRashi}</Text>
-                    </View>
-                    <View style={styles.instaKundaliCell}>
-                      <Text style={styles.instaKundaliCellLabel}>⭐ NAKSHATRA</Text>
-                      <Text style={styles.instaKundaliCellValue}>
-                        {nakshatraName} (Pada {nakshatraPada})
-                      </Text>
-                    </View>
-                    <View style={styles.instaKundaliCell}>
-                      <Text style={styles.instaKundaliCellLabel}>☀️ SUN SIGN</Text>
-                      <Text style={styles.instaKundaliCellValue}>{sunSign}</Text>
-                    </View>
-                    <View style={styles.instaKundaliCell}>
-                      <Text style={styles.instaKundaliCellLabel}>🪐 RASHI LORD</Text>
-                      <Text style={styles.instaKundaliCellValue}>{rashiLord}</Text>
-                    </View>
-                  </View>
+                      {/* Cosmic Pills */}
+                      <View style={styles.instaKundaliGridMobile}>
+                        <View style={styles.instaKundaliCellMobile}>
+                          <Text style={styles.instaKundaliCellLabel}>🌙 MOON</Text>
+                          <Text style={styles.instaKundaliCellValue}>{chandraRashi}</Text>
+                        </View>
+                        <View style={styles.instaKundaliCellMobile}>
+                          <Text style={styles.instaKundaliCellLabel}>⭐ NAKSHATRA</Text>
+                          <Text style={styles.instaKundaliCellValue}>{nakshatraName} (P{nakshatraPada})</Text>
+                        </View>
+                      </View>
 
-                  {/* 4. INTERESTING KUNDALI FACT SPOTLIGHT BOX */}
-                  <View style={styles.instaFactBox}>
-                    <View style={styles.instaFactBadgeRow}>
-                      <Text style={styles.instaFactBadgeText}>{currentFact.badge}</Text>
-                      <Text style={styles.instaFactCounter}>
-                        #{activeFactIdx + 1}/{kundaliVibeFacts.length}
-                      </Text>
-                    </View>
-                    <Text style={styles.instaFactHeadline}>{currentFact.headline}</Text>
-                    <Text style={styles.instaFactBody}>&ldquo;{currentFact.factText}&rdquo;</Text>
-                    <View style={styles.instaFactMatchBar}>
-                      <Text style={styles.instaFactMatchText}>
-                        💫 {currentFact.compatibilityNote}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* 5. COMPACT VEDIC KUNDALI CHART DIAMOND */}
-                  <View style={styles.instaChartContainer}>
-                    <KundaliChartDiamond
-                      lagnaSign={astrology?.lagnaSign || chandraRashi}
-                      chandraRashi={chandraRashi}
-                      sunSign={sunSign}
-                      nakshatraName={nakshatraName}
-                      isManglik={isManglik}
-                    />
-                  </View>
-
-                  {/* 6. BLUNDERR BRAND FOOTER WATERMARK */}
-                  <View style={styles.instaBrandFooter}>
-                    <View style={styles.instaFooterLeft}>
-                      <ExpoImage
-                        source={require('../../../assets/images/icon.png')}
-                        style={styles.instaFooterLogo}
-                        contentFit="cover"
-                      />
-                      <View>
-                        <Text style={styles.instaFooterBrand}>
-                          BlunderR • Verified Cosmic Dating
-                        </Text>
-                        <Text style={styles.instaFooterUrl}>
-                          Check our 36-Guna Kundali match at blunderr.in ✨
+                      {/* Vibe Quote */}
+                      <View style={styles.instaPromptTrayMobile}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                          <Text style={styles.instaPromptTrayTag}>✦ VEDIC VIBE CHECK</Text>
+                          <Text style={styles.instaPromptTrayRule}>⚡ 72h Date Rule</Text>
+                        </View>
+                        <Text style={styles.instaPromptTrayQuote} numberOfLines={2}>
+                          &ldquo;{currentFact.factText}&rdquo;
                         </Text>
                       </View>
-                    </View>
-                    <View style={styles.instaFooterTag}>
-                      <Text style={styles.instaFooterTagText}>@BlunderR.in</Text>
+
+                      {/* Watermark */}
+                      <View style={styles.instaWatermarkMobile}>
+                        <Text style={styles.instaWatermarkText}>blunderr.in • High-Intent Dating</Text>
+                        <Text style={styles.instaWatermarkHandle}>@blunderr.in</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              </ScrollView>
 
-              {/* Bottom Action Buttons */}
-              <View style={styles.vibeModalActionRow}>
-                <TouchableOpacity
-                  style={styles.vibeRerollFactBtn}
-                  activeOpacity={0.85}
-                  onPress={handleNextFact}>
-                  <Text style={styles.vibeRerollFactBtnText}>🎲 Another Kundali Fact</Text>
-                </TouchableOpacity>
+                  {/* Bottom Action Controls */}
+                  <View style={styles.vibeModalActionRow}>
+                    <TouchableOpacity
+                      style={styles.vibeChangeOptionsBtn}
+                      activeOpacity={0.85}
+                      onPress={() => setInstaCardStep('options')}>
+                      <Text style={styles.vibeChangeOptionsBtnText}>⚙️ Options</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.vibeShareInstaBtn}
-                  activeOpacity={0.85}
-                  onPress={handleShareInstaStory}>
-                  <Text style={styles.vibeShareInstaBtnText}>📤 Share to Instagram</Text>
-                </TouchableOpacity>
-              </View>
+                    <TouchableOpacity
+                      style={styles.vibeRerollFactBtn}
+                      activeOpacity={0.85}
+                      onPress={handleNextFact}>
+                      <Text style={styles.vibeRerollFactBtnText}>🎲 Reroll</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.vibeShareInstaBtn, { flex: 2, backgroundColor: activeTheme.borderColor }]}
+                      activeOpacity={0.85}
+                      onPress={handleShareInstaStory}>
+                      <Text style={styles.vibeShareInstaBtnText}>📤 Share to External</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
+              )}
             </View>
           </View>
         </Modal>
@@ -1552,33 +1642,389 @@ const baseStyles = StyleSheet.create({
   },
   vibeModalActionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 12,
+    width: '100%',
+    maxWidth: 360,
   },
-  vibeRerollFactBtn: {
-    flex: 1,
+  vibeChangeOptionsBtn: {
     backgroundColor: '#1E1B36',
     borderWidth: 1,
     borderColor: '#7C3AED',
     paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 14,
     alignItems: 'center',
   },
-  vibeRerollFactBtnText: {
+  vibeChangeOptionsBtnText: {
     color: '#DDD6FE',
     fontSize: 12,
     fontWeight: '800',
   },
+  vibeRerollFactBtn: {
+    backgroundColor: '#181A26',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  vibeRerollFactBtnText: {
+    color: '#F8FAFC',
+    fontSize: 12,
+    fontWeight: '800',
+  },
   vibeShareInstaBtn: {
-    flex: 1,
+    flex: 2,
     backgroundColor: '#FF385C',
     paddingVertical: 12,
     borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   vibeShareInstaBtnText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 12,
     fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+
+  // Option Sections (Stage 1)
+  optionSectionBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+  },
+  optionSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  optionStepBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FF385C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionStepBadgeText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  optionSectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  optionSectionSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  photoOptionsScroll: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  photoOptionThumbWrap: {
+    width: 76,
+    height: 104,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    position: 'relative',
+    backgroundColor: '#1E202B',
+  },
+  photoOptionThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoOptionThumbLabelBox: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  photoOptionThumbLabelText: {
+    color: '#F8FAFC',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  photoOptionActiveCheck: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFF',
+  },
+  photoOptionActiveCheckText: {
+    color: '#000',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  optionInfoCard: {
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  optionInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  optionInfoName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  optionInfoGunaBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  optionInfoGunaText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  optionInfoRole: {
+    color: '#FDA4AF',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  optionInfoTribe: {
+    color: '#CBD5E1',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  optionPromptBox: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  optionPromptHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  optionPromptTag: {
+    color: '#FCD34D',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  optionRerollBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  optionRerollBtnText: {
+    color: '#DDD6FE',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  optionPromptQuote: {
+    color: '#F1F5F9',
+    fontSize: 11,
+    lineHeight: 16,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  generateCardActionBtn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 6,
+    marginTop: 4,
+  },
+  generateCardActionBtnText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+
+  // 9:16 Mobile View Story Card (Stage 2)
+  instaStoryCardMobileView: {
+    width: '100%',
+    maxWidth: 360,
+    height: 540,
+    borderRadius: 24,
+    borderWidth: 2.5,
+    overflow: 'hidden',
+    position: 'relative',
+    justifyContent: 'space-between',
+    padding: 14,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10,
+    backgroundColor: '#070912',
+  },
+  instaVignetteTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  },
+  instaVignetteBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+    backgroundColor: 'rgba(6, 8, 16, 0.94)',
+  },
+  instaBrandHeaderMobile: {
+    position: 'relative',
+    zIndex: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  instaBrandNameMobile: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+  },
+  instaBottomTrayMobile: {
+    position: 'relative',
+    zIndex: 20,
+    flexDirection: 'column',
+    gap: 7,
+    backgroundColor: 'rgba(10, 13, 24, 0.78)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    padding: 11,
+  },
+  instaUserBannerMobile: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  instaUserNameMobile: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  insta3DVerifiedBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  insta3DVerifiedBadgeText: {
+    color: '#6EE7B7',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  instaUserRoleMobile: {
+    color: '#FDA4AF',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  instaUserTribeMobile: {
+    color: '#CBD5E1',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  instaKundaliGridMobile: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  instaKundaliCellMobile: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  instaPromptTrayMobile: {
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    padding: 7,
+  },
+  instaPromptTrayTag: {
+    color: '#FCD34D',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  instaPromptTrayRule: {
+    color: '#FB7185',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  instaPromptTrayQuote: {
+    color: '#F1F5F9',
+    fontSize: 10,
+    lineHeight: 14,
+    fontStyle: 'italic',
+    fontWeight: '500',
+  },
+  instaWatermarkMobile: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 3,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  instaWatermarkText: {
+    color: '#94A3B8',
+    fontSize: 8.5,
+    fontWeight: '600',
+  },
+  instaWatermarkHandle: {
+    color: '#FFFFFF',
+    fontSize: 8.5,
+    fontWeight: '800',
   },
 });

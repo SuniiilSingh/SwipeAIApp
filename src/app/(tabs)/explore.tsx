@@ -179,6 +179,7 @@ export default function ExploreScreen() {
   const [cardBorderTheme, setCardBorderTheme] = useState<'gold' | 'emerald' | 'rosegold' | 'aurora' | 'diamond'>('gold');
   const [instaCardStep, setInstaCardStep] = useState<'options' | 'preview'>('options');
   const [selectedPhotoId, setSelectedPhotoId] = useState<string>('user');
+  const [customPromptText, setCustomPromptText] = useState<string>('');
 
   useEffect(() => {
     loadCircles();
@@ -269,14 +270,29 @@ export default function ExploreScreen() {
     return match?.source || (userPhoto ? { uri: userPhoto } : MODEL_ASSETS.tara);
   }, [CURATED_PHOTO_OPTIONS, selectedPhotoId, userPhoto]);
 
-  // Personalized Interesting Kundali & Cosmic Facts for Instagram Story Card
+  // Strict Word Limit Configuration for 9:16 Instagram Story Card
+  const MAX_PROMPT_WORDS = 18;
+
+  const countWords = (text: string): number => {
+    if (!text || !text.trim()) return 0;
+    return text.trim().split(/\s+/).filter(Boolean).length;
+  };
+
+  const clampToWordLimit = (text: string, maxWords: number = MAX_PROMPT_WORDS): string => {
+    if (!text) return '';
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (words.length <= maxWords) return text.trim();
+    return words.slice(0, maxWords).join(' ');
+  };
+
+  // Personalized Interesting Kundali & Cosmic Facts for Instagram Story Card (Strictly <= 18 Words)
   const kundaliVibeFacts: KundaliVibeFact[] = useMemo(
     () => [
       {
         id: 'f1',
         badge: '🔮 NAKSHATRA MAGNETISM FACT',
         headline: `${nakshatraName} Nakshatra (Pada ${nakshatraPada}) × ${chandraRashi} Moon`,
-        factText: `According to Vedic Sidereal Janampatri, people born under ${nakshatraName} Nakshatra with ${rashiLord} as their Rashi Lord possess "Magnetic Kalatra Energy" — they skip surface-level small talk and subconsciously attract partners who match both their 2 AM deep-talk frequency and weekend foodie spontaneity.`,
+        factText: `Magnetic Kalatra energy: skips surface small talk for 2 AM deep talks & spontaneous weekend foodie runs.`,
         compatibilityNote: `Top 36-Guna Match Vibes: Scorpio, Capricorn & Pisces Moons`,
         gunaScore: '32.5 / 36 Gunas (91% Cosmic Match)',
       },
@@ -284,7 +300,7 @@ export default function ExploreScreen() {
         id: 'f2',
         badge: '🪐 7TH HOUSE (KALATRA BHAVA) SECRET',
         headline: `Sun in ${sunSign} + Moon in ${chandraRashi} = Rare Dual Spark`,
-        factText: `In Vedic Ashta-Koota synastry, combining a ${sunSign} outer fire with a ${chandraRashi} emotional core creates an 89% "Golden Retriever + CEO Ambition" paradox. You act fiercely independent all week, but secretly crave effortless filter-coffee dates and zero-ego loyalty.`,
+        factText: `Golden Retriever warmth meets CEO ambition: fiercely independent, but craves filter-coffee dates & zero-ego loyalty.`,
         compatibilityNote: `Best Neighborhood Date: ${userTribe}`,
         gunaScore: '31.0 / 36 Gunas (89% Weekend Vibe)',
       },
@@ -292,7 +308,7 @@ export default function ExploreScreen() {
         id: 'f3',
         badge: '⚡ GANA & NADI GREEN-FLAG RADAR',
         headline: `${gana} Gana • ${nadi} Nadi Alignment`,
-        factText: `Kundali Fact: Your ${gana} temperament paired with ${nadi} Nadi gives you an8-point Nadi Koota immunity against dry texters! Vedic texts say ${nakshatraName} natives sense someone's real intentions within the first 90 seconds of meeting.`,
+        factText: `Vedic Green-Flag radar: senses real intentions in 90 seconds with absolute zero patience for dry texters.`,
         compatibilityNote: `Zero Nadi Dosha with Earth & Water Signs`,
         gunaScore: '33.0 / 36 Gunas (94% Soul Synastry)',
       },
@@ -300,11 +316,7 @@ export default function ExploreScreen() {
         id: 'f4',
         badge: '🌙 CHANDRA RASHI LORD SUPERPOWER',
         headline: `Ruled by ${rashiLord} • ${isManglik ? 'High-Voltage Manglik Spark 🔥' : 'Shuddha Non-Manglik Harmony ✨'}`,
-        factText: `With ${rashiLord} governing your Chandra Lagna, your love language is 60% playlists & memes, 40% showing up unannounced with midnight biryani. ${
-          isManglik
-            ? 'Your Mars (Mangal) placement adds unstoppable passion and fierce protectiveness in relationships.'
-            : 'Your balanced 7th house brings calm, drama-free emotional security to chaotic city dating.'
-        }`,
+        factText: `Ruled by ${rashiLord}: 60% curated playlists & banter, 40% showing up unannounced with midnight snacks.`,
         compatibilityNote: `Ideal First Date: Rooftop sunset or late-night drive`,
         gunaScore: '30.5 / 36 Gunas (88% Chemistry)',
       },
@@ -312,7 +324,7 @@ export default function ExploreScreen() {
         id: 'f5',
         badge: '🧬 VEDIC YONI & MEME DNA SYNCHRONICITY',
         headline: `${nakshatraName} Star × ${yoniAnimal} Yoni Instinct`,
-        factText: `Ancient Brihat Parashara Hora Shastra meets 2026 dating: ${nakshatraName} natives have the highest "Slow-Burn to Obsessed" ratio in the zodiac. Once someone passes your humor & vibe check, your Bhakoot Koota locks in at 7/7 points.`,
+        factText: `Highest 'Slow-Burn to Obsessed' ratio in the zodiac. Pass the humor vibe check and you're locked in.`,
         compatibilityNote: `Tribe Vibe: ${userTribe}`,
         gunaScore: '34.0 / 36 Gunas (96% Rare Alignment)',
       },
@@ -321,6 +333,14 @@ export default function ExploreScreen() {
   );
 
   const currentFact = kundaliVibeFacts[activeFactIdx % kundaliVibeFacts.length];
+
+  // Guaranteed word-capped editorial quote for the Instagram Story Card
+  const activeCardQuote = useMemo(() => {
+    if (customPromptText && customPromptText.trim().length > 0) {
+      return clampToWordLimit(customPromptText, MAX_PROMPT_WORDS);
+    }
+    return clampToWordLimit(currentFact.factText, MAX_PROMPT_WORDS);
+  }, [customPromptText, currentFact.factText]);
 
   const handleOpenInstaVibeCard = () => {
     hapticFeedback.medium();
@@ -335,7 +355,18 @@ export default function ExploreScreen() {
 
   const handleNextFact = () => {
     hapticFeedback.light();
-    setActiveFactIdx((prev) => (prev + 1) % kundaliVibeFacts.length);
+    const nextIdx = (activeFactIdx + 1) % kundaliVibeFacts.length;
+    setActiveFactIdx(nextIdx);
+    setCustomPromptText(kundaliVibeFacts[nextIdx].factText);
+  };
+
+  const handlePromptChange = (text: string) => {
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (words.length > MAX_PROMPT_WORDS) {
+      setCustomPromptText(clampToWordLimit(text, MAX_PROMPT_WORDS));
+    } else {
+      setCustomPromptText(text);
+    }
   };
 
   const handleShareInstaStory = async () => {
@@ -347,7 +378,7 @@ export default function ExploreScreen() {
       `💫 Cosmic Synastry: ${currentFact.gunaScore}\n` +
       `🌙 Moon: ${chandraRashi} • ⭐ Nakshatra: ${nakshatraName} (Pada ${nakshatraPada})\n\n` +
       `${currentFact.badge}\n` +
-      `"${currentFact.factText}"\n\n` +
+      `"${activeCardQuote}"\n\n` +
       `🛡️ 100% 3D Biometric Verified • Zero Catfishes\n` +
       `⚡ 72-Hour Real Date Rule\n` +
       `📲 Join high-intent dating at: https://blunderr.in`;
@@ -755,12 +786,39 @@ export default function ExploreScreen() {
 
                       <View style={styles.optionPromptBox}>
                         <View style={styles.optionPromptHeader}>
-                          <Text style={styles.optionPromptTag}>✦ VEDIC VIBE PROMPT</Text>
-                          <TouchableOpacity onPress={handleNextFact} style={styles.optionRerollBtn}>
-                            <Text style={styles.optionRerollBtnText}>🎲 Reroll</Text>
-                          </TouchableOpacity>
+                          <Text style={styles.optionPromptTag}>✦ EDITORIAL VIBE PROMPT</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <View
+                              style={[
+                                styles.optionWordLimitPill,
+                                countWords(activeCardQuote) >= MAX_PROMPT_WORDS && styles.optionWordLimitPillMax,
+                              ]}>
+                              <Text
+                                style={[
+                                  styles.optionWordLimitText,
+                                  countWords(activeCardQuote) >= MAX_PROMPT_WORDS && styles.optionWordLimitTextMax,
+                                ]}>
+                                {countWords(activeCardQuote)}/{MAX_PROMPT_WORDS} words
+                              </Text>
+                            </View>
+                            <TouchableOpacity onPress={handleNextFact} style={styles.optionRerollBtn}>
+                              <Text style={styles.optionRerollBtnText}>🎲 Reroll</Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
-                        <Text style={styles.optionPromptQuote}>&ldquo;{currentFact.factText}&rdquo;</Text>
+                        <TextInput
+                          style={styles.optionPromptInput}
+                          value={customPromptText || currentFact.factText}
+                          onChangeText={handlePromptChange}
+                          multiline
+                          numberOfLines={2}
+                          maxLength={120}
+                          placeholder="Type a punchy 1-2 line vibe prompt..."
+                          placeholderTextColor="#64748B"
+                        />
+                        <Text style={styles.optionPromptSubtext}>
+                          ⚡ Strictly capped at {MAX_PROMPT_WORDS} words so it fits cleanly in 2 lines on your 9:16 Story card.
+                        </Text>
                       </View>
                     </View>
                   </View>
@@ -892,8 +950,8 @@ export default function ExploreScreen() {
                           <Text style={styles.instaPromptTrayTag}>✦ VEDIC VIBE CHECK</Text>
                           <Text style={styles.instaPromptTrayRule}>⚡ 72h Date Rule</Text>
                         </View>
-                        <Text style={styles.instaPromptTrayQuote} numberOfLines={2}>
-                          &ldquo;{currentFact.factText}&rdquo;
+                        <Text style={styles.instaPromptTrayQuote} numberOfLines={2} ellipsizeMode="tail">
+                          &ldquo;{activeCardQuote}&rdquo;
                         </Text>
                       </View>
 
@@ -1862,6 +1920,45 @@ const baseStyles = StyleSheet.create({
     color: '#DDD6FE',
     fontSize: 10,
     fontWeight: '800',
+  },
+  optionWordLimitPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(252, 211, 77, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(252, 211, 77, 0.3)',
+  },
+  optionWordLimitPillMax: {
+    backgroundColor: 'rgba(251, 113, 133, 0.15)',
+    borderColor: 'rgba(251, 113, 133, 0.3)',
+  },
+  optionWordLimitText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#FCD34D',
+  },
+  optionWordLimitTextMax: {
+    color: '#FB7185',
+  },
+  optionPromptInput: {
+    color: '#F1F5F9',
+    fontSize: 12,
+    lineHeight: 17,
+    fontStyle: 'italic',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginTop: 4,
+    minHeight: 46,
+  },
+  optionPromptSubtext: {
+    fontSize: 9,
+    color: '#94A3B8',
+    marginTop: 4,
   },
   optionPromptQuote: {
     color: '#F1F5F9',

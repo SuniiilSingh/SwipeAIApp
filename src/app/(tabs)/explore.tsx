@@ -837,15 +837,30 @@ export default function ExploreScreen() {
                     {/* Bottom Luxury Frosted Tray (All info docked safely below the face) */}
                     <View style={styles.instaBottomTrayMobile}>
                       <View style={styles.instaUserBannerMobile}>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <Text style={styles.instaUserNameMobile}>{userName}</Text>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          {/* 1. Name */}
+                          <Text style={styles.instaUserNameMobile} numberOfLines={1} ellipsizeMode="tail">
+                            {userName}
+                          </Text>
+
+                          {/* 2. 3D Biometric (One-liner) */}
+                          <View style={styles.insta3DVerifiedRow}>
                             <View style={styles.insta3DVerifiedBadge}>
-                              <Text style={styles.insta3DVerifiedBadgeText}>✓ 3D BIOMETRIC</Text>
+                              <Text style={styles.insta3DVerifiedBadgeText} numberOfLines={1}>
+                                ✓ 100% 3D BIOMETRIC VERIFIED
+                              </Text>
                             </View>
                           </View>
-                          <Text style={styles.instaUserRoleMobile}>{userRole}</Text>
-                          <Text style={styles.instaUserTribeMobile}>📍 {userTribe}</Text>
+
+                          {/* 3. Age & Role (One-liner) */}
+                          <Text style={styles.instaUserRoleMobile} numberOfLines={1} ellipsizeMode="tail">
+                            {userRole}
+                          </Text>
+
+                          {/* 4. Micro-Tribe / Community (One-liner) */}
+                          <Text style={styles.instaUserTribeMobile} numberOfLines={1} ellipsizeMode="tail">
+                            📍 {userTribe}
+                          </Text>
                         </View>
                         <View
                           style={[
@@ -1942,13 +1957,20 @@ const baseStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
+  insta3DVerifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+    marginBottom: 3,
+  },
   insta3DVerifiedBadge: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.6)',
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 999,
+    alignSelf: 'flex-start',
   },
   insta3DVerifiedBadgeText: {
     color: '#6EE7B7',

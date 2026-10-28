@@ -430,6 +430,40 @@ export default function ProfileScreen() {
     return item ? `${item.emoji} ${item.label}` : 'Select living arrangement';
   };
 
+  // Immediate auto-save handler for micro-community tribes
+  const handleSaveMicroCircles = async (names: string[]) => {
+    try {
+      hapticFeedback.success();
+      setSetupMicroCircles(names);
+      setSetupMicroCircle(names[0] || '');
+      setProfile((prev) => (prev ? {
+        ...prev,
+        microCircles: names,
+        microCircle: names[0] || undefined,
+      } : prev));
+
+      await api.updateMyProfile({
+        microCircles: names,
+        microCircle: names[0] || undefined,
+      });
+
+      // Reload fresh profile in background to keep full sync
+      api.getMyProfile().then((fresh) => {
+        if (fresh) {
+          setProfile(fresh);
+          const circles = Array.isArray(fresh.microCircles) && fresh.microCircles.length > 0
+            ? fresh.microCircles
+            : (fresh.microCircle ? [fresh.microCircle] : []);
+          setSetupMicroCircles(circles);
+          setSetupMicroCircle(circles[0] || '');
+        }
+      }).catch(() => {});
+    } catch (e) {
+      console.warn('Failed to save micro-circles:', e);
+      Alert.alert('Update Failed', 'Could not save your tribes. Please check your internet connection.');
+    }
+  };
+
   // 30s Vernacular Voice Note Recording & Playback Handlers
   const startVoiceRecording = async () => {
     try {
@@ -1608,13 +1642,32 @@ export default function ProfileScreen() {
                 : (setupMicroCircles && setupMicroCircles.length > 0
                   ? setupMicroCircles
                   : (profile.microCircle ? [profile.microCircle] : []));
-              if (myComms.length === 0) return null;
+
+              if (myComms.length === 0) {
+                return (
+                  <View style={styles.sectionCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={styles.sectionTitle}>🏙️ Joined Micro-Community Tribes</Text>
+                      <Text style={{ color: '#D4AF37', fontSize: 11, fontWeight: '800' }}>0/5 Joined</Text>
+                    </View>
+                    <Text style={{ color: '#94A3B8', fontSize: 12, lineHeight: 17, marginBottom: 12 }}>
+                      Join up to 5 urban tribes (Marathons, Live Concerts, Solo Travelers, Tech Hubs...) to match with verified singles on your exact wavelength.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.joinTribeBannerBtn}
+                      activeOpacity={0.85}
+                      onPress={() => setShowCommunityModal(true)}>
+                      <Text style={styles.joinTribeBannerBtnText}>+ Join Micro-Community Tribes (0/5) ➔</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }
 
               return (
                 <View style={styles.sectionCard}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                     <Text style={styles.sectionTitle}>🏙️ Joined Micro-Community Tribes</Text>
-                    <TouchableOpacity onPress={() => setIsEditingProfile(true)}>
+                    <TouchableOpacity onPress={() => setShowCommunityModal(true)}>
                       <Text style={{ color: '#00E5FF', fontSize: 12, fontWeight: '700' }}>Manage ({myComms.length}/5) ✎</Text>
                     </TouchableOpacity>
                   </View>
@@ -1642,6 +1695,16 @@ export default function ProfileScreen() {
                       );
                     })}
                   </View>
+                  {myComms.length < 5 && (
+                    <TouchableOpacity
+                      style={[styles.joinTribeBannerBtn, { marginTop: 12, paddingVertical: 8 }]}
+                      activeOpacity={0.85}
+                      onPress={() => setShowCommunityModal(true)}>
+                      <Text style={[styles.joinTribeBannerBtnText, { fontSize: 12 }]}>
+                        + Add Another Tribe ({myComms.length}/5) ➔
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })()}
@@ -2738,10 +2801,8 @@ export default function ProfileScreen() {
                             <TouchableOpacity
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                               onPress={() => {
-                                hapticFeedback.light();
                                 const next = setupMicroCircles.filter((c) => c !== comm);
-                                setSetupMicroCircles(next);
-                                setSetupMicroCircle(next[0] || '');
+                                handleSaveMicroCircles(next);
                               }}>
                               <Text style={{ fontSize: 12, color: colorConfig.textColor, fontWeight: '900', marginLeft: 2 }}>
                                 ✕
@@ -4242,23 +4303,21 @@ export default function ProfileScreen() {
           maxSelections={5}
           onSelectMultiple={(chosen) => {
             const names = chosen.map((c) => c.name);
-            setSetupMicroCircles(names);
-            setSetupMicroCircle(names[0] || '');
+            handleSaveMicroCircles(names);
           }}
           onSelect={(comm) => {
             if (comm) {
               if (!setupMicroCircles.includes(comm.name)) {
                 if (setupMicroCircles.length < 5) {
                   const updated = [...setupMicroCircles, comm.name];
-                  setSetupMicroCircles(updated);
-                  setSetupMicroCircle(updated[0] || '');
+                  handleSaveMicroCircles(updated);
                 } else {
                   Alert.alert('Maximum 5 Communities', 'You can join up to 5 communities. Deselect one first.');
                 }
               }
             }
           }}
-          initialCity={setupLocation || undefined}
+          initialCity={setupLocation || profile?.city || profile?.location || undefined}
         />
       )}
 
@@ -4433,6 +4492,22 @@ const baseStyles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     marginBottom: 10,
+  },
+  joinTribeBannerBtn: {
+    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#FF385C',
+    borderRadius: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinTribeBannerBtnText: {
+    color: '#FF385C',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   displayName: {
     color: '#ffffff',

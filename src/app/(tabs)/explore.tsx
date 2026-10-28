@@ -822,9 +822,13 @@ export default function ExploreScreen() {
                 </View>
                 <TouchableOpacity
                   style={styles.vibeModalCloseBtn}
-                  activeOpacity={0.75}
+                  activeOpacity={0.8}
+                  accessibilityLabel="Close Instagram Story Card"
                   onPress={() => setShowInstaVibeModal(false)}>
-                  <Text style={styles.vibeModalCloseText}>✕</Text>
+                  <View style={styles.crossIconContainer}>
+                    <View style={[styles.crossLine, { transform: [{ rotate: '45deg' }] }]} />
+                    <View style={[styles.crossLine, { transform: [{ rotate: '-45deg' }] }]} />
+                  </View>
                 </TouchableOpacity>
               </View>
 
@@ -1184,6 +1188,17 @@ export default function ExploreScreen() {
 
                   {/* Bottom Action Controls */}
                   <View style={styles.vibeModalActionRow}>
+                    <TouchableOpacity
+                      style={styles.vibeModalCloseCircleActionBtn}
+                      activeOpacity={0.8}
+                      accessibilityLabel="Close Instagram Story Card"
+                      onPress={() => setShowInstaVibeModal(false)}>
+                      <View style={styles.crossIconContainerSmall}>
+                        <View style={[styles.crossLineSmall, { transform: [{ rotate: '45deg' }] }]} />
+                        <View style={[styles.crossLineSmall, { transform: [{ rotate: '-45deg' }] }]} />
+                      </View>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                       style={styles.vibeChangeOptionsBtn}
                       activeOpacity={0.85}
@@ -1625,27 +1640,64 @@ const baseStyles = StyleSheet.create({
     marginTop: 2,
   },
   vibeModalCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 56, 92, 0.2)',
-    borderWidth: 1.5,
-    borderColor: '#FF385C',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FF385C',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.55)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#FF385C',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    elevation: 8,
+    marginLeft: 10,
+  },
+  crossIconContainer: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  crossLine: {
+    position: 'absolute',
+    width: 16,
+    height: 2.5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+  },
+  vibeModalCloseCircleActionBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FF385C',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.85,
     shadowRadius: 10,
     elevation: 6,
-    marginLeft: 8,
+    marginRight: 4,
   },
-  vibeModalCloseText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 18,
-    textAlign: 'center',
+  crossIconContainerSmall: {
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  crossLineSmall: {
+    position: 'absolute',
+    width: 15,
+    height: 2.5,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
   },
   luxuryThemeSelectorRow: {
     marginBottom: 12,

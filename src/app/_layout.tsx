@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -149,6 +150,51 @@ function RootLayoutInner() {
 
   return (
     <>
+      <Head>
+        <title>BlunderR – High-Intent Dating Web App | 100% 3D Verified &amp; Vedic Synastry</title>
+        <meta name="description" content="Experience high-intent dating on BlunderR Instant Web App. 100% 3D Biometric Liveness Verification, Zero Catfishing, Vedic Kundali synastry match scores, and 72-hour real date commitments." />
+        <meta name="keywords" content="BlunderR, dating web app, high intent dating India, 3D verified dating, Vedic Kundali dating, Bangalore dating, Delhi dating, Mumbai dating, verified singles" />
+        <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+        <link rel="canonical" href="https://blunderr.in/webview/" />
+        <meta property="og:locale" content="en_IN" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="BlunderR – High-Intent Dating Web App" />
+        <meta property="og:description" content="Zero Bots. Zero Catfishing. 100% 3D Biometric Verified singles with Vedic Kundali synastry &amp; 72-Hour Real Date commitments." />
+        <meta property="og:url" content="https://blunderr.in/webview/" />
+        <meta property="og:site_name" content="BlunderR" />
+        <meta property="og:image" content="https://blunderr.in/images/hero-profile.jpg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="BlunderR – High-Intent Dating Web App" />
+        <meta name="twitter:description" content="Zero Bots. Zero Catfishing. 100% 3D Biometric Verified profiles with 72-Hour Real Date rule." />
+        <meta name="twitter:image" content="https://blunderr.in/images/hero-profile.jpg" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: 'BlunderR Web App',
+              url: 'https://blunderr.in/webview/',
+              applicationCategory: 'LifestyleApplication',
+              operatingSystem: 'All Web Browsers, iOS, Android',
+              description:
+                "BlunderR is India's premier high-intent dating web app featuring 100% 3D biometric liveness verification, zero catfishing, Vedic Kundali synastry match scores, and 72-hour real date commitments.",
+              offers: {
+                '@type': 'Offer',
+                price: '0',
+                priceCurrency: 'INR',
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '4.9',
+                ratingCount: '1284',
+              },
+            }),
+          }}
+        />
+      </Head>
       {Platform.OS !== 'web' && <NativeScreenGuard />}
       <CallProvider>
         <StatusBar style={isDark ? 'light' : 'dark'} />

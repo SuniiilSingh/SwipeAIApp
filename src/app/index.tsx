@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import Head from 'expo-router/head';
 import * as SplashScreen from 'expo-splash-screen';
 import { api } from '@/services/api';
 
@@ -80,7 +81,20 @@ export default function RootIndex() {
 
   return (
     <View style={styles.container}>
+      <Head>
+        <title>BlunderR – High-Intent Dating Web App | 100% 3D Verified &amp; Vedic Synastry</title>
+        <meta name="description" content="Experience high-intent dating on BlunderR Instant Web App. 100% 3D Biometric Liveness Verification, Zero Catfishing, Vedic Kundali synastry match scores, and 72-hour real date commitments." />
+        <link rel="canonical" href="https://blunderr.in/webview/" />
+      </Head>
       <ActivityIndicator size="large" color="#E94057" />
+      {Platform.OS === 'web' && (
+        <View style={styles.seoCrawlerContent}>
+          <Text style={styles.seoHeading}>BlunderR – High-Intent Dating Instant Web App</Text>
+          <Text style={styles.seoParagraph}>
+            Meet verified singles with zero catfishing. BlunderR features 100% 3D Biometric Liveness Verification, Vedic Kundali synastry compatibility, micro-community neighborhood circles, and 72-hour real date commitments.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -91,5 +105,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F1016',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  seoCrawlerContent: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: 'hidden',
+    opacity: 0.01,
+  },
+  seoHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  seoParagraph: {
+    fontSize: 12,
   },
 });

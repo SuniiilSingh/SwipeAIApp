@@ -2131,20 +2131,6 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Direct Instagram Story Card Generator CTA */}
-            <TouchableOpacity
-              style={styles.instaCardProfileBanner}
-              activeOpacity={0.85}
-              onPress={() => router.push('/(tabs)/explore')}>
-              <View style={styles.instaCardProfileBannerLeft}>
-                <Text style={styles.instaCardProfileBannerIcon}>📸</Text>
-                <View>
-                  <Text style={styles.instaCardProfileBannerTitle}>Generate Ultra-Rich Instagram Card</Text>
-                  <Text style={styles.instaCardProfileBannerSub}>Customize 24K Gold & Emerald borders • Share to Story</Text>
-                </View>
-              </View>
-              <Text style={styles.instaCardProfileBannerArrow}>➔</Text>
-            </TouchableOpacity>
 
             {/* PREVIEW MODE VIEW */}
             {editViewMode === 'preview' ? (

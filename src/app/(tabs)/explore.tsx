@@ -822,8 +822,9 @@ export default function ExploreScreen() {
                 </View>
                 <TouchableOpacity
                   style={styles.vibeModalCloseBtn}
+                  activeOpacity={0.75}
                   onPress={() => setShowInstaVibeModal(false)}>
-                  <Text style={styles.vibeModalCloseText}>✕ Close</Text>
+                  <Text style={styles.vibeModalCloseText}>✕</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1098,127 +1099,84 @@ export default function ExploreScreen() {
                       contentFit="cover"
                     />
 
-                    {/* Soft Cinematic Vignette: Clear in center for face, dark at bottom for text */}
-                    <View style={styles.instaVignetteTop} />
+                    {/* Soft Cinematic Vignette: strictly on the bottom 1/3 for high text contrast; top 2/3 is 100% clean photo */}
                     <View style={styles.instaVignetteBottom} />
 
-                    {/* Top Minimal Brand Header (Above the Head — Never touches the face) */}
-                    <View style={styles.instaBrandHeaderMobile}>
-                      <View style={styles.instaBrandLeft}>
-                        <View style={[styles.instaLogoWrap, { borderColor: activeTheme.borderColor }]}>
-                          <ExpoImage
-                            source={require('../../../assets/images/icon.png')}
-                            style={styles.instaLogoImg}
-                            contentFit="cover"
-                          />
-                        </View>
-                        <Text style={styles.instaBrandNameMobile}>BlunderR</Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.instaStoryPill,
-                          { borderColor: activeTheme.badgeBorder, backgroundColor: activeTheme.badgeBg },
-                        ]}>
-                        <Text style={[styles.instaStoryPillText, { color: activeTheme.accentColor }]}>
-                          {activeTheme.badgeEmoji} {activeTheme.badgeText}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* 100% CLEAR FACE WINDOW */}
-                    <View style={{ flex: 1 }} />
-
-                    {/* Bottom Luxury Frosted Tray (All info docked safely below the face) */}
+                    {/* Bottom Luxury Tray: All content strictly fitted within bottom 1/3 with zero overlapping */}
                     <View style={styles.instaBottomTrayMobile}>
-                      <View style={styles.instaUserBannerMobile}>
-                        <View style={{ flex: 1, marginRight: 8 }}>
-                          {/* 1. Dynamic Name */}
-                          <Text style={styles.instaUserNameMobile} numberOfLines={1} ellipsizeMode="tail">
-                            {activeName}
-                          </Text>
-
-                          {/* 2. Dynamic 3D Biometric (One-liner) */}
-                          <View style={styles.insta3DVerifiedRow}>
-                            <View style={styles.insta3DVerifiedBadge}>
-                              <Text style={styles.insta3DVerifiedBadgeText} numberOfLines={1}>
-                                {card3DVerifiedText}
-                              </Text>
-                            </View>
-                          </View>
-
-                          {/* 3. Dynamic Age & Role (One-liner) */}
-                          <Text style={styles.instaUserRoleMobile} numberOfLines={1} ellipsizeMode="tail">
-                            {activeRole}
-                          </Text>
-
-                          {/* 4. Dynamic Micro-Tribe / Community (One-liner in category colors) */}
-                          {(() => {
-                            const tribeColor = getCommunityColor(activeTribe);
-                            return (
-                              <View
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  backgroundColor: tribeColor.tagBg,
-                                  borderColor: tribeColor.tagBorder,
-                                  borderWidth: 1,
-                                  borderRadius: 12,
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  marginTop: 3,
-                                  gap: 4,
-                                  alignSelf: 'flex-start',
-                                  maxWidth: '100%',
-                                }}>
-                                <Text style={{ fontSize: 10 }}>{tribeColor.emoji}</Text>
-                                <Text
-                                  style={[styles.instaUserTribeMobile, { color: tribeColor.textColor, marginTop: 0 }]}
-                                  numberOfLines={1}
-                                  ellipsizeMode="tail">
-                                  {activeTribe}
-                                </Text>
-                              </View>
-                            );
-                          })()}
-                        </View>
+                      {/* Row 1: Name + 36-Guna Synastry Badge */}
+                      <View style={styles.instaCompactHeaderRow}>
+                        <Text style={styles.instaUserNameMobile} numberOfLines={1} ellipsizeMode="tail">
+                          {activeName}
+                        </Text>
                         <View
                           style={[
-                            styles.instaGunaBadge,
+                            styles.instaGunaPill,
                             { borderColor: activeTheme.borderColor, backgroundColor: activeTheme.badgeBg },
                           ]}>
-                          <Text style={[styles.instaGunaBadgeNum, { color: activeTheme.accentColor }]}>
-                            {activeGuna}
+                          <Text style={[styles.instaGunaPillScore, { color: activeTheme.accentColor }]}>
+                            ✨ {activeGuna} / 36
                           </Text>
-                          <Text style={styles.instaGunaBadgeSub}>/ 36 GUNAS</Text>
                         </View>
                       </View>
 
-                      {/* Cosmic Pills */}
-                      <View style={styles.instaKundaliGridMobile}>
-                        <View style={styles.instaKundaliCellMobile}>
-                          <Text style={styles.instaKundaliCellLabel}>🌙 MOON</Text>
-                          <Text style={styles.instaKundaliCellValue}>{activeMoon}</Text>
-                        </View>
-                        <View style={styles.instaKundaliCellMobile}>
-                          <Text style={styles.instaKundaliCellLabel}>⭐ NAKSHATRA</Text>
-                          <Text style={styles.instaKundaliCellValue}>{activeNakshatra}</Text>
-                        </View>
-                      </View>
-
-                      {/* Vibe Quote */}
-                      <View style={styles.instaPromptTrayMobile}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                          <Text style={styles.instaPromptTrayTag}>✦ VEDIC VIBE CHECK</Text>
-                          <Text style={styles.instaPromptTrayRule}>⚡ 72h Date Rule</Text>
-                        </View>
-                        <Text style={styles.instaPromptTrayQuote} numberOfLines={2} ellipsizeMode="tail">
-                          &ldquo;{activeQuote}&rdquo;
+                      {/* Row 2: 3D Biometric Badge (One-liner) */}
+                      <View style={styles.insta3DVerifiedBadge}>
+                        <Text style={styles.insta3DVerifiedBadgeText} numberOfLines={1} ellipsizeMode="tail">
+                          {card3DVerifiedText}
                         </Text>
                       </View>
 
-                      {/* Watermark */}
+                      {/* Row 3: Age & Role (One-liner) */}
+                      <Text style={styles.instaUserRoleMobile} numberOfLines={1} ellipsizeMode="tail">
+                        {activeRole}
+                      </Text>
+
+                      {/* Row 4: Micro-Tribe / Community (One-liner in category colors) */}
+                      {(() => {
+                        const tribeColor = getCommunityColor(activeTribe);
+                        return (
+                          <View
+                            style={[
+                              styles.instaTribePill,
+                              {
+                                backgroundColor: tribeColor.tagBg,
+                                borderColor: tribeColor.tagBorder,
+                              },
+                            ]}>
+                            <Text style={{ fontSize: 9 }}>{tribeColor.emoji}</Text>
+                            <Text
+                              style={[styles.instaUserTribeMobile, { color: tribeColor.textColor }]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail">
+                              {activeTribe}
+                            </Text>
+                          </View>
+                        );
+                      })()}
+
+                      {/* Row 5: Cosmic Pills (Moon & Nakshatra inline) */}
+                      <View style={styles.instaKundaliInlineRow}>
+                        <View style={styles.instaKundaliTag}>
+                          <Text style={styles.instaKundaliTagText} numberOfLines={1} ellipsizeMode="tail">
+                            🌙 {activeMoon}
+                          </Text>
+                        </View>
+                        <View style={styles.instaKundaliTag}>
+                          <Text style={styles.instaKundaliTagText} numberOfLines={1} ellipsizeMode="tail">
+                            ⭐ {activeNakshatra}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Row 6: Vibe Quote (1-2 lines, strictly clamped) */}
+                      <Text style={styles.instaPromptTrayQuote} numberOfLines={2} ellipsizeMode="tail">
+                        &ldquo;{activeQuote}&rdquo;
+                      </Text>
+
+                      {/* Row 7: Watermark */}
                       <View style={styles.instaWatermarkMobile}>
-                        <Text style={styles.instaWatermarkText}>blunderr.in • High-Intent Dating</Text>
+                        <Text style={styles.instaWatermarkText}>BlunderR • High-Intent Dating</Text>
                         <Text style={styles.instaWatermarkHandle}>@blunderr.in</Text>
                       </View>
                     </View>
@@ -1667,17 +1625,27 @@ const baseStyles = StyleSheet.create({
     marginTop: 2,
   },
   vibeModalCloseBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 56, 92, 0.2)',
+    borderWidth: 1.5,
+    borderColor: '#FF385C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF385C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    elevation: 6,
+    marginLeft: 8,
   },
   vibeModalCloseText: {
-    color: '#F8FAFC',
-    fontSize: 12,
-    fontWeight: '800',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   luxuryThemeSelectorRow: {
     marginBottom: 12,
@@ -2321,135 +2289,123 @@ const baseStyles = StyleSheet.create({
     borderWidth: 2.5,
     overflow: 'hidden',
     position: 'relative',
-    justifyContent: 'space-between',
-    padding: 14,
+    justifyContent: 'flex-end',
+    padding: 10,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
     elevation: 10,
     backgroundColor: '#070912',
   },
-  instaVignetteTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-  },
   instaVignetteBottom: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 280,
-    backgroundColor: 'rgba(6, 8, 16, 0.94)',
-  },
-  instaBrandHeaderMobile: {
-    position: 'relative',
-    zIndex: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  instaBrandNameMobile: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 0.6,
+    height: 185,
+    backgroundColor: 'rgba(6, 8, 16, 0.88)',
   },
   instaBottomTrayMobile: {
     position: 'relative',
     zIndex: 20,
     flexDirection: 'column',
-    gap: 7,
-    backgroundColor: 'rgba(10, 13, 24, 0.78)',
-    borderRadius: 18,
+    gap: 4,
+    backgroundColor: 'rgba(10, 13, 24, 0.86)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    padding: 11,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    width: '100%',
   },
-  instaUserBannerMobile: {
+  instaCompactHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    width: '100%',
   },
   instaUserNameMobile: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '900',
+    flex: 1,
+    marginRight: 6,
   },
-  insta3DVerifiedRow: {
-    flexDirection: 'row',
+  instaGunaPill: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
     alignItems: 'center',
-    marginTop: 3,
-    marginBottom: 3,
+    justifyContent: 'center',
+  },
+  instaGunaPillScore: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.2,
   },
   insta3DVerifiedBadge: {
     backgroundColor: 'rgba(16, 185, 129, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.6)',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
     borderRadius: 999,
     alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   insta3DVerifiedBadgeText: {
     color: '#6EE7B7',
     fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   instaUserRoleMobile: {
     color: '#FDA4AF',
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
-    marginTop: 2,
+  },
+  instaTribePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    gap: 3,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   instaUserTribeMobile: {
-    color: '#CBD5E1',
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '600',
-    marginTop: 1,
+    flexShrink: 1,
   },
-  instaKundaliGridMobile: {
+  instaKundaliInlineRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
+    width: '100%',
   },
-  instaKundaliCellMobile: {
+  instaKundaliTag: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  instaPromptTrayMobile: {
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    padding: 7,
-  },
-  instaPromptTrayTag: {
-    color: '#FCD34D',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-  instaPromptTrayRule: {
-    color: '#FB7185',
-    fontSize: 8,
-    fontWeight: '800',
+  instaKundaliTagText: {
+    color: '#E2E8F0',
+    fontSize: 9,
+    fontWeight: '700',
   },
   instaPromptTrayQuote: {
     color: '#F1F5F9',
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 9.5,
+    lineHeight: 13,
     fontStyle: 'italic',
     fontWeight: '500',
   },
@@ -2463,12 +2419,12 @@ const baseStyles = StyleSheet.create({
   },
   instaWatermarkText: {
     color: '#94A3B8',
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: '600',
   },
   instaWatermarkHandle: {
     color: '#FFFFFF',
-    fontSize: 8.5,
-    fontWeight: '800',
+    fontSize: 8,
+    fontWeight: '700',
   },
 });

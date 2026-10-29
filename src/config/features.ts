@@ -51,10 +51,9 @@ export const FEATURE_FLAGS = {
   ENABLE_CALLING: false,
 
   /**
-   * Twilio Test Mode / Mock OTP:
-   * When true, bypasses real Twilio SMS/WhatsApp dispatch, accepts OTP 123456,
-   * and auto-populates it for instant onboarding advancement.
-   * Toggle to false when deploying to the next environment with live Twilio.
+   * Test Mode / Mock OTP:
+   * When true, accepts OTP 123456 and auto-populates it for instant onboarding advancement.
+   * Primary authentication uses Firebase Phone Auth (10,000 free OTPs/mo).
    */
   USE_MOCK_OTP: true,
 };

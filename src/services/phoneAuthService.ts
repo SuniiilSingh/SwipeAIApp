@@ -4,7 +4,7 @@
  * Flow:
  * 1. Primary: Firebase Phone Auth (10,000 Free OTPs/month)
  * 2. If Firebase Limit / Quota Exceeded:
- *    - Checks if secondary provider (2Factor / Fast2SMS / Twilio) is configured
+ *    - Checks if secondary provider (2Factor / Fast2SMS) is configured
  *    - If yes -> Failover to secondary provider automatically
  *    - If no  -> Stays on Firebase Phone Auth
  * 3. Supports Mock OTP (123456) for instant developer testing
@@ -108,7 +108,7 @@ class PhoneAuthService {
       }
     }
 
-    // 3. Fallback to backend OTP (Twilio / Mock / Configured secondary)
+    // 3. Fallback to backend OTP (Mock / Configured secondary)
     const backendResult = await api.sendOtp(normalizedPhone, channel);
     const session: PhoneAuthSession = {
       phoneE164: normalizedPhone,

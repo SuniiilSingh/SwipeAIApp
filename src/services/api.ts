@@ -403,6 +403,50 @@ export const api = {
     return data;
   },
 
+  firebaseLogin: async (
+    idToken: string,
+    phoneE164?: string,
+    extraData?: {
+      gender?: any;
+      intent?: any;
+      birthDate?: string;
+      latitude?: number;
+      longitude?: number;
+      city?: string;
+      location?: string;
+    }
+  ) => {
+    const payload: any = { idToken, ...extraData };
+    if (phoneE164) {
+      payload.phoneE164 = api.normalizePhone(phoneE164);
+    }
+
+    const res = await fetchWithTimeout(`${BASE_URL}/v1/auth/firebase-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.message || 'Firebase authentication failed');
+    }
+    setAuthToken(data.token, data.userId);
+    return data;
+  },
+
+  getAuthConfig: async () => {
+    try {
+      const res = await fetchWithTimeout(`${BASE_URL}/v1/auth/config`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  },
+
   updateLocation: async (
     latitude: number,
     longitude: number,

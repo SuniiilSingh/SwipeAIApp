@@ -35,6 +35,7 @@ import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Location from 'expo-location';
 import { api } from '@/services/api';
+import { phoneAuthService } from '@/services/phoneAuthService';
 import { DatingIntent } from '@/types';
 import LivenessCameraModal from '@/components/liveness-camera-modal';
 import { FEATURE_FLAGS } from '@/config/features';
@@ -843,24 +844,22 @@ export default function AuthScreen() {
     setOtpFeedbackMsg(null);
     setOtp('');
     try {
-      const res = await api.sendOtp(phone, targetChannel);
+      const session = await phoneAuthService.sendOtp(phone, targetChannel);
       setLoading(false);
       setOtpSent(true);
       setResendTimer(30);
-      const codeLen = (res && (res.otpLength === 4 || res.otpLength === 6)) ? res.otpLength : 6;
-      setExpectedOtpLength(codeLen);
+      setExpectedOtpLength(6);
       const channelLabel = targetChannel === 'whatsapp' ? 'WhatsApp' : 'SMS';
 
-      const isMock = FEATURE_FLAGS.USE_MOCK_OTP || res?.isMockOtp;
+      const isMock = session.isMock || FEATURE_FLAGS.USE_MOCK_OTP;
       if (isMock) {
-        const mockCode = res?.mockOtp || '123456';
-        setOtp(mockCode);
+        setOtp('123456');
         setIsAutoDetectingOtp(false);
         setAutoDetectedSuccess(true);
-        setOtpFeedbackMsg(res?.message || '⚡ Test Mode Active: Verification Code 123456');
+        setOtpFeedbackMsg(session.message || '⚡ Test Mode Active: Verification Code 123456');
       } else {
         setIsAutoDetectingOtp(true);
-        setOtpFeedbackMsg(res?.message || `OTP sent via ${channelLabel}`);
+        setOtpFeedbackMsg(session.message || `OTP sent via ${channelLabel}`);
       }
 
       setTimeout(() => {
@@ -989,7 +988,12 @@ export default function AuthScreen() {
     }
 
     try {
-      const res = await api.verifyOtp(phone, finalOtp, authChannel, userLat, userLon, userCity);
+      const res = await phoneAuthService.verifyOtp(phone, finalOtp, {
+        channel: authChannel,
+        latitude: userLat,
+        longitude: userLon,
+        city: userCity,
+      });
       setLoading(false);
       if (res?.whatsappVerified || authChannel === 'whatsapp') {
         setWhatsappVerified(true);

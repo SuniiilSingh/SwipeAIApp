@@ -242,6 +242,14 @@ export default function ProfileScreen() {
   const [shieldedContactsCount, setShieldedContactsCount] = useState(0);
   const [isSavingShield, setIsSavingShield] = useState(false);
 
+  // 6 Dedicated Modular Card Modals
+  const [showPersonalDetailsModal, setShowPersonalDetailsModal] = useState(false);
+  const [showDatingGoalModal, setShowDatingGoalModal] = useState(false);
+  const [showBioModal, setShowBioModal] = useState(false);
+  const [showWhatImIntoModal, setShowWhatImIntoModal] = useState(false);
+  const [showCultureModal, setShowCultureModal] = useState(false);
+  const [showHabitsModal, setShowHabitsModal] = useState(false);
+
   // Single-Flag 3D Liveness Recovery
   const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
   const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
@@ -461,6 +469,161 @@ export default function ProfileScreen() {
     } catch (e) {
       console.warn('Failed to save micro-circles:', e);
       Alert.alert('Update Failed', 'Could not save your tribes. Please check your internet connection.');
+    }
+  };
+
+  const calculateAge = (dobString?: string): number => {
+    if (!dobString) return 0;
+    const birth = new Date(dobString);
+    if (isNaN(birth.getTime())) return 0;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age > 0 ? age : 0;
+  };
+
+  // 6 Dedicated Modular Card Quick Save Handlers
+  const handleQuickSavePersonalDetails = async (updates: {
+    fullName: string;
+    birthDate?: string;
+    height?: number;
+    location?: string;
+    genderDisplay?: string;
+    gender?: 'MALE' | 'FEMALE' | 'NON_BINARY';
+    maxDistanceKm?: number;
+  }) => {
+    setSetupFullname(updates.fullName);
+    if (updates.birthDate) setSetupDateOfBirth(updates.birthDate);
+    if (updates.height) setSetupHeight(String(updates.height));
+    if (updates.location) setSetupLocation(updates.location);
+    if (updates.genderDisplay) setSetupGenderDisplay(updates.genderDisplay);
+    if (updates.maxDistanceKm) setSetupMaxDistanceKm(String(updates.maxDistanceKm));
+
+    setProfile((prev) => prev ? {
+      ...prev,
+      fullName: updates.fullName,
+      displayName: updates.fullName.split(' ')[0] || prev.displayName,
+      birthDate: updates.birthDate || prev.birthDate,
+      age: updates.birthDate ? calculateAge(updates.birthDate) : prev.age,
+      height: updates.height || prev.height,
+      location: updates.location || prev.location,
+      genderDisplay: updates.genderDisplay || prev.genderDisplay,
+      gender: updates.gender || prev.gender,
+      maxDistanceKm: updates.maxDistanceKm || prev.maxDistanceKm,
+    } : prev);
+
+    try {
+      await api.updateMyProfile({
+        fullName: updates.fullName,
+        displayName: updates.fullName.split(' ')[0] || 'User',
+        birthDate: updates.birthDate,
+        height: updates.height,
+        location: updates.location,
+        genderDisplay: updates.genderDisplay,
+        gender: updates.gender,
+        maxDistanceKm: updates.maxDistanceKm,
+      });
+      hapticFeedback.success();
+    } catch (e) {
+      console.warn('Auto-save personal details failed:', e);
+    }
+  };
+
+  const handleQuickSaveDatingGoal = async (updates: {
+    relationshipIntent?: string;
+    sexualOrientation?: string;
+    genderPreferenceDisplay?: string;
+    showOrientationOnProfile?: boolean;
+  }) => {
+    if (updates.relationshipIntent) setSetupIntent(updates.relationshipIntent);
+    if (updates.sexualOrientation) setSetupOrientation(updates.sexualOrientation);
+    if (updates.genderPreferenceDisplay) setSetupPreferenceDisplay(updates.genderPreferenceDisplay);
+    if (updates.showOrientationOnProfile !== undefined) setSetupShowOrientation(updates.showOrientationOnProfile);
+
+    setProfile((prev) => prev ? { ...prev, ...updates } : prev);
+
+    try {
+      await api.updateMyProfile(updates);
+      hapticFeedback.success();
+    } catch (e) {
+      console.warn('Auto-save dating goal failed:', e);
+    }
+  };
+
+  const handleQuickSaveBio = async (updates: {
+    bio?: string;
+    profilePromptQuestion?: string;
+    profilePromptAnswer?: string;
+  }) => {
+    if (updates.bio !== undefined) setSetupBio(updates.bio);
+    if (updates.profilePromptQuestion) setSetupPromptQuestion(updates.profilePromptQuestion);
+    if (updates.profilePromptAnswer !== undefined) setSetupPromptAnswer(updates.profilePromptAnswer);
+
+    setProfile((prev) => prev ? { ...prev, ...updates } : prev);
+
+    try {
+      await api.updateMyProfile(updates);
+      hapticFeedback.success();
+    } catch (e) {
+      console.warn('Auto-save bio failed:', e);
+    }
+  };
+
+  const handleQuickSaveWhatImInto = async (updates: {
+    interests?: string;
+    hobbies?: string;
+  }) => {
+    if (updates.interests !== undefined) setSetupInterests(updates.interests);
+    if (updates.hobbies !== undefined) setSetupHobbies(updates.hobbies);
+
+    setProfile((prev) => prev ? { ...prev, ...updates } : prev);
+
+    try {
+      await api.updateMyProfile(updates);
+      hapticFeedback.success();
+    } catch (e) {
+      console.warn('Auto-save interests failed:', e);
+    }
+  };
+
+  const handleQuickSaveCulture = async (updates: {
+    dietaryPref?: DietaryPreference;
+    livingStatus?: LivingStatus;
+    languagesSpoken?: string[];
+  }) => {
+    if (updates.dietaryPref) setSetupDiet(updates.dietaryPref);
+    if (updates.livingStatus) setSetupLiving(updates.livingStatus);
+    if (updates.languagesSpoken) setSetupLanguages(updates.languagesSpoken);
+
+    setProfile((prev) => prev ? { ...prev, ...updates } : prev);
+
+    try {
+      await api.updateMyProfile(updates);
+      hapticFeedback.success();
+    } catch (e) {
+      console.warn('Auto-save culture failed:', e);
+    }
+  };
+
+  const handleQuickSaveHabits = async (updates: {
+    drinkingHabit?: string;
+    smokingHabit?: string;
+    vacationPreference?: string;
+  }) => {
+    if (updates.drinkingHabit) setSetupDrinking(updates.drinkingHabit);
+    if (updates.smokingHabit) setSetupSmoking(updates.smokingHabit);
+    if (updates.vacationPreference) setSetupVacation(updates.vacationPreference);
+
+    setProfile((prev) => prev ? { ...prev, ...updates } : prev);
+
+    try {
+      await api.updateMyProfile(updates);
+      hapticFeedback.success();
+    } catch (e) {
+      console.warn('Auto-save habits failed:', e);
     }
   };
 
@@ -1596,11 +1759,26 @@ export default function ProfileScreen() {
               );
             })()}
 
-            {/* Main Info Card */}
-            <View style={styles.sectionCard}>
+            {/* 1. Modeled Card: Profile Name & Core Vitals */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[styles.sectionCard, styles.modeledInteractiveCard]}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowPersonalDetailsModal(true);
+              }}>
+              <View style={styles.modeledCardHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Text style={styles.modeledCardSectionTitle}>👤 PERSONAL DETAILS & CORE VITALS</Text>
+                </View>
+                <View style={styles.modeledActionBadge}>
+                  <Text style={styles.modeledActionBadgeText}>Edit Vitals ✎</Text>
+                </View>
+              </View>
+
               <View style={styles.nameRow}>
                 <Text style={styles.displayName}>
-                  {profile.fullName || profile.displayName || 'Set Up Your Name'}{profile.age > 0 ? `, ${profile.age}` : ''}
+                  {profile.fullName || profile.displayName || setupFullname || 'Set Up Your Name'}{profile.age > 0 ? `, ${profile.age}` : (setupDateOfBirth && calculateAge(setupDateOfBirth) > 0 ? `, ${calculateAge(setupDateOfBirth)}` : '')}
                 </Text>
                 {profile.digilockerVerified || profile.faceVerified || (profile.livenessScore != null && profile.livenessScore >= 0.85) ? (
                   <View style={styles.goldBadge}>
@@ -1609,31 +1787,245 @@ export default function ProfileScreen() {
                 ) : null}
               </View>
 
-              {profile.job || profile.occupation || profile.company ? (
+              {profile.job || profile.occupation || profile.company || setupJob ? (
                 <Text style={styles.occupationText}>
-                  💼 {profile.job || profile.occupation || 'Professional'}{profile.company ? ` @ ${profile.company}` : ''}
+                  💼 {profile.job || profile.occupation || setupJob || 'Professional'}{profile.company || setupCompany ? ` @ ${profile.company || setupCompany}` : ''}
                 </Text>
               ) : null}
 
-              {profile.education || profile.institute ? (
+              {profile.education || profile.institute || setupEducation ? (
                 <Text style={styles.subDetailText}>
-                  🎓 {profile.education || 'Degree'}{profile.institute ? ` @ ${profile.institute}` : ''}
+                  🎓 {profile.education || setupEducation || 'Degree'}{profile.institute || setupInstitute ? ` @ ${profile.institute || setupInstitute}` : ''}
                 </Text>
               ) : null}
 
-              {profile.height ? (
-                <Text style={styles.subDetailText}>📏 Height: {formatHeight(profile.height)}</Text>
-              ) : null}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                <View style={styles.modeledPillChip}>
+                  <Text style={styles.modeledPillChipText}>📏 {profile.height ? formatHeight(profile.height) : (setupHeight ? `${setupHeight} cm` : 'Height not set')}</Text>
+                </View>
+                <View style={styles.modeledPillChip}>
+                  <Text style={styles.modeledPillChipText}>👤 {profile.genderDisplay || setupGenderDisplay || (profile.gender === 'FEMALE' ? 'Woman' : (profile.gender === 'MALE' ? 'Man' : 'Gender not set'))}</Text>
+                </View>
+                <View style={styles.modeledPillChip}>
+                  <Text style={styles.modeledPillChipText}>📍 {profile.location || profile.city || setupLocation || 'City not set'}</Text>
+                </View>
+              </View>
 
-              <Text style={styles.locText}>
-                📍 {profile.location || profile.city || 'Location not set'} ({profile.maxDistanceKm ? `${profile.maxDistanceKm} km` : '50 km (default)'} radius)
-                {profile.latitude && profile.longitude ? ' • GPS Active 📡' : ''}
+              <View style={[styles.karmaChip, { marginTop: 10 }]}>
+                <Text style={styles.karmaText}>⚡ Match Karma: {profile.karmaScore || 120}/200 • Tap to Edit Vitals</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* 2. Modeled Card: Dating Goal & Orientation */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[styles.sectionCard, styles.modeledInteractiveCard]}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowDatingGoalModal(true);
+              }}>
+              <View style={styles.modeledCardHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Text style={styles.modeledCardSectionTitle}>🎯 DATING GOAL & ORIENTATION</Text>
+                </View>
+                <View style={styles.modeledActionBadge}>
+                  <Text style={styles.modeledActionBadgeText}>Manage ✎</Text>
+                </View>
+              </View>
+              <Text style={styles.modeledCardSub}>
+                Your relationship vision, sexual orientation & match preference. Tap to update.
+              </Text>
+              <View style={styles.traitsRow}>
+                <View style={[styles.traitChip, { flex: 1, minWidth: '46%' }]}>
+                  <Text style={styles.traitLabel}>Looking For</Text>
+                  <Text style={styles.traitValue}>{profile.relationshipIntent || setupIntent || 'Not set yet'}</Text>
+                </View>
+                <View style={[styles.traitChip, { flex: 1, minWidth: '46%' }]}>
+                  <Text style={styles.traitLabel}>Sexual Orientation</Text>
+                  <Text style={styles.traitValue}>🏳️‍🌈 {profile.sexualOrientation || setupOrientation || 'Not specified'}</Text>
+                </View>
+                <View style={[styles.traitChip, { width: '100%', marginTop: 2 }]}>
+                  <Text style={styles.traitLabel}>Match Preference</Text>
+                  <Text style={styles.traitValue}>👥 {profile.genderPreferenceDisplay || setupPreferenceDisplay || 'Everyone'}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* 3. Modeled Card: Bio Description & Prompts */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[styles.sectionCard, styles.modeledInteractiveCard]}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowBioModal(true);
+              }}>
+              <View style={styles.modeledCardHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Text style={styles.modeledCardSectionTitle}>✍️ BIO DESCRIPTION & PROMPTS</Text>
+                </View>
+                <View style={styles.modeledActionBadge}>
+                  <Text style={styles.modeledActionBadgeText}>Edit Bio ✎</Text>
+                </View>
+              </View>
+              <Text style={styles.modeledCardSub}>
+                Your quirky story, authentic voice & conversation starter prompt. Tap to edit.
+              </Text>
+              <Text style={styles.bioContent}>
+                {profile.bio || setupBio || 'Tap here to add a compelling bio that captures who you are.'}
               </Text>
 
-              <View style={styles.karmaChip}>
-                <Text style={styles.karmaText}>⚡ Match Karma: {profile.karmaScore}/200</Text>
+              {/* Prompt Icebreaker Quote */}
+              {(profile.profilePromptAnswer || setupPromptAnswer) ? (
+                <View style={[styles.promptQuoteCard, { marginTop: 10 }]}>
+                  <Text style={styles.promptQuestionTitle}>🗣️ {profile.profilePromptQuestion || setupPromptQuestion || 'The key to my heart is...'}</Text>
+                  <Text style={styles.promptAnswerText}>"{profile.profilePromptAnswer || setupPromptAnswer}"</Text>
+                </View>
+              ) : (
+                <View style={[styles.modeledPromptAddBox, { marginTop: 10 }]}>
+                  <Text style={styles.modeledPromptAddText}>+ Add an icebreaker prompt (e.g. "I won't shut up about...")</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* 4. Modeled Card: What I'm Into & Passions */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[styles.sectionCard, styles.modeledInteractiveCard]}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowWhatImIntoModal(true);
+              }}>
+              <View style={styles.modeledCardHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Text style={styles.modeledCardSectionTitle}>🏷️ WHAT I'M INTO & PASSIONS</Text>
+                </View>
+                <View style={styles.modeledActionBadge}>
+                  <Text style={styles.modeledActionBadgeText}>
+                    {(profile.interests || setupInterests) ? 'Curate ✎' : '+ Add Tags ✎'}
+                  </Text>
+                </View>
               </View>
-            </View>
+              <Text style={styles.modeledCardSub}>
+                Your favorite passions, hobbies & everyday creative pursuits. Tap to curate.
+              </Text>
+
+              {(profile.interests || setupInterests) ? (
+                <View style={[styles.interestsWrap, { marginTop: 8 }]}>
+                  {(profile.interests || setupInterests).split(',').filter(Boolean).map((item, idx) => (
+                    <View key={idx} style={styles.interestPill}>
+                      <Text style={styles.interestPillText}>#{item.trim()}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={[styles.modeledPromptAddBox, { marginTop: 6 }]}>
+                  <Text style={styles.modeledPromptAddText}>+ Add interest tags (Travel, Coffee, Indie Music...)</Text>
+                </View>
+              )}
+
+              {(profile.hobbies || setupHobbies) ? (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={[styles.inputLabel, { color: '#FF9800', marginBottom: 6 }]}>🎨 Hobbies & Pursuits:</Text>
+                  <View style={styles.interestsWrap}>
+                    {(profile.hobbies || setupHobbies).split(',').filter(Boolean).map((h, idx) => (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.interestPill,
+                          { backgroundColor: 'rgba(255, 152, 0, 0.12)', borderColor: 'rgba(255, 152, 0, 0.3)' },
+                        ]}>
+                        <Text style={[styles.interestPillText, { color: '#FF9800' }]}>✨ {h.trim()}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+
+            {/* 5. Modeled Card: Culture & Lifestyle Markers */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[styles.sectionCard, styles.modeledInteractiveCard]}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowCultureModal(true);
+              }}>
+              <View style={styles.modeledCardHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Text style={styles.modeledCardSectionTitle}>🥗 CULTURE & LIFESTYLE MARKERS</Text>
+                </View>
+                <View style={styles.modeledActionBadge}>
+                  <Text style={styles.modeledActionBadgeText}>Edit Culture ✎</Text>
+                </View>
+              </View>
+              <Text style={styles.modeledCardSub}>
+                Dietary preferences, living arrangements & spoken languages. Tap to adjust.
+              </Text>
+              <View style={styles.traitsRow}>
+                <View style={[styles.traitChip, { flex: 1, minWidth: '46%' }]}>
+                  <Text style={styles.traitLabel}>Dietary Rhythm</Text>
+                  <Text style={styles.traitValue}>{getDietaryLabel(profile.dietaryPref || setupDiet) || 'Not set'}</Text>
+                </View>
+
+                <View style={[styles.traitChip, { flex: 1, minWidth: '46%' }]}>
+                  <Text style={styles.traitLabel}>Living Situation</Text>
+                  <Text style={styles.traitValue}>{getLivingLabel(profile.livingStatus || setupLiving) || 'Not set'}</Text>
+                </View>
+              </View>
+
+              {/* Spoken Languages */}
+              <View style={{ marginTop: 10 }}>
+                <Text style={[styles.traitLabel, { marginBottom: 6 }]}>Languages Spoken</Text>
+                {((profile.languagesSpoken && profile.languagesSpoken.length > 0) || (setupLanguages && setupLanguages.length > 0)) ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {(profile.languagesSpoken && profile.languagesSpoken.length > 0 ? profile.languagesSpoken : setupLanguages).map((lang, idx) => (
+                      <View key={idx} style={styles.languageDisplayBadge}>
+                        <Text style={styles.languageDisplayBadgeText}>🗣️ {lang}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={{ color: '#64748B', fontSize: 12 }}>+ Tap to specify languages you speak</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {/* 6. Modeled Card: Habit & Vacation Vibe */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={[styles.sectionCard, styles.modeledInteractiveCard]}
+              onPress={() => {
+                hapticFeedback.light();
+                setShowHabitsModal(true);
+              }}>
+              <View style={styles.modeledCardHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                  <Text style={styles.modeledCardSectionTitle}>🍸 HABIT & VACATION VIBE</Text>
+                </View>
+                <View style={styles.modeledActionBadge}>
+                  <Text style={styles.modeledActionBadgeText}>⚡ Quick Sync</Text>
+                </View>
+              </View>
+              <Text style={styles.modeledCardSub}>
+                Alcohol comfort level, smoking habits & holiday wavelength. Tap to sync.
+              </Text>
+              <View style={styles.traitsRow}>
+                <View style={[styles.traitChip, { minWidth: '46%', flex: 1 }]}>
+                  <Text style={styles.traitLabel}>Alcohol / Cocktails</Text>
+                  <Text style={styles.traitValue}>{profile.drinkingHabit || setupDrinking || 'Not specified'}</Text>
+                </View>
+
+                <View style={[styles.traitChip, { minWidth: '46%', flex: 1 }]}>
+                  <Text style={styles.traitLabel}>Smoking Habit</Text>
+                  <Text style={styles.traitValue}>{profile.smokingHabit || setupSmoking || 'Not specified'}</Text>
+                </View>
+
+                <View style={[styles.traitChip, { width: '100%', marginTop: 2 }]}>
+                  <Text style={styles.traitLabel}>Vacation Wavelength</Text>
+                  <Text style={styles.traitValue}>{profile.vacationPreference || setupVacation || 'Not specified'}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
 
             {/* Joined Micro-Community Tribes (My Profile View) */}
             {(() => {
@@ -1709,181 +2101,7 @@ export default function ProfileScreen() {
               );
             })()}
 
-            {/* Cultural Markers (Diet & Living) Display Card */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🥗 Cultural & Dietary Markers</Text>
-              <View style={styles.traitsRow}>
-                <TouchableOpacity
-                  style={[styles.traitChip, { flex: 1 }]}
-                  onPress={() => {
-                    setIsEditingProfile(true);
-                    setShowDietPickerModal(true);
-                  }}>
-                  <Text style={styles.traitLabel}>Dietary Preference</Text>
-                  <Text style={styles.traitValue}>{getDietaryLabel(profile.dietaryPref)}</Text>
-                </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.traitChip, { flex: 1 }]}
-                  onPress={() => {
-                    setIsEditingProfile(true);
-                    setShowLivingPickerModal(true);
-                  }}>
-                  <Text style={styles.traitLabel}>Living Situation</Text>
-                  <Text style={styles.traitValue}>{getLivingLabel(profile.livingStatus)}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Languages Known Display Card */}
-            <View style={styles.sectionCard}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={styles.sectionTitle}>🗣️ Languages Known</Text>
-                <TouchableOpacity onPress={openLanguagePicker}>
-                  <Text style={{ color: '#00E5FF', fontSize: 12, fontWeight: '700' }}>Edit ✎</Text>
-                </TouchableOpacity>
-              </View>
-              {(profile.languagesSpoken && profile.languagesSpoken.length > 0) || (setupLanguages && setupLanguages.length > 0) ? (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={openLanguagePicker}
-                  style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {(profile.languagesSpoken && profile.languagesSpoken.length > 0 ? profile.languagesSpoken : setupLanguages).map((lang, idx) => (
-                    <View key={idx} style={styles.languageDisplayBadge}>
-                      <Text style={styles.languageDisplayBadgeText}>🗣️ {lang}</Text>
-                    </View>
-                  ))}
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={[styles.traitChip, { width: '100%' }]} onPress={openLanguagePicker}>
-                  <Text style={styles.traitLabel}>Languages Known</Text>
-                  <Text style={styles.traitValue}>+ Add languages you speak</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Lifestyle & Habits (Living, Smoking, Drinking & Vacation Vibe) */}
-            <View style={styles.sectionCard}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <Text style={styles.sectionTitle}>🌿 Lifestyle Habits & Living Setup</Text>
-                <TouchableOpacity
-                  onPress={() => setShowLifestyleSyncModal(true)}
-                  style={{
-                    backgroundColor: 'rgba(255, 56, 92, 0.15)',
-                    borderColor: '#FF385C',
-                    borderWidth: 1,
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 12,
-                  }}>
-                  <Text style={{ color: '#FF385C', fontSize: 11, fontWeight: '800' }}>⚡ Quick Sync</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.traitsRow}>
-                <TouchableOpacity
-                  style={[styles.traitChip, { minWidth: '48%' }]}
-                  onPress={() => setShowLifestyleSyncModal(true)}>
-                  <Text style={styles.traitLabel}>Living Setup</Text>
-                  <Text style={styles.traitValue}>{getLivingLabel(profile.livingStatus || setupLiving) || 'Not specified'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.traitChip, { minWidth: '48%' }]}
-                  onPress={() => setShowLifestyleSyncModal(true)}>
-                  <Text style={styles.traitLabel}>Alcohol / Drinking</Text>
-                  <Text style={styles.traitValue}>{profile.drinkingHabit || setupDrinking || 'Not specified'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.traitChip, { minWidth: '48%' }]}
-                  onPress={() => setShowLifestyleSyncModal(true)}>
-                  <Text style={styles.traitLabel}>Smoking Habit</Text>
-                  <Text style={styles.traitValue}>{profile.smokingHabit || setupSmoking || 'Not specified'}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.traitChip, { minWidth: '48%' }]}
-                  onPress={() => setShowLifestyleSyncModal(true)}>
-                  <Text style={styles.traitLabel}>Vacation Vibe</Text>
-                  <Text style={styles.traitValue}>{profile.vacationPreference || setupVacation || 'Not specified'}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Hobbies & Creative Pursuits */}
-            {(profile.hobbies || setupHobbies) ? (
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>🎨 Hobbies & Creative Pursuits</Text>
-                <View style={styles.interestsWrap}>
-                  {(profile.hobbies || setupHobbies).split(',').map((h, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.interestPill,
-                        { backgroundColor: 'rgba(255, 152, 0, 0.12)', borderColor: 'rgba(255, 152, 0, 0.3)' },
-                      ]}
-                      onPress={() => {
-                        setIsEditingProfile(true);
-                        setTempHobbies(setupHobbies);
-                        setShowHobbiesPickerModal(true);
-                      }}>
-                      <Text style={[styles.interestPillText, { color: '#FF9800' }]}>✨ {h.trim()}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            {/* Prompt Icebreaker Quote */}
-            {profile.profilePromptAnswer ? (
-              <View style={styles.promptQuoteCard}>
-                <Text style={styles.promptQuestionTitle}>🗣️ {profile.profilePromptQuestion || 'The key to my heart is...'}</Text>
-                <Text style={styles.promptAnswerText}>"{profile.profilePromptAnswer}"</Text>
-              </View>
-            ) : null}
-
-            {/* Bio Description */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>✍️ Bio Description</Text>
-              <Text style={styles.bioContent}>{profile.bio || 'No bio written yet.'}</Text>
-            </View>
-
-            {/* Relationship Intent & Orientation */}
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🎯 Dating Goal & Orientation</Text>
-              <View style={styles.traitsRow}>
-                <View style={styles.traitChip}>
-                  <Text style={styles.traitLabel}>Looking For</Text>
-                  <Text style={styles.traitValue}>{profile.relationshipIntent || setupIntent || 'Not set'}</Text>
-                </View>
-                {profile.showOrientationOnProfile && profile.sexualOrientation && (
-                  <View style={styles.traitChip}>
-                    <Text style={styles.traitLabel}>Orientation</Text>
-                    <Text style={styles.traitValue}>🏳️‍🌈 {profile.sexualOrientation}</Text>
-                  </View>
-                )}
-                {profile.showGenderOnProfile && (
-                  <View style={styles.traitChip}>
-                    <Text style={styles.traitLabel}>Gender</Text>
-                    <Text style={styles.traitValue}>👤 {profile.genderDisplay || (profile.gender === 'FEMALE' ? 'Woman' : (profile.gender === 'MALE' ? 'Man' : profile.gender)) || 'Not set'}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* Interests Pills */}
-            {profile.interests ? (
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>🏷️ What I'm Into</Text>
-                <View style={styles.interestsWrap}>
-                  {profile.interests.split(',').map((item, idx) => (
-                    <View key={idx} style={styles.interestPill}>
-                      <Text style={styles.interestPillText}>#{item.trim()}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
 
             {/* Modern Cosmic Chemistry & Vedic Rashis */}
             <View style={styles.sectionCard}>
@@ -2381,12 +2599,17 @@ export default function ProfileScreen() {
                         👤 PERSONAL DETAILS & VITALS
                       </Text>
                     </View>
-                    <View style={styles.personalCoreBadge}>
-                      <Text style={styles.personalCoreBadgeText}>CORE VITALS</Text>
-                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowPersonalDetailsModal(true);
+                      }}
+                      style={styles.personalCoreBadge}>
+                      <Text style={styles.personalCoreBadgeText}>Modal Editor ↗</Text>
+                    </TouchableOpacity>
                   </View>
                   <Text style={styles.sectionSub}>
-                    Essential identity, physical vitals, match preferences & live discovery GPS.
+                    Essential identity, physical vitals, location & live discovery GPS.
                   </Text>
                   
                   <Text style={styles.inputLabel}>Full Name *</Text>
@@ -2405,7 +2628,7 @@ export default function ProfileScreen() {
                     style={styles.pickerFieldBtn}
                     onPress={() => setShowDobPickerModal(true)}>
                     <Text style={[styles.pickerFieldText, !setupDateOfBirth && { color: '#8E94A5' }]}>
-                      {setupDateOfBirth ? `📅 ${setupDateOfBirth}` : 'Select Date of Birth 📅'}
+                      {setupDateOfBirth ? `📅 ${setupDateOfBirth} (${profile?.age || calculateAge(setupDateOfBirth) || 24} yrs)` : 'Select Date of Birth 📅'}
                     </Text>
                   </TouchableOpacity>
 
@@ -2425,32 +2648,6 @@ export default function ProfileScreen() {
                       {setupShowGender && <Text style={styles.checkboxTick}>✓</Text>}
                     </View>
                     <Text style={styles.checkboxLabel}>Show my gender on my profile</Text>
-                  </TouchableOpacity>
-
-                  {/* Interested In / Gender Preference */}
-                  <Text style={styles.inputLabel}>Interested In (Match Preference) 👥</Text>
-                  <TouchableOpacity
-                    style={styles.pickerFieldBtn}
-                    onPress={() => setShowPreferencePickerModal(true)}>
-                    <Text style={styles.pickerFieldText}>{setupPreferenceDisplay ? `👥 ${setupPreferenceDisplay}` : 'Select Match Preference 👥'}</Text>
-                  </TouchableOpacity>
-
-                  {/* Sexual Orientation Picker Button */}
-                  <Text style={styles.inputLabel}>Sexual Orientation * 🏳️‍🌈</Text>
-                  <TouchableOpacity
-                    style={styles.pickerFieldBtn}
-                    onPress={() => setShowOrientationPickerModal(true)}>
-                    <Text style={styles.pickerFieldText}>{setupOrientation ? `🏳️‍🌈 ${setupOrientation}` : 'Select Orientation 🏳️‍🌈'}</Text>
-                  </TouchableOpacity>
-
-                  {/* Show Orientation Toggle */}
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setSetupShowOrientation(prev => !prev)}>
-                    <View style={[styles.checkboxBox, setupShowOrientation && styles.checkboxActive]}>
-                      {setupShowOrientation && <Text style={styles.checkboxTick}>✓</Text>}
-                    </View>
-                    <Text style={styles.checkboxLabel}>Show orientation on my profile</Text>
                   </TouchableOpacity>
 
                   <View style={styles.formGrid}>
@@ -2521,7 +2718,168 @@ export default function ProfileScreen() {
                   />
                 </View>
 
-                {/* 3. 💼 1ST POSITION: PROFESSIONAL & ACADEMIC PEDIGREE */}
+                {/* 3. 🎯 DATING GOAL & ORIENTATION STUDIO */}
+                <View style={styles.studioIntentCard}>
+                  <View style={styles.studioPersonalHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={[styles.studioPersonalHeaderTitle, { color: '#FF385C' }]} numberOfLines={1}>
+                        🎯 DATING GOAL & ORIENTATION
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowDatingGoalModal(true);
+                      }}
+                      style={[styles.personalCoreBadge, { borderColor: 'rgba(255, 56, 92, 0.45)', backgroundColor: 'rgba(255, 56, 92, 0.15)' }]}>
+                      <Text style={[styles.personalCoreBadgeText, { color: '#FF385C' }]}>Modal Picker ↗</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.sectionSub}>
+                    Relationship intentions, sexual orientation and match gender preferences.
+                  </Text>
+
+                  {/* Looking For / Relationship Intent */}
+                  <Text style={styles.inputLabel}>Looking For (Relationship Goal) 🎯</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={() => setShowIntentPickerModal(true)}>
+                    <Text style={styles.pickerFieldText}>{setupIntent || 'Select Relationship Goal 🎯'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Sexual Orientation Picker Button */}
+                  <Text style={styles.inputLabel}>Sexual Orientation * 🏳️‍🌈</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={() => setShowOrientationPickerModal(true)}>
+                    <Text style={styles.pickerFieldText}>{setupOrientation ? `🏳️‍🌈 ${setupOrientation}` : 'Select Orientation 🏳️‍🌈'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Show Orientation Toggle */}
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setSetupShowOrientation(prev => !prev)}>
+                    <View style={[styles.checkboxBox, setupShowOrientation && styles.checkboxActive]}>
+                      {setupShowOrientation && <Text style={styles.checkboxTick}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxLabel}>Show orientation on my profile</Text>
+                  </TouchableOpacity>
+
+                  {/* Interested In / Gender Preference */}
+                  <Text style={styles.inputLabel}>Interested In (Match Preference) 👥</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={() => setShowPreferencePickerModal(true)}>
+                    <Text style={styles.pickerFieldText}>{setupPreferenceDisplay ? `👥 ${setupPreferenceDisplay}` : 'Select Match Preference 👥'}</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 4. ✍️ BIO DESCRIPTION & ICEBREAKER PROMPT STUDIO */}
+                <View style={styles.studioBioCard}>
+                  <View style={styles.studioBioHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioBioHeaderTitle} numberOfLines={1}>✍️ BIO DESCRIPTION & PROMPTS</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowBioModal(true);
+                      }}
+                      style={styles.bioCountBadge}>
+                      <Text style={styles.bioCountBadgeText}>Modal Editor ↗</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.sectionSub}>Tell your story, quirky habits, favorite food & Sunday routine.</Text>
+                  <TextInput
+                    style={[styles.textInput, { height: 85, marginTop: 4 }]}
+                    value={setupBio}
+                    onChangeText={setSetupBio}
+                    placeholder="Tell your story, quirky habits, favorite food..."
+                    placeholderTextColor="#6B7082"
+                    multiline
+                    maxLength={500}
+                  />
+
+                  {/* Editorial Prompt & AI Polish */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                    <Text style={styles.inputLabel}>Icebreaker Prompt Question 🗣️</Text>
+                    <TouchableOpacity
+                      style={styles.studioAiPolishBtn}
+                      onPress={() => {
+                        hapticFeedback.success();
+                        if (!setupPromptAnswer.trim()) {
+                          setSetupPromptAnswer(
+                            'A spontaneous midnight drive for piping hot adrak chai & parathas, passionately debating Brutalist architecture & parallel universes.'
+                          );
+                        } else {
+                          setSetupPromptAnswer((prev) => `${prev.trim()} — plus a spontaneous search for the best midnight adrak chai.`);
+                        }
+                        Alert.alert('✨ AI Polish Applied', 'Enriched your prompt with high-intrigue conversational charm (+2.4x date replies)!');
+                      }}>
+                      <Text style={styles.studioAiPolishBtnText}>✨ AI Polish</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.pickerFieldBtn, { marginTop: 6 }]}
+                    onPress={() => setShowPromptPickerModal(true)}>
+                    <Text style={styles.pickerFieldText}>{setupPromptQuestion || 'Select Prompt Question ▾'}</Text>
+                  </TouchableOpacity>
+
+                  <TextInput
+                    style={[styles.textInput, { height: 70, marginTop: 8 }]}
+                    value={setupPromptAnswer}
+                    onChangeText={setSetupPromptAnswer}
+                    placeholder="Type your funny or interesting answer..."
+                    placeholderTextColor="#6B7082"
+                    multiline
+                    maxLength={500}
+                  />
+                </View>
+
+                {/* 5. 🏷️ WHAT I'M INTO & PASSIONS STUDIO */}
+                <View style={styles.studioInterestsCard}>
+                  <View style={styles.studioInterestsHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={styles.studioInterestsHeaderTitle} numberOfLines={1}>🏷️ WHAT I'M INTO & PASSIONS</Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowWhatImIntoModal(true);
+                      }}
+                      style={styles.interestsCuratedBadge}>
+                      <Text style={styles.interestsCuratedBadgeText}>Browse All ↗</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.sectionSub}>Select the interests and creative hobbies that define you.</Text>
+
+                  <Text style={styles.inputLabel}>What are you into? (Select at least 3)</Text>
+                  <TouchableOpacity
+                    style={[styles.pickerFieldBtn, { minHeight: 48 }]}
+                    onPress={() => {
+                      setTempInterests(setupInterests);
+                      setShowInterestPickerModal(true);
+                    }}>
+                    <Text style={styles.pickerFieldText}>
+                      {setupInterests || 'Select Interests (60+ Presets) 🏷️'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.inputLabel}>Hobbies & Creative Pursuits 🎨</Text>
+                  <TouchableOpacity
+                    style={[styles.pickerFieldBtn, { minHeight: 48 }]}
+                    onPress={() => {
+                      setTempHobbies(setupHobbies);
+                      setShowHobbiesPickerModal(true);
+                    }}>
+                    <Text style={styles.pickerFieldText}>
+                      {setupHobbies || 'Select Hobbies & Pursuits 🎨'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 4. 💼 PROFESSIONAL & ACADEMIC PEDIGREE */}
                 <View style={styles.studioCareerCard}>
                   <View style={styles.studioCareerHeaderRow}>
                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
@@ -2567,7 +2925,7 @@ export default function ProfileScreen() {
                   />
                 </View>
 
-                {/* 4. 🎙️ 2ND POSITION: VERNACULAR VOICE BIO STUDIO */}
+                {/* 5. 🎙️ VERNACULAR VOICE BIO STUDIO */}
                 <View style={styles.studioVoiceCard}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={styles.sectionTitle}>🎙️ 15s Vernacular Voice Note</Text>
@@ -2606,7 +2964,7 @@ export default function ProfileScreen() {
                   )}
                 </View>
 
-                {/* 5. 🔮 3RD POSITION: VEDIC KUNDALI & COSMIC BLUEPRINT */}
+                {/* 6. 🔮 VEDIC KUNDALI & COSMIC BLUEPRINT */}
                 <View style={styles.studioCosmicCard}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <Text style={[styles.sectionTitle, { flex: 1, marginRight: 8, marginBottom: 0 }]} numberOfLines={1}>
@@ -2629,10 +2987,24 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* 6. 🧬 4TH POSITION: TACTILE LIFESTYLE & VIBE MATRIX */}
-                <View style={styles.studioVibeCard}>
-                  <Text style={styles.sectionTitle}>🧬 Vibe & Lifestyle Matrix</Text>
-                  <Text style={styles.sectionSub}>Tap any pill to update instantly — zero modal popups.</Text>
+                {/* 7. 🥗 CULTURE & LIFESTYLE STUDIO */}
+                <View style={styles.studioCultureCard}>
+                  <View style={styles.studioPersonalHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={[styles.studioPersonalHeaderTitle, { color: '#2ED573' }]} numberOfLines={1}>
+                        🥗 CULTURE & LIFESTYLE STUDIO
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowCultureModal(true);
+                      }}
+                      style={[styles.personalCoreBadge, { borderColor: 'rgba(46, 213, 115, 0.45)', backgroundColor: 'rgba(46, 213, 115, 0.15)' }]}>
+                      <Text style={[styles.personalCoreBadgeText, { color: '#2ED573' }]}>Modal Picker ↗</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.sectionSub}>Dietary preferences, living arrangements & spoken languages.</Text>
 
                   {/* Dietary Preference 1-Tap Chips */}
                   <Text style={styles.inputLabel}>Dietary Rhythm</Text>
@@ -2688,32 +3060,35 @@ export default function ProfileScreen() {
                     ))}
                   </View>
 
-                  {/* Vacation Wavelength 1-Tap Chips */}
-                  <Text style={styles.inputLabel}>Vacation Wavelength</Text>
-                  <View style={styles.studioVibePillsRow}>
-                    {[
-                      { label: 'Majestic Mountains 🏔️', short: '🏔️ Mountains' },
-                      { label: 'Tropical Beaches 🏖️', short: '🏖️ Beaches' },
-                    ].map((v) => (
-                      <TouchableOpacity
-                        key={v.label}
-                        style={[
-                          styles.studioVibeChip,
-                          setupVacation === v.label && styles.studioVibeChipActive,
-                        ]}
-                        onPress={() => {
-                          hapticFeedback.light();
-                          setSetupVacation(v.label);
-                        }}>
-                        <Text style={[
-                          styles.studioVibeChipText,
-                          setupVacation === v.label && styles.studioVibeChipTextActive,
-                        ]}>
-                          {v.short}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                  {/* Languages Known */}
+                  <Text style={styles.inputLabel}>Languages Known 🗣️</Text>
+                  <TouchableOpacity
+                    style={styles.pickerFieldBtn}
+                    onPress={openLanguagePicker}>
+                    <Text style={[styles.pickerFieldText, setupLanguages.length === 0 && { color: '#7C8294' }]}>
+                      {setupLanguages.length > 0 ? setupLanguages.join(', ') : 'Select spoken languages ▾'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 8. 🍸 HABIT & VACATION VIBE STUDIO */}
+                <View style={styles.studioHabitsCard}>
+                  <View style={styles.studioPersonalHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={[styles.studioPersonalHeaderTitle, { color: '#F59E0B' }]} numberOfLines={1}>
+                        🍸 HABIT & VACATION VIBE STUDIO
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => {
+                        hapticFeedback.light();
+                        setShowHabitsModal(true);
+                      }}
+                      style={[styles.personalCoreBadge, { borderColor: 'rgba(245, 158, 11, 0.45)', backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                      <Text style={[styles.personalCoreBadgeText, { color: '#F59E0B' }]}>Quick Sync ↗</Text>
+                    </TouchableOpacity>
                   </View>
+                  <Text style={styles.sectionSub}>Drinking comfort level, smoking habits and vacation wavelength.</Text>
 
                   {/* Drinking Habit 1-Tap Chips */}
                   <Text style={styles.inputLabel}>Alcohol / Cocktails</Text>
@@ -2770,13 +3145,52 @@ export default function ProfileScreen() {
                     ))}
                   </View>
 
-                  {/* Micro-Community Circles Multi-Picker (Up to 5) */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                    <Text style={styles.inputLabel}>Micro-Community Tribes 🏙️</Text>
-                    <Text style={{ fontSize: 11, color: '#D4AF37', fontWeight: '800' }}>
-                      {setupMicroCircles.length}/5 Selected
-                    </Text>
+                  {/* Vacation Wavelength 1-Tap Chips */}
+                  <Text style={styles.inputLabel}>Vacation Wavelength</Text>
+                  <View style={styles.studioVibePillsRow}>
+                    {[
+                      { label: 'Majestic Mountains 🏔️', short: '🏔️ Mountains' },
+                      { label: 'Tropical Beaches 🏖️', short: '🏖️ Beaches' },
+                    ].map((v) => (
+                      <TouchableOpacity
+                        key={v.label}
+                        style={[
+                          styles.studioVibeChip,
+                          setupVacation === v.label && styles.studioVibeChipActive,
+                        ]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupVacation(v.label);
+                        }}>
+                        <Text style={[
+                          styles.studioVibeChipText,
+                          setupVacation === v.label && styles.studioVibeChipTextActive,
+                        ]}>
+                          {v.short}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
+                </View>
+
+                {/* 9. 🏙️ MICRO-COMMUNITY TRIBES STUDIO */}
+                <View style={styles.studioCommunityCard}>
+                  <View style={styles.studioPersonalHeaderRow}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
+                      <Text style={[styles.studioPersonalHeaderTitle, { color: '#D4AF37' }]} numberOfLines={1}>
+                        🏙️ MICRO-COMMUNITY TRIBES STUDIO
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => setShowCommunityModal(true)}
+                      style={[styles.personalCoreBadge, { borderColor: 'rgba(212, 175, 55, 0.45)', backgroundColor: 'rgba(212, 175, 55, 0.15)' }]}>
+                      <Text style={[styles.personalCoreBadgeText, { color: '#D4AF37' }]}>
+                        {setupMicroCircles.length}/5 Selected ▾
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.sectionSub}>Join up to 5 verified local tribes to match with singles on your exact scene.</Text>
+
                   {setupMicroCircles.length > 0 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 }}>
                       {setupMicroCircles.map((comm) => {
@@ -2831,120 +3245,6 @@ export default function ProfileScreen() {
                           ? `+ Add Another Tribe (${setupMicroCircles.length}/5) ▾`
                           : 'Manage Joined Tribes (5/5 Selected) ▾'}
                     </Text>
-                  </TouchableOpacity>
-
-                  {/* Languages Known */}
-                  <Text style={styles.inputLabel}>Languages Known 🗣️</Text>
-                  <TouchableOpacity
-                    style={styles.pickerFieldBtn}
-                    onPress={openLanguagePicker}>
-                    <Text style={[styles.pickerFieldText, setupLanguages.length === 0 && { color: '#7C8294' }]}>
-                      {setupLanguages.length > 0 ? setupLanguages.join(', ') : 'Select spoken languages ▾'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* 7. 💬 5TH POSITION: EDITORIAL PROMPT & AI POLISH */}
-                <View style={styles.studioPromptCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.sectionTitle}>💬 Editorial Icebreaker Prompt</Text>
-                    <TouchableOpacity
-                      style={styles.studioAiPolishBtn}
-                      onPress={() => {
-                        hapticFeedback.success();
-                        if (!setupPromptAnswer.trim()) {
-                          setSetupPromptAnswer(
-                            'A spontaneous midnight drive for piping hot adrak chai & parathas, passionately debating Brutalist architecture & parallel universes.'
-                          );
-                        } else {
-                          setSetupPromptAnswer((prev) => `${prev.trim()} — plus a spontaneous search for the best midnight adrak chai.`);
-                        }
-                        Alert.alert('✨ AI Polish Applied', 'Enriched your prompt with high-intrigue conversational charm (+2.4x date replies)!');
-                      }}>
-                      <Text style={styles.studioAiPolishBtnText}>✨ AI Polish</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.pickerFieldBtn, { marginTop: 6 }]}
-                    onPress={() => setShowPromptPickerModal(true)}>
-                    <Text style={styles.pickerFieldText}>{setupPromptQuestion || 'Select Prompt Question ▾'}</Text>
-                  </TouchableOpacity>
-
-                  <TextInput
-                    style={[styles.textInput, { height: 75, marginTop: 8 }]}
-                    value={setupPromptAnswer}
-                    onChangeText={setSetupPromptAnswer}
-                    placeholder="Type your funny or interesting answer..."
-                    placeholderTextColor="#6B7082"
-                    multiline
-                    maxLength={500}
-                  />
-                </View>
-
-                {/* 8. ✍️ 6TH POSITION: BIO DESCRIPTION */}
-                <View style={styles.studioBioCard}>
-                  <View style={styles.studioBioHeaderRow}>
-                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
-                      <Text style={styles.studioBioHeaderTitle} numberOfLines={1}>✍️ BIO DESCRIPTION</Text>
-                    </View>
-                    <View style={styles.bioCountBadge}>
-                      <Text style={styles.bioCountBadgeText}>{setupBio.length}/500</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.sectionSub}>Tell your story, quirky habits, favorite food & Sunday routine.</Text>
-                  <TextInput
-                    style={[styles.textInput, { height: 90, marginTop: 4 }]}
-                    value={setupBio}
-                    onChangeText={setSetupBio}
-                    placeholder="Tell your story, quirky habits, favorite food..."
-                    placeholderTextColor="#6B7082"
-                    multiline
-                    maxLength={500}
-                  />
-                </View>
-
-                {/* 9. 🏷️ 7TH POSITION: WHAT I'M INTO (INTERESTS & HOBBIES) */}
-                <View style={styles.studioInterestsCard}>
-                  <View style={styles.studioInterestsHeaderRow}>
-                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 8 }}>
-                      <Text style={styles.studioInterestsHeaderTitle} numberOfLines={1}>🏷️ PASSIONS & DATING INTENT</Text>
-                    </View>
-                    <View style={styles.interestsCuratedBadge}>
-                      <Text style={styles.interestsCuratedBadgeText}>CURATED</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.sectionSub}>Select the interests, creative hobbies and relationship goals that define you.</Text>
-
-                  <Text style={styles.inputLabel}>What are you into? (Select at least 3)</Text>
-                  <TouchableOpacity
-                    style={[styles.pickerFieldBtn, { minHeight: 48 }]}
-                    onPress={() => {
-                      setTempInterests(setupInterests);
-                      setShowInterestPickerModal(true);
-                    }}>
-                    <Text style={styles.pickerFieldText}>
-                      {setupInterests || 'Select Interests (60+ Presets) 🏷️'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <Text style={styles.inputLabel}>Hobbies & Creative Pursuits 🎨</Text>
-                  <TouchableOpacity
-                    style={[styles.pickerFieldBtn, { minHeight: 48 }]}
-                    onPress={() => {
-                      setTempHobbies(setupHobbies);
-                      setShowHobbiesPickerModal(true);
-                    }}>
-                    <Text style={styles.pickerFieldText}>
-                      {setupHobbies || 'Select Hobbies & Pursuits 🎨'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <Text style={styles.inputLabel}>Looking For (Relationship Goal)</Text>
-                  <TouchableOpacity
-                    style={styles.pickerFieldBtn}
-                    onPress={() => setShowIntentPickerModal(true)}>
-                    <Text style={styles.pickerFieldText}>{setupIntent || 'Select Relationship Goal 🎯'}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -3148,6 +3448,676 @@ export default function ProfileScreen() {
                 style={styles.modalCancelBtn}
                 onPress={() => setShowAutoShieldModal(false)}>
                 <Text style={styles.modalCancelBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6 DEDICATED MODULAR CARD INTERACTIVE MODALS */}
+      {/* ========================================================================= */}
+
+      {/* 1. Modular Modal: Personal Details & Core Vitals */}
+      {showPersonalDetailsModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowPersonalDetailsModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+              <View style={styles.modularModalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 24 }}>👤</Text>
+                  <Text style={styles.modalHeaderTitle}>Personal Details & Vitals</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowPersonalDetailsModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.modularModalCloseCross}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHeaderSub}>
+                Update your core identity, physical vitals, and discovery radius.
+              </Text>
+
+              <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
+                {/* Full Name */}
+                <Text style={styles.inputLabel}>Full Name *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={setupFullname}
+                  onChangeText={setSetupFullname}
+                  placeholder="e.g. Ananya Sharma"
+                  placeholderTextColor="#6B7082"
+                  maxLength={30}
+                />
+
+                {/* Date of Birth Picker Button */}
+                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Date of Birth 📅</Text>
+                <TouchableOpacity
+                  style={styles.pickerFieldBtn}
+                  onPress={() => setShowDobPickerModal(true)}>
+                  <Text style={[styles.pickerFieldText, !setupDateOfBirth && { color: '#8E94A5' }]}>
+                    {setupDateOfBirth ? `📅 ${setupDateOfBirth} (${profile?.age || calculateAge(setupDateOfBirth) || 24} yrs)` : 'Select Date of Birth 📅'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Gender */}
+                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Gender 👤</Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8 }}>
+                  {GENDER_PRESETS.map((g) => (
+                    <TouchableOpacity
+                      key={g}
+                      style={[
+                        styles.studioVibeChip,
+                        { flex: 1, alignItems: 'center' },
+                        setupGenderDisplay === g && styles.studioVibeChipActive,
+                      ]}
+                      onPress={() => setSetupGenderDisplay(g)}>
+                      <Text style={[styles.studioVibeChipText, setupGenderDisplay === g && styles.studioVibeChipTextActive]}>
+                        {g}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Height (cm) */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, marginBottom: 4 }}>
+                  <Text style={styles.inputLabel}>Height (cm) 📏</Text>
+                  {setupHeight && isValidHumanHeight(parseInt(setupHeight, 10)) ? (
+                    <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '700' }}>
+                      ✓ {cmToFeetInches(parseInt(setupHeight, 10))}
+                    </Text>
+                  ) : null}
+                </View>
+                <TextInput
+                  style={styles.textInput}
+                  value={setupHeight}
+                  onChangeText={(t) => setSetupHeight(t.replace(/[^0-9]/g, ''))}
+                  placeholder="e.g. 175"
+                  placeholderTextColor="#6B7082"
+                  keyboardType="numeric"
+                  maxLength={3}
+                />
+
+                {/* Location / City */}
+                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Location / City 📍</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={setupLocation}
+                  onChangeText={setSetupLocation}
+                  placeholder="e.g. Bengaluru, Mumbai, Delhi"
+                  placeholderTextColor="#6B7082"
+                  maxLength={30}
+                />
+
+                {/* GPS Sync */}
+                <View style={[styles.gpsSyncContainer, { marginTop: 10 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.gpsSyncTitle}>Live Device GPS Location</Text>
+                    <Text style={styles.gpsSyncCoords}>
+                      {setupLatitude && setupLongitude
+                        ? `📍 ${setupLatitude.toFixed(4)}°, ${setupLongitude.toFixed(4)}° (DB Synced)`
+                        : '📍 Coordinates not set • Tap update to sync'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.gpsSyncBtn}
+                    onPress={handleRefreshGpsLocation}
+                    disabled={isUpdatingGps}>
+                    {isUpdatingGps ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.gpsSyncBtnText}>Update GPS 📍</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {/* Discovery Radius */}
+                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Max Search Radius (km) 🌐</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={setupMaxDistanceKm}
+                  onChangeText={(t) => setSetupMaxDistanceKm(t.replace(/[^0-9]/g, ''))}
+                  placeholder="e.g. 50"
+                  placeholderTextColor="#6B7082"
+                  keyboardType="numeric"
+                  maxLength={4}
+                />
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  await handleQuickSavePersonalDetails({
+                    fullName: setupFullname,
+                    birthDate: setupDateOfBirth || undefined,
+                    height: setupHeight ? parseInt(setupHeight, 10) : undefined,
+                    location: setupLocation,
+                    genderDisplay: setupGenderDisplay,
+                    gender: setupGenderDisplay === 'Woman' ? 'FEMALE' : (setupGenderDisplay === 'Man' ? 'MALE' : (setupGenderDisplay === 'Non-binary' ? 'NON_BINARY' : undefined)),
+                    maxDistanceKm: setupMaxDistanceKm ? parseInt(setupMaxDistanceKm, 10) : undefined,
+                  });
+                  setShowPersonalDetailsModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Personal Details ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 2. Modular Modal: Dating Goal & Orientation */}
+      {showDatingGoalModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowDatingGoalModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+              <View style={styles.modularModalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 24 }}>🎯</Text>
+                  <Text style={styles.modalHeaderTitle}>Dating Goal & Orientation</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowDatingGoalModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.modularModalCloseCross}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHeaderSub}>
+                Match with verified singles on your exact relationship frequency.
+              </Text>
+
+              <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
+                {/* 1. Relationship Intent */}
+                <Text style={styles.inputLabel}>Looking For (Relationship Goal) 🎯</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  {RELATIONSHIP_INTENT_PRESETS.map((intent) => {
+                    const isSelected = setupIntent === intent;
+                    return (
+                      <TouchableOpacity
+                        key={intent}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupIntent(intent);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {intent}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* 2. Sexual Orientation */}
+                <Text style={styles.inputLabel}>Sexual Orientation 🏳️‍🌈</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 8 }}>
+                  {SEXUAL_ORIENTATION_PRESETS.map((ori) => {
+                    const isSelected = setupOrientation === ori;
+                    return (
+                      <TouchableOpacity
+                        key={ori}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupOrientation(ori);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {ori}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Show Orientation Toggle */}
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setSetupShowOrientation((prev) => !prev)}>
+                  <View style={[styles.checkboxBox, setupShowOrientation && styles.checkboxActive]}>
+                    {setupShowOrientation && <Text style={styles.checkboxTick}>✓</Text>}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Show orientation badge on my profile</Text>
+                </TouchableOpacity>
+
+                {/* 3. Match Preference */}
+                <Text style={[styles.inputLabel, { marginTop: 6 }]}>Interested In (Match Preference) 👥</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  {GENDER_PREFERENCE_PRESETS.map((pref) => {
+                    const isSelected = setupPreferenceDisplay === pref;
+                    return (
+                      <TouchableOpacity
+                        key={pref}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupPreferenceDisplay(pref);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {pref}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  await handleQuickSaveDatingGoal({
+                    relationshipIntent: setupIntent,
+                    sexualOrientation: setupOrientation,
+                    genderPreferenceDisplay: setupPreferenceDisplay,
+                    showOrientationOnProfile: setupShowOrientation,
+                  });
+                  setShowDatingGoalModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Goal & Orientation ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 3. Modular Modal: Bio Description & Prompts */}
+      {showBioModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowBioModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+              <View style={styles.modularModalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 24 }}>✍️</Text>
+                  <Text style={styles.modalHeaderTitle}>Bio Description & Prompts</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowBioModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.modularModalCloseCross}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHeaderSub}>
+                Tell your story, quirky habits, favorite food & conversation starters.
+              </Text>
+
+              <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
+                {/* Bio text area */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={styles.inputLabel}>About Me (Bio)</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        hapticFeedback.success();
+                        if (!setupBio.trim()) {
+                          setSetupBio('Architect by day, midnight chai connoisseur by night. Passionate about Brutalist buildings, indie cinema, and spontaneous road trips.');
+                        } else {
+                          setSetupBio((prev) => `${prev.trim()} Always up for deep conversations over hot adrak chai.`);
+                        }
+                      }}>
+                      <Text style={{ color: '#FF385C', fontSize: 11, fontWeight: '800' }}>✨ AI Polish</Text>
+                    </TouchableOpacity>
+                    <Text style={{ color: '#94A3B8', fontSize: 11 }}>{setupBio.length}/500</Text>
+                  </View>
+                </View>
+                <TextInput
+                  style={[styles.textInput, { height: 100, textAlignVertical: 'top', paddingTop: 10 }]}
+                  value={setupBio}
+                  onChangeText={setSetupBio}
+                  placeholder="Tell your story, favorite food, Sunday morning routine..."
+                  placeholderTextColor="#6B7082"
+                  multiline
+                  maxLength={500}
+                />
+
+                {/* Prompt Question */}
+                <Text style={[styles.inputLabel, { marginTop: 14 }]}>Icebreaker Prompt Question 🗣️</Text>
+                <TouchableOpacity
+                  style={[styles.pickerFieldBtn, { marginTop: 4 }]}
+                  onPress={() => setShowPromptPickerModal(true)}>
+                  <Text style={styles.pickerFieldText}>{setupPromptQuestion || 'Select Prompt Question ▾'}</Text>
+                </TouchableOpacity>
+
+                {/* Prompt Answer */}
+                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Your Answer</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 80, textAlignVertical: 'top', paddingTop: 10 }]}
+                  value={setupPromptAnswer}
+                  onChangeText={setSetupPromptAnswer}
+                  placeholder="Type your funny, witty or authentic response..."
+                  placeholderTextColor="#6B7082"
+                  multiline
+                  maxLength={500}
+                />
+              </ScrollView>
+
+              <TouchableOpacity
+                style={styles.modalConfirmBtn}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  await handleQuickSaveBio({
+                    bio: setupBio,
+                    profilePromptQuestion: setupPromptQuestion,
+                    profilePromptAnswer: setupPromptAnswer,
+                  });
+                  setShowBioModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Bio & Prompts ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 4. Modular Modal: What I'm Into & Passions */}
+      {showWhatImIntoModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowWhatImIntoModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+              <View style={styles.modularModalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 24 }}>🏷️</Text>
+                  <Text style={styles.modalHeaderTitle}>What I'm Into & Passions</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowWhatImIntoModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.modularModalCloseCross}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHeaderSub}>
+                Select the interests & creative pursuits that spark your curiosity.
+              </Text>
+
+              <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
+                {/* Interests Presets Section */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={styles.inputLabel}>Passions & Tags (Select 3+)</Text>
+                  <Text style={{ color: '#00E5FF', fontSize: 11, fontWeight: '800' }}>
+                    {setupInterests ? setupInterests.split(',').filter(Boolean).length : 0} Selected
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                  {INTERESTS_PRESETS.map((item) => {
+                    const list = (setupInterests || '').split(',').map((s) => s.trim()).filter(Boolean);
+                    const isSelected = list.includes(item);
+                    return (
+                      <TouchableOpacity
+                        key={item}
+                        style={[styles.interestModalPill, isSelected && styles.interestModalPillActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          let nextList: string[];
+                          if (isSelected) {
+                            nextList = list.filter((i) => i !== item);
+                          } else {
+                            nextList = [...list, item];
+                          }
+                          setSetupInterests(nextList.join(', '));
+                        }}>
+                        <Text style={[styles.interestModalPillText, isSelected && styles.interestModalPillTextActive]}>
+                          #{item} {isSelected ? '✓' : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Hobbies Section */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={[styles.inputLabel, { color: '#FF9800' }]}>Creative Hobbies & Pursuits 🎨</Text>
+                  <Text style={{ color: '#FF9800', fontSize: 11, fontWeight: '800' }}>
+                    {setupHobbies ? setupHobbies.split(',').filter(Boolean).length : 0} Selected
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                  {HOBBIES_PRESETS.map((item) => {
+                    const cleanName = item.split(' ')[0];
+                    const list = (setupHobbies || '').split(',').map((s) => s.trim()).filter(Boolean);
+                    const isSelected = list.some((h) => h.includes(cleanName) || item.includes(h));
+                    return (
+                      <TouchableOpacity
+                        key={item}
+                        style={[
+                          styles.interestModalPill,
+                          isSelected && {
+                            backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                            borderColor: '#FF9800',
+                          },
+                        ]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          let nextList: string[];
+                          if (isSelected) {
+                            nextList = list.filter((h) => !h.includes(cleanName) && !item.includes(h));
+                          } else {
+                            nextList = [...list, item];
+                          }
+                          setSetupHobbies(nextList.join(', '));
+                        }}>
+                        <Text
+                          style={[
+                            styles.interestModalPillText,
+                            isSelected && { color: '#FF9800', fontWeight: '800' },
+                          ]}>
+                          {item} {isSelected ? '✓' : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { backgroundColor: '#818CF8' }]}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  await handleQuickSaveWhatImInto({
+                    interests: setupInterests,
+                    hobbies: setupHobbies,
+                  });
+                  setShowWhatImIntoModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Passions & Interests ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 5. Modular Modal: Culture & Lifestyle */}
+      {showCultureModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowCultureModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+              <View style={styles.modularModalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 24 }}>🥗</Text>
+                  <Text style={styles.modalHeaderTitle}>Culture & Lifestyle Markers</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowCultureModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.modularModalCloseCross}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHeaderSub}>
+                Prevent dining surprises & match with singles on your exact living wavelength.
+              </Text>
+
+              <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
+                {/* Dietary Rhythm */}
+                <Text style={styles.inputLabel}>Dietary Rhythm 🥗</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  {DIETARY_OPTIONS.map((d) => {
+                    const isSelected = setupDiet === d.key;
+                    return (
+                      <TouchableOpacity
+                        key={d.key}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupDiet(d.key);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {d.emoji} {d.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Living Situation */}
+                <Text style={styles.inputLabel}>Living Situation 🏠</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  {LIVING_OPTIONS.map((l) => {
+                    const isSelected = setupLiving === l.key;
+                    return (
+                      <TouchableOpacity
+                        key={l.key}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupLiving(l.key);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {l.emoji} {l.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Languages Spoken */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 6 }}>
+                  <Text style={styles.inputLabel}>Languages Spoken 🗣️</Text>
+                  <TouchableOpacity onPress={openLanguagePicker}>
+                    <Text style={{ color: '#00E5FF', fontSize: 11, fontWeight: '800' }}>+ Add More ✎</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {LANGUAGE_OPTIONS.slice(0, 10).map((item) => {
+                    const clean = item.split(' ')[0];
+                    const isSelected = setupLanguages.includes(clean);
+                    return (
+                      <TouchableOpacity
+                        key={item}
+                        style={[styles.presetLanguagePill, isSelected && styles.presetLanguagePillActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          toggleLanguage(item);
+                        }}>
+                        <Text style={[styles.presetLanguagePillText, isSelected && styles.presetLanguagePillTextActive]}>
+                          {item} {isSelected ? '✓' : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { backgroundColor: '#2ED573' }]}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  await handleQuickSaveCulture({
+                    dietaryPref: setupDiet,
+                    livingStatus: setupLiving,
+                    languagesSpoken: setupLanguages,
+                  });
+                  setShowCultureModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Culture & Lifestyle ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* 6. Modular Modal: Habit & Vacation Vibe */}
+      {showHabitsModal && (
+        <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowHabitsModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { maxHeight: '90%' }]}>
+              <View style={styles.modularModalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 24 }}>🍸</Text>
+                  <Text style={styles.modalHeaderTitle}>Habit & Vacation Vibe</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowHabitsModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.modularModalCloseCross}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHeaderSub}>
+                Your weekend rhythm, cocktail comfort level & dream holiday destination.
+              </Text>
+
+              <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
+                {/* Drinking Habit */}
+                <Text style={styles.inputLabel}>Alcohol / Cocktails 🍷</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  {DRINKING_OPTIONS.map((dr) => {
+                    const isSelected = setupDrinking.startsWith(dr.label);
+                    return (
+                      <TouchableOpacity
+                        key={dr.label}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupDrinking(`${dr.label} ${dr.emoji}`);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {dr.emoji} {dr.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Smoking Habit */}
+                <Text style={styles.inputLabel}>Smoking Habit 🚭</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  {SMOKING_OPTIONS.map((sm) => {
+                    const isSelected = setupSmoking.startsWith(sm.label);
+                    return (
+                      <TouchableOpacity
+                        key={sm.label}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupSmoking(`${sm.label} ${sm.emoji}`);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {sm.emoji} {sm.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Vacation Wavelength */}
+                <Text style={styles.inputLabel}>Vacation Wavelength 🏖️🏔️</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  {VACATION_OPTIONS.map((vc) => {
+                    const isSelected = setupVacation.startsWith(vc.label);
+                    return (
+                      <TouchableOpacity
+                        key={vc.label}
+                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        onPress={() => {
+                          hapticFeedback.light();
+                          setSetupVacation(`${vc.label} ${vc.emoji}`);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {vc.emoji} {vc.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.modalConfirmBtn, { backgroundColor: '#FF385C' }]}
+                activeOpacity={0.85}
+                onPress={async () => {
+                  await handleQuickSaveHabits({
+                    drinkingHabit: setupDrinking,
+                    smokingHabit: setupSmoking,
+                    vacationPreference: setupVacation,
+                  });
+                  setShowHabitsModal(false);
+                }}>
+                <Text style={styles.modalConfirmBtnText}>Save Habit & Vacation Vibe ✓</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -5523,6 +6493,123 @@ const baseStyles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 11,
     fontWeight: '800',
+  },
+  studioIntentCard: {
+    backgroundColor: '#161324',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 56, 92, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioCultureCard: {
+    backgroundColor: '#101824',
+    borderWidth: 1.5,
+    borderColor: 'rgba(46, 213, 115, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioHabitsCard: {
+    backgroundColor: '#181420',
+    borderWidth: 1.5,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  studioCommunityCard: {
+    backgroundColor: '#171622',
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 175, 55, 0.35)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 14,
+  },
+  modeledInteractiveCard: {
+    backgroundColor: '#141622',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1.2,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+  },
+  modeledCardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 8,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  modeledCardSectionTitle: {
+    color: '#F8FAFC',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  modeledActionBadge: {
+    backgroundColor: 'rgba(255, 56, 92, 0.12)',
+    borderColor: 'rgba(255, 56, 92, 0.4)',
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  modeledActionBadgeText: {
+    color: '#FF385C',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  modeledCardSub: {
+    color: '#94A3B8',
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  modeledPillChip: {
+    backgroundColor: '#1E2130',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  modeledPillChipText: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modeledPromptAddBox: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    alignItems: 'center',
+  },
+  modeledPromptAddText: {
+    color: '#818CF8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modularModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  modularModalCloseCross: {
+    color: '#94A3B8',
+    fontSize: 18,
+    fontWeight: '800',
+    padding: 4,
   },
   studioVibeCard: {
     backgroundColor: '#121524',

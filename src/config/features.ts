@@ -51,6 +51,13 @@ export const FEATURE_FLAGS = {
   ENABLE_CALLING: false,
 
   /**
+   * Light Mode Theme Support.
+   * Disabled as of now; app is locked to Obsidian Dark mode.
+   * Toggle to true to re-enable Warm Ivory Light mode.
+   */
+  ENABLE_LIGHT_MODE: false,
+
+  /**
    * Test Mode / Mock OTP:
    * When true, accepts OTP 123456 and auto-populates it for instant onboarding advancement.
    * Primary authentication uses Firebase Phone Auth (10,000 free OTPs/mo).

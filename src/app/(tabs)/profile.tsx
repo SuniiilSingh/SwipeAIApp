@@ -1540,19 +1540,21 @@ export default function ProfileScreen() {
         </Text>
         {isEditingProfile ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity
-              onPress={toggleTheme}
-              activeOpacity={0.8}
-              style={[
-                styles.themeHeaderBtn,
-                isDark
-                  ? { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.45)' }
-                  : { backgroundColor: '#EFECE6', borderColor: '#D6CFC2' },
-              ]}>
-              <Text style={[styles.themeHeaderBtnText, { color: isDark ? '#FCD34D' : '#14151A' }]}>
-                {isDark ? '☀️ Light' : '🌙 Dark'}
-              </Text>
-            </TouchableOpacity>
+            {FEATURE_FLAGS.ENABLE_LIGHT_MODE && (
+              <TouchableOpacity
+                onPress={toggleTheme}
+                activeOpacity={0.8}
+                style={[
+                  styles.themeHeaderBtn,
+                  isDark
+                    ? { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.45)' }
+                    : { backgroundColor: '#EFECE6', borderColor: '#D6CFC2' },
+                ]}>
+                <Text style={[styles.themeHeaderBtnText, { color: isDark ? '#FCD34D' : '#14151A' }]}>
+                  {isDark ? '☀️ Light' : '🌙 Dark'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={handleCancelEdit} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
@@ -1562,19 +1564,21 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TouchableOpacity
-              onPress={toggleTheme}
-              activeOpacity={0.8}
-              style={[
-                styles.themeHeaderBtn,
-                isDark
-                  ? { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.45)' }
-                  : { backgroundColor: '#EFECE6', borderColor: '#D6CFC2' },
-              ]}>
-              <Text style={[styles.themeHeaderBtnText, { color: isDark ? '#FCD34D' : '#14151A' }]}>
-                {isDark ? '☀️ Light' : '🌙 Dark'}
-              </Text>
-            </TouchableOpacity>
+            {FEATURE_FLAGS.ENABLE_LIGHT_MODE && (
+              <TouchableOpacity
+                onPress={toggleTheme}
+                activeOpacity={0.8}
+                style={[
+                  styles.themeHeaderBtn,
+                  isDark
+                    ? { backgroundColor: 'rgba(245, 158, 11, 0.14)', borderColor: 'rgba(245, 158, 11, 0.45)' }
+                    : { backgroundColor: '#EFECE6', borderColor: '#D6CFC2' },
+                ]}>
+                <Text style={[styles.themeHeaderBtnText, { color: isDark ? '#FCD34D' : '#14151A' }]}>
+                  {isDark ? '☀️ Light' : '🌙 Dark'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={styles.editHeaderBtn}>
               <Text style={styles.editHeaderBtnText}>Edit Profile ✍️</Text>
             </TouchableOpacity>

@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { hapticFeedback } from '@/utils/haptics';
+import { FEATURE_FLAGS } from '@/config/features';
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -13,6 +14,8 @@ interface ThemeContextValue {
   themeMode: ThemeMode;
   /** True when Obsidian Dark mode is active */
   isDark: boolean;
+  /** Whether Light mode is enabled by feature flag */
+  isLightModeEnabled: boolean;
   /** Semantic color palette for the active mode (Obsidian Dark vs Warm Ivory Light) */
   colors: typeof Colors.dark | typeof Colors.light;
   /** Toggle between 'dark' and 'light' */
@@ -24,6 +27,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue>({
   themeMode: 'dark',
   isDark: true,
+  isLightModeEnabled: FEATURE_FLAGS.ENABLE_LIGHT_MODE,
   colors: Colors.dark,
   toggleTheme: () => {},
   setThemeMode: () => {},
@@ -34,6 +38,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeMode, setThemeModeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
+    if (!FEATURE_FLAGS.ENABLE_LIGHT_MODE) {
+      setThemeModeState('dark');
+      return;
+    }
     let mounted = true;
     AsyncStorage.getItem(THEME_STORAGE_KEY)
       .then((saved) => {
@@ -48,12 +56,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setThemeMode = useCallback((mode: ThemeMode) => {
+    if (!FEATURE_FLAGS.ENABLE_LIGHT_MODE) {
+      setThemeModeState('dark');
+      return;
+    }
     hapticFeedback.selection();
     setThemeModeState(mode);
     AsyncStorage.setItem(THEME_STORAGE_KEY, mode).catch(() => {});
   }, []);
 
   const toggleTheme = useCallback(() => {
+    if (!FEATURE_FLAGS.ENABLE_LIGHT_MODE) {
+      return;
+    }
     setThemeModeState((prev) => {
       const next: ThemeMode = prev === 'dark' ? 'light' : 'dark';
       hapticFeedback.selection();
@@ -65,17 +80,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Sync web document root background when running on web
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      const activeColors = themeMode === 'dark' ? Colors.dark : Colors.light;
-      document.documentElement.setAttribute('data-theme', themeMode);
+      const activeColors = !FEATURE_FLAGS.ENABLE_LIGHT_MODE || themeMode === 'dark' ? Colors.dark : Colors.light;
+      document.documentElement.setAttribute('data-theme', !FEATURE_FLAGS.ENABLE_LIGHT_MODE ? 'dark' : themeMode);
       document.body.style.backgroundColor = activeColors.background;
     }
   }, [themeMode]);
 
   const value = useMemo<ThemeContextValue>(
     () => ({
-      themeMode,
-      isDark: themeMode === 'dark',
-      colors: themeMode === 'dark' ? Colors.dark : Colors.light,
+      themeMode: !FEATURE_FLAGS.ENABLE_LIGHT_MODE ? 'dark' : themeMode,
+      isDark: !FEATURE_FLAGS.ENABLE_LIGHT_MODE || themeMode === 'dark',
+      isLightModeEnabled: FEATURE_FLAGS.ENABLE_LIGHT_MODE,
+      colors: !FEATURE_FLAGS.ENABLE_LIGHT_MODE || themeMode === 'dark' ? Colors.dark : Colors.light,
       toggleTheme,
       setThemeMode,
     }),
@@ -312,7 +328,7 @@ export function useThemedStyles<T extends Record<string, any>>(
   const { isDark } = useAppTheme();
 
   return useMemo(() => {
-    if (isDark) return baseStyles;
+    if (!FEATURE_FLAGS.ENABLE_LIGHT_MODE || isDark) return baseStyles;
 
     const preserveSet = new Set(preserveDarkKeys.map(String));
     const adapted: Record<string, any> = {};

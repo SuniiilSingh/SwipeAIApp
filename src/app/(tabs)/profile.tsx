@@ -74,6 +74,17 @@ export {
   MEME_PRESETS,
 };
 
+const GENDER_EMOJIS: Record<string, string> = {
+  Man: '👨',
+  Woman: '👩',
+  'Non-binary': '⚧',
+  Transgender: '🏳️‍⚧️',
+  Agender: '⚪',
+  Bigender: '🌓',
+  Genderfluid: '🌊',
+  Other: '✨',
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { isDark, toggleTheme } = useAppTheme();
@@ -494,6 +505,7 @@ export default function ProfileScreen() {
     genderDisplay?: string;
     gender?: 'MALE' | 'FEMALE' | 'NON_BINARY';
     maxDistanceKm?: number;
+    showGenderOnProfile?: boolean;
   }) => {
     setSetupFullname(updates.fullName);
     if (updates.birthDate) setSetupDateOfBirth(updates.birthDate);
@@ -501,6 +513,7 @@ export default function ProfileScreen() {
     if (updates.location) setSetupLocation(updates.location);
     if (updates.genderDisplay) setSetupGenderDisplay(updates.genderDisplay);
     if (updates.maxDistanceKm) setSetupMaxDistanceKm(String(updates.maxDistanceKm));
+    if (typeof updates.showGenderOnProfile === 'boolean') setSetupShowGender(updates.showGenderOnProfile);
 
     setProfile((prev) => prev ? {
       ...prev,
@@ -513,6 +526,7 @@ export default function ProfileScreen() {
       genderDisplay: updates.genderDisplay || prev.genderDisplay,
       gender: updates.gender || prev.gender,
       maxDistanceKm: updates.maxDistanceKm || prev.maxDistanceKm,
+      showGenderOnProfile: typeof updates.showGenderOnProfile === 'boolean' ? updates.showGenderOnProfile : prev.showGenderOnProfile,
     } : prev);
 
     try {
@@ -525,6 +539,7 @@ export default function ProfileScreen() {
         genderDisplay: updates.genderDisplay,
         gender: updates.gender,
         maxDistanceKm: updates.maxDistanceKm,
+        showGenderOnProfile: updates.showGenderOnProfile,
       });
       hapticFeedback.success();
     } catch (e) {
@@ -3498,24 +3513,53 @@ export default function ProfileScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                {/* Gender */}
-                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Gender 👤</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8 }}>
-                  {GENDER_PRESETS.map((g) => (
-                    <TouchableOpacity
-                      key={g}
-                      style={[
-                        styles.studioVibeChip,
-                        { flex: 1, alignItems: 'center' },
-                        setupGenderDisplay === g && styles.studioVibeChipActive,
-                      ]}
-                      onPress={() => setSetupGenderDisplay(g)}>
-                      <Text style={[styles.studioVibeChipText, setupGenderDisplay === g && styles.studioVibeChipTextActive]}>
-                        {g}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                {/* Gender Options */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 4 }}>
+                  <Text style={styles.inputLabel}>Gender 👤</Text>
+                  {setupGenderDisplay ? (
+                    <Text style={{ color: '#2ED573', fontSize: 11, fontWeight: '700' }}>
+                      ✓ {GENDER_EMOJIS[setupGenderDisplay] || '👤'} {setupGenderDisplay}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: '#E11D48', fontSize: 11, fontWeight: '600' }}>Required *</Text>
+                  )}
                 </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 8 }}>
+                  {GENDER_PRESETS.map((g) => {
+                    const isSelected = setupGenderDisplay === g;
+                    const emoji = GENDER_EMOJIS[g] || '👤';
+                    return (
+                      <TouchableOpacity
+                        key={g}
+                        style={[
+                          styles.studioVibeChip,
+                          { paddingHorizontal: 14, paddingVertical: 8 },
+                          isSelected && styles.studioVibeChipActive,
+                        ]}
+                        onPress={() => {
+                          hapticFeedback.selection();
+                          setSetupGenderDisplay(g);
+                        }}>
+                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                          {emoji} {g}{isSelected ? ' ✓' : ''}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Show Gender on Profile Toggle */}
+                <TouchableOpacity
+                  style={[styles.checkboxRow, { marginTop: 4, marginBottom: 6 }]}
+                  onPress={() => {
+                    hapticFeedback.selection();
+                    setSetupShowGender((prev) => !prev);
+                  }}>
+                  <View style={[styles.checkboxBox, setupShowGender && styles.checkboxActive]}>
+                    {setupShowGender && <Text style={styles.checkboxTick}>✓</Text>}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Show my gender on my public profile</Text>
+                </TouchableOpacity>
 
                 {/* Height (cm) */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, marginBottom: 4 }}>
@@ -3594,6 +3638,7 @@ export default function ProfileScreen() {
                     genderDisplay: setupGenderDisplay,
                     gender: setupGenderDisplay === 'Woman' ? 'FEMALE' : (setupGenderDisplay === 'Man' ? 'MALE' : (setupGenderDisplay === 'Non-binary' ? 'NON_BINARY' : undefined)),
                     maxDistanceKm: setupMaxDistanceKm ? parseInt(setupMaxDistanceKm, 10) : undefined,
+                    showGenderOnProfile: setupShowGender,
                   });
                   setShowPersonalDetailsModal(false);
                 }}>

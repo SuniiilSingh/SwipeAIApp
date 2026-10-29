@@ -1281,9 +1281,12 @@ export default function ProfileScreen() {
           faceVerified: true,
           livenessScore: matchRes.similarityScore || 0.95
         }) : prev);
+        const isInvariantMatch = matchRes.cranialInvariantMatch;
         Alert.alert(
-          '100% Verified Real Human! 🛡️',
-          matchRes.message || `Biometric match confirmed (${matchRes.confidencePercent}% confidence)! Verified badge active.`
+          isInvariantMatch ? '100% Biometric Verified! 🛡️' : '100% Verified Real Human! 🛡️',
+          matchRes.message || (isInvariantMatch 
+            ? 'Cranial match confirmed across invariant facial bones (beard or hairstyle shift verified)!' 
+            : `Biometric match confirmed (${matchRes.confidencePercent}% confidence)! Verified badge active.`)
         );
       } else {
         setSetupSelfie('');

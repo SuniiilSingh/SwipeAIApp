@@ -592,6 +592,7 @@ export const api = {
     status: string;
     message: string;
     selfieUrl?: string;
+    cranialInvariantMatch?: boolean;
   }> => {
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/kyc/verify-face-match`, {

@@ -36,19 +36,7 @@ class PhoneAuthService {
   ): Promise<PhoneAuthSession> {
     const normalizedPhone = api.normalizePhone(phoneE164);
 
-    // 1. If Mock Mode is forced or test number
-    if (FEATURE_FLAGS.USE_MOCK_OTP && !isFirebaseConfigured()) {
-      const session: PhoneAuthSession = {
-        phoneE164: normalizedPhone,
-        provider: 'mock',
-        isMock: true,
-        message: '⚡ Test Mode Active: Enter verification code 123456',
-      };
-      this.activeSession = session;
-      return session;
-    }
-
-    // 2. Primary: Attempt Firebase Phone Auth if configured
+    // Primary: Attempt Firebase Phone Auth for real SMS delivery
     if (isFirebaseConfigured()) {
       try {
         const sessionInfo = await this.sendFirebaseSms(normalizedPhone);
@@ -56,7 +44,7 @@ class PhoneAuthService {
           phoneE164: normalizedPhone,
           provider: 'firebase',
           sessionInfo,
-          message: 'OTP sent via Firebase SMS',
+          message: 'OTP sent via SMS',
         };
         this.activeSession = session;
         return session;
@@ -80,42 +68,29 @@ class PhoneAuthService {
               phoneE164: normalizedPhone,
               provider: 'secondary',
               secondaryChannel: channel,
-              message: `Firebase limit reached. Dispatched via ${serverConfig.secondaryProvider}`,
-              isMock: secondaryResult.isMockOtp,
+              message: `Dispatched via ${serverConfig.secondaryProvider}`,
+              isMock: false,
             };
             this.activeSession = session;
             return session;
           }
-          // If no secondary configured, propagate Firebase error or remain on Firebase
           throw new Error(
-            'Firebase daily SMS quota exceeded and no secondary provider is configured. Please try again later or add billing.'
+            'Daily SMS quota exceeded. Please try again later or contact support.'
           );
-        }
-
-        // For non-quota errors, if mock allowed, fall back
-        if (FEATURE_FLAGS.USE_MOCK_OTP) {
-          const session: PhoneAuthSession = {
-            phoneE164: normalizedPhone,
-            provider: 'mock',
-            isMock: true,
-            message: '⚡ Test Mode Active: Enter verification code 123456',
-          };
-          this.activeSession = session;
-          return session;
         }
 
         throw fbErr;
       }
     }
 
-    // 3. Fallback to backend OTP (Mock / Configured secondary)
+    // Fallback to configured backend provider
     const backendResult = await api.sendOtp(normalizedPhone, channel);
     const session: PhoneAuthSession = {
       phoneE164: normalizedPhone,
-      provider: backendResult.isMockOtp ? 'mock' : 'secondary',
+      provider: 'secondary',
       secondaryChannel: channel,
       message: backendResult.message || 'OTP sent successfully',
-      isMock: backendResult.isMockOtp,
+      isMock: false,
     };
     this.activeSession = session;
     return session;
@@ -141,26 +116,13 @@ class PhoneAuthService {
     const normalizedPhone = api.normalizePhone(phoneE164);
     const cleanOtp = otpCode.trim();
 
-    // 1. Mock OTP verification
-    if (cleanOtp === '123456' && (FEATURE_FLAGS.USE_MOCK_OTP || !isFirebaseConfigured())) {
-      return api.verifyOtp(
-        normalizedPhone,
-        cleanOtp,
-        extraData?.channel || 'sms',
-        extraData?.latitude,
-        extraData?.longitude,
-        extraData?.city,
-        extraData?.location
-      );
-    }
-
-    // 2. Firebase verification
+    // 1. Firebase verification (Real SMS OTP)
     if (this.activeSession?.provider === 'firebase' && this.activeSession.sessionInfo) {
       const idToken = await this.verifyFirebaseSms(this.activeSession.sessionInfo, cleanOtp);
       return api.firebaseLogin(idToken, normalizedPhone, extraData);
     }
 
-    // 3. Secondary provider verification
+    // 2. Secondary provider verification
     return api.verifyOtp(
       normalizedPhone,
       cleanOtp,

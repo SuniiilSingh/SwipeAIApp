@@ -60,7 +60,7 @@ export const FEATURE_FLAGS = {
   /**
    * Test Mode / Mock OTP:
    * When true, accepts OTP 123456 and auto-populates it for instant onboarding advancement.
-   * Primary authentication uses Firebase Phone Auth (10,000 free OTPs/mo).
+   * Locked to FALSE for production real SMS OTP delivery via Google Firebase Phone Auth.
    */
-  USE_MOCK_OTP: true,
+  USE_MOCK_OTP: false,
 };

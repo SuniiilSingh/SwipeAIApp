@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,9 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Contacts from 'expo-contacts/legacy';
 import { api } from '@/services/api';
 import { SafeDateSpot } from '@/types';
 import { useThemedStyles } from '@/context/theme-context';
+import { hapticFeedback } from '@/utils/haptics';
 
 export default function SafeDateScreen() {
   const router = useRouter();
@@ -22,14 +26,85 @@ export default function SafeDateScreen() {
   const [spots, setSpots] = useState<SafeDateSpot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpot, setSelectedSpot] = useState<SafeDateSpot | null>(null);
-  const [emergencyContact, setEmergencyContact] = useState('+91 98765 00001 (Best Friend)');
+  const [emergencyContact, setEmergencyContact] = useState<string>('');
+  const [guardianName, setGuardianName] = useState<string>('');
+  const [isPickingContact, setIsPickingContact] = useState(false);
   const [activeSosUrl, setActiveSosUrl] = useState<string | null>(null);
 
   const [userCity, setUserCity] = useState<string>('');
 
   useEffect(() => {
     loadSpots();
+    loadSavedEmergencyContact();
   }, []);
+
+  const loadSavedEmergencyContact = async () => {
+    try {
+      const savedPhone = await AsyncStorage.getItem('SAFE_DATE_EMERGENCY_CONTACT');
+      const savedName = await AsyncStorage.getItem('SAFE_DATE_GUARDIAN_NAME');
+      if (savedPhone) {
+        setEmergencyContact(savedPhone);
+      }
+      if (savedName) {
+        setGuardianName(savedName);
+      }
+    } catch (e) {}
+  };
+
+  const handlePickContact = async () => {
+    try {
+      setIsPickingContact(true);
+
+      if (Platform.OS === 'web') {
+        Alert.alert(
+          'Contact Permission (Web)',
+          'Direct device address book picker is available on the Android and iOS apps. On web, you can enter your emergency guardian phone number directly in the box below.'
+        );
+        setIsPickingContact(false);
+        return;
+      }
+
+      // Check / Request Contact Permission with explicit user prompt
+      let { status } = await Contacts.getPermissionsAsync();
+      if (status !== 'granted') {
+        const req = await Contacts.requestPermissionsAsync();
+        status = req.status;
+      }
+
+      if (status !== 'granted') {
+        Alert.alert(
+          'Contacts Permission Required 👥',
+          'BlunderR needs permission to access your contacts to let you pick a trusted emergency guardian. You can enable contact access in Settings, or type the phone number manually.'
+        );
+        setIsPickingContact(false);
+        return;
+      }
+
+      // Launch Native Contact Picker
+      const contact = await Contacts.presentContactPickerAsync();
+      if (contact) {
+        const name = contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(' ') || 'Guardian';
+        const rawPhone = contact.phoneNumbers?.[0]?.number || '';
+        const cleanPhone = rawPhone.replace(/[^0-9+]/g, '');
+
+        if (cleanPhone) {
+          setEmergencyContact(cleanPhone);
+          setGuardianName(name);
+          await AsyncStorage.setItem('SAFE_DATE_EMERGENCY_CONTACT', cleanPhone);
+          await AsyncStorage.setItem('SAFE_DATE_GUARDIAN_NAME', name);
+          hapticFeedback.success();
+          Alert.alert('Guardian Selected 🛡️', `Emergency tracking will be sent to ${name} (${cleanPhone}).`);
+        } else {
+          Alert.alert('No Phone Number', `${name} does not have a phone number saved in your contacts.`);
+        }
+      }
+    } catch (e: any) {
+      console.warn('Contact picker error:', e);
+      Alert.alert('Contact Picker', 'Could not open contact picker. You can enter the number manually.');
+    } finally {
+      setIsPickingContact(false);
+    }
+  };
 
   const loadSpots = async () => {
     setLoading(true);
@@ -44,11 +119,19 @@ export default function SafeDateScreen() {
 
   const handleStartSos = async () => {
     if (!selectedSpot) return;
+    if (!emergencyContact || emergencyContact.trim().length === 0) {
+      Alert.alert(
+        'Emergency Contact Required 👥',
+        'Please select a contact from your phonebook or enter an emergency phone number before activating Safe Date SOS.'
+      );
+      return;
+    }
+
     const res = await api.startSos(selectedSpot.id, undefined, [emergencyContact]);
     setActiveSosUrl(res.trackingUrl);
     Alert.alert(
       '🛡️ Safe Date Mode Activated',
-      `Live check-in at ${selectedSpot.name} is active.\n\nDynamic SOS link: ${res.trackingUrl}\nShared with: ${emergencyContact}\n15% discount code applied: ${res.discountCoupon}`
+      `Live check-in at ${selectedSpot.name} is active.\n\nDynamic SOS link: ${res.trackingUrl}\nShared with: ${guardianName ? `${guardianName} (${emergencyContact})` : emergencyContact}\n15% discount code applied: ${res.discountCoupon}`
     );
   };
 
@@ -83,14 +166,39 @@ export default function SafeDateScreen() {
 
         {/* EMERGENCY CONTACT SETUP */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionHeading}>👥 Emergency Contact Sharing</Text>
-          <Text style={styles.sectionSub}>We will auto-send a discrete WhatsApp/SMS tracking link when you check in.</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={styles.sectionHeading}>👥 Emergency Contact Sharing</Text>
+            <TouchableOpacity
+              style={styles.selectContactBtn}
+              onPress={handlePickContact}
+              disabled={isPickingContact}>
+              {isPickingContact ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.selectContactBtnText}>👤 Select Contact</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.sectionSub}>
+            We will auto-send a discrete WhatsApp/SMS tracking link when you check in.
+          </Text>
+
+          {guardianName ? (
+            <View style={styles.selectedGuardianBadge}>
+              <Text style={styles.selectedGuardianText}>✓ Selected Guardian: {guardianName}</Text>
+            </View>
+          ) : null}
+
           <TextInput
             style={styles.contactInput}
             value={emergencyContact}
-            onChangeText={setEmergencyContact}
-            placeholder="+91 98765 00001 (Best Friend / Sister)"
-            placeholderTextColor="#888"
+            onChangeText={(text) => {
+              setEmergencyContact(text);
+              if (guardianName) setGuardianName('');
+            }}
+            placeholder="Tap 'Select Contact' above or enter mobile number (e.g. +91 98765 43210)"
+            placeholderTextColor="#64748B"
+            keyboardType="phone-pad"
           />
         </View>
 
@@ -245,6 +353,35 @@ const baseStyles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     marginBottom: 8,
+  },
+  selectContactBtn: {
+    backgroundColor: '#2E7D32',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectContactBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  selectedGuardianBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  selectedGuardianText: {
+    color: '#4CAF50',
+    fontSize: 11,
+    fontWeight: '700',
   },
   contactInput: {
     backgroundColor: '#242734',

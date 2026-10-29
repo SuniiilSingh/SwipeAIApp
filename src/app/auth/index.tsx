@@ -43,6 +43,7 @@ import { BlunderRWordmark } from '@/components/blunderr-wordmark';
 import { hapticFeedback } from '@/utils/haptics';
 import { ForwardArrowIcon } from '@/components/chat-icons';
 import { livenessRecovery } from '@/services/liveness-recovery';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ONBOARDING_LANGUAGES = [
   'English 🇬🇧', 'Hindi 🇮🇳', 'Punjabi 🌾', 'Bengali 🎨', 'Tamil 🛕', 'Telugu 🏛️',
@@ -123,11 +124,22 @@ export default function AuthScreen() {
   );
   const [isCheckingWhatsApp, setIsCheckingWhatsApp] = useState(FEATURE_FLAGS.ENABLE_WHATSAPP_AUTH);
 
-  // OTP Auto-Detect State
+  // OTP Auto-Detect State & Privacy Consent
   const [otpSent, setOtpSent] = useState(false);
+  const [smsPermissionStatus, setSmsPermissionStatus] = useState<'undecided' | 'granted' | 'denied'>('undecided');
   const [isAutoDetectingOtp, setIsAutoDetectingOtp] = useState(false);
   const [autoDetectedSuccess, setAutoDetectedSuccess] = useState(false);
   const [otpFeedbackMsg, setOtpFeedbackMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem('SMS_AUTO_READ_PERMISSION')
+      .then((saved) => {
+        if (saved === 'granted' || saved === 'denied') {
+          setSmsPermissionStatus(saved);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const insets = useSafeAreaInsets();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isCompact = windowHeight < 750;
@@ -858,7 +870,12 @@ export default function AuthScreen() {
         setAutoDetectedSuccess(true);
         setOtpFeedbackMsg(session.message || '⚡ Test Mode Active: Verification Code 123456');
       } else {
-        setIsAutoDetectingOtp(true);
+        // Only auto-read if user has explicitly granted permission
+        if (smsPermissionStatus === 'granted') {
+          setIsAutoDetectingOtp(true);
+        } else {
+          setIsAutoDetectingOtp(false);
+        }
         setOtpFeedbackMsg(session.message || `OTP sent via ${channelLabel}`);
       }
 
@@ -1482,6 +1499,60 @@ export default function AuthScreen() {
                                 </TouchableOpacity>
                               )}
                             </View>
+
+                            {/* SMS AUTO-READ EXPLICIT PERMISSION CARD */}
+                            {smsPermissionStatus === 'undecided' && (
+                              <View style={styles.smsPermissionCard}>
+                                <Text style={styles.smsPermissionTitle}>⚡ Auto-Read SMS Code?</Text>
+                                <Text style={styles.smsPermissionDesc}>
+                                  Allow BlunderR to automatically detect and fill your verification code as soon as it arrives.
+                                </Text>
+                                <View style={styles.smsPermissionBtnRow}>
+                                  <TouchableOpacity
+                                    style={styles.smsAllowBtn}
+                                    activeOpacity={0.8}
+                                    onPress={async () => {
+                                      setSmsPermissionStatus('granted');
+                                      await AsyncStorage.setItem('SMS_AUTO_READ_PERMISSION', 'granted');
+                                      setIsAutoDetectingOtp(true);
+                                      hapticFeedback.success();
+                                    }}>
+                                    <Text style={styles.smsAllowBtnText}>Allow Auto-Read ✓</Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    style={styles.smsDenyBtn}
+                                    activeOpacity={0.8}
+                                    onPress={async () => {
+                                      setSmsPermissionStatus('denied');
+                                      await AsyncStorage.setItem('SMS_AUTO_READ_PERMISSION', 'denied');
+                                      setIsAutoDetectingOtp(false);
+                                      otpInputRef.current?.focus();
+                                    }}>
+                                    <Text style={styles.smsDenyBtnText}>Enter Manually</Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                            )}
+
+                            {/* USER-CONTROLLED AUTO-READ TOGGLE (when decided) */}
+                            {smsPermissionStatus !== 'undecided' && (
+                              <TouchableOpacity
+                                style={styles.smsToggleRow}
+                                activeOpacity={0.7}
+                                onPress={async () => {
+                                  const nextStatus = smsPermissionStatus === 'granted' ? 'denied' : 'granted';
+                                  setSmsPermissionStatus(nextStatus);
+                                  await AsyncStorage.setItem('SMS_AUTO_READ_PERMISSION', nextStatus);
+                                  setIsAutoDetectingOtp(nextStatus === 'granted');
+                                  hapticFeedback.selection();
+                                }}>
+                                <Text style={styles.smsToggleText}>
+                                  {smsPermissionStatus === 'granted'
+                                    ? '⚡ Auto-reading SMS active (Tap to disable)'
+                                    : '✍️ Manual SMS entry (Tap to allow auto-read)'}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
                           </View>
                         )}
                       </View>
@@ -4614,5 +4685,74 @@ const styles = StyleSheet.create({
   optALink: {
     color: '#8A96AA',
     textDecorationLine: 'underline',
+  },
+  smsPermissionCard: {
+    width: '100%',
+    backgroundColor: 'rgba(255, 46, 99, 0.08)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 46, 99, 0.25)',
+    padding: 10,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  smsPermissionTitle: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 3,
+  },
+  smsPermissionDesc: {
+    color: '#94A3B8',
+    fontSize: 10.5,
+    textAlign: 'center',
+    lineHeight: 14,
+    marginBottom: 8,
+  },
+  smsPermissionBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+    width: '100%',
+  },
+  smsAllowBtn: {
+    flex: 1,
+    backgroundColor: '#FF2E63',
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smsAllowBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  smsDenyBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  smsDenyBtnText: {
+    color: '#CACDD8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  smsToggleRow: {
+    marginTop: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
+    alignSelf: 'center',
+  },
+  smsToggleText: {
+    color: '#94A3B8',
+    fontSize: 10.5,
+    fontWeight: '600',
   },
 });

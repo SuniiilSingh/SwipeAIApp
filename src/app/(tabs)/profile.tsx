@@ -3478,6 +3478,7 @@ export default function ProfileScreen() {
       {/* ========================================================================= */}
 
       {/* 1. Modular Modal: Personal Details & Core Vitals */}
+      {/* 1. Modular Modal: Personal Details & Vitals */}
       {showPersonalDetailsModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowPersonalDetailsModal(false)}>
           <View style={styles.modalOverlay}>
@@ -3497,142 +3498,164 @@ export default function ProfileScreen() {
 
               <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
                 {/* Full Name */}
-                <Text style={styles.inputLabel}>Full Name *</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={setupFullname}
-                  onChangeText={setSetupFullname}
-                  placeholder="e.g. Ananya Sharma"
-                  placeholderTextColor="#6B7082"
-                  maxLength={30}
-                />
+                <View style={styles.iosInputCard}>
+                  <Text style={styles.iosFieldLabel}>Full Name *</Text>
+                  <TextInput
+                    style={styles.iosTextInput}
+                    value={setupFullname}
+                    onChangeText={setSetupFullname}
+                    placeholder="e.g. Ananya Sharma"
+                    placeholderTextColor="#64748B"
+                    maxLength={30}
+                  />
+                </View>
 
                 {/* Date of Birth Picker Button */}
-                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Date of Birth 📅</Text>
-                <TouchableOpacity
-                  style={styles.pickerFieldBtn}
-                  onPress={() => setShowDobPickerModal(true)}>
-                  <Text style={[styles.pickerFieldText, !setupDateOfBirth && { color: '#8E94A5' }]}>
-                    {setupDateOfBirth ? `📅 ${setupDateOfBirth} (${profile?.age || calculateAge(setupDateOfBirth) || 24} yrs)` : 'Select Date of Birth 📅'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={[styles.iosInputCard, { marginTop: 10 }]}>
+                  <Text style={styles.iosFieldLabel}>Date of Birth 📅</Text>
+                  <TouchableOpacity
+                    style={styles.iosPickerBtn}
+                    onPress={() => setShowDobPickerModal(true)}>
+                    <Text style={[styles.iosPickerBtnText, !setupDateOfBirth && { color: '#64748B' }]}>
+                      {setupDateOfBirth ? `📅 ${setupDateOfBirth} (${profile?.age || calculateAge(setupDateOfBirth) || 24} yrs)` : 'Select Date of Birth 📅'}
+                    </Text>
+                    <Text style={styles.iosChevron}>›</Text>
+                  </TouchableOpacity>
+                </View>
 
                 {/* Gender Options */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 4 }}>
-                  <Text style={styles.inputLabel}>Gender 👤</Text>
-                  {setupGenderDisplay ? (
-                    <Text style={{ color: '#2ED573', fontSize: 11, fontWeight: '700' }}>
-                      ✓ {GENDER_EMOJIS[setupGenderDisplay] || '👤'} {setupGenderDisplay}
-                    </Text>
-                  ) : (
-                    <Text style={{ color: '#E11D48', fontSize: 11, fontWeight: '600' }}>Required *</Text>
-                  )}
-                </View>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 8 }}>
-                  {GENDER_PRESETS.map((g) => {
-                    const isSelected = setupGenderDisplay === g;
-                    const emoji = GENDER_EMOJIS[g] || '👤';
-                    return (
-                      <TouchableOpacity
-                        key={g}
-                        style={[
-                          styles.studioVibeChip,
-                          { paddingHorizontal: 14, paddingVertical: 8 },
-                          isSelected && styles.studioVibeChipActive,
-                        ]}
-                        onPress={() => {
-                          hapticFeedback.selection();
-                          setSetupGenderDisplay(g);
-                        }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
-                          {emoji} {g}{isSelected ? ' ✓' : ''}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                <View style={{ marginTop: 12 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={styles.iosFieldLabel}>Gender Identity 👤</Text>
+                    {setupGenderDisplay ? (
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>
+                        ✓ {GENDER_EMOJIS[setupGenderDisplay] || '👤'} {setupGenderDisplay}
+                      </Text>
+                    ) : (
+                      <Text style={{ color: '#E11D48', fontSize: 11, fontWeight: '600' }}>Required *</Text>
+                    )}
+                  </View>
+                  <View style={styles.iosInsetContainer}>
+                    {GENDER_PRESETS.map((g, idx) => {
+                      const isSelected = setupGenderDisplay === g;
+                      const emoji = GENDER_EMOJIS[g] || '👤';
+                      const isLast = idx === GENDER_PRESETS.length - 1;
+                      return (
+                        <TouchableOpacity
+                          key={g}
+                          style={[
+                            styles.iosInsetRow,
+                            isLast && { borderBottomWidth: 0 },
+                            isSelected && styles.iosInsetRowSelected,
+                          ]}
+                          onPress={() => {
+                            hapticFeedback.selection();
+                            setSetupGenderDisplay(g);
+                          }}>
+                          <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
+                            {emoji}  {g}
+                          </Text>
+                          {isSelected && (
+                            <View style={styles.iosCheckmarkBadge}>
+                              <Text style={styles.iosCheckmarkText}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
 
                 {/* Show Gender on Profile Toggle */}
                 <TouchableOpacity
-                  style={[styles.checkboxRow, { marginTop: 4, marginBottom: 6 }]}
+                  style={styles.iosToggleRow}
                   onPress={() => {
                     hapticFeedback.selection();
                     setSetupShowGender((prev) => !prev);
                   }}>
-                  <View style={[styles.checkboxBox, setupShowGender && styles.checkboxActive]}>
-                    {setupShowGender && <Text style={styles.checkboxTick}>✓</Text>}
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={styles.iosToggleLabel}>Show gender on public profile</Text>
+                    <Text style={styles.iosToggleSub}>Displays on your public discovery card</Text>
                   </View>
-                  <Text style={styles.checkboxLabel}>Show my gender on my public profile</Text>
+                  <View style={[styles.iosSwitchTrack, setupShowGender && styles.iosSwitchTrackActive]}>
+                    <View style={[styles.iosSwitchThumb, setupShowGender && styles.iosSwitchThumbActive]} />
+                  </View>
                 </TouchableOpacity>
 
                 {/* Height (cm) */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, marginBottom: 4 }}>
-                  <Text style={styles.inputLabel}>Height (cm) 📏</Text>
-                  {setupHeight && isValidHumanHeight(parseInt(setupHeight, 10)) ? (
-                    <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '700' }}>
-                      ✓ {cmToFeetInches(parseInt(setupHeight, 10))}
-                    </Text>
-                  ) : null}
-                </View>
-                <TextInput
-                  style={styles.textInput}
-                  value={setupHeight}
-                  onChangeText={(t) => setSetupHeight(t.replace(/[^0-9]/g, ''))}
-                  placeholder="e.g. 175"
-                  placeholderTextColor="#6B7082"
-                  keyboardType="numeric"
-                  maxLength={3}
-                />
-
-                {/* Location / City */}
-                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Location / City 📍</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={setupLocation}
-                  onChangeText={setSetupLocation}
-                  placeholder="e.g. Bengaluru, Mumbai, Delhi"
-                  placeholderTextColor="#6B7082"
-                  maxLength={30}
-                />
-
-                {/* GPS Sync */}
-                <View style={[styles.gpsSyncContainer, { marginTop: 10 }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.gpsSyncTitle}>Live Device GPS Location</Text>
-                    <Text style={styles.gpsSyncCoords}>
-                      {setupLatitude && setupLongitude
-                        ? `📍 ${setupLatitude.toFixed(4)}°, ${setupLongitude.toFixed(4)}° (DB Synced)`
-                        : '📍 Coordinates not set • Tap update to sync'}
-                    </Text>
+                <View style={[styles.iosInputCard, { marginTop: 10 }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={styles.iosFieldLabel}>Height (cm) 📏</Text>
+                    {setupHeight && isValidHumanHeight(parseInt(setupHeight, 10)) ? (
+                      <Text style={styles.iosFieldSubHighlight}>
+                        ✓ {cmToFeetInches(parseInt(setupHeight, 10))}
+                      </Text>
+                    ) : null}
                   </View>
-                  <TouchableOpacity
-                    style={styles.gpsSyncBtn}
-                    onPress={handleRefreshGpsLocation}
-                    disabled={isUpdatingGps}>
-                    {isUpdatingGps ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.gpsSyncBtnText}>Update GPS 📍</Text>
-                    )}
-                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.iosTextInput}
+                    value={setupHeight}
+                    onChangeText={(t) => setSetupHeight(t.replace(/[^0-9]/g, ''))}
+                    placeholder="e.g. 175"
+                    placeholderTextColor="#64748B"
+                    keyboardType="numeric"
+                    maxLength={3}
+                  />
+                </View>
+
+                {/* Location / City & GPS */}
+                <View style={[styles.iosInputCard, { marginTop: 10 }]}>
+                  <Text style={styles.iosFieldLabel}>Location / City 📍</Text>
+                  <TextInput
+                    style={styles.iosTextInput}
+                    value={setupLocation}
+                    onChangeText={setSetupLocation}
+                    placeholder="e.g. Bengaluru, Mumbai, Delhi"
+                    placeholderTextColor="#64748B"
+                    maxLength={30}
+                  />
+
+                  {/* GPS Sync */}
+                  <View style={styles.iosGpsRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.iosGpsTitle}>Live Device GPS Location</Text>
+                      <Text style={styles.iosGpsCoords} numberOfLines={1}>
+                        {setupLatitude && setupLongitude
+                          ? `📍 ${setupLatitude.toFixed(4)}°, ${setupLongitude.toFixed(4)}° (DB Synced)`
+                          : '📍 Coordinates not set • Tap update to sync'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.iosGpsBtn}
+                      onPress={handleRefreshGpsLocation}
+                      disabled={isUpdatingGps}>
+                      {isUpdatingGps ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.iosGpsBtnText}>Update GPS 📍</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Discovery Radius */}
-                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Max Search Radius (km) 🌐</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={setupMaxDistanceKm}
-                  onChangeText={(t) => setSetupMaxDistanceKm(t.replace(/[^0-9]/g, ''))}
-                  placeholder="e.g. 50"
-                  placeholderTextColor="#6B7082"
-                  keyboardType="numeric"
-                  maxLength={4}
-                />
+                <View style={[styles.iosInputCard, { marginTop: 10 }]}>
+                  <Text style={styles.iosFieldLabel}>Max Search Radius (km) 🌐</Text>
+                  <TextInput
+                    style={styles.iosTextInput}
+                    value={setupMaxDistanceKm}
+                    onChangeText={(t) => setSetupMaxDistanceKm(t.replace(/[^0-9]/g, ''))}
+                    placeholder="e.g. 50"
+                    placeholderTextColor="#64748B"
+                    keyboardType="numeric"
+                    maxLength={4}
+                  />
+                </View>
               </ScrollView>
 
               <TouchableOpacity
-                style={styles.modalConfirmBtn}
-                activeOpacity={0.85}
+                style={styles.iosConfirmBtn}
+                activeOpacity={0.88}
                 onPress={async () => {
                   await handleQuickSavePersonalDetails({
                     fullName: setupFullname,
@@ -3646,7 +3669,7 @@ export default function ProfileScreen() {
                   });
                   setShowPersonalDetailsModal(false);
                 }}>
-                <Text style={styles.modalConfirmBtnText}>Save Personal Details ✓</Text>
+                <Text style={styles.iosConfirmBtnText}>Save Personal Details ✓</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3673,42 +3696,62 @@ export default function ProfileScreen() {
 
               <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
                 {/* 1. Relationship Intent */}
-                <Text style={styles.inputLabel}>Looking For (Relationship Goal) 🎯</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  {RELATIONSHIP_INTENT_PRESETS.map((intent) => {
+                <Text style={styles.iosFieldLabel}>Looking For (Relationship Goal) 🎯</Text>
+                <View style={styles.iosInsetContainer}>
+                  {RELATIONSHIP_INTENT_PRESETS.map((intent, idx) => {
                     const isSelected = setupIntent === intent;
+                    const isLast = idx === RELATIONSHIP_INTENT_PRESETS.length - 1;
                     return (
                       <TouchableOpacity
                         key={intent}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupIntent(intent);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
                           {intent}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
                 {/* 2. Sexual Orientation */}
-                <Text style={styles.inputLabel}>Sexual Orientation 🏳️‍🌈</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 8 }}>
-                  {SEXUAL_ORIENTATION_PRESETS.map((ori) => {
+                <Text style={[styles.iosFieldLabel, { marginTop: 12 }]}>Sexual Orientation 🏳️‍🌈</Text>
+                <View style={styles.iosInsetContainer}>
+                  {SEXUAL_ORIENTATION_PRESETS.map((ori, idx) => {
                     const isSelected = setupOrientation === ori;
+                    const isLast = idx === SEXUAL_ORIENTATION_PRESETS.length - 1;
                     return (
                       <TouchableOpacity
                         key={ori}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupOrientation(ori);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
                           {ori}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -3716,30 +3759,46 @@ export default function ProfileScreen() {
 
                 {/* Show Orientation Toggle */}
                 <TouchableOpacity
-                  style={styles.checkboxRow}
-                  onPress={() => setSetupShowOrientation((prev) => !prev)}>
-                  <View style={[styles.checkboxBox, setupShowOrientation && styles.checkboxActive]}>
-                    {setupShowOrientation && <Text style={styles.checkboxTick}>✓</Text>}
+                  style={styles.iosToggleRow}
+                  onPress={() => {
+                    hapticFeedback.selection();
+                    setSetupShowOrientation((prev) => !prev);
+                  }}>
+                  <View style={{ flex: 1, marginRight: 10 }}>
+                    <Text style={styles.iosToggleLabel}>Show orientation badge on profile</Text>
+                    <Text style={styles.iosToggleSub}>Displays on your public profile card</Text>
                   </View>
-                  <Text style={styles.checkboxLabel}>Show orientation badge on my profile</Text>
+                  <View style={[styles.iosSwitchTrack, setupShowOrientation && styles.iosSwitchTrackActive]}>
+                    <View style={[styles.iosSwitchThumb, setupShowOrientation && styles.iosSwitchThumbActive]} />
+                  </View>
                 </TouchableOpacity>
 
                 {/* 3. Match Preference */}
-                <Text style={[styles.inputLabel, { marginTop: 6 }]}>Interested In (Match Preference) 👥</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  {GENDER_PREFERENCE_PRESETS.map((pref) => {
+                <Text style={[styles.iosFieldLabel, { marginTop: 12 }]}>Interested In (Match Preference) 👥</Text>
+                <View style={styles.iosInsetContainer}>
+                  {GENDER_PREFERENCE_PRESETS.map((pref, idx) => {
                     const isSelected = setupPreferenceDisplay === pref;
+                    const isLast = idx === GENDER_PREFERENCE_PRESETS.length - 1;
                     return (
                       <TouchableOpacity
                         key={pref}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupPreferenceDisplay(pref);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
                           {pref}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -3747,8 +3806,8 @@ export default function ProfileScreen() {
               </ScrollView>
 
               <TouchableOpacity
-                style={styles.modalConfirmBtn}
-                activeOpacity={0.85}
+                style={styles.iosConfirmBtn}
+                activeOpacity={0.88}
                 onPress={async () => {
                   await handleQuickSaveDatingGoal({
                     relationshipIntent: setupIntent,
@@ -3758,7 +3817,7 @@ export default function ProfileScreen() {
                   });
                   setShowDatingGoalModal(false);
                 }}>
-                <Text style={styles.modalConfirmBtnText}>Save Goal & Orientation ✓</Text>
+                <Text style={styles.iosConfirmBtnText}>Save Goal & Orientation ✓</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3785,57 +3844,66 @@ export default function ProfileScreen() {
 
               <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
                 {/* Bio text area */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={styles.inputLabel}>About Me (Bio)</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        hapticFeedback.success();
-                        if (!setupBio.trim()) {
-                          setSetupBio('Architect by day, midnight chai connoisseur by night. Passionate about Brutalist buildings, indie cinema, and spontaneous road trips.');
-                        } else {
-                          setSetupBio((prev) => `${prev.trim()} Always up for deep conversations over hot adrak chai.`);
-                        }
-                      }}>
-                      <Text style={{ color: '#FF385C', fontSize: 11, fontWeight: '800' }}>✨ AI Polish</Text>
-                    </TouchableOpacity>
-                    <Text style={{ color: '#94A3B8', fontSize: 11 }}>{setupBio.length}/500</Text>
+                <View style={styles.iosInputCard}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <Text style={styles.iosFieldLabel}>About Me (Bio)</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          hapticFeedback.success();
+                          if (!setupBio.trim()) {
+                            setSetupBio('Architect by day, midnight chai connoisseur by night. Passionate about Brutalist buildings, indie cinema, and spontaneous road trips.');
+                          } else {
+                            setSetupBio((prev) => `${prev.trim()} Always up for deep conversations over hot adrak chai.`);
+                          }
+                        }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>✨ AI Polish</Text>
+                      </TouchableOpacity>
+                      <Text style={{ color: '#8E94A5', fontSize: 11 }}>{setupBio.length}/500</Text>
+                    </View>
                   </View>
+                  <TextInput
+                    style={[styles.iosTextInput, { height: 100, textAlignVertical: 'top' }]}
+                    value={setupBio}
+                    onChangeText={setSetupBio}
+                    placeholder="Tell your story, favorite food, Sunday morning routine..."
+                    placeholderTextColor="#64748B"
+                    multiline
+                    maxLength={500}
+                  />
                 </View>
-                <TextInput
-                  style={[styles.textInput, { height: 100, textAlignVertical: 'top', paddingTop: 10 }]}
-                  value={setupBio}
-                  onChangeText={setSetupBio}
-                  placeholder="Tell your story, favorite food, Sunday morning routine..."
-                  placeholderTextColor="#6B7082"
-                  multiline
-                  maxLength={500}
-                />
 
                 {/* Prompt Question */}
-                <Text style={[styles.inputLabel, { marginTop: 14 }]}>Icebreaker Prompt Question 🗣️</Text>
-                <TouchableOpacity
-                  style={[styles.pickerFieldBtn, { marginTop: 4 }]}
-                  onPress={() => setShowPromptPickerModal(true)}>
-                  <Text style={styles.pickerFieldText}>{setupPromptQuestion || 'Select Prompt Question ▾'}</Text>
-                </TouchableOpacity>
+                <View style={[styles.iosInputCard, { marginTop: 10 }]}>
+                  <Text style={styles.iosFieldLabel}>Icebreaker Prompt Question 🗣️</Text>
+                  <TouchableOpacity
+                    style={styles.iosPickerBtn}
+                    onPress={() => setShowPromptPickerModal(true)}>
+                    <Text style={[styles.iosPickerBtnText, !setupPromptQuestion && { color: '#64748B' }]}>
+                      {setupPromptQuestion || 'Select Prompt Question ▾'}
+                    </Text>
+                    <Text style={styles.iosChevron}>›</Text>
+                  </TouchableOpacity>
+                </View>
 
                 {/* Prompt Answer */}
-                <Text style={[styles.inputLabel, { marginTop: 10 }]}>Your Answer</Text>
-                <TextInput
-                  style={[styles.textInput, { height: 80, textAlignVertical: 'top', paddingTop: 10 }]}
-                  value={setupPromptAnswer}
-                  onChangeText={setSetupPromptAnswer}
-                  placeholder="Type your funny, witty or authentic response..."
-                  placeholderTextColor="#6B7082"
-                  multiline
-                  maxLength={500}
-                />
+                <View style={[styles.iosInputCard, { marginTop: 10 }]}>
+                  <Text style={styles.iosFieldLabel}>Your Answer</Text>
+                  <TextInput
+                    style={[styles.iosTextInput, { height: 80, textAlignVertical: 'top' }]}
+                    value={setupPromptAnswer}
+                    onChangeText={setSetupPromptAnswer}
+                    placeholder="Type your funny, witty or authentic response..."
+                    placeholderTextColor="#64748B"
+                    multiline
+                    maxLength={500}
+                  />
+                </View>
               </ScrollView>
 
               <TouchableOpacity
-                style={styles.modalConfirmBtn}
-                activeOpacity={0.85}
+                style={styles.iosConfirmBtn}
+                activeOpacity={0.88}
                 onPress={async () => {
                   await handleQuickSaveBio({
                     bio: setupBio,
@@ -3844,7 +3912,7 @@ export default function ProfileScreen() {
                   });
                   setShowBioModal(false);
                 }}>
-                <Text style={styles.modalConfirmBtnText}>Save Bio & Prompts ✓</Text>
+                <Text style={styles.iosConfirmBtnText}>Save Bio & Prompts ✓</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3871,9 +3939,9 @@ export default function ProfileScreen() {
 
               <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
                 {/* Interests Presets Section */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={styles.inputLabel}>Passions & Tags (Select 3+)</Text>
-                  <Text style={{ color: '#00E5FF', fontSize: 11, fontWeight: '800' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 4 }}>
+                  <Text style={styles.iosFieldLabel}>Passions & Tags (Select 3+)</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
                     {setupInterests ? setupInterests.split(',').filter(Boolean).length : 0} Selected
                   </Text>
                 </View>
@@ -3904,9 +3972,9 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Hobbies Section */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={[styles.inputLabel, { color: '#FF9800' }]}>Creative Hobbies & Pursuits 🎨</Text>
-                  <Text style={{ color: '#FF9800', fontSize: 11, fontWeight: '800' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginTop: 4 }}>
+                  <Text style={styles.iosFieldLabel}>Creative Hobbies & Pursuits 🎨</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
                     {setupHobbies ? setupHobbies.split(',').filter(Boolean).length : 0} Selected
                   </Text>
                 </View>
@@ -3918,13 +3986,7 @@ export default function ProfileScreen() {
                     return (
                       <TouchableOpacity
                         key={item}
-                        style={[
-                          styles.interestModalPill,
-                          isSelected && {
-                            backgroundColor: 'rgba(255, 152, 0, 0.2)',
-                            borderColor: '#FF9800',
-                          },
-                        ]}
+                        style={[styles.interestModalPill, isSelected && styles.interestModalPillActive]}
                         onPress={() => {
                           hapticFeedback.light();
                           let nextList: string[];
@@ -3935,11 +3997,7 @@ export default function ProfileScreen() {
                           }
                           setSetupHobbies(nextList.join(', '));
                         }}>
-                        <Text
-                          style={[
-                            styles.interestModalPillText,
-                            isSelected && { color: '#FF9800', fontWeight: '800' },
-                          ]}>
+                        <Text style={[styles.interestModalPillText, isSelected && styles.interestModalPillTextActive]}>
                           {item} {isSelected ? '✓' : ''}
                         </Text>
                       </TouchableOpacity>
@@ -3949,8 +4007,8 @@ export default function ProfileScreen() {
               </ScrollView>
 
               <TouchableOpacity
-                style={[styles.modalConfirmBtn, { backgroundColor: '#818CF8' }]}
-                activeOpacity={0.85}
+                style={styles.iosConfirmBtn}
+                activeOpacity={0.88}
                 onPress={async () => {
                   await handleQuickSaveWhatImInto({
                     interests: setupInterests,
@@ -3958,7 +4016,7 @@ export default function ProfileScreen() {
                   });
                   setShowWhatImIntoModal(false);
                 }}>
-                <Text style={styles.modalConfirmBtnText}>Save Passions & Interests ✓</Text>
+                <Text style={styles.iosConfirmBtnText}>Save Passions & Interests ✓</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -3985,52 +4043,72 @@ export default function ProfileScreen() {
 
               <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
                 {/* Dietary Rhythm */}
-                <Text style={styles.inputLabel}>Dietary Rhythm 🥗</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  {DIETARY_OPTIONS.map((d) => {
+                <Text style={styles.iosFieldLabel}>Dietary Rhythm 🥗</Text>
+                <View style={styles.iosInsetContainer}>
+                  {DIETARY_OPTIONS.map((d, idx) => {
                     const isSelected = setupDiet === d.key;
+                    const isLast = idx === DIETARY_OPTIONS.length - 1;
                     return (
                       <TouchableOpacity
                         key={d.key}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupDiet(d.key);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
-                          {d.emoji} {d.label}
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
+                          {d.emoji}  {d.label}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
                 {/* Living Situation */}
-                <Text style={styles.inputLabel}>Living Situation 🏠</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  {LIVING_OPTIONS.map((l) => {
+                <Text style={[styles.iosFieldLabel, { marginTop: 12 }]}>Living Situation 🏠</Text>
+                <View style={styles.iosInsetContainer}>
+                  {LIVING_OPTIONS.map((l, idx) => {
                     const isSelected = setupLiving === l.key;
+                    const isLast = idx === LIVING_OPTIONS.length - 1;
                     return (
                       <TouchableOpacity
                         key={l.key}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupLiving(l.key);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
-                          {l.emoji} {l.label}
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
+                          {l.emoji}  {l.label}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
                 {/* Languages Spoken */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 6 }}>
-                  <Text style={styles.inputLabel}>Languages Spoken 🗣️</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 8 }}>
+                  <Text style={styles.iosFieldLabel}>Languages Spoken 🗣️</Text>
                   <TouchableOpacity onPress={openLanguagePicker}>
-                    <Text style={{ color: '#00E5FF', fontSize: 11, fontWeight: '800' }}>+ Add More ✎</Text>
+                    <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>+ Add More ✎</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
@@ -4055,8 +4133,8 @@ export default function ProfileScreen() {
               </ScrollView>
 
               <TouchableOpacity
-                style={[styles.modalConfirmBtn, { backgroundColor: '#2ED573' }]}
-                activeOpacity={0.85}
+                style={styles.iosConfirmBtn}
+                activeOpacity={0.88}
                 onPress={async () => {
                   await handleQuickSaveCulture({
                     dietaryPref: setupDiet,
@@ -4065,7 +4143,7 @@ export default function ProfileScreen() {
                   });
                   setShowCultureModal(false);
                 }}>
-                <Text style={styles.modalConfirmBtnText}>Save Culture & Lifestyle ✓</Text>
+                <Text style={styles.iosConfirmBtnText}>Save Culture & Lifestyle ✓</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -4092,63 +4170,93 @@ export default function ProfileScreen() {
 
               <ScrollView style={{ width: '100%', marginVertical: 8 }} showsVerticalScrollIndicator={false}>
                 {/* Drinking Habit */}
-                <Text style={styles.inputLabel}>Alcohol / Cocktails 🍷</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  {DRINKING_OPTIONS.map((dr) => {
+                <Text style={styles.iosFieldLabel}>Alcohol / Cocktails 🍷</Text>
+                <View style={styles.iosInsetContainer}>
+                  {DRINKING_OPTIONS.map((dr, idx) => {
                     const isSelected = setupDrinking.startsWith(dr.label);
+                    const isLast = idx === DRINKING_OPTIONS.length - 1;
                     return (
                       <TouchableOpacity
                         key={dr.label}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupDrinking(`${dr.label} ${dr.emoji}`);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
-                          {dr.emoji} {dr.label}
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
+                          {dr.emoji}  {dr.label}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
                 {/* Smoking Habit */}
-                <Text style={styles.inputLabel}>Smoking Habit 🚭</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  {SMOKING_OPTIONS.map((sm) => {
+                <Text style={[styles.iosFieldLabel, { marginTop: 12 }]}>Smoking Habit 🚭</Text>
+                <View style={styles.iosInsetContainer}>
+                  {SMOKING_OPTIONS.map((sm, idx) => {
                     const isSelected = setupSmoking.startsWith(sm.label);
+                    const isLast = idx === SMOKING_OPTIONS.length - 1;
                     return (
                       <TouchableOpacity
                         key={sm.label}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupSmoking(`${sm.label} ${sm.emoji}`);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
-                          {sm.emoji} {sm.label}
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
+                          {sm.emoji}  {sm.label}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
                 {/* Vacation Wavelength */}
-                <Text style={styles.inputLabel}>Vacation Wavelength 🏖️🏔️</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  {VACATION_OPTIONS.map((vc) => {
+                <Text style={[styles.iosFieldLabel, { marginTop: 12 }]}>Vacation Wavelength 🏖️🏔️</Text>
+                <View style={styles.iosInsetContainer}>
+                  {VACATION_OPTIONS.map((vc, idx) => {
                     const isSelected = setupVacation.startsWith(vc.label);
+                    const isLast = idx === VACATION_OPTIONS.length - 1;
                     return (
                       <TouchableOpacity
                         key={vc.label}
-                        style={[styles.studioVibeChip, isSelected && styles.studioVibeChipActive]}
+                        style={[
+                          styles.iosInsetRow,
+                          isLast && { borderBottomWidth: 0 },
+                          isSelected && styles.iosInsetRowSelected,
+                        ]}
                         onPress={() => {
-                          hapticFeedback.light();
+                          hapticFeedback.selection();
                           setSetupVacation(`${vc.label} ${vc.emoji}`);
                         }}>
-                        <Text style={[styles.studioVibeChipText, isSelected && styles.studioVibeChipTextActive]}>
-                          {vc.emoji} {vc.label}
+                        <Text style={[styles.iosInsetRowLabel, isSelected && styles.iosInsetRowLabelSelected]}>
+                          {vc.emoji}  {vc.label}
                         </Text>
+                        {isSelected && (
+                          <View style={styles.iosCheckmarkBadge}>
+                            <Text style={styles.iosCheckmarkText}>✓</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -4156,8 +4264,8 @@ export default function ProfileScreen() {
               </ScrollView>
 
               <TouchableOpacity
-                style={[styles.modalConfirmBtn, { backgroundColor: '#FF385C' }]}
-                activeOpacity={0.85}
+                style={styles.iosConfirmBtn}
+                activeOpacity={0.88}
                 onPress={async () => {
                   await handleQuickSaveHabits({
                     drinkingHabit: setupDrinking,
@@ -4166,7 +4274,7 @@ export default function ProfileScreen() {
                   });
                   setShowHabitsModal(false);
                 }}>
-                <Text style={styles.modalConfirmBtnText}>Save Habit & Vacation Vibe ✓</Text>
+                <Text style={styles.iosConfirmBtnText}>Save Habit & Vacation Vibe ✓</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -6298,9 +6406,9 @@ const baseStyles = StyleSheet.create({
     textAlign: 'center',
   },
   studioPersonalCard: {
-    backgroundColor: '#0F172A',
-    borderWidth: 1.5,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6312,31 +6420,31 @@ const baseStyles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   studioPersonalHeaderTitle: {
-    color: '#38BDF8',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   personalCoreBadge: {
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.45)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   personalCoreBadgeText: {
-    color: '#38BDF8',
+    color: '#CBD5E1',
     fontSize: 10,
     fontWeight: '800',
   },
   studioBioCard: {
-    backgroundColor: '#131124',
-    borderWidth: 1.5,
-    borderColor: 'rgba(244, 114, 182, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6348,31 +6456,31 @@ const baseStyles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   studioBioHeaderTitle: {
-    color: '#F472B6',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   bioCountBadge: {
-    backgroundColor: 'rgba(244, 114, 182, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(244, 114, 182, 0.45)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   bioCountBadgeText: {
-    color: '#F472B6',
+    color: '#CBD5E1',
     fontSize: 10,
     fontWeight: '800',
   },
   studioInterestsCard: {
-    backgroundColor: '#101428',
-    borderWidth: 1.5,
-    borderColor: 'rgba(129, 140, 248, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6384,31 +6492,31 @@ const baseStyles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   studioInterestsHeaderTitle: {
-    color: '#818CF8',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   interestsCuratedBadge: {
-    backgroundColor: 'rgba(129, 140, 248, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(129, 140, 248, 0.45)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   interestsCuratedBadgeText: {
-    color: '#818CF8',
+    color: '#CBD5E1',
     fontSize: 10,
     fontWeight: '800',
   },
   studioMemeCard: {
-    backgroundColor: '#161320',
-    borderWidth: 1.5,
-    borderColor: 'rgba(251, 146, 60, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6420,31 +6528,31 @@ const baseStyles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   studioMemeHeaderTitle: {
-    color: '#FB923C',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   memeBadge: {
-    backgroundColor: 'rgba(251, 146, 60, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 146, 60, 0.45)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   memeBadgeText: {
-    color: '#FB923C',
+    color: '#CBD5E1',
     fontSize: 10,
     fontWeight: '800',
   },
   memeDeleteBtn: {
-    backgroundColor: 'rgba(233, 64, 87, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(233, 64, 87, 0.45)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -6455,9 +6563,9 @@ const baseStyles = StyleSheet.create({
     fontWeight: '800',
   },
   studioDesireCard: {
-    backgroundColor: '#0E1726',
-    borderWidth: 1.5,
-    borderColor: 'rgba(20, 184, 166, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6469,31 +6577,31 @@ const baseStyles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   studioDesireHeaderTitle: {
-    color: '#2DD4BF',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   desireConfigureBadge: {
-    backgroundColor: 'rgba(45, 212, 191, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(45, 212, 191, 0.45)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   desireConfigureBadgeText: {
-    color: '#2DD4BF',
+    color: '#CBD5E1',
     fontSize: 10,
     fontWeight: '800',
   },
   studioCareerCard: {
-    backgroundColor: '#101426',
-    borderWidth: 1.5,
-    borderColor: 'rgba(59, 130, 246, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6505,72 +6613,72 @@ const baseStyles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 6,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   studioCareerHeaderTitle: {
-    color: '#60A5FA',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.6,
   },
   studioVoiceCard: {
-    backgroundColor: '#141124',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 56, 92, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
   },
   studioCosmicCard: {
-    backgroundColor: '#161224',
-    borderWidth: 1.5,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
   },
   cosmicChartBtn: {
-    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
     flexShrink: 0,
   },
   cosmicChartBtnText: {
-    color: '#FFD700',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
   },
   studioIntentCard: {
-    backgroundColor: '#161324',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 56, 92, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
   },
   studioCultureCard: {
-    backgroundColor: '#101824',
-    borderWidth: 1.5,
-    borderColor: 'rgba(46, 213, 115, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
   },
   studioHabitsCard: {
-    backgroundColor: '#181420',
-    borderWidth: 1.5,
-    borderColor: 'rgba(245, 158, 11, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
   },
   studioCommunityCard: {
-    backgroundColor: '#171622',
-    borderWidth: 1.5,
-    borderColor: 'rgba(212, 175, 55, 0.35)',
+    backgroundColor: '#121319',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6650,20 +6758,209 @@ const baseStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    paddingBottom: 8,
-    borderBottomWidth: 1,
+    paddingBottom: 10,
+    borderBottomWidth: 0.5,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   modularModalCloseCross: {
-    color: '#94A3B8',
-    fontSize: 18,
+    color: '#CBD5E1',
+    fontSize: 16,
     fontWeight: '800',
-    padding: 4,
+    padding: 6,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  // Concept 1: iOS Inset Rows Style Definitions
+  iosInsetContainer: {
+    backgroundColor: '#161720',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+    marginVertical: 6,
+  },
+  iosInsetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  iosInsetRowSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  iosInsetRowLabel: {
+    color: '#CBD5E1',
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  iosInsetRowLabelSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  iosCheckmarkBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  iosCheckmarkText: {
+    color: '#0A0B0E',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  iosToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#161720',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  iosToggleLabel: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  iosToggleSub: {
+    color: '#8E94A5',
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  iosSwitchTrack: {
+    width: 44,
+    height: 26,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  iosSwitchTrackActive: {
+    backgroundColor: '#34C759',
+  },
+  iosSwitchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  iosSwitchThumbActive: {
+    transform: [{ translateX: 18 }],
+  },
+  iosInputCard: {
+    backgroundColor: '#161720',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 14,
+  },
+  iosFieldLabel: {
+    color: '#8E94A5',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  iosFieldSubHighlight: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  iosTextInput: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    paddingVertical: 4,
+    paddingHorizontal: 0,
+  },
+  iosPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  iosPickerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  iosChevron: {
+    color: '#64748B',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  iosGpsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255, 255, 255, 0.07)',
+  },
+  iosGpsTitle: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  iosGpsCoords: {
+    color: '#8E94A5',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  iosGpsBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  iosGpsBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  iosConfirmBtn: {
+    backgroundColor: '#FFFFFF',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginTop: 14,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  iosConfirmBtnText: {
+    color: '#0A0B0E',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   studioVibeCard: {
-    backgroundColor: '#121524',
+    backgroundColor: '#121319',
     borderWidth: 1,
-    borderColor: '#262838',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 20,
     padding: 16,
     marginBottom: 14,
@@ -6676,24 +6973,24 @@ const baseStyles = StyleSheet.create({
     marginBottom: 10,
   },
   studioVibeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: '#1C1F2E',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   studioVibeChipActive: {
-    backgroundColor: 'rgba(46, 213, 115, 0.18)',
-    borderColor: '#2ED573',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   studioVibeChipText: {
     color: '#94A3B8',
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   studioVibeChipTextActive: {
-    color: '#2ED573',
+    color: '#0A0B0E',
     fontWeight: '800',
   },
   studioPromptCard: {
@@ -6917,10 +7214,10 @@ const baseStyles = StyleSheet.create({
     padding: 20,
   },
   modalCard: {
-    backgroundColor: '#16171E',
+    backgroundColor: '#121319',
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#E94057',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     padding: 20,
     width: '100%',
     maxWidth: 420,
@@ -6979,22 +7276,24 @@ const baseStyles = StyleSheet.create({
     marginVertical: 8,
   },
   modalConfirmBtn: {
-    backgroundColor: '#E94057',
+    backgroundColor: '#FFFFFF',
     width: '100%',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
     marginTop: 10,
   },
   modalConfirmBtnText: {
-    color: '#ffffff',
+    color: '#0A0B0E',
     fontSize: 13,
     fontWeight: '800',
   },
   modalCancelBtn: {
-    backgroundColor: '#1E1F28',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     width: '100%',
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderRadius: 14,
     alignItems: 'center',
     marginTop: 8,
@@ -7008,10 +7307,10 @@ const baseStyles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#20222B',
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
   pickerOptionActive: {
-    backgroundColor: '#2D151B',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
   pickerOptionText: {
     color: '#CACDD8',
@@ -7019,7 +7318,7 @@ const baseStyles = StyleSheet.create({
     fontWeight: '600',
   },
   pickerOptionTextActive: {
-    color: '#E94057',
+    color: '#FFFFFF',
     fontWeight: '800',
   },
   interestsModalWrap: {
@@ -7029,24 +7328,24 @@ const baseStyles = StyleSheet.create({
     paddingBottom: 10,
   },
   interestModalPill: {
-    backgroundColor: '#1E1F28',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: '#2E303E',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 12,
   },
   interestModalPillActive: {
-    backgroundColor: '#E94057',
-    borderColor: '#E94057',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   interestModalPillText: {
-    color: '#CACDD8',
+    color: '#94A3B8',
     fontSize: 11,
     fontWeight: '600',
   },
   interestModalPillTextActive: {
-    color: '#ffffff',
+    color: '#0A0B0E',
     fontWeight: '800',
   },
   incompleteBanner: {
@@ -7983,25 +8282,25 @@ const baseStyles = StyleSheet.create({
     opacity: 0.8,
   },
   presetLanguagePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#1A1C25',
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: '#292C3B',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   presetLanguagePillActive: {
-    backgroundColor: 'rgba(255, 56, 92, 0.15)',
-    borderColor: '#FF385C',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   presetLanguagePillText: {
     fontSize: 12,
-    color: '#8E94A5',
+    color: '#94A3B8',
     fontWeight: '600',
   },
   presetLanguagePillTextActive: {
-    color: '#FF385C',
-    fontWeight: '700',
+    color: '#0A0B0E',
+    fontWeight: '800',
   },
   addCustomLanguageRow: {
     flexDirection: 'row',

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -69,7 +71,9 @@ export default function PoliteFarewellModal({
       transparent
       animationType="fade"
       onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.overlay}>
         <View style={styles.containerCard}>
           {/* Header Badge */}
           <View style={styles.badgeRow}>
@@ -85,7 +89,10 @@ export default function PoliteFarewellModal({
             <Text style={styles.highlightText}>instantly frees your active slot under the Rule of 5</Text>.
           </Text>
 
-          <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.scrollArea}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
             {/* Quick Templates */}
             <Text style={styles.sectionLabel}>CHOOSE A RESPECTFUL NOTE</Text>
             {FAREWELL_TEMPLATES.map((tmpl, idx) => {
@@ -156,7 +163,7 @@ export default function PoliteFarewellModal({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

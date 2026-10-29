@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -56,30 +57,34 @@ export default function CancelDateModal({
       transparent
       animationType="slide"
       onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}>
-        <View
-          style={styles.sheet}
-          onStartShouldSetResponder={() => true}>
-          {/* Sheet Handle */}
-          <View style={styles.handle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={onClose}>
+          <View
+            style={styles.sheet}
+            onStartShouldSetResponder={() => true}>
+            {/* Sheet Handle */}
+            <View style={styles.handle} />
 
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>⚠️ CANCEL DATE</Text>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>⚠️ CANCEL DATE</Text>
+              </View>
+              <Text style={styles.title}>Cancel Date with {candidateName}</Text>
+              <Text style={styles.subtitle}>
+                Cancelling is handled with respect. Your partner will be notified gracefully, and your Rule of 5 slot will be safely freed up.
+              </Text>
             </View>
-            <Text style={styles.title}>Cancel Date with {candidateName}</Text>
-            <Text style={styles.subtitle}>
-              Cancelling is handled with respect. Your partner will be notified gracefully, and your Rule of 5 slot will be safely freed up.
-            </Text>
-          </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}>
             {/* Current Planned Date Snapshot */}
             <View style={styles.currentCard}>
               <Text style={styles.currentLabel}>CURRENT PLANNED DATE</Text>
@@ -167,7 +172,8 @@ export default function CancelDateModal({
           </ScrollView>
         </View>
       </TouchableOpacity>
-    </Modal>
+    </KeyboardAvoidingView>
+  </Modal>
   );
 }
 

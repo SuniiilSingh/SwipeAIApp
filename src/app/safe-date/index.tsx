@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -40,8 +41,16 @@ export default function SafeDateScreen() {
 
   const loadSavedEmergencyContact = async () => {
     try {
-      const savedPhone = await AsyncStorage.getItem('SAFE_DATE_EMERGENCY_CONTACT');
-      const savedName = await AsyncStorage.getItem('SAFE_DATE_GUARDIAN_NAME');
+      let savedPhone = await AsyncStorage.getItem('SAFE_DATE_EMERGENCY_CONTACT');
+      let savedName = await AsyncStorage.getItem('SAFE_DATE_GUARDIAN_NAME');
+      if (!savedPhone) {
+        const rawJson = await AsyncStorage.getItem('@blunderr_emergency_contact');
+        if (rawJson) {
+          const parsed = JSON.parse(rawJson);
+          if (parsed?.phone) savedPhone = parsed.phone;
+          if (parsed?.name) savedName = parsed.name;
+        }
+      }
       if (savedPhone) {
         setEmergencyContact(savedPhone);
       }
@@ -92,6 +101,10 @@ export default function SafeDateScreen() {
           setGuardianName(name);
           await AsyncStorage.setItem('SAFE_DATE_EMERGENCY_CONTACT', cleanPhone);
           await AsyncStorage.setItem('SAFE_DATE_GUARDIAN_NAME', name);
+          await AsyncStorage.setItem(
+            '@blunderr_emergency_contact',
+            JSON.stringify({ name, phone: cleanPhone })
+          );
           hapticFeedback.success();
           Alert.alert('Guardian Selected 🛡️', `Emergency tracking will be sent to ${name} (${cleanPhone}).`);
         } else {
@@ -137,7 +150,13 @@ export default function SafeDateScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -256,7 +275,8 @@ export default function SafeDateScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
   );
 }
 

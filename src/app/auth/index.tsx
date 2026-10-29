@@ -1839,7 +1839,9 @@ export default function AuthScreen() {
         transparent
         animationType="slide"
         onRequestClose={() => setShowLanguageModal(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}>
           <View style={styles.langModalContent}>
             <View style={styles.langModalTopHeader}>
               <View style={{ flex: 1 }}>
@@ -1949,7 +1951,7 @@ export default function AuthScreen() {
               <Text style={styles.primaryButtonText}>✓ Done</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* DigiLocker ZK Modal (Feature Flag Controlled) */}

@@ -66,7 +66,6 @@ const PRESERVE_PHOTO_SCRIM_STYLES = [
 ] as const;
 
 const { width, height } = Dimensions.get('window');
-const CARD_HEIGHT = Math.max(470, Math.min(height - 180, 590));
 
 const getDietBadge = (diet?: string) => {
   switch (diet) {
@@ -1186,8 +1185,8 @@ function SwipeableCandidateCard({
         onMoveShouldSetPanResponder: (_, gestureState) => {
           // Detect horizontal swipe intent (right for like, left for pass)
           return (
-            Math.abs(gestureState.dx) > 14 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2
+            Math.abs(gestureState.dx) > 16 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.3
           );
         },
         onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
@@ -1883,7 +1882,7 @@ function SwipeableCandidateCard({
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Floating Action Feedback Toast */}
       {toastMessage && (
         <View style={styles.toastBanner}>

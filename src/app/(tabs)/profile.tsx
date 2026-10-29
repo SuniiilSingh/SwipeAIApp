@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
   Linking,
   Modal,
   Platform,
@@ -1535,7 +1536,7 @@ export default function ProfileScreen() {
   const completionScore = calculateLocalPct();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Top Header Bar */}
       <View style={styles.topHeader}>
         <Text style={styles.topHeaderTitle}>
@@ -3360,7 +3361,9 @@ export default function ProfileScreen() {
           transparent
           animationType="slide"
           onRequestClose={() => setShowAutoShieldModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.guideHeaderIconWrap}>
                 <Text style={{ fontSize: 28 }}>🛡️</Text>
@@ -3472,7 +3475,7 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Close</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -3484,7 +3487,9 @@ export default function ProfileScreen() {
       {/* 1. Modular Modal: Personal Details & Vitals */}
       {showPersonalDetailsModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowPersonalDetailsModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '90%' }]}>
               <View style={styles.modularModalHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -3675,14 +3680,16 @@ export default function ProfileScreen() {
                 <Text style={styles.iosConfirmBtnText}>Save Personal Details ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 2. Modular Modal: Dating Goal & Orientation */}
       {showDatingGoalModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowDatingGoalModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '90%' }]}>
               <View style={styles.modularModalHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -3823,14 +3830,16 @@ export default function ProfileScreen() {
                 <Text style={styles.iosConfirmBtnText}>Save Goal & Orientation ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 3. Modular Modal: Bio Description & Prompts */}
       {showBioModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowBioModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '90%' }]}>
               <View style={styles.modularModalHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -3918,14 +3927,16 @@ export default function ProfileScreen() {
                 <Text style={styles.iosConfirmBtnText}>Save Bio & Prompts ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 4. Modular Modal: What I'm Into & Passions */}
       {showWhatImIntoModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowWhatImIntoModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '90%' }]}>
               <View style={styles.modularModalHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -4022,14 +4033,16 @@ export default function ProfileScreen() {
                 <Text style={styles.iosConfirmBtnText}>Save Passions & Interests ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 5. Modular Modal: Culture & Lifestyle */}
       {showCultureModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowCultureModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '90%' }]}>
               <View style={styles.modularModalHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -4149,14 +4162,16 @@ export default function ProfileScreen() {
                 <Text style={styles.iosConfirmBtnText}>Save Culture & Lifestyle ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 6. Modular Modal: Habit & Vacation Vibe */}
       {showHabitsModal && (
         <Modal visible={true} transparent animationType="slide" onRequestClose={() => setShowHabitsModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '90%' }]}>
               <View style={styles.modularModalHeaderRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -4280,7 +4295,7 @@ export default function ProfileScreen() {
                 <Text style={styles.iosConfirmBtnText}>Save Habit & Vacation Vibe ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -4291,7 +4306,9 @@ export default function ProfileScreen() {
       {/* 1. Date of Birth Picker Modal */}
       {showDobPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderEmoji}>🎂</Text>
               <Text style={styles.modalHeaderTitle}>Select Date of Birth</Text>
@@ -4347,14 +4364,16 @@ export default function ProfileScreen() {
                 <Text style={[styles.modalConfirmBtnText, { color: '#8E94A5' }]}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 2. Dietary Preference Modal Picker */}
       {showDietPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Dietary Preference 🥗</Text>
               <Text style={styles.modalHeaderSub}>Crucial in Indian dating to prevent awkward dining surprises.</Text>
@@ -4377,14 +4396,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 3. Living Situation Modal Picker */}
       {showLivingPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Living Situation 🏠</Text>
               <Text style={styles.modalHeaderSub}>Affects spontaneous dating logistics & curfew compatibility.</Text>
@@ -4407,7 +4428,7 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -4423,7 +4444,9 @@ export default function ProfileScreen() {
             setLanguageSearchQuery('');
             setCustomLanguageInput('');
           }}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '85%' }]}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 4 }}>
                 <Text style={styles.modalHeaderTitle}>Languages Known 🗣️</Text>
@@ -4583,14 +4606,16 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 3B. Smoking Modal Picker */}
       {showSmokingPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Smoking Habit 🚭</Text>
               <Text style={styles.modalHeaderSub}>Be upfront about your smoking habits for better compatibility.</Text>
@@ -4613,14 +4638,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 3C. Drinking Modal Picker */}
       {showDrinkingPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Alcohol / Drinking Habit 🍷</Text>
               <Text style={styles.modalHeaderSub}>Your drinking comfort level for Friday night plans & cocktail dates.</Text>
@@ -4643,14 +4670,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 3D. Vacation Vibe: Mountains vs Beaches Modal Picker */}
       {showVacationPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Mountains or Beaches? 🏔️🏖️</Text>
               <Text style={styles.modalHeaderSub}>Choose your go-to weekend escape & holiday vibe.</Text>
@@ -4673,14 +4702,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 3E. Hobbies Multi-Select Modal */}
       {showHobbiesPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '80%' }]}>
               <Text style={styles.modalHeaderTitle}>Select Hobbies & Pursuits 🎨</Text>
               <Text style={styles.modalHeaderSub}>Tap to select or deselect what you enjoy doing.</Text>
@@ -4728,14 +4759,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalConfirmBtnText}>Save Hobbies ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 4. Job / Occupation Picker Modal */}
       {showJobPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Occupation 💼</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
@@ -4757,14 +4790,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 5. Education Picker Modal */}
       {showEduPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Education 🎓</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
@@ -4786,14 +4821,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 6. Interests Multi-Select Modal */}
       {showInterestPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '80%' }]}>
               <Text style={styles.modalHeaderTitle}>Select Interests (At least 3) 🏷️</Text>
               <Text style={styles.modalHeaderSub}>Tap to select or deselect interests.</Text>
@@ -4830,14 +4867,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalConfirmBtnText}>Save Interests ✓</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 7. Sexual Orientation Modal */}
       {showOrientationPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Sexual Orientation 🏳️‍🌈</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
@@ -4859,14 +4898,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 8. Gender Modal */}
       {showGenderPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Gender 👤</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
@@ -4888,14 +4929,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 9. Gender Preference Modal */}
       {showPreferencePickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Interested In 👥</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
@@ -4917,14 +4960,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 10. Intent Modal */}
       {showIntentPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Relationship Goal 🎯</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
@@ -4946,14 +4991,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 11. Prompt Question Modal */}
       {showPromptPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalHeaderTitle}>Select Prompt Question 🗣️</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%', marginVertical: 12 }}>
@@ -4975,14 +5022,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 12. Vedic Zodiac (Rashi) Picker Modal */}
       {showZodiacPickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '85%' }]}>
               <Text style={styles.modalHeaderEmoji}>🪐</Text>
               <Text style={styles.modalHeaderTitle}>Select Vedic Zodiac (Rashi)</Text>
@@ -5019,14 +5068,16 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
       {/* 13. 15-Second Voice Note Recorder Modal */}
       {showVoiceRecorderModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '88%' }]}>
               <Text style={styles.modalHeaderEmoji}>🎙️</Text>
               <Text style={styles.modalHeaderTitle}>15s Vernacular Voice Note</Text>
@@ -5142,7 +5193,7 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Close</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -5167,7 +5218,9 @@ export default function ProfileScreen() {
       {/* 14. Profile Meme Selector Modal */}
       {showMemePickerModal && (
         <Modal visible={true} transparent animationType="slide">
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={[styles.modalCard, { maxHeight: '88%' }]}>
               <Text style={styles.modalHeaderEmoji}>🤣</Text>
               <Text style={styles.modalHeaderTitle}>Select Profile Meme</Text>
@@ -5248,7 +5301,7 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -5259,7 +5312,9 @@ export default function ProfileScreen() {
           transparent
           animationType="fade"
           onRequestClose={() => setShowCompletionGuideModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.guideModalCard}>
               <View style={styles.guideHeaderIconWrap}>
                 <Text style={{ fontSize: 30 }}>🚀</Text>
@@ -5391,7 +5446,7 @@ export default function ProfileScreen() {
                 <Text style={styles.guideExploreBtnText}>Start Discovering Singles ❤️</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 

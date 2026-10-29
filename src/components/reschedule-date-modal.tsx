@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -103,27 +104,31 @@ export default function RescheduleDateModal({
       transparent
       animationType="slide"
       onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}>
-        <View style={styles.sheet} onStartShouldSetResponder={() => true}>
-          <View style={styles.handle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={onClose}>
+          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.handle} />
 
-          <View style={styles.header}>
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeIcon}>💬</Text>
-              <Text style={styles.headerBadgeText}>POLITE RESCHEDULE & COUNTER-OFFER</Text>
+            <View style={styles.header}>
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeIcon}>💬</Text>
+                <Text style={styles.headerBadgeText}>POLITE RESCHEDULE & COUNTER-OFFER</Text>
+              </View>
+              <Text style={styles.title}>Reschedule or Decline</Text>
+              <Text style={styles.subtitle}>
+                Clear reasons prevent ghosting & protect mutual chemistry. You can suggest an alternate time or spot!
+              </Text>
             </View>
-            <Text style={styles.title}>Reschedule or Decline</Text>
-            <Text style={styles.subtitle}>
-              Clear reasons prevent ghosting & protect mutual chemistry. You can suggest an alternate time or spot!
-            </Text>
-          </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}>
             {/* 1. SELECT REASON */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>1. SELECT REASON</Text>
@@ -304,7 +309,8 @@ export default function RescheduleDateModal({
           </ScrollView>
         </View>
       </TouchableOpacity>
-    </Modal>
+    </KeyboardAvoidingView>
+  </Modal>
   );
 }
 

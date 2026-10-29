@@ -2036,7 +2036,7 @@ export default function OnboardingDecksScreen() {
           ======================================================== */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 48 : 0}>
         <ScrollView
           ref={mainScrollRef}
@@ -3729,7 +3729,9 @@ export default function OnboardingDecksScreen() {
           transparent
           animationType="slide"
           onRequestClose={() => setShowGenderModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalTopRow}>
                 <View style={{ flex: 1 }}>
@@ -3759,7 +3761,9 @@ export default function OnboardingDecksScreen() {
                 />
               </View>
 
-              <ScrollView style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}>
+              <ScrollView
+                style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}
+                keyboardShouldPersistTaps="handled">
                 {GENDER_PRESETS.filter((g) => g !== 'Other').map((item) => {
                   const isSel = tempGenderDisplay === item;
                   return (
@@ -3803,7 +3807,7 @@ export default function OnboardingDecksScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -3814,7 +3818,9 @@ export default function OnboardingDecksScreen() {
           transparent
           animationType="slide"
           onRequestClose={() => setShowPreferenceModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalTopRow}>
                 <View style={{ flex: 1 }}>
@@ -3844,7 +3850,9 @@ export default function OnboardingDecksScreen() {
                 />
               </View>
 
-              <ScrollView style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}>
+              <ScrollView
+                style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}
+                keyboardShouldPersistTaps="handled">
                 {[
                   ...GENDER_PREFERENCE_PRESETS.filter((p) => p !== 'Other'),
                   'Non-binary',
@@ -3886,7 +3894,7 @@ export default function OnboardingDecksScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 
@@ -3897,7 +3905,9 @@ export default function OnboardingDecksScreen() {
           transparent
           animationType="slide"
           onRequestClose={() => setShowOrientationModal(false)}>
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <View style={styles.modalTopRow}>
                 <View style={{ flex: 1 }}>
@@ -3927,7 +3937,9 @@ export default function OnboardingDecksScreen() {
                 />
               </View>
 
-              <ScrollView style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}>
+              <ScrollView
+                style={{ maxHeight: 260, width: '100%', marginVertical: 6 }}
+                keyboardShouldPersistTaps="handled">
                 {SEXUAL_ORIENTATION_PRESETS.filter((o) => o !== 'Other').map((item) => {
                   const isSel = tempOrientation === item;
                   return (
@@ -3963,7 +3975,7 @@ export default function OnboardingDecksScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       )}
 

@@ -40,6 +40,8 @@ export default function MatchesScreen() {
   const { needsRetry: needsLivenessRetry } = useLivenessRecovery();
   const [showLivenessRetakeModal, setShowLivenessRetakeModal] = useState(false);
   const [matches, setMatches] = useState<MatchItem[]>([]);
+  const matchesCountRef = useRef(0);
+  matchesCountRef.current = matches.length;
   const [likesReceived, setLikesReceived] = useState<CandidateCard[]>([]);
   const [selectedLikeCandidate, setSelectedLikeCandidate] = useState<CandidateCard | null>(null);
   const [showLikeRevealGateModal, setShowLikeRevealGateModal] = useState(false);
@@ -240,11 +242,11 @@ export default function MatchesScreen() {
     useCallback(() => {
       setFilterType('ALL');
       setSearchQuery('');
-      loadMatches(matches.length > 0);
+      loadMatches(matchesCountRef.current > 0);
       getEngagementStatus()
         .then((status) => setIsEngagementEligible(status.isEligibleForPrompt))
         .catch(() => {});
-    }, [loadMatches, matches.length])
+    }, [loadMatches])
   );
 
   // Instant real-time UI refresh over WebSocket when matches or likes occur
@@ -506,7 +508,7 @@ export default function MatchesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Matches & Conversations</Text>

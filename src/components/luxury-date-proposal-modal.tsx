@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -68,16 +69,26 @@ export default function LuxuryDateProposalModal({
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
 
-  // Hydrate saved emergency contact
+  // Hydrate saved emergency contact (synced with Safe Date spots)
   useEffect(() => {
-    AsyncStorage.getItem('@blunderr_emergency_contact').then((val) => {
+    AsyncStorage.getItem('@blunderr_emergency_contact').then(async (val) => {
+      let foundName = '';
+      let foundPhone = '';
       if (val) {
         try {
           const parsed = JSON.parse(val);
-          if (parsed.name) setEmergencyName(parsed.name);
-          if (parsed.phone) setEmergencyPhone(parsed.phone);
+          if (parsed.name) foundName = parsed.name;
+          if (parsed.phone) foundPhone = parsed.phone;
         } catch {}
       }
+      if (!foundPhone) {
+        const altPhone = await AsyncStorage.getItem('SAFE_DATE_EMERGENCY_CONTACT').catch(() => null);
+        const altName = await AsyncStorage.getItem('SAFE_DATE_GUARDIAN_NAME').catch(() => null);
+        if (altPhone) foundPhone = altPhone;
+        if (altName) foundName = altName;
+      }
+      if (foundName) setEmergencyName(foundName);
+      if (foundPhone) setEmergencyPhone(foundPhone);
     }).catch(() => {});
   }, []);
 
@@ -129,12 +140,16 @@ export default function LuxuryDateProposalModal({
     const finalTime = isCustomTime && customTimeInput.trim() ? customTimeInput.trim() : selectedTime;
     const finalVibe = isCustomTime && customTimeInput.trim() ? 'Custom Planned Time ⏰' : selectedTimeVibe;
     
-    // Save emergency contact locally for convenience
+    // Save emergency contact locally for convenience (two-way sync with Safe Date)
     if (emergencyName.trim() || emergencyPhone.trim()) {
-      AsyncStorage.setItem(
-        '@blunderr_emergency_contact',
-        JSON.stringify({ name: emergencyName.trim(), phone: emergencyPhone.trim() })
-      ).catch(() => {});
+      const contactObj = { name: emergencyName.trim(), phone: emergencyPhone.trim() };
+      AsyncStorage.setItem('@blunderr_emergency_contact', JSON.stringify(contactObj)).catch(() => {});
+      if (emergencyPhone.trim()) {
+        AsyncStorage.setItem('SAFE_DATE_EMERGENCY_CONTACT', emergencyPhone.trim()).catch(() => {});
+      }
+      if (emergencyName.trim()) {
+        AsyncStorage.setItem('SAFE_DATE_GUARDIAN_NAME', emergencyName.trim()).catch(() => {});
+      }
     }
 
     onSendProposal({
@@ -156,32 +171,36 @@ export default function LuxuryDateProposalModal({
       transparent
       animationType="slide"
       onRequestClose={onClose}>
-      <TouchableOpacity
-        style={styles.overlay}
-        activeOpacity={1}
-        onPress={onClose}>
-        <View
-          style={styles.sheet}
-          onStartShouldSetResponder={() => true}>
-          {/* Sheet Handle */}
-          <View style={styles.handle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}>
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={onClose}>
+          <View
+            style={styles.sheet}
+            onStartShouldSetResponder={() => true}>
+            {/* Sheet Handle */}
+            <View style={styles.handle} />
 
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeIcon}>💌</Text>
-              <Text style={styles.headerBadgeText}>SAFEDATE SHIELD™ PROPOSAL</Text>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeIcon}>💌</Text>
+                <Text style={styles.headerBadgeText}>SAFEDATE SHIELD™ PROPOSAL</Text>
+              </View>
+              <Text style={styles.title}>Propose a Real Date</Text>
+              <Text style={styles.subtitle}>
+                Turn digital spark into real chemistry with {candidateName}.
+                Sending triggers an illuminated card and live flower shower on their screen!
+              </Text>
             </View>
-            <Text style={styles.title}>Propose a Real Date</Text>
-            <Text style={styles.subtitle}>
-              Turn digital spark into real chemistry with {candidateName}.
-              Sending triggers an illuminated card and live flower shower on their screen!
-            </Text>
-          </View>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.scrollContent}>
             {/* 1. DATE SELECTOR */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
@@ -482,7 +501,8 @@ export default function LuxuryDateProposalModal({
           </ScrollView>
         </View>
       </TouchableOpacity>
-    </Modal>
+    </KeyboardAvoidingView>
+  </Modal>
   );
 }
 

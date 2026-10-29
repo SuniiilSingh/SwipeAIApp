@@ -193,7 +193,7 @@ export default function StoreScreen() {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
   const availableRails = getAvailablePaymentRails();
-  const [selectedRail, setSelectedRail] = useState<PaymentRail>(availableRails[0].rail);
+  const [selectedRail, setSelectedRail] = useState<PaymentRail>(availableRails[0]?.rail || 'SBI_DIRECT_UPI');
 
   const activeRail = getActivePaymentRail(selectedRail);
 

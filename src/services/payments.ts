@@ -2,6 +2,7 @@ import { Linking, Platform } from 'react-native';
 import { api } from '@/services/api';
 import { SkuCatalogItem } from '@/types';
 import { hapticFeedback } from '@/utils/haptics';
+import { FEATURE_FLAGS } from '@/config/features';
 
 export type PaymentRail = 'APPLE_STOREKIT' | 'GOOGLE_PLAY' | 'SBI_DIRECT_UPI' | 'CARDS_NETBANKING' | 'CASHFREE_WEB';
 
@@ -18,8 +19,13 @@ export interface PaymentRailInfo {
  * Returns all available payment rails for the current runtime.
  * Under Apple App Store Guideline 3.1.1, iOS requires Apple StoreKit.
  * Under Google Play User Choice Billing (India), Android offers Google Play and Alternative Billing (Direct UPI & Cards).
+ * When payments/store are disabled, returns an empty array to prevent checkout initiation.
  */
 export function getAvailablePaymentRails(): PaymentRailInfo[] {
+  if (!FEATURE_FLAGS.ENABLE_STORE && !FEATURE_FLAGS.ENABLE_UPI_PAYMENTS) {
+    return [];
+  }
+
   if (Platform.OS === 'ios') {
     return [
       {
@@ -71,10 +77,20 @@ export function getAvailablePaymentRails(): PaymentRailInfo[] {
 
 /**
  * Returns default payment rail.
- * Defaults to SBI Direct UPI for 0% fees, or StoreKit on iOS.
+ * Defaults to disabled state if payments are turned off.
  */
 export function getActivePaymentRail(preferred?: PaymentRail): PaymentRailInfo {
   const rails = getAvailablePaymentRails();
+  if (rails.length === 0) {
+    return {
+      rail: 'SBI_DIRECT_UPI',
+      name: 'Payments Disabled',
+      badge: '🔒 Disabled',
+      description: 'Payments are currently disabled for this build.',
+      securityNotice: 'Payment options are disabled in this release.',
+      isStoreKitOrPlay: false,
+    };
+  }
   if (preferred) {
     const found = rails.find((r) => r.rail === preferred);
     if (found) return found;
@@ -129,6 +145,11 @@ export async function executePurchase(
   chosenRail?: PaymentRail,
   onProgress?: (status: string) => void
 ): Promise<PurchaseResult> {
+  if (!FEATURE_FLAGS.ENABLE_STORE && !FEATURE_FLAGS.ENABLE_UPI_PAYMENTS) {
+    hapticFeedback.warning();
+    throw new Error('Payments and in-app purchases are disabled for this build.');
+  }
+
   const active = getActivePaymentRail(chosenRail);
   const effectiveRail = active.rail;
   const isStore = effectiveRail === 'GOOGLE_PLAY' || effectiveRail === 'APPLE_STOREKIT';

@@ -1704,6 +1704,9 @@ export const api = {
   },
 
   createUpiOrder: async (sku: string, vpa?: string) => {
+    if (!FEATURE_FLAGS.ENABLE_STORE && !FEATURE_FLAGS.ENABLE_UPI_PAYMENTS) {
+      throw new Error('Payments are disabled for this build.');
+    }
     try {
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/upi/create-order`, {
         method: 'POST',
@@ -1793,6 +1796,9 @@ export const api = {
     orderId?: string;
     sku?: string;
   }) => {
+    if (!FEATURE_FLAGS.ENABLE_STORE && !FEATURE_FLAGS.ENABLE_UPI_PAYMENTS) {
+      throw new Error('In-app purchases are disabled for this build.');
+    }
     try {
       if (!authToken) await initAuth();
       const res = await fetchWithTimeout(`${BASE_URL}/v1/payments/iap/verify`, {

@@ -116,10 +116,23 @@ class PhoneAuthService {
     const normalizedPhone = api.normalizePhone(phoneE164);
     const cleanOtp = otpCode.trim();
 
-    // 1. Firebase verification (Real SMS OTP)
+    // 1. Firebase verification (Real SMS OTP or Firebase Whitelisted Test Numbers)
     if (this.activeSession?.provider === 'firebase' && this.activeSession.sessionInfo) {
       const idToken = await this.verifyFirebaseSms(this.activeSession.sessionInfo, cleanOtp);
-      return api.firebaseLogin(idToken, normalizedPhone, extraData);
+      try {
+        return await api.firebaseLogin(idToken, normalizedPhone, extraData);
+      } catch (fbLoginErr: any) {
+        console.log('[PhoneAuth] Fallback to standard verify endpoint:', fbLoginErr?.message);
+        return await api.verifyOtp(
+          normalizedPhone,
+          cleanOtp,
+          extraData?.channel || 'sms',
+          extraData?.latitude,
+          extraData?.longitude,
+          extraData?.city,
+          extraData?.location
+        );
+      }
     }
 
     // 2. Secondary provider verification

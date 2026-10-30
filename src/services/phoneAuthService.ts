@@ -49,37 +49,24 @@ class PhoneAuthService {
         this.activeSession = session;
         return session;
       } catch (fbErr: any) {
-        console.warn('[PhoneAuth] Firebase OTP error:', fbErr?.message || fbErr);
+        console.warn('[PhoneAuth] Firebase OTP error, falling back to backend:', fbErr?.message || fbErr);
 
-        const isQuotaOrLimit =
-          fbErr?.message?.includes('QUOTA_EXCEEDED') ||
-          fbErr?.message?.includes('TOO_MANY_ATTEMPTS') ||
-          fbErr?.code === 'auth/quota-exceeded';
-
-        if (isQuotaOrLimit) {
-          // Check if another provider is configured on backend
-          const serverConfig = await api.getAuthConfig();
-          if (serverConfig?.secondaryConfigured) {
-            console.log(
-              `[PhoneAuth] Firebase quota exceeded. Switching to secondary provider: ${serverConfig.secondaryProvider}`
-            );
-            const secondaryResult = await api.sendOtp(normalizedPhone, channel);
-            const session: PhoneAuthSession = {
-              phoneE164: normalizedPhone,
-              provider: 'secondary',
-              secondaryChannel: channel,
-              message: `Dispatched via ${serverConfig.secondaryProvider}`,
-              isMock: false,
-            };
-            this.activeSession = session;
-            return session;
-          }
-          throw new Error(
-            'Daily SMS quota exceeded. Please try again later or contact support.'
-          );
+        // Graceful fallback to backend OTP dispatch so users are never blocked by Google app verification
+        try {
+          const backendResult = await api.sendOtp(normalizedPhone, channel);
+          const session: PhoneAuthSession = {
+            phoneE164: normalizedPhone,
+            provider: 'secondary',
+            secondaryChannel: channel,
+            message: backendResult.message || 'OTP sent via SMS',
+            isMock: false,
+          };
+          this.activeSession = session;
+          return session;
+        } catch (backendErr: any) {
+          console.warn('[PhoneAuth] Backend dispatch fallback error:', backendErr?.message || backendErr);
+          throw fbErr;
         }
-
-        throw fbErr;
       }
     }
 
@@ -118,11 +105,24 @@ class PhoneAuthService {
 
     // 1. Firebase verification (Real SMS OTP or Firebase Whitelisted Test Numbers)
     if (this.activeSession?.provider === 'firebase' && this.activeSession.sessionInfo) {
-      const idToken = await this.verifyFirebaseSms(this.activeSession.sessionInfo, cleanOtp);
       try {
-        return await api.firebaseLogin(idToken, normalizedPhone, extraData);
-      } catch (fbLoginErr: any) {
-        console.log('[PhoneAuth] Fallback to standard verify endpoint:', fbLoginErr?.message);
+        const idToken = await this.verifyFirebaseSms(this.activeSession.sessionInfo, cleanOtp);
+        try {
+          return await api.firebaseLogin(idToken, normalizedPhone, extraData);
+        } catch (fbLoginErr: any) {
+          console.log('[PhoneAuth] Fallback to standard verify endpoint:', fbLoginErr?.message);
+          return await api.verifyOtp(
+            normalizedPhone,
+            cleanOtp,
+            extraData?.channel || 'sms',
+            extraData?.latitude,
+            extraData?.longitude,
+            extraData?.city,
+            extraData?.location
+          );
+        }
+      } catch (fbVerifyErr: any) {
+        console.log('[PhoneAuth] Firebase verify failed, trying standard verify endpoint:', fbVerifyErr?.message);
         return await api.verifyOtp(
           normalizedPhone,
           cleanOtp,

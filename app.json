@@ -20,7 +20,7 @@
       }
     },
     "android": {
-      "package": "com.blunderr.dating",
+      "package": "com.match.SwipeAI",
       "versionCode": 20,
       "allowBackup": false,
       "permissions": [

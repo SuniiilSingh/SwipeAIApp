@@ -163,6 +163,11 @@ class PhoneAuthService {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const errMsg = data?.error?.message || 'Failed to send SMS via Firebase';
+      if (errMsg.includes('MISSING_CLIENT_IDENTIFIER')) {
+        throw new Error(
+          'Firebase App Verification: Google requires Play Integrity or reCAPTCHA to send live SMS to unlisted numbers. To test, please add your number under Firebase Console ➔ Authentication ➔ Sign-in method ➔ Phone ➔ Phone numbers for testing.'
+        );
+      }
       throw new Error(errMsg);
     }
 
